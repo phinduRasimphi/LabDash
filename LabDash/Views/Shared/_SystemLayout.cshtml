@@ -14,17 +14,722 @@
     {
         if (User.IsInRole("Admin"))
         {
+            <div class="a-shell">
+
+                <!-- ═══════════════════════════
+                     GREEN SIDEBAR
+                ═══════════════════════════ -->
+                <aside class="a-sidebar">
+
+                    <!-- Logo -->
+                    <div class="a-logo">
+                        <div class="a-logo-icon"><i class="fas fa-shield-alt"></i></div>
+                        <div class="a-logo-text">Admin<span>Panel</span></div>
+                    </div>
+
+                    <!-- Admin identity strip -->
+                    <div class="a-user-strip">
+                        <div class="a-user-av">AD</div>
+                        <div>
+                            <div class="a-user-name">Administrator</div>
+                            <div class="a-user-role"><i class="fas fa-circle"></i> Online</div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <nav class="a-nav">
+
+                        <div class="a-nav-label">Overview</div>
+                        <a href="@Url.Action("Dashboard", "Admin")"
+                           class="a-nav-link @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "a-active" : "")">
+                            <span class="a-nav-icon"><i class="fas fa-th-large"></i></span>
+                            <span>Dashboard</span>
+                        </a>
+
+                        <div class="a-nav-label">Medical Reference Data</div>
+                        <a href="@Url.Action("Conditions", "Admin")"
+                           class="a-nav-link @(ViewData["ActivePage"]?.ToString() == "Conditions" ? "a-active" : "")">
+                            <span class="a-nav-icon"><i class="fas fa-heartbeat"></i></span>
+                            <span>Conditions</span>
+                        </a>
+                        <a href="@Url.Action("Allergies", "Admin")"
+                           class="a-nav-link @(ViewData["ActivePage"]?.ToString() == "Allergies" ? "a-active" : "")">
+                            <span class="a-nav-icon"><i class="fas fa-allergies"></i></span>
+                            <span>Allergies</span>
+                        </a>
+                        <a href="@Url.Action("Medications", "Admin")"
+                           class="a-nav-link @(ViewData["ActivePage"]?.ToString() == "Medications" ? "a-active" : "")">
+                            <span class="a-nav-icon"><i class="fas fa-pills"></i></span>
+                            <span>Medications</span>
+                        </a>
+
+                        <div class="a-nav-label">System</div>
+                        <a href="@Url.Action("SystemTables", "Admin")"
+                           class="a-nav-link @(ViewData["ActivePage"]?.ToString() == "SystemTables" ? "a-active" : "")">
+                            <span class="a-nav-icon"><i class="fas fa-database"></i></span>
+                            <span>System Tables</span>
+                        </a>
+                        <a href="@Url.Action("AuditLog", "Admin")"
+                           class="a-nav-link @(ViewData["ActivePage"]?.ToString() == "AuditLog" ? "a-active" : "")">
+                            <span class="a-nav-icon"><i class="fas fa-history"></i></span>
+                            <span>Audit Log</span>
+                        </a>
+
+                    </nav>
+                    <!-- Sidebar footer -->
+                    <div class="a-sidebar-footer">
+                        <a href="@Url.Action("Landing", "Home")" class="a-logout">
+                            <i class="fas fa-sign-out-alt"></i> Log Out
+                        </a>
+                        <div class="a-footer-note">LabPulse ; 2026</div>
+                    </div>
+
+
+                </aside>
+
+                <!-- ═══════════════════════════
+                     MAIN AREA
+                ═══════════════════════════ -->
+                <div class="a-main">
+
+                    <!-- TOP BAR -->
+                    <div class="a-topbar">
+                        <div class="a-tb-left">
+                            <div class="a-tb-title">@(ViewData["Title"] ?? "Dashboard")</div>
+                            <div class="a-tb-sub">
+                                @DateTime.Now.ToString("dddd, dd MMMM yyyy") &nbsp;·&nbsp; Admin Panel
+                            </div>
+                        </div>
+                        <div class="a-tb-right">
+                            <div class="a-notif">
+                                <i class="fas fa-bell"></i>
+                                <div class="a-ndot"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PAGE CONTENT -->
+                    <div class="a-content">
+                        @RenderBody()
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Toast -->
+            <div class="a-toast" id="a-toast"></div>
+
+            <script>
+                function showToast(message, duration) {
+                    duration = duration || 3000;
+                    var t = document.getElementById('a-toast');
+                    t.textContent = message;
+                    t.classList.add('show');
+                    setTimeout(function () { t.classList.remove('show'); }, duration);
+                }
+                function removeChip(el) { el.parentElement.remove(); }
+                function addChip(containerId, inputId, cls) {
+                    var input = document.getElementById(inputId);
+                    var val = input.value.trim();
+                    if (!val) return;
+                    var span = document.createElement('span');
+                    span.className = 'a-chip ' + cls;
+                    span.innerHTML = val + ' <span class="a-chip-rm" onclick="removeChip(this)">✕</span>';
+                    document.getElementById(containerId).appendChild(span);
+                    input.value = '';
+                    showToast('Category added.');
+                }
+                function openModal(id) { document.getElementById(id).classList.add('open'); }
+                function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+            </script>
+
+            @await RenderSectionAsync("Scripts", required: false)
                 
         }
 
-        else if (User.IsInRole("Ward_Admin"))
+        else if (User.IsInRole("Doctor"))
         {
+            <div class="d-shell">
+
+                <!-- GREEN SIDEBAR - DOCTOR VERSION -->
+                <aside class="d-sidebar">
+
+                    <!-- Logo -->
+                    <div class="d-logo">
+                        <div class="d-logo-icon"><i class="fas fa-stethoscope"></i></div>
+                        <div class="d-logo-text">NMB<span>LAB</span></div>
+                    </div>
+
+                    <!-- Doctor identity strip -->
+                    <div class="d-user-strip" id="doctorProfileBtn">
+                        <div class="d-user-av">DM</div>
+                        <div>
+                            <div class="d-user-name">Dr. Makuwa</div>
+                            <div class="d-user-role"><i class="fas fa-circle"></i> Online</div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <nav class="d-nav">
+                        <div class="d-nav-label">Overview</div>
+                        <a href="@Url.Action("Dashboard", "Doctor")" class="d-nav-link @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "d-active" : "")">
+                            <span class="d-nav-icon"><i class="fas fa-tachometer-alt"></i></span>
+                            <span>Dashboard</span>
+                        </a>
+
+                        <div class="d-nav-label">Patients</div>
+                        <a href="@Url.Action("ManagePatients", "Doctor")" class="d-nav-link @(ViewData["ActivePage"]?.ToString() == "ManagePatients" ? "d-active" : "")">
+                            <span class="d-nav-icon"><i class="fas fa-users"></i></span>
+                            <span>Manage Patients</span>
+                        </a>
+
+                        <div class="d-nav-label">Laboratory</div>
+                        <a href="@Url.Action("Create", "TestRequest")" class="d-nav-link">
+                            <span class="d-nav-icon"><i class="fas fa-flask"></i></span>
+                            <span>New Test Request</span>
+                        </a>
+                        <a href="@Url.Action("Track", "TestRequest")" class="d-nav-link">
+                            <span class="d-nav-icon"><i class="fas fa-chart-line"></i></span>
+                            <span>Track Requests</span>
+                        </a>
+                        <a href="@Url.Action("Results", "TestRequest")" class="d-nav-link">
+                            <span class="d-nav-icon"><i class="fas fa-file-medical"></i></span>
+                            <span>Results</span>
+                        </a>
+
+                        <div class="d-nav-label">Communication</div>
+                        <a href="@Url.Action("Alerts", "TestRequest")" class="d-nav-link">
+                            <span class="d-nav-icon"><i class="fas fa-bell"></i></span>
+                            <span>Alerts</span>
+                        </a>
+                    </nav>
+
+                    <!-- Footer - ONLY LOGOUT CHANGED TO FORM, STRUCTURE AND CSS UNCHANGED -->
+                    <div class="d-sidebar-footer">
+                        <a href="@Url.Action("Profile", "Doctor")" class="d-profile-link">
+                            <i class="fas fa-user-circle"></i> Profile
+                        </a>
+                        <form asp-controller="Doctor" asp-action="Logout" method="post" style="margin:0; padding:0;">
+                            <button type="submit" class="d-logout" style="background:none; border:none; width:100%; text-align:left; padding:8px 0; font-family:inherit; font-size:inherit; cursor:pointer;">
+                                <i class="fas fa-sign-out-alt"></i> Log Out
+                            </button>
+                        </form>
+                        <div class="d-footer-note">LabDASH &copy; 2026</div>
+                    </div>
+                </aside>
+
+                <!-- MAIN AREA -->
+                <div class="d-main">
+
+                    <!-- TOP BAR -->
+                    <div class="d-topbar">
+                        <div class="d-tb-left">
+                            <div class="d-tb-title">@(ViewData["Title"] ?? "Dashboard")</div>
+                            <div class="d-tb-sub">
+                                @DateTime.Now.ToString("dddd, dd MMMM yyyy") &nbsp;·&nbsp; Doctor Panel
+                            </div>
+                        </div>
+                        <div class="d-tb-right">
+                            <div class="d-notif" id="notificationBell">
+                                <button class="d-notif-btn" id="notifBtn">
+                                    <i class="fas fa-bell"></i>
+                                </button>
+                                <div class="d-ndot" id="notifDot" style="display: none;"></div>
+
+                                <div class="notif-dropdown" id="notifDropdown">
+                                    <div class="notif-header">
+                                        <h4><i class="fas fa-bell"></i> Notifications</h4>
+                                    </div>
+                                    <div class="notif-list" id="notifList">
+                                        <div class="notif-empty">
+                                            <i class="far fa-bell-slash"></i>
+                                            <h4>No New Notifications</h4>
+                                            <p>You're all caught up! We'll notify you when something needs your attention.</p>
+                                        </div>
+                                    </div>
+                                    <div class="notif-footer">
+                                        <a href="@Url.Action("Alerts", "TestRequest")">View all alerts →</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PAGE CONTENT -->
+                    <div class="d-content">
+                        @RenderBody()
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Profile Modal -->
+            <div id="profileModal" class="profile-modal">
+                <div class="profile-modal-content">
+                    <div class="profile-modal-header">
+                        <span class="profile-modal-close" onclick="closeProfileModal()">&times;</span>
+                        <div class="profile-modal-avatar">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        <div class="profile-modal-name">Dr. Makuwa</div>
+                        <div class="profile-modal-role">General Practitioner</div>
+                    </div>
+                    <div class="profile-modal-body">
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">Full Name</span>
+                            <span class="profile-info-value">MAKUWA KAMOGELO</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">Employee Number</span>
+                            <span class="profile-info-value">DR001</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">Email</span>
+                            <span class="profile-info-value">doctor@email.com</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">Phone</span>
+                            <span class="profile-info-value">012 109 8765</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">Department</span>
+                            <span class="profile-info-value">Health</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">Role</span>
+                            <span class="profile-info-value">Doctor</span>
+                        </div>
+                        <div class="profile-info-row">
+                            <span class="profile-info-label">Status</span>
+                            <span class="profile-status-active">Active</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast -->
+            <div class="d-toast" id="d-toast"></div>
+
+            <script>
+                function showToast(message, duration) {
+                    duration = duration || 3000;
+                    var t = document.getElementById('d-toast');
+                    t.textContent = message;
+                    t.classList.add('show');
+                    setTimeout(function () { t.classList.remove('show'); }, duration);
+                }
+
+                var profileModal = document.getElementById('profileModal');
+                var doctorProfileBtn = document.getElementById('doctorProfileBtn');
+
+                function openProfileModal() {
+                    profileModal.classList.add('show');
+                }
+
+                function closeProfileModal() {
+                    profileModal.classList.remove('show');
+                }
+
+                if (doctorProfileBtn) {
+                    doctorProfileBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        openProfileModal();
+                    });
+                }
+
+                window.addEventListener('click', function(e) {
+                    if (e.target === profileModal) {
+                        closeProfileModal();
+                    }
+                });
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    var notifBtn = document.getElementById('notifBtn');
+                    var notifDropdown = document.getElementById('notifDropdown');
+                    var notifDot = document.getElementById('notifDot');
+
+                    function checkForAlerts() {
+                        var testRequests = JSON.parse(localStorage.getItem('testRequests')) || [];
+                        var alertCount = 0;
+                        for (var i = 0; i < testRequests.length; i++) {
+                            if (testRequests[i].status === 'Completed' && testRequests[i].testResults) {
+                                for (var j = 0; j < testRequests[i].testResults.length; j++) {
+                                    if (testRequests[i].testResults[j].isAbnormal) alertCount++;
+                                }
+                            }
+                        }
+
+                        if (alertCount > 0) {
+                            notifDot.style.display = 'block';
+                        } else {
+                            notifDot.style.display = 'none';
+                        }
+                    }
+
+                    if (notifBtn) {
+                        notifBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            notifDropdown.classList.toggle('show');
+                        });
+                    }
+
+                    document.addEventListener('click', function() {
+                        if (notifDropdown) notifDropdown.classList.remove('show');
+                    });
+
+                    if (notifDropdown) {
+                        notifDropdown.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                        });
+                    }
+
+                    checkForAlerts();
+                });
+            </script>
+
+            @await RenderSectionAsync("Scripts", required: false)
                 
         }
 
-        else if (User.IsInRole("Ward_Admin"))
+        else if (User.IsInRole("Lab_Technician"))
         {
-                
+            <!-- =========================
+                 LAB TECHNICIAN LAYOUT
+            ========================== -->
+
+            <div class="dashboard-container">
+
+                <!-- Sidebar -->
+                <aside class="sidebar">
+
+                    <div class="sidebar-logo">
+                        Lab<span>DASH</span>
+                    </div>
+
+                    <div class="user-card">
+                        <div class="user-initials">SS</div>
+                        <div class="user-card-text">
+                            <h4>Tech. Sipika</h4>
+                            <div class="user-online">
+                                <span class="online-dot"></span>
+                                <span>Online</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="menu">
+
+                        <li class="menu-title">MAIN</li>
+
+                        <li>
+                            <a asp-controller="LabTechnician"
+                               asp-action="Dashboard">
+                                <i class="fa-solid fa-gauge"></i>
+                                Dashboard
+                            </a>
+                        </li>
+
+                        <li>
+                            <a asp-controller="LabTechnician"
+                               asp-action="ReceiveSamples">
+                                <i class="fa-solid fa-vials"></i>
+                                Receive Samples
+                            </a>
+                        </li>
+
+                        <li>
+                            <a asp-controller="LabTechnician"
+                               asp-action="AvailableTests">
+                                <i class="fa-solid fa-flask"></i>
+                                Select & Process Tests
+                            </a>
+                        </li>
+
+                        <li class="menu-title">LAB WORK</li>
+
+                        <li>
+                            <a asp-controller="LabTechnician"
+                               asp-action="CaptureResults">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                                Capture Results
+                            </a>
+                        </li>
+
+                        <li>
+                            <a asp-controller="LabTechnician"
+                               asp-action="VerificationQueue">
+                                <i class="fa-solid fa-check-double"></i>
+                                Verification Queue
+                            </a>
+                        </li>
+
+                        <li>
+                            <a asp-controller="LabTechnician"
+                               asp-action="ReviewQueue">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                To Be Reviewed
+                            </a>
+                        </li>
+
+                        <li>
+                            <a asp-controller="LabTechnician"
+                               asp-action="CompletedTests">
+                                <i class="fa-solid fa-circle-check"></i>
+                                Completed Tests
+                            </a>
+                        </li>
+
+                        <li class="menu-title">PATIENTS & REPORTS</li>
+
+                        <li>
+                            <a asp-controller="LabTechnician"
+                               asp-action="PatientInfo">
+                                <i class="fa-solid fa-user"></i>
+                                Patient Info
+                            </a>
+                        </li>
+
+                        <li>
+                            <a asp-controller="LabTechnician"
+                               asp-action="Reports">
+                                <i class="fa-solid fa-chart-column"></i>
+                                Reports
+                            </a>
+                        </li>
+
+                        <li class="menu-title">SYSTEM</li>
+
+                    </ul>
+
+                    <div class="sidebar-footer">
+
+                        <a class="profile-box"
+                           asp-controller="LabTechnician"
+                           asp-action="Profile">
+                            <i class="fa-solid fa-circle-user"></i>
+                            <span>Profile</span>
+                        </a>
+
+                        <form asp-controller="LabTechnician"
+                              asp-action="Logout"
+                              method="post">
+
+                            <button type="submit" class="logout-btn">
+                                <i class="fa-solid fa-right-from-bracket"></i>
+                                Log Out
+                            </button>
+
+                        </form>
+
+                        <div class="copyright">
+                            LabDASH © 2026
+                        </div>
+
+                    </div>
+
+                </aside>
+
+                <!-- Main Content -->
+                <main class="main-content">
+
+                    <header class="top-navbar">
+
+                        <div class="search-box">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text"
+                                   placeholder="Search patient, sample, test..." />
+                        </div>
+
+                    </header>
+
+                    <section class="page-content">
+                        @RenderBody()
+                    </section>
+
+                </main>
+
+            </div>
+
+            @await RenderSectionAsync("Scripts", required: false)
+        }
+
+        else if (User.IsInRole("Lab_Manager"))
+        {
+
+        }
+
+        else if (User.IsInRole("Patient"))
+        {
+                <div class="p-shell">
+
+                    <!-- ═══════════════════════════
+                         GREEN SIDEBAR
+                    ═══════════════════════════ -->
+                    <aside class="p-sidebar">
+
+                        <!-- Logo / Branding -->
+                        <div class="p-logo">
+                            <div class="p-logo-icon">
+                                <i class="fas fa-heartbeat"></i>
+                            </div>
+                            <div class="p-logo-text">
+                                Patient<span>Portal</span>
+                            </div>
+                        </div>
+
+                        <!-- Patient identity strip -->
+                        <div class="p-user-strip">
+                            <div class="p-user-av">@(ViewData["PatientInitials"] ?? "PT")</div>
+                            <div>
+                                <div class="p-user-name">@(ViewData["PatientName"] ?? "Patient")</div>
+                                <div class="p-user-role"><i class="fas fa-circle"></i> Online</div>
+                            </div>
+                        </div>
+
+                        <!-- Navigation -->
+                        <nav class="p-nav">
+
+                            <div class="p-nav-label">Overview</div>
+
+                            <a href="@Url.Action("Dashboard", "Patient")"
+                               class="p-nav-link @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "p-active" : "")">
+                                <span class="p-nav-icon"><i class="fas fa-th-large"></i></span>
+                                <span>Dashboard</span>
+                            </a>
+
+                            <a href="@Url.Action("Profile", "Patient")"
+                               class="p-nav-link @(ViewData["ActivePage"]?.ToString() == "Profile" ? "p-active" : "")">
+                                <span class="p-nav-icon"><i class="fas fa-user"></i></span>
+                                <span>My Profile</span>
+                            </a>
+
+                            <div class="p-nav-label">My Tests</div>
+
+                            <a href="@Url.Action("Requests", "Patient")"
+                               class="p-nav-link @(ViewData["ActivePage"]?.ToString() == "Requests" ? "p-active" : "")">
+                                <span class="p-nav-icon"><i class="fas fa-file-medical"></i></span>
+                                <span>Test Requests</span>
+                            </a>
+
+                            <a href="@Url.Action("Results", "Patient")"
+                               class="p-nav-link @(ViewData["ActivePage"]?.ToString() == "Results" ? "p-active" : "")">
+                                <span class="p-nav-icon"><i class="fas fa-chart-line"></i></span>
+                                <span>Results</span>
+                            </a>
+
+                            <div class="p-nav-label">Health</div>
+
+                            <a href="@Url.Action("MedicalHistory", "Patient")"
+                               class="p-nav-link @(ViewData["ActivePage"]?.ToString() == "MedicalHistory" ? "p-active" : "")">
+                                <span class="p-nav-icon"><i class="fas fa-notes-medical"></i></span>
+                                <span>Medical History</span>
+                            </a>
+
+                            <div class="p-nav-label">Access & Reports</div>
+
+                            <a href="@Url.Action("Consent", "Patient")"
+                               class="p-nav-link @(ViewData["ActivePage"]?.ToString() == "Consent" ? "p-active" : "")">
+                                <span class="p-nav-icon"><i class="fas fa-user-shield"></i></span>
+                                <span>Consent</span>
+                            </a>
+
+                            <a href="@Url.Action("Reports", "Patient")"
+                               class="p-nav-link @(ViewData["ActivePage"]?.ToString() == "Reports" ? "p-active" : "")">
+                                <span class="p-nav-icon"><i class="fas fa-file-pdf"></i></span>
+                                <span>Reports</span>
+                            </a>
+
+                        </nav>
+
+                        <!-- Sidebar footer -->
+                        <div class="p-sidebar-footer">
+                            <a href="@Url.Action("Landing", "Home")" class="p-logout">
+                                <i class="fas fa-sign-out-alt"></i> Log Out
+                            </a>
+                            <div class="p-footer-note">LabPulse ; 2026</div>
+                        </div>
+
+                    </aside>
+
+                    <!-- ═══════════════════════════
+                         MAIN AREA
+                    ═══════════════════════════ -->
+                    <div class="p-main">
+
+                        <!-- TOP BAR -->
+                        <div class="p-topbar">
+                            <div class="p-tb-left">
+                                <div class="p-tb-title">@(ViewData["Title"] ?? "Dashboard")</div>
+                                <div class="p-tb-sub">
+                                    @DateTime.Now.ToString("dddd, dd MMMM yyyy") &nbsp;·&nbsp; @(ViewData["PatientName"] ?? "Patient")
+                                </div>
+                            </div>
+                            <div class="p-tb-right">
+                                <div class="p-notif">
+                                    <i class="fas fa-bell"></i>
+                                    <div class="p-ndot"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PAGE CONTENT -->
+                        <div class="p-content">
+                            @RenderBody()
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- Toast -->
+                <div class="p-toast" id="p-toast"></div>
+
+                <script>
+                    function showToast(message, duration) {
+                        duration = duration || 3000;
+                        var t = document.getElementById('p-toast');
+                        t.textContent = message;
+                        t.classList.add('show');
+                        setTimeout(function () { t.classList.remove('show'); }, duration);
+                    }
+                    function removeTag(btn) { btn.closest('span').remove(); }
+                    function addTag(containerId, inputId, cssClass) {
+                        var input = document.getElementById(inputId);
+                        var val = input.value.trim();
+                        if (!val) return;
+                        var span = document.createElement('span');
+                        span.className = cssClass;
+                        if (cssClass === 'p-tag-cond') {
+                            span.innerHTML = val + ' <i class="fas fa-times p-tag-rm" onclick="removeTag(this)"></i>';
+                        } else {
+                            span.textContent = val;
+                        }
+                        document.getElementById(containerId).appendChild(span);
+                        input.value = '';
+                        showToast('Added successfully.');
+                    }
+                    function toggleConsent(btn) {
+                        if (btn.textContent.trim() === 'Revoke') {
+                            btn.textContent = 'Grant';
+                            btn.className = 'p-cbtn p-cb-grant';
+                            showToast('Access revoked.');
+                        } else {
+                            btn.textContent = 'Revoke';
+                            btn.className = 'p-cbtn p-cb-revoke';
+                            showToast('Access granted. Doctor notified.');
+                        }
+                    }
+                    function switchTab(el, showId, hideIds) {
+                        document.querySelectorAll('.p-tab').forEach(function (t) { t.classList.remove('p-tab-on'); });
+                        el.classList.add('p-tab-on');
+                        hideIds.forEach(function (id) { var e = document.getElementById(id); if (e) e.style.display = 'none'; });
+                        var s = document.getElementById(showId); if (s) s.style.display = '';
+                    }
+                </script>
+
+                @await RenderSectionAsync("Scripts", required: false)
         }
 
         }
