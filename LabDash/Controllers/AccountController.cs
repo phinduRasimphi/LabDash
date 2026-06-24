@@ -65,19 +65,19 @@ namespace LabDash.Controllers
                         TempData["SuccessMessage"] = "Welcome to your work environment!";
 
                         if (await _userManager.IsInRoleAsync(user, "Admin"))
-                            return RedirectToAction("Dashboard", "Admin");
+                            return RedirectToAction("Index", "Dashboard");
 
                         if (await _userManager.IsInRoleAsync(user, "Doctor"))
-                            return RedirectToAction("Dashboard", "Doctor");
+                            return RedirectToAction("Index", "Dashboard");
 
                         if (await _userManager.IsInRoleAsync(user, "Lab_Technician"))
-                            return RedirectToAction("Dashboard", "LabTechnician");
+                            return RedirectToAction("Index", "Dashboard");
 
                         if (await _userManager.IsInRoleAsync(user, "Lab_Manager"))
-                            return RedirectToAction("Dashboard", "LabManager");
+                            return RedirectToAction("Index", "Dashboard");
 
                         if (await _userManager.IsInRoleAsync(user, "Patient"))
-                            return RedirectToAction("Dashboard", "Patient");
+                            return RedirectToAction("Index", "Dashboard");
 
                         return RedirectToAction("Index", "Home");
                     }
