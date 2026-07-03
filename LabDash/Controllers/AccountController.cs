@@ -1,7 +1,10 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
+using LabDash.Services;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Client;
 
 namespace LabDash.Controllers
 {
@@ -13,11 +16,16 @@ namespace LabDash.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IUserStore<LabUser> _userStore;
         private readonly SignInManager<LabUser> _signInManager;
+        private readonly IEmailSender _emailSender;
 
         public AccountController(LabDbContext dbContext,
             UserManager<LabUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IUserStore<LabUser> userStore,
+
+          IEmailSender emailSender,
+
+
 
             SignInManager<LabUser> signInManager)
 
@@ -28,7 +36,7 @@ namespace LabDash.Controllers
             _userStore = userStore;
 
             _signInManager = signInManager;
-
+            _emailSender = emailSender;
         }
 
 
@@ -65,10 +73,78 @@ namespace LabDash.Controllers
                         TempData["SuccessMessage"] = "Welcome to your work environment!";
 
                         if (await _userManager.IsInRoleAsync(user, "Admin"))
+                        {
+                            string applicationName = "LabDash";
+
+                            string supportEmail = "LabDashSupport@gmail.com";
+                            await _emailSender.SendEmailAsync(model.Email, "Confirm your email",
+                           $"<html> <head> <style> body {{ font-family: Arial, sans-serif; }} " +
+
+                           $" padding: 10px 20px;" +
+                           $" text-decoration: none; border-radius: 5px; }}" +
+                           $".cta-button:hover {{ background-color: #265580; }}" +
+                           $".footer {{ margin-top: 20px; font-size: 12px; color: #888; }}" +
+       $"  </style>" +
+       $"</head>" +
+       $"<body>" +
+       $"" +
+       $"<h1>Welcome to {applicationName}!</h1>" +
+       $"<p>Dear User</p>" +
+       $"<p>Thank you for registering with {applicationName}! We're excited to have you on board as our friend. Before you can start using your daily activites, please confirm your email address by clicking the button below:</p>" +
+       $"<p><a class='cta-button' href=LabDashSupport>Confirm Email Address</a></p>" +
+       $"  <p>If you did not register for an account with {applicationName}, please ignore this email. It's possible that someone entered your email address by mistake.</p>" +
+       $"<p>If you have any questions or need assistance, please don't hesitate to contact our support team at {supportEmail}.</p>" +
+       $"<div class='footer'>" +
+       $" <p>Thank you for logging to ,</p>" +
+       $" <p>{applicationName} Team</p>" +
+       $"</div>" +
+       $" </body>" +
+       $"</html>");
                             return RedirectToAction("Index", "Dashboard");
 
+                        }
+
                         if (await _userManager.IsInRoleAsync(user, "Doctor"))
-                            return RedirectToAction("Index", "Dashboard");
+                        {
+                            string applicationName = "LabDash";
+
+                            string supportEmail = "LabDashSupport@gmail.com";
+                            string RealAccount = "phindu.ras2003@gmail.com";
+
+                            var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+
+
+                            var callbackUrl = $"https://3f60-41-145-194-166.ngrok-free.app/Registerdefowo/EmailVerified?userId={user.Id}&code={Uri.EscapeDataString(code)}";
+                            await _emailSender.SendEmailAsync(RealAccount, "Confirm your email",
+                           $"<html> <head> <style> body {{ font-family: Arial, sans-serif; }} " +
+
+                           $" padding: 10px 20px;" +
+                           $" text-decoration: none; border-radius: 5px; }}" +
+                           $".cta-button:hover {{ background-color: #265580; }}" +
+                           $".footer {{ margin-top: 20px; font-size: 12px; color: #888; }}" +
+       $"  </style>" +
+       $"</head>" +
+       $"<body>" +
+       $"" +
+       $"<h1>Welcome to {applicationName}!</h1>" +
+       $"<p>Dear User</p>" +
+       $"<p>Thank you for registering with {applicationName}! We're excited to have you on board as our friend. Before you can start using your daily activites, please confirm your email address by clicking the button below:</p>" +
+       $"<p><a class='cta-button' href=LabDashSupport>Confirm Email Address</a></p>" +
+       $"  <p>If you did not register for an account with {applicationName}, please ignore this email. It's possible that someone entered your email address by mistake.</p>" +
+       $"<p>If you have any questions or need assistance, please don't hesitate to contact our support team at {supportEmail}.</p>" +
+       $"<div class='footer'>" +
+       $" <p>Thank you for logging to ,</p>" +
+       $" <p>{applicationName} Team</p>" +
+       $"</div>" +
+       $" </body>" +
+       $"</html>");
+
+                         return RedirectToAction("Index", "Dashboard");
+
+
+                        }
+
+
 
                         if (await _userManager.IsInRoleAsync(user, "Lab_Technician"))
                             return RedirectToAction("Index", "Dashboard");
