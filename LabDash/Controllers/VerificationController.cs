@@ -1,6 +1,7 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -81,24 +82,55 @@ namespace LabDash.Controllers
         //---------------------------------------------------------
         // Verify Test
         //---------------------------------------------------------
+        //---------------------------------------------------------
+        // Verify Test
+        //---------------------------------------------------------
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Verify(TestVerification verification)
         {
+            if (!ModelState.IsValid)
+                return View(verification);
+
             var technician = await _userManager.GetUserAsync(User);
 
             if (technician == null)
                 return Challenge();
 
+            // Get the test item
             var item = await _context.TestRequestItems
                 .Include(t => t.TestRequest)
                 .FirstOrDefaultAsync(t =>
-                    t.TestRequestItemId ==
-                    verification.TestRequestItemId);
+                    t.TestRequestItemId == verification.TestRequestItemId);
 
             if (item == null)
                 return NotFound();
 
+            // Get the captured result
+            var result = await _context.TestResults
+                .FirstOrDefaultAsync(r =>
+                    r.TestRequestItemId == verification.TestRequestItemId);
+
+            if (result == null)
+            {
+                TempData["Error"] = "No test result has been captured.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            //---------------------------------------------------------
+            // Prevent technician from verifying own result
+            //---------------------------------------------------------
+            if (result.CapturedByTechnicianId == technician.Id)
+            {
+                TempData["Error"] =
+                    "You cannot verify a test result that you captured.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            //---------------------------------------------------------
+            // Save verification
+            //---------------------------------------------------------
             verification.VerifiedByTechnicianId = technician.Id;
             verification.VerificationDate = DateTime.Now;
 
@@ -114,10 +146,9 @@ namespace LabDash.Controllers
             _context.TestVerifications.Add(verification);
 
             //---------------------------------------------------------
-            // If every test is verified,
-            // update request status
+            // If every test in the request is verified,
+            // mark the whole request as verified
             //---------------------------------------------------------
-
             bool allVerified = await _context.TestRequestItems
                 .Where(x => x.RequestId == item.RequestId)
                 .AllAsync(x => x.Status == "Verified");
@@ -129,8 +160,7 @@ namespace LabDash.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Success"] =
-                "Verification completed successfully.";
+            TempData["Success"] = "Verification completed successfully.";
 
             return RedirectToAction(nameof(Index));
         }
