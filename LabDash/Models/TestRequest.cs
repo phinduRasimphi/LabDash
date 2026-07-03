@@ -20,6 +20,7 @@ namespace LabDash.Models
         public string Status { get; set; }
 
         public DateTime SubmittedDate { get; set; }
+        public virtual Patient Patient { get; set; }
 
         public virtual ICollection<Sample> Samples { get; set; }
             = new List<Sample>();

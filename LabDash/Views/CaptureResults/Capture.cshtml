@@ -1,0 +1,235 @@
+﻿@model LabDash.Models.TestResult
+
+@using LabDash.Models
+
+@{
+    ViewData["Title"] = "Capture Result";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    var test = ViewBag.TestItem as TestRequestItem;
+    var patient = ViewBag.Patient as Patient;
+}
+
+<div class="container-fluid">
+
+    <div class="card shadow-lg border-0">
+
+        <div class="card-header text-white"
+             style="background:#0d766e;">
+
+            <h3 class="mb-0">
+                <i class="fa-solid fa-microscope"></i>
+                Capture Test Result
+            </h3>
+
+        </div>
+
+        <div class="card-body">
+
+            <!-- ============================= -->
+            <!-- PATIENT INFORMATION           -->
+            <!-- ============================= -->
+
+            <div class="row mb-4">
+
+                <div class="col-md-6">
+
+                    <div class="card border-success">
+
+                        <div class="card-header bg-success text-white">
+
+                            Patient Information
+
+                        </div>
+
+                        <div class="card-body">
+
+                            <p>
+                                <strong>Patient:</strong>
+
+                                @patient?.Name @patient?.Surname
+                            </p>
+
+                            <p>
+                                <strong>ID Number:</strong>
+
+                                @patient?.IDNumber
+                            </p>
+
+                            <p>
+                                <strong>Email:</strong>
+
+                                @patient?.Email
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="col-md-6">
+
+                    <div class="card border-info">
+
+                        <div class="card-header bg-info text-white">
+
+                            Test Information
+
+                        </div>
+
+                        <div class="card-body">
+
+                            <p>
+
+                                <strong>Request:</strong>
+
+                                TR-@test?.RequestId
+
+                            </p>
+
+                            <p>
+
+                                <strong>Test Type:</strong>
+
+                                @test?.TestType?.Name
+
+                            </p>
+
+                            <p>
+
+                                <strong>Category:</strong>
+
+                                @test?.TestType?.Category
+
+                            </p>
+
+                            <p>
+
+                                <strong>Urgency:</strong>
+
+                                @test?.TestRequest?.Urgency
+
+                            </p>
+
+                            <p>
+
+                                <strong>Started:</strong>
+
+                                @test?.StartDateTime?.ToString("dd MMM yyyy HH:mm")
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- ============================= -->
+            <!-- CLINICAL NOTES                -->
+            <!-- ============================= -->
+
+            <div class="card border-warning mb-4">
+
+                <div class="card-header bg-warning">
+
+                    Doctor Clinical Notes
+
+                </div>
+
+                <div class="card-body">
+
+                    @test?.TestRequest?.ClinicalNotes
+
+                </div>
+
+            </div>
+
+            <!-- ============================= -->
+            <!-- CAPTURE RESULT                -->
+            <!-- ============================= -->
+
+            <form asp-action="Capture" method="post">
+
+                <input type="hidden"
+                       asp-for="TestRequestItemId" />
+
+                <div class="row">
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="ResultValue"
+                               class="form-label fw-bold"></label>
+
+                        <input asp-for="ResultValue"
+                               class="form-control" />
+
+                        <span asp-validation-for="ResultValue"
+                              class="text-danger"></span>
+
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="Units"
+                               class="form-label fw-bold"></label>
+
+                        <input asp-for="Units"
+                               class="form-control" />
+
+                    </div>
+
+                </div>
+
+                <div class="mb-3">
+
+                    <label asp-for="ReferenceRange"
+                           class="form-label fw-bold"></label>
+
+                    <input asp-for="ReferenceRange"
+                           class="form-control" />
+
+                </div>
+
+                <div class="mb-4">
+
+                    <label asp-for="Comments"
+                           class="form-label fw-bold"></label>
+
+                    <textarea asp-for="Comments"
+                              class="form-control"
+                              rows="4"></textarea>
+
+                </div>
+
+                <button type="submit"
+                        class="btn btn-success">
+
+                    <i class="fa-solid fa-floppy-disk"></i>
+
+                    Save Result
+
+                </button>
+
+                <a asp-action="Index"
+                   class="btn btn-secondary">
+
+                    Cancel
+
+                </a>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}

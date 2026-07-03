@@ -4,6 +4,7 @@ using LabDash.Areas.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    partial class LabDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260703140258_CaptureResults")]
+    partial class CaptureResults
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -109,46 +112,6 @@ namespace LabDash.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("LabDash.Models.Consumable", b =>
-                {
-                    b.Property<int>("ConsumableID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ConsumableID"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("Expiry")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ReorderLevel")
-                        .HasColumnType("int");
-
-                    b.Property<int>("StockLevel")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("ConsumableID");
-
-                    b.ToTable("Consumable");
-                });
-
             modelBuilder.Entity("LabDash.Models.Patient", b =>
                 {
                     b.Property<int>("PatientID")
@@ -156,10 +119,6 @@ namespace LabDash.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PatientID"));
-
-                    b.Property<string>("Allergies")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("DOB")
                         .HasColumnType("datetime2");
@@ -169,14 +128,6 @@ namespace LabDash.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("IDNumber")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("MedicalConditions")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Medication")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -436,72 +387,9 @@ namespace LabDash.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TurnaroundTimeHours")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.ToTable("TestType");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestTypeConsumable", b =>
-                {
-                    b.Property<int>("TestTypeConsumableId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TestTypeConsumableId"));
-
-                    b.Property<int>("ConsumableId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("QuantityRequired")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TestTypeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("TestTypeConsumableId");
-
-                    b.HasIndex("ConsumableId");
-
-                    b.HasIndex("TestTypeId");
-
-                    b.ToTable("TestTypeConsumables");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestVerification", b =>
-                {
-                    b.Property<int>("VerificationId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VerificationId"));
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TestRequestItemId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("VerificationDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("VerificationNotes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("VerifiedByTechnicianId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("VerificationId");
-
-                    b.HasIndex("TestRequestItemId");
-
-                    b.HasIndex("VerifiedByTechnicianId");
-
-                    b.ToTable("TestVerifications");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -739,44 +627,6 @@ namespace LabDash.Migrations
                     b.Navigation("TestRequestItem");
                 });
 
-            modelBuilder.Entity("LabDash.Models.TestTypeConsumable", b =>
-                {
-                    b.HasOne("LabDash.Models.Consumable", "Consumable")
-                        .WithMany("TestTypeConsumables")
-                        .HasForeignKey("ConsumableId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Models.TestType", "TestType")
-                        .WithMany("TestTypeConsumables")
-                        .HasForeignKey("TestTypeId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Consumable");
-
-                    b.Navigation("TestType");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestVerification", b =>
-                {
-                    b.HasOne("LabDash.Models.TestRequestItem", "TestRequestItem")
-                        .WithMany()
-                        .HasForeignKey("TestRequestItemId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Areas.Identity.Data.LabUser", "VerifiedByTechnician")
-                        .WithMany()
-                        .HasForeignKey("VerifiedByTechnicianId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TestRequestItem");
-
-                    b.Navigation("VerifiedByTechnician");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -828,11 +678,6 @@ namespace LabDash.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("LabDash.Models.Consumable", b =>
-                {
-                    b.Navigation("TestTypeConsumables");
-                });
-
             modelBuilder.Entity("LabDash.Models.TestRequest", b =>
                 {
                     b.Navigation("SampleReceives");
@@ -852,8 +697,6 @@ namespace LabDash.Migrations
                     b.Navigation("TechnicianTestTypes");
 
                     b.Navigation("TestRequestItems");
-
-                    b.Navigation("TestTypeConsumables");
                 });
 #pragma warning restore 612, 618
         }

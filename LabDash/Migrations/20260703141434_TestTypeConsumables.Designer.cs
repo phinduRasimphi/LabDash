@@ -4,6 +4,7 @@ using LabDash.Areas.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    partial class LabDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260703141434_TestTypeConsumables")]
+    partial class TestTypeConsumables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -157,10 +160,6 @@ namespace LabDash.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PatientID"));
 
-                    b.Property<string>("Allergies")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("DOB")
                         .HasColumnType("datetime2");
 
@@ -169,14 +168,6 @@ namespace LabDash.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("IDNumber")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("MedicalConditions")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Medication")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -436,9 +427,6 @@ namespace LabDash.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TurnaroundTimeHours")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.ToTable("TestType");
@@ -468,40 +456,6 @@ namespace LabDash.Migrations
                     b.HasIndex("TestTypeId");
 
                     b.ToTable("TestTypeConsumables");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestVerification", b =>
-                {
-                    b.Property<int>("VerificationId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VerificationId"));
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TestRequestItemId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("VerificationDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("VerificationNotes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("VerifiedByTechnicianId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("VerificationId");
-
-                    b.HasIndex("TestRequestItemId");
-
-                    b.HasIndex("VerifiedByTechnicianId");
-
-                    b.ToTable("TestVerifications");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -756,25 +710,6 @@ namespace LabDash.Migrations
                     b.Navigation("Consumable");
 
                     b.Navigation("TestType");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestVerification", b =>
-                {
-                    b.HasOne("LabDash.Models.TestRequestItem", "TestRequestItem")
-                        .WithMany()
-                        .HasForeignKey("TestRequestItemId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Areas.Identity.Data.LabUser", "VerifiedByTechnician")
-                        .WithMany()
-                        .HasForeignKey("VerifiedByTechnicianId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TestRequestItem");
-
-                    b.Navigation("VerifiedByTechnician");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

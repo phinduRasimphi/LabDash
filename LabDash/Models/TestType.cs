@@ -12,11 +12,15 @@ namespace LabDash.Models
         public string Category { get; set; }
 
         public string RequiredSampleType { get; set; }
+        public int TurnaroundTimeHours { get; set; }
 
         public virtual ICollection<TestRequestItem> TestRequestItems { get; set; }
             = new List<TestRequestItem>();
 
         public virtual ICollection<TechnicianTestType> TechnicianTestTypes { get; set; }
             = new List<TechnicianTestType>();
+        public virtual ICollection<TestTypeConsumable> TestTypeConsumables
+        { get; set; }
+    = new List<TestTypeConsumable>();
     }
 }

@@ -5,18 +5,36 @@
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        @TempData["Error"]
+    </div>
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">
+        <i class="fa-solid fa-circle-check"></i>
+        @TempData["Success"]
+    </div>
+}
+
 <h2 class="mb-4">Available Tests</h2>
 
 <table class="table table-bordered table-hover">
 
     <thead class="table-success">
         <tr>
+            <th>Progress</th>
             <th>Request</th>
             <th>Test</th>
             <th>Category</th>
             <th>Urgency</th>
             <th>Status</th>
             <th>Action</th>
+            <th>Expected Completion</th>
         </tr>
     </thead>
 
@@ -24,7 +42,61 @@
 
     @foreach (var item in Model)
     {
+            var expectedCompletion =
+           item.StartDateTime?.AddHours(item.TestType.TurnaroundTimeHours);
+
+            bool overdue =
+                expectedCompletion.HasValue &&
+                DateTime.Now > expectedCompletion.Value;
         <tr>
+                <td>
+
+                    @if (overdue)
+                    {
+                        <span class="badge bg-danger">
+                            OVERDUE
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-success">
+                            On Time
+                        </span>
+                    }
+
+                </td>
+
+                <td>
+
+                    @if (item.StartDateTime.HasValue)
+                    {
+                        var expected =
+                            item.StartDateTime.Value
+                                .AddHours(item.TestType.TurnaroundTimeHours);
+
+                        @expected.ToString("dd MMM yyyy HH:mm")
+
+                        <br />
+
+                        if (DateTime.Now < expected)
+                        {
+                            var remaining = expected - DateTime.Now;
+
+                            <small class="text-success">
+                                @remaining.Hours h @remaining.Minutes m remaining
+                            </small>
+                        }
+                        else
+                        {
+                            var late = DateTime.Now - expected;
+
+                            <small class="text-danger">
+                                @late.Hours h @late.Minutes m overdue
+                            </small>
+                        }
+                    }
+
+                </td>
 
             <td>@item.RequestId</td>
 
@@ -53,6 +125,7 @@
                 </form>
 
             </td>
+
 
         </tr>
     }

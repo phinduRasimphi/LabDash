@@ -19,6 +19,10 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<TestRequestItem> TestRequestItems { get; set; }
 
     public DbSet<TechnicianTestType> TechnicianTestTypes { get; set; }
+    public DbSet<TestResult> TestResults { get; set; }
+    public DbSet<Patient> Patients { get; set; }
+    public DbSet<TestTypeConsumable> TestTypeConsumables { get; set; }
+    public DbSet<TestVerification> TestVerifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -31,16 +35,46 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<TestRequestItem>()
-    .HasOne(t => t.TestRequest)
-    .WithMany(r => r.TestRequestItems)
-    .HasForeignKey(t => t.RequestId)
-    .OnDelete(DeleteBehavior.NoAction);
+            .HasOne(t => t.TestRequest)
+            .WithMany(r => r.TestRequestItems)
+            .HasForeignKey(t => t.RequestId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         builder.Entity<TechnicianTestType>()
-    .HasOne(t => t.TestType)
-    .WithMany(tt => tt.TechnicianTestTypes)
-    .HasForeignKey(t => t.TestTypeId)
-    .OnDelete(DeleteBehavior.NoAction);
+            .HasOne(t => t.TestType)
+            .WithMany(tt => tt.TechnicianTestTypes)
+            .HasForeignKey(t => t.TestTypeId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<TestResult>()
+            .HasOne(r => r.TestRequestItem)
+            .WithMany()
+            .HasForeignKey(r => r.TestRequestItemId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<TestRequest>()
+            .HasOne(t => t.Patient)
+            .WithMany()
+            .HasForeignKey(t => t.PatientId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<TestTypeConsumable>()
+            .HasOne(x => x.TestType)
+            .WithMany(x => x.TestTypeConsumables)
+            .HasForeignKey(x => x.TestTypeId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<TestTypeConsumable>()
+            .HasOne(x => x.Consumable)
+            .WithMany(x => x.TestTypeConsumables)
+            .HasForeignKey(x => x.ConsumableId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<TestVerification>()
+            .HasOne(v => v.TestRequestItem)
+            .WithMany()
+            .HasForeignKey(v => v.TestRequestItemId)
+            .OnDelete(DeleteBehavior.NoAction);
         // Customize the ASP.NET Identity model and override the defaults if needed.
         // For example, you can rename the ASP.NET Identity table names and more.
         // Add your customizations after calling base.OnModelCreating(builder);

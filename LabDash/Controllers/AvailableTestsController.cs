@@ -43,26 +43,69 @@ namespace LabDash.Controllers
             return View(tests);
         }
 
+        // Technician starts a test
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> StartTest(int id)
         {
             var technician = await _userManager.GetUserAsync(User);
 
+            if (technician == null)
+                return Challenge();
+
             var item = await _context.TestRequestItems
                 .Include(t => t.TestRequest)
+                .Include(t => t.TestType)
                 .FirstOrDefaultAsync(t => t.TestRequestItemId == id);
 
             if (item == null)
                 return NotFound();
 
+            // Get all consumables required for this test
+            var consumables = await _context.TestTypeConsumables
+                .Include(x => x.Consumable)
+                .Where(x => x.TestTypeId == item.TestTypeId)
+                .ToListAsync();
+
+            // ============================================
+            // CHECK THAT THERE IS ENOUGH STOCK
+            // ============================================
+            foreach (var c in consumables)
+            {
+                if (c.Consumable.StockLevel < c.QuantityRequired)
+                {
+                    TempData["Error"] =
+                        $"Cannot start the test. Not enough stock for '{c.Consumable.Name}'. " +
+                        $"Available: {c.Consumable.StockLevel}, Required: {c.QuantityRequired}.";
+
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+
+            // ============================================
+            // DEDUCT STOCK
+            // ============================================
+            foreach (var c in consumables)
+            {
+                c.Consumable.StockLevel -= c.QuantityRequired;
+                c.Consumable.UpdatedAt = DateTime.Now;
+            }
+
+            // ============================================
+            // ASSIGN TECHNICIAN
+            // ============================================
             item.AssignedTechnicianId = technician.Id;
             item.StartDateTime = DateTime.Now;
             item.Status = "In Progress";
 
-            bool firstTest =
-                !_context.TestRequestItems.Any(x =>
-                    x.RequestId == item.RequestId &&
-                    x.Status == "In Progress");
+            var expectedCompletion =
+    item.StartDateTime.Value.AddHours(item.TestType.TurnaroundTimeHours);
+
+            // If this is the first test started for the request,
+            // update the request status as well.
+            bool firstTest = !_context.TestRequestItems.Any(x =>
+                x.RequestId == item.RequestId &&
+                x.Status == "In Progress");
 
             if (firstTest)
             {
@@ -70,6 +113,8 @@ namespace LabDash.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Test started successfully. Consumables have been deducted from stock.";
 
             return RedirectToAction(nameof(Index));
         }

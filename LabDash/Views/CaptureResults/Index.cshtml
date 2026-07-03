@@ -1,0 +1,174 @@
+﻿@model IEnumerable<LabDash.Models.TestRequestItem>
+
+@{
+    ViewData["Title"] = "Capture Results";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success shadow-sm">
+        @TempData["Success"]
+    </div>
+}
+
+<div class="card shadow-lg border-0">
+
+    <div class="card-header text-white"
+         style="background:#0d766e;">
+
+        <h3 class="mb-0">
+            <i class="fa-solid fa-vials"></i>
+            Capture Test Results
+        </h3>
+
+    </div>
+
+    <div class="card-body">
+
+        @if (!Model.Any())
+        {
+            <div class="alert alert-info">
+
+                <i class="fa-solid fa-circle-info"></i>
+
+                No tests are currently assigned to you.
+
+            </div>
+        }
+        else
+        {
+
+            <table class="table table-hover align-middle">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th>Request</th>
+                        <th>Test Type</th>
+                        <th>Category</th>
+                        <th>Urgency</th>
+                        <th>Started</th>
+                        <th>Status</th>
+                        <th></th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    @foreach (var item in Model)
+                    {
+
+                        bool overdue = false;
+
+                        if (item.StartDateTime.HasValue)
+                        {
+                            overdue = item.StartDateTime.Value.AddHours(2) < DateTime.Now;
+                        }
+
+                        <tr>
+
+                            <td>
+
+                                TR-@item.RequestId
+
+                            </td>
+
+                            <td>
+
+                                @item.TestType.Name
+
+                            </td>
+
+                            <td>
+
+                                @item.TestType.Category
+
+                            </td>
+
+                            <td>
+
+                                @if (item.TestRequest.Urgency == "STAT")
+                                {
+                                    <span class="badge bg-danger">
+
+                                        STAT
+
+                                    </span>
+                                }
+                                else if (item.TestRequest.Urgency == "Urgent")
+                                {
+                                    <span class="badge bg-warning text-dark">
+
+                                        Urgent
+
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">
+
+                                        Routine
+
+                                    </span>
+                                }
+
+                            </td>
+
+                            <td>
+
+                                @item.StartDateTime?.ToString("dd MMM yyyy HH:mm")
+
+                            </td>
+
+                            <td>
+
+                                @if (overdue)
+                                {
+                                    <span class="badge bg-danger">
+
+                                        OVERDUE
+
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">
+
+                                        @item.Status
+
+                                    </span>
+                                }
+
+                            </td>
+
+                            <td>
+
+                                <a asp-action="Capture"
+                                   asp-route-id="@item.TestRequestItemId"
+                                   class="btn btn-success">
+
+                                    <i class="fa-solid fa-pen"></i>
+
+                                    Capture Result
+
+                                </a>
+
+                            </td>
+
+                        </tr>
+
+                    }
+
+                </tbody>
+
+            </table>
+
+        }
+
+    </div>
+
+</div>
