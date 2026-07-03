@@ -1,0 +1,199 @@
+﻿@model LabDash.Models.SampleReceive
+
+@{
+    ViewData["Title"] = "Receive Patient Sample";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<style>
+    body {
+        background: #eef7f8;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .receive-container {
+        max-width: 800px;
+        margin: 40px auto;
+    }
+
+    .receive-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0,0,0,.08);
+        overflow: hidden;
+    }
+
+    .receive-header {
+        background: #009688;
+        color: white;
+        padding: 20px;
+    }
+
+        .receive-header h2 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .receive-header p {
+            margin: 5px 0 0;
+            opacity: .9;
+        }
+
+    .receive-body {
+        padding: 30px;
+    }
+
+    label {
+        font-weight: 600;
+        color: #444;
+        margin-bottom: 6px;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 8px;
+        height: 45px;
+    }
+
+    textarea.form-control {
+        height: 100px;
+    }
+
+    .btn-receive {
+        background: #009688;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: .3s;
+    }
+
+        .btn-receive:hover {
+            background: #00796B;
+            color: white;
+        }
+
+    .required {
+        color: red;
+    }
+</style>
+
+<div class="receive-container">
+
+    <div class="receive-card">
+
+        <div class="receive-header">
+            <h2>Receive Patient Sample</h2>
+            <p>Verify the request and record the received laboratory sample.</p>
+        </div>
+
+        <div class="receive-body">
+
+            <form asp-action="Receive" method="post">
+
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <!-- Test Request -->
+
+                <div class="mb-3">
+                    <label asp-for="RequestId">
+                        Test Request <span class="required">*</span>
+                    </label>
+
+                    <select asp-for="RequestId"
+                            class="form-select"
+                            asp-items="ViewBag.RequestList">
+
+                        <option value="">-- Select Test Request --</option>
+
+                    </select>
+
+                    <span asp-validation-for="RequestId" class="text-danger"></span>
+                </div>
+
+                <!-- Technician -->
+
+                <div class="mb-3">
+                    <label asp-for="TechnicianName">
+                        Technician Receiving Sample
+                    </label>
+
+                    <input asp-for="TechnicianName"
+                           class="form-control"
+                           placeholder="Enter technician name" />
+
+                    <span asp-validation-for="TechnicianName" class="text-danger"></span>
+                </div>
+
+                <!-- Barcode -->
+
+                <div class="mb-3">
+                    <label asp-for="SampleBarcode">
+                        Sample Barcode
+                    </label>
+
+                    <input asp-for="SampleBarcode"
+                           class="form-control"
+                           placeholder="Scan or enter barcode" />
+
+                    <span asp-validation-for="SampleBarcode" class="text-danger"></span>
+                </div>
+
+                <!-- Sample Type -->
+
+                <div class="mb-3">
+                    <label asp-for="SampleType">
+                        Sample Type
+                    </label>
+
+                    <select asp-for="SampleType" class="form-select">
+
+                        <option value="">-- Select Sample Type --</option>
+
+                        <option>Blood</option>
+                        <option>Urine</option>
+                        <option>Saliva</option>
+                        <option>Stool</option>
+                        <option>Sputum</option>
+                        <option>Plasma</option>
+                        <option>Serum</option>
+                        <option>Tissue</option>
+
+                    </select>
+
+                    <span asp-validation-for="SampleType" class="text-danger"></span>
+                </div>
+
+                <!-- Notes -->
+
+                <div class="mb-4">
+                    <label asp-for="Notes">
+                        Notes
+                    </label>
+
+                    <textarea asp-for="Notes"
+                              class="form-control"
+                              placeholder="Optional notes..."></textarea>
+
+                    <span asp-validation-for="Notes" class="text-danger"></span>
+                </div>
+
+                <button type="submit" class="btn btn-receive">
+                    Receive Sample
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

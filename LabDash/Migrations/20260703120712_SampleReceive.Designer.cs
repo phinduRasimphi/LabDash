@@ -4,6 +4,7 @@ using LabDash.Areas.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    partial class LabDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260703120712_SampleReceive")]
+    partial class SampleReceive
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -185,30 +188,6 @@ namespace LabDash.Migrations
                     b.ToTable("SampleReceives");
                 });
 
-            modelBuilder.Entity("LabDash.Models.TechnicianTestType", b =>
-                {
-                    b.Property<int>("TechnicianTestTypeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TechnicianTestTypeId"));
-
-                    b.Property<string>("TechnicianId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("TestTypeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("TechnicianTestTypeId");
-
-                    b.HasIndex("TechnicianId");
-
-                    b.HasIndex("TestTypeId");
-
-                    b.ToTable("TechnicianTestTypes");
-                });
-
             modelBuilder.Entity("LabDash.Models.TestRequest", b =>
                 {
                     b.Property<int>("RequestId")
@@ -244,75 +223,6 @@ namespace LabDash.Migrations
                     b.HasKey("RequestId");
 
                     b.ToTable("TestRequests");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestRequestItem", b =>
-                {
-                    b.Property<int>("TestRequestItemId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TestRequestItemId"));
-
-                    b.Property<string>("AssignedTechnicianId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("CompletionDateTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("RequestId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("StartDateTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("TestRequestItemId1")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TestTypeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("TestRequestItemId");
-
-                    b.HasIndex("AssignedTechnicianId");
-
-                    b.HasIndex("RequestId");
-
-                    b.HasIndex("TestRequestItemId1");
-
-                    b.HasIndex("TestTypeId");
-
-                    b.ToTable("TestRequestItems");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RequiredSampleType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TestType");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -470,56 +380,6 @@ namespace LabDash.Migrations
                     b.Navigation("TestRequest");
                 });
 
-            modelBuilder.Entity("LabDash.Models.TechnicianTestType", b =>
-                {
-                    b.HasOne("LabDash.Areas.Identity.Data.LabUser", "Technician")
-                        .WithMany()
-                        .HasForeignKey("TechnicianId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Models.TestType", "TestType")
-                        .WithMany("TechnicianTestTypes")
-                        .HasForeignKey("TestTypeId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Technician");
-
-                    b.Navigation("TestType");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestRequestItem", b =>
-                {
-                    b.HasOne("LabDash.Areas.Identity.Data.LabUser", "AssignedTechnician")
-                        .WithMany()
-                        .HasForeignKey("AssignedTechnicianId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Models.TestRequest", "TestRequest")
-                        .WithMany("TestRequestItems")
-                        .HasForeignKey("RequestId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Models.TestRequestItem", null)
-                        .WithMany("TestRequestItems")
-                        .HasForeignKey("TestRequestItemId1");
-
-                    b.HasOne("LabDash.Models.TestType", "TestType")
-                        .WithMany("TestRequestItems")
-                        .HasForeignKey("TestTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AssignedTechnician");
-
-                    b.Navigation("TestRequest");
-
-                    b.Navigation("TestType");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -576,20 +436,6 @@ namespace LabDash.Migrations
                     b.Navigation("SampleReceives");
 
                     b.Navigation("Samples");
-
-                    b.Navigation("TestRequestItems");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestRequestItem", b =>
-                {
-                    b.Navigation("TestRequestItems");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestType", b =>
-                {
-                    b.Navigation("TechnicianTestTypes");
-
-                    b.Navigation("TestRequestItems");
                 });
 #pragma warning restore 612, 618
         }
