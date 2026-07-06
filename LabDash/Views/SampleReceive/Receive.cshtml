@@ -5,67 +5,154 @@
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
 <style>
+
     body {
         background: #eef7f8;
-        font-family: 'Segoe UI', sans-serif;
+        font-family: "Segoe UI", sans-serif;
     }
 
     .receive-container {
-        max-width: 800px;
-        margin: 40px auto;
+        max-width: 1050px;
+        margin: 35px auto;
     }
 
     .receive-card {
         background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 6px 18px rgba(0,0,0,.08);
+        border-radius: 18px;
         overflow: hidden;
+        box-shadow: 0 12px 35px rgba(0,0,0,.10);
+        border: none;
     }
 
     .receive-header {
         background: #009688;
         color: white;
-        padding: 20px;
+        padding: 28px 35px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
-        .receive-header h2 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 600;
-        }
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
 
-        .receive-header p {
-            margin: 5px 0 0;
-            opacity: .9;
-        }
+    .header-icon {
+        width: 75px;
+        height: 75px;
+        border-radius: 50%;
+        border: 3px solid rgba(255,255,255,.35);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 34px;
+        background: rgba(255,255,255,.08);
+    }
+
+    .receive-header h2 {
+        margin: 0;
+        font-size: 40px;
+        font-weight: 700;
+    }
+
+    .receive-header p {
+        margin: 6px 0 0;
+        font-size: 18px;
+        opacity: .95;
+    }
 
     .receive-body {
-        padding: 30px;
+        padding: 40px;
     }
 
-    label {
+    .form-row {
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        align-items: center;
+        gap: 30px;
+        padding: 18px 0;
+    }
+
+    .notes-row {
+        align-items: start;
+    }
+
+    .form-label {
+        font-size: 17px;
         font-weight: 600;
-        color: #444;
-        margin-bottom: 6px;
+        color: #2f3e46;
+        margin: 0;
+    }
+
+        .form-label i {
+            color: #009688;
+            width: 25px;
+            margin-right: 8px;
+        }
+
+    hr {
+        margin: 0;
+        border-color: #ececec;
     }
 
     .form-control,
     .form-select {
-        border-radius: 8px;
-        height: 45px;
+        height: 50px;
+        border-radius: 10px;
+        border: 1px solid #d9dee3;
+        font-size: 15px;
+        transition: .25s;
     }
 
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #009688;
+            box-shadow: 0 0 0 .18rem rgba(0,150,136,.15);
+        }
+
     textarea.form-control {
-        height: 100px;
+        height: 150px;
+        resize: vertical;
     }
+
+    .required {
+        color: #dc3545;
+    }
+
+    .footer-buttons {
+        margin-top: 35px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .btn-clear {
+        border: 1px solid #ced4da;
+        background: white;
+        color: #555;
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: .25s;
+    }
+
+        .btn-clear:hover {
+            background: #f4f4f4;
+        }
 
     .btn-receive {
         background: #009688;
         color: white;
         border: none;
-        padding: 12px 30px;
-        border-radius: 8px;
+        padding: 13px 35px;
+        border-radius: 10px;
+        font-size: 16px;
         font-weight: 600;
         transition: .3s;
     }
@@ -73,11 +160,44 @@
         .btn-receive:hover {
             background: #00796B;
             color: white;
+            transform: translateY(-2px);
         }
 
-    .required {
-        color: red;
+    .validation-summary-errors ul {
+        margin-bottom: 20px;
     }
+
+    .text-danger {
+        font-size: 14px;
+    }
+
+    @@media(max-width:900px) {
+
+        .receive-container {
+            padding: 15px;
+        }
+
+        .receive-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .form-row {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .footer-buttons {
+            flex-direction: column;
+            gap: 15px;
+        }
+
+            .footer-buttons button {
+                width: 100%;
+            }
+    }
+
 </style>
 
 <div class="receive-container">
@@ -85,104 +205,180 @@
     <div class="receive-card">
 
         <div class="receive-header">
-            <h2>Receive Patient Sample</h2>
-            <p>Verify the request and record the received laboratory sample.</p>
+
+            <div class="header-left">
+
+                <div class="header-icon">
+                    <i class="fas fa-vials"></i>
+                </div>
+
+                <div>
+
+                    <h2>Receive Patient Sample</h2>
+
+                    <p>
+                        Verify the request and record the received laboratory sample.
+                    </p>
+
+                </div>
+
+            </div>
+
         </div>
 
         <div class="receive-body">
 
             <form asp-action="Receive" method="post">
 
-                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
                 <!-- Test Request -->
 
-                <div class="mb-3">
-                    <label asp-for="RequestId">
-                        Test Request <span class="required">*</span>
+                <div class="form-row">
+
+                    <label asp-for="RequestId" class="form-label">
+                        <i class="fas fa-clipboard-list"></i>
+                        Test Request
+                        <span class="required">*</span>
                     </label>
 
-                    <select asp-for="RequestId"
-                            class="form-select"
-                            asp-items="ViewBag.RequestList">
+                    <div>
 
-                        <option value="">-- Select Test Request --</option>
+                        <select asp-for="RequestId"
+                                asp-items="ViewBag.RequestList"
+                                class="form-select">
 
-                    </select>
+                            <option value="">-- Select Test Request --</option>
 
-                    <span asp-validation-for="RequestId" class="text-danger"></span>
+                        </select>
+
+                        <span asp-validation-for="RequestId"
+                              class="text-danger"></span>
+
+                    </div>
+
                 </div>
+
+                <hr />
 
                 <!-- Technician -->
 
-                <div class="mb-3">
-                    <label asp-for="TechnicianName">
+                <div class="form-row">
+
+                    <label asp-for="TechnicianName" class="form-label">
+                        <i class="fas fa-user"></i>
                         Technician Receiving Sample
                     </label>
 
-                    <input asp-for="TechnicianName"
-                           class="form-control"
-                           placeholder="Enter technician name" />
+                    <div>
 
-                    <span asp-validation-for="TechnicianName" class="text-danger"></span>
+                        <input asp-for="TechnicianName"
+                               class="form-control"
+                               placeholder="Enter technician name" />
+
+                        <span asp-validation-for="TechnicianName"
+                              class="text-danger"></span>
+
+                    </div>
+
                 </div>
+
+                <hr />
 
                 <!-- Barcode -->
 
-                <div class="mb-3">
-                    <label asp-for="SampleBarcode">
+                <div class="form-row">
+
+                    <label asp-for="SampleBarcode" class="form-label">
+                        <i class="fas fa-barcode"></i>
                         Sample Barcode
                     </label>
 
-                    <input asp-for="SampleBarcode"
-                           class="form-control"
-                           placeholder="Scan or enter barcode" />
+                    <div>
 
-                    <span asp-validation-for="SampleBarcode" class="text-danger"></span>
+                        <input asp-for="SampleBarcode"
+                               class="form-control"
+                               placeholder="Scan or enter barcode" />
+
+                        <span asp-validation-for="SampleBarcode"
+                              class="text-danger"></span>
+
+                    </div>
+
                 </div>
+
+                <hr />
 
                 <!-- Sample Type -->
 
-                <div class="mb-3">
-                    <label asp-for="SampleType">
+                <div class="form-row">
+
+                    <label asp-for="SampleType" class="form-label">
+                        <i class="fas fa-flask"></i>
                         Sample Type
                     </label>
 
-                    <select asp-for="SampleType" class="form-select">
+                    <div>
 
-                        <option value="">-- Select Sample Type --</option>
+                        <select asp-for="SampleType" class="form-select">
 
-                        <option>Blood</option>
-                        <option>Urine</option>
-                        <option>Saliva</option>
-                        <option>Stool</option>
-                        <option>Sputum</option>
-                        <option>Plasma</option>
-                        <option>Serum</option>
-                        <option>Tissue</option>
+                            <option value="">-- Select Sample Type --</option>
 
-                    </select>
+                            <option>Blood</option>
+                            <option>Urine</option>
+                            <option>Saliva</option>
+                            <option>Stool</option>
+                            <option>Sputum</option>
+                            <option>Plasma</option>
+                            <option>Serum</option>
+                            <option>Tissue</option>
 
-                    <span asp-validation-for="SampleType" class="text-danger"></span>
+                        </select>
+
+                        <span asp-validation-for="SampleType"
+                              class="text-danger"></span>
+
+                    </div>
+
                 </div>
+
+                <hr />
 
                 <!-- Notes -->
 
-                <div class="mb-4">
-                    <label asp-for="Notes">
+                <div class="form-row notes-row">
+
+                    <label asp-for="Notes" class="form-label">
+                        <i class="fas fa-note-sticky"></i>
                         Notes
                     </label>
 
-                    <textarea asp-for="Notes"
-                              class="form-control"
-                              placeholder="Optional notes..."></textarea>
+                    <div>
 
-                    <span asp-validation-for="Notes" class="text-danger"></span>
+                        <textarea asp-for="Notes"
+                                  class="form-control"
+                                  placeholder="Optional notes..."></textarea>
+
+                        <span asp-validation-for="Notes"
+                              class="text-danger"></span>
+
+                    </div>
+
                 </div>
 
-                <button type="submit" class="btn btn-receive">
-                    Receive Sample
-                </button>
+                <div class="footer-buttons">
+
+                    <button type="reset" class="btn btn-clear">
+                        <i class="fas fa-rotate-left"></i>
+                        Clear Form
+                    </button>
+
+                    <button type="submit" class="btn btn-receive">
+                        <i class="fas fa-vials"></i>
+                        Receive Sample
+                    </button>
+
+                </div>
 
             </form>
 

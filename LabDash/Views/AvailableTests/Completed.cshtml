@@ -1,16 +1,26 @@
 ﻿@model IEnumerable<LabDash.Models.TestRequestItem>
 
 @{
-    ViewData["Title"] = "Capture Results";
+    ViewData["Title"] = "Completed Tests";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
-    var total = Model.Count();
+    var completedToday = Model.Count(x =>
+        x.CompletionDateTime.HasValue &&
+        x.CompletionDateTime.Value.Date == DateTime.Today);
 
-    var overdue = Model.Count(x =>
-        x.StartDateTime.HasValue &&
-        x.StartDateTime.Value.AddHours(x.TestType.TurnaroundTimeHours) < DateTime.Now);
+    var totalCompleted = Model.Count();
 
-    var stat = Model.Count(x => x.TestRequest.Urgency == "STAT");
+    double averageHours = 0;
+
+    var completedWithDates = Model
+        .Where(x => x.StartDateTime.HasValue && x.CompletionDateTime.HasValue)
+        .ToList();
+
+    if (completedWithDates.Any())
+    {
+        averageHours = completedWithDates
+            .Average(x => (x.CompletionDateTime.Value - x.StartDateTime.Value).TotalHours);
+    }
 }
 
 <link rel="stylesheet"
@@ -20,7 +30,7 @@
 
     body {
         background: #eef7f8;
-        font-family: "Segoe UI", sans-serif;
+        font-family: 'Segoe UI',sans-serif;
     }
 
     .page-container {
@@ -32,12 +42,12 @@
         background: linear-gradient(135deg,#009688,#00796B);
         color: white;
         border-radius: 18px;
-        padding: 28px 35px;
+        padding: 30px 35px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 12px 30px rgba(0,0,0,.12);
         margin-bottom: 30px;
+        box-shadow: 0 12px 30px rgba(0,0,0,.10);
     }
 
         .page-header h2 {
@@ -47,15 +57,15 @@
         }
 
         .page-header p {
-            margin: 6px 0 0;
-            opacity: .9;
+            margin-top: 8px;
+            opacity: .92;
         }
 
     .header-icon {
         width: 80px;
         height: 80px;
-        background: rgba(255,255,255,.15);
         border-radius: 20px;
+        background: rgba(255,255,255,.15);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -72,29 +82,29 @@
     .stat-card {
         background: white;
         border-radius: 16px;
-        box-shadow: 0 8px 20px rgba(0,0,0,.08);
         padding: 22px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        transition: .3s;
+        box-shadow: 0 8px 22px rgba(0,0,0,.08);
+        transition: .25s;
     }
 
         .stat-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-4px);
         }
 
-        .stat-card h5 {
+        .stat-card h6 {
             color: #666;
-            font-size: 15px;
             margin-bottom: 8px;
+            font-size: 15px;
         }
 
         .stat-card h3 {
+            margin: 0;
             color: #009688;
             font-size: 32px;
             font-weight: bold;
-            margin: 0;
         }
 
     .stat-icon {
@@ -102,10 +112,10 @@
         height: 60px;
         border-radius: 15px;
         background: rgba(0,150,136,.12);
-        color: #009688;
         display: flex;
         justify-content: center;
         align-items: center;
+        color: #009688;
         font-size: 24px;
     }
 
@@ -117,10 +127,10 @@
     }
 
     .table-toolbar {
+        padding: 22px 25px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 22px 25px;
         border-bottom: 1px solid #ececec;
     }
 
@@ -131,8 +141,8 @@
         }
 
     .search-box {
-        position: relative;
         width: 350px;
+        position: relative;
     }
 
         .search-box i {
@@ -144,8 +154,8 @@
 
         .search-box input {
             border-radius: 30px;
-            height: 46px;
             padding-left: 42px;
+            height: 46px;
         }
 
     .table {
@@ -161,8 +171,6 @@
             text-align: center;
             padding: 16px;
             border: none;
-            font-size: 14px;
-            letter-spacing: .4px;
         }
 
         .table td {
@@ -175,31 +183,18 @@
             background: #f5fbfb;
         }
 
-    .badge-status {
+    .badge-complete {
+        background: #009688;
+        color: white;
+        padding: 8px 16px;
         border-radius: 30px;
-        padding: 8px 15px;
         font-size: 13px;
         font-weight: 600;
     }
 
-    .btn-capture {
-        background: #009688;
-        color: white;
-        border-radius: 8px;
-        padding: 10px 18px;
-        font-weight: 600;
-        transition: .25s;
-    }
-
-        .btn-capture:hover {
-            background: #00796B;
-            color: white;
-            transform: translateY(-2px);
-        }
-
     .empty-state {
-        text-align: center;
         padding: 70px;
+        text-align: center;
     }
 
         .empty-state i {
@@ -242,32 +237,21 @@
 
 <div class="page-container">
 
-    @if (TempData["Success"] != null)
-    {
-        <div class="alert alert-success shadow-sm mb-4">
-
-            <i class="fa-solid fa-circle-check"></i>
-
-            @TempData["Success"]
-
-        </div>
-    }
-
     <div class="page-header">
 
         <div>
 
             <h2>
 
-                <i class="fa-solid fa-flask-vial"></i>
+                <i class="fa-solid fa-circle-check"></i>
 
-                Capture Test Results
+                Completed Tests
 
             </h2>
 
             <p>
 
-                Record laboratory findings for tests assigned to you.
+                View all laboratory tests that you have successfully completed.
 
             </p>
 
@@ -275,7 +259,7 @@
 
         <div class="header-icon">
 
-            <i class="fa-solid fa-microscope"></i>
+            <i class="fa-solid fa-award"></i>
 
         </div>
 
@@ -287,9 +271,9 @@
 
             <div>
 
-                <h5>Assigned Tests</h5>
+                <h6>Total Completed</h6>
 
-                <h3>@total</h3>
+                <h3>@totalCompleted</h3>
 
             </div>
 
@@ -305,15 +289,15 @@
 
             <div>
 
-                <h5>Overdue Tests</h5>
+                <h6>Completed Today</h6>
 
-                <h3>@overdue</h3>
+                <h3>@completedToday</h3>
 
             </div>
 
             <div class="stat-icon">
 
-                <i class="fa-solid fa-triangle-exclamation"></i>
+                <i class="fa-solid fa-calendar-check"></i>
 
             </div>
 
@@ -323,15 +307,15 @@
 
             <div>
 
-                <h5>STAT Requests</h5>
+                <h6>Average Turnaround</h6>
 
-                <h3>@stat</h3>
+                <h3>@averageHours.ToString("0.0") h</h3>
 
             </div>
 
             <div class="stat-icon">
 
-                <i class="fa-solid fa-bolt"></i>
+                <i class="fa-solid fa-clock"></i>
 
             </div>
 
@@ -347,7 +331,7 @@
 
                 <i class="fa-solid fa-list-check"></i>
 
-                Assigned Laboratory Tests
+                Completed Laboratory Tests
 
             </h4>
 
@@ -358,7 +342,7 @@
                 <input type="text"
                        id="searchInput"
                        class="form-control"
-                       placeholder="Search request, patient or test..." />
+                       placeholder="Search completed tests..." />
 
             </div>
 
@@ -367,13 +351,13 @@
         {
             <div class="empty-state">
 
-                <i class="fa-solid fa-vials"></i>
+                <i class="fa-solid fa-circle-check"></i>
 
-                <h3>No Tests Assigned</h3>
+                <h3>No Completed Tests</h3>
 
                 <p>
 
-                    There are currently no laboratory tests assigned to you for result capturing.
+                    You have not completed any laboratory tests yet.
 
                 </p>
 
@@ -394,15 +378,13 @@
 
                         <th>Category</th>
 
-                        <th>Urgency</th>
-
                         <th>Started</th>
 
-                        <th>Expected Completion</th>
+                        <th>Completed</th>
+
+                        <th>Turnaround Time</th>
 
                         <th>Status</th>
-
-                        <th>Action</th>
 
                     </tr>
 
@@ -412,12 +394,15 @@
 
                     @foreach (var item in Model)
                     {
-                        var expected =
-                            item.StartDateTime?.AddHours(item.TestType.TurnaroundTimeHours);
+                        TimeSpan? turnaround = null;
 
-                        bool overdueTest =
-                            expected.HasValue &&
-                            DateTime.Now > expected.Value;
+                        if (item.StartDateTime.HasValue &&
+                            item.CompletionDateTime.HasValue)
+                        {
+                            turnaround =
+                                item.CompletionDateTime.Value -
+                                item.StartDateTime.Value;
+                        }
 
                         <tr>
 
@@ -441,98 +426,35 @@
 
                             <td>
 
-                                @if (item.TestRequest.Urgency == "STAT")
-                                {
-                                    <span class="badge bg-danger badge-status">
-
-                                        <i class="fa-solid fa-bolt"></i>
-
-                                        STAT
-
-                                    </span>
-                                }
-                                else if (item.TestRequest.Urgency == "Urgent")
-                                {
-                                    <span class="badge bg-warning text-dark badge-status">
-
-                                        <i class="fa-solid fa-triangle-exclamation"></i>
-
-                                        Urgent
-
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary badge-status">
-
-                                        Routine
-
-                                    </span>
-                                }
-
-                            </td>
-
-                            <td>
-
                                 @item.StartDateTime?.ToString("dd MMM yyyy HH:mm")
 
                             </td>
 
                             <td>
 
-                                @if (expected.HasValue)
-                                {
-                                    @expected.Value.ToString("dd MMM yyyy HH:mm")
-
-                                    <br />
-
-                                    if (!overdueTest)
-                                    {
-                                        var remaining = expected.Value - DateTime.Now;
-
-                                        <small class="text-success">
-
-                                            <i class="fa-solid fa-clock"></i>
-
-                                            @remaining.Days d
-                                            @remaining.Hours h
-                                            @remaining.Minutes m left
-
-                                        </small>
-                                    }
-                                    else
-                                    {
-                                        var late = DateTime.Now - expected.Value;
-
-                                        <small class="text-danger">
-
-                                            <i class="fa-solid fa-clock"></i>
-
-                                            @late.Days d
-                                            @late.Hours h
-                                            @late.Minutes m overdue
-
-                                        </small>
-                                    }
-                                }
+                                @item.CompletionDateTime?.ToString("dd MMM yyyy HH:mm")
 
                             </td>
 
                             <td>
 
-                                @if (overdueTest)
+                                @if (turnaround != null)
                                 {
-                                    <span class="badge bg-danger badge-status">
+                                    <span class="text-success fw-semibold">
 
-                                        OVERDUE
+                                        <i class="fa-solid fa-clock"></i>
+
+                                        @turnaround.Value.Days d
+                                        @turnaround.Value.Hours h
+                                        @turnaround.Value.Minutes m
 
                                     </span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-success badge-status">
+                                    <span class="text-muted">
 
-                                        @item.Status
+                                        -
 
                                     </span>
                                 }
@@ -541,20 +463,17 @@
 
                             <td>
 
-                                <a asp-action="Capture"
-                                   asp-route-id="@item.TestRequestItemId"
-                                   class="btn btn-capture">
+                                <span class="badge-complete">
 
-                                    <i class="fa-solid fa-floppy-disk"></i>
+                                    <i class="fa-solid fa-circle-check"></i>
 
-                                    Capture Result
+                                    Completed
 
-                                </a>
+                                </span>
 
                             </td>
 
                         </tr>
-
                     }
 
                 </tbody>
@@ -567,7 +486,8 @@
 
 </div>
 
-@section Scripts {
+@section Scripts
+{
 
     <script>
 
@@ -578,9 +498,9 @@
             document.querySelectorAll("tbody tr").forEach(function (row) {
 
                 row.style.display =
-                    row.innerText.toLowerCase().indexOf(value) > -1
-                        ? ""
-                        : "none";
+                    row.innerText.toLowerCase().includes(value)
+                    ? ""
+                    : "none";
 
             });
 

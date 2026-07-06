@@ -1,0 +1,355 @@
+﻿@model IEnumerable<LabDash.Models.TestRequestItem>
+
+@{
+    ViewData["Title"] = "Tests In Progress";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
+<style>
+
+    body {
+        background: #eef7f8;
+        font-family: "Segoe UI", sans-serif;
+    }
+
+    .page-container {
+        max-width: 1400px;
+        margin: 35px auto;
+    }
+
+    .page-card {
+        background: white;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 12px 30px rgba(0,0,0,.08);
+    }
+
+    .page-header {
+        background: #009688;
+        color: white;
+        padding: 25px 35px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .page-header h2 {
+            margin: 0;
+            font-size: 34px;
+            font-weight: 700;
+        }
+
+        .page-header p {
+            margin-top: 5px;
+            opacity: .9;
+        }
+
+    .total-tests {
+        background: rgba(255,255,255,.15);
+        padding: 10px 18px;
+        border-radius: 30px;
+        font-weight: 600;
+    }
+
+    .toolbar {
+        padding: 20px 30px;
+        border-bottom: 1px solid #ececec;
+    }
+
+    .search-box {
+        width: 360px;
+        position: relative;
+    }
+
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 16px;
+            color: gray;
+        }
+
+        .search-box input {
+            height: 48px;
+            border-radius: 10px;
+            padding-left: 42px;
+        }
+
+    .table {
+        margin: 0;
+    }
+
+        .table thead {
+            background: #00897B;
+            color: white;
+        }
+
+        .table th,
+        .table td {
+            text-align: center;
+            vertical-align: middle;
+            padding: 16px;
+        }
+
+        .table tbody tr:hover {
+            background: #f7fbfb;
+        }
+
+    .status-badge {
+        border-radius: 30px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .btn-results {
+        background: #009688;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+        font-weight: 600;
+        transition: .25s;
+    }
+
+        .btn-results:hover {
+            background: #00796B;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px;
+        color: gray;
+    }
+
+</style>
+
+<div class="page-container">
+
+    <div class="page-card">
+
+        <div class="page-header">
+
+            <div>
+
+                <h2>
+
+                    <i class="fas fa-hourglass-half"></i>
+
+                    Tests In Progress
+
+                </h2>
+
+                <p>
+
+                    Laboratory tests currently assigned to you.
+
+                </p>
+
+            </div>
+
+            <div class="total-tests">
+
+                <i class="fas fa-vials"></i>
+
+                @Model.Count() Active Tests
+
+            </div>
+
+        </div>
+
+        <div class="toolbar">
+
+            <div class="search-box">
+
+                <i class="fas fa-search"></i>
+
+                <input type="text"
+                       id="searchInput"
+                       class="form-control"
+                       placeholder="Search request or test..." />
+
+            </div>
+
+        </div>
+
+        <table class="table table-hover">
+
+            <thead>
+
+                <tr>
+
+                    <th>Request</th>
+
+                    <th>Test</th>
+
+                    <th>Category</th>
+
+                    <th>Started</th>
+
+                    <th>Expected Completion</th>
+
+                    <th>Status</th>
+
+                    <th>Action</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                @if (Model.Any())
+                {
+                    foreach (var item in Model)
+                    {
+                        var expected =
+                            item.StartDateTime?.AddHours(item.TestType.TurnaroundTimeHours);
+
+                        <tr>
+
+                            <td>
+
+                                <strong>#@item.RequestId</strong>
+
+                            </td>
+
+                            <td>
+
+                                @item.TestType.Name
+
+                            </td>
+
+                            <td>
+
+                                @item.TestType.Category
+
+                            </td>
+
+                            <td>
+
+                                @item.StartDateTime?.ToString("dd MMM yyyy HH:mm")
+
+                            </td>
+
+                            <td>
+
+                                @if (expected.HasValue)
+                                {
+                                    @expected.Value.ToString("dd MMM yyyy HH:mm")
+
+                                    <br />
+
+                                    if (DateTime.Now < expected)
+                                    {
+                                        var remaining = expected.Value - DateTime.Now;
+
+                                        <small class="text-success">
+
+                                            <i class="fas fa-clock"></i>
+
+                                            @remaining.Days d
+                                            @remaining.Hours h
+                                            @remaining.Minutes m left
+
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <small class="text-danger">
+
+                                            <i class="fas fa-triangle-exclamation"></i>
+
+                                            Overdue
+
+                                        </small>
+                                    }
+                                }
+
+                            </td>
+
+                            <td>
+
+                                <span class="badge bg-primary status-badge">
+
+                                    <i class="fas fa-spinner"></i>
+
+                                    In Progress
+
+                                </span>
+
+                            </td>
+
+                            <td>
+
+                                <a asp-controller="CaptureResults"
+                                   asp-action="Create"
+                                   asp-route-id="@item.TestRequestItemId"
+                                   class="btn btn-results">
+
+                                    <i class="fas fa-flask"></i>
+
+                                    Capture Results
+
+                                </a>
+
+                            </td>
+
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+
+                        <td colspan="7" class="empty-state">
+
+                            <i class="fas fa-vials fa-3x mb-3"></i>
+
+                            <h4>No Tests In Progress</h4>
+
+                            <p>
+
+                                You have no laboratory tests currently assigned.
+
+                            </p>
+
+                        </td>
+
+                    </tr>
+                }
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+@section Scripts {
+
+    <script>
+
+        document.getElementById("searchInput").addEventListener("keyup", function () {
+
+            let value = this.value.toLowerCase();
+
+            document.querySelectorAll("tbody tr").forEach(function (row) {
+
+                row.style.display =
+                    row.innerText.toLowerCase().includes(value)
+                    ? ""
+                    : "none";
+
+            });
+
+        });
+
+    </script>
+
+}

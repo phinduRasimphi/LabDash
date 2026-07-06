@@ -5,38 +5,119 @@
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
 <style>
+
     body {
         background: #eef7f8;
-        font-family: 'Segoe UI', sans-serif;
+        font-family: "Segoe UI", sans-serif;
     }
 
     .page-container {
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 35px auto;
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(3,1fr);
+        gap: 20px;
+        margin-bottom: 25px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: 0 8px 25px rgba(0,0,0,.08);
+        display: flex;
+        align-items: center;
+        gap: 18px;
+    }
+
+    .stat-icon {
+        width: 65px;
+        height: 65px;
+        border-radius: 50%;
+        background: rgba(0,150,136,.10);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 28px;
+        color: #009688;
+    }
+
+    .stat-card h2 {
+        margin: 0;
+        color: #009688;
+        font-size: 30px;
+        font-weight: 700;
+    }
+
+    .stat-card p {
+        margin: 4px 0 0;
+        color: #777;
+        font-size: 15px;
     }
 
     .page-card {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 5px 15px rgba(0,0,0,.08);
+        border-radius: 18px;
         overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,.08);
     }
 
     .page-header {
         background: #009688;
         color: white;
-        padding: 18px 25px;
+        padding: 28px 35px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
         .page-header h2 {
             margin: 0;
-            font-size: 28px;
-            font-weight: 600;
+            font-size: 34px;
+            font-weight: 700;
+        }
+
+        .page-header p {
+            margin: 6px 0 0;
+            opacity: .9;
+        }
+
+    .toolbar {
+        padding: 25px 30px;
+        border-bottom: 1px solid #ececec;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .search-box {
+        width: 350px;
+        position: relative;
+    }
+
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 16px;
+            color: #888;
+        }
+
+        .search-box input {
+            padding-left: 42px;
+            border-radius: 10px;
+            height: 48px;
         }
 
     .table {
-        margin-bottom: 0;
+        margin: 0;
     }
 
         .table thead {
@@ -45,49 +126,152 @@
         }
 
         .table th {
+            padding: 18px;
+            border: none;
             text-align: center;
             vertical-align: middle;
         }
 
         .table td {
+            padding: 18px;
             text-align: center;
             vertical-align: middle;
+            border-color: #f0f0f0;
+        }
+
+        .table tbody tr:hover {
+            background: #f7fbfb;
         }
 
     .badge-status {
         background: #009688;
         color: white;
-        padding: 7px 14px;
-        border-radius: 20px;
+        border-radius: 30px;
+        padding: 8px 16px;
         font-size: 13px;
+        font-weight: 600;
     }
 
     .empty-row {
-        padding: 30px;
         text-align: center;
-        color: gray;
+        color: #888;
+        padding: 50px;
     }
+
+    @@media(max-width:992px) {
+
+        .stats-row {
+            grid-template-columns: 1fr;
+        }
+
+        .toolbar {
+            flex-direction: column;
+        }
+
+        .search-box {
+            width: 100%;
+        }
+    }
+
 </style>
 
 <div class="page-container">
 
+    <div class="stats-row">
+
+        <div class="stat-card">
+
+            <div class="stat-icon">
+                <i class="fas fa-vials"></i>
+            </div>
+
+            <div>
+                <h2>@Model.Count()</h2>
+                <p>Total Samples Received</p>
+            </div>
+
+        </div>
+
+        <div class="stat-card">
+
+            <div class="stat-icon">
+                <i class="fas fa-barcode"></i>
+            </div>
+
+            <div>
+                <h2>@Model.Select(x=>x.SampleBarcode).Distinct().Count()</h2>
+                <p>Unique Barcodes</p>
+            </div>
+
+        </div>
+
+        <div class="stat-card">
+
+            <div class="stat-icon">
+                <i class="fas fa-user-nurse"></i>
+            </div>
+
+            <div>
+                <h2>@Model.Select(x=>x.TechnicianName).Distinct().Count()</h2>
+                <p>Technicians</p>
+            </div>
+
+        </div>
+
+    </div>
+
     <div class="page-card">
 
         <div class="page-header">
-            <h2>Received Samples</h2>
+
+            <div>
+
+                <h2>
+                    <i class="fas fa-flask"></i>
+                    Received Samples
+                </h2>
+
+                <p>
+                    View all laboratory samples that have been successfully received.
+                </p>
+
+            </div>
+
         </div>
 
-        <table class="table table-hover table-bordered">
+        <div class="toolbar">
+
+            <div class="search-box">
+
+                <i class="fas fa-search"></i>
+
+                <input type="text"
+                       id="searchInput"
+                       class="form-control"
+                       placeholder="Search request, barcode or technician..." />
+
+            </div>
+
+        </div>
+
+        <table class="table table-hover">
 
             <thead>
 
                 <tr>
+
                     <th>Request ID</th>
+
                     <th>Barcode</th>
+
                     <th>Sample Type</th>
+
                     <th>Received By</th>
+
                     <th>Date & Time Received</th>
+
                     <th>Status</th>
+
                 </tr>
 
             </thead>
@@ -96,24 +280,41 @@
 
                 @if (Model.Any())
                 {
-                    @foreach (var item in Model)
+                    foreach (var item in Model)
                     {
                         <tr>
 
                             <td>@item.RequestId</td>
 
-                            <td>@item.SampleBarcode</td>
+                            <td>
+                                <strong>@item.SampleBarcode</strong>
+                            </td>
 
                             <td>@item.SampleType</td>
 
-                            <td>@item.TechnicianName</td>
-
-                            <td>@item.DateTimeReceived.ToString("dd MMM yyyy HH:mm")</td>
+                            <td>
+                                <i class="fas fa-user text-secondary"></i>
+                                @item.TechnicianName
+                            </td>
 
                             <td>
+                                @item.DateTimeReceived.ToString("dd MMM yyyy")
+                                <br />
+                                <small class="text-muted">
+                                    @item.DateTimeReceived.ToString("HH:mm")
+                                </small>
+                            </td>
+
+                            <td>
+
                                 <span class="badge-status">
+
+                                    <i class="fas fa-check-circle"></i>
+
                                     @item.Status
+
                                 </span>
+
                             </td>
 
                         </tr>
@@ -122,12 +323,19 @@
                 else
                 {
                     <tr>
+
                         <td colspan="6" class="empty-row">
-                            No samples have been received yet.
+
+                            <i class="fas fa-inbox fa-3x mb-3 text-muted"></i>
+
+                            <h5>No Samples Found</h5>
+
+                            <p>No laboratory samples have been received yet.</p>
+
                         </td>
+
                     </tr>
                 }
-
             </tbody>
 
         </table>
@@ -135,3 +343,38 @@
     </div>
 
 </div>
+
+@section Scripts {
+
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const searchInput = document.getElementById("searchInput");
+
+            searchInput.addEventListener("keyup", function () {
+
+                const filter = this.value.toLowerCase();
+
+                const rows = document.querySelectorAll("tbody tr");
+
+                rows.forEach(function (row) {
+
+                    const text = row.innerText.toLowerCase();
+
+                    if (text.indexOf(filter) > -1) {
+                        row.style.display = "";
+                    }
+                    else {
+                        row.style.display = "none";
+                    }
+
+                });
+
+            });
+
+        });
+
+    </script>
+
+}

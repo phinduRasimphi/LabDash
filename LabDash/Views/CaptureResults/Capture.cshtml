@@ -3,223 +3,392 @@
 @using LabDash.Models
 
 @{
-    ViewData["Title"] = "Capture Result";
+    ViewData["Title"] = "Capture Test Result";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
     var test = ViewBag.TestItem as TestRequestItem;
     var patient = ViewBag.Patient as Patient;
 }
 
-<div class="container-fluid">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
+<style>
+
+    body {
+        background: #eef7f8;
+        font-family: "Segoe UI", sans-serif;
+    }
+
+    .page-container {
+        max-width: 1350px;
+        margin: 35px auto;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg,#009688,#00796B);
+        color: white;
+        padding: 30px 35px;
+        border-radius: 18px;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 12px 30px rgba(0,0,0,.10);
+    }
+
+    .page-header h2 {
+        margin: 0;
+        font-size: 34px;
+        font-weight: 700;
+    }
+
+    .page-header p {
+        margin-top: 6px;
+        opacity: .9;
+    }
+
+    .header-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: rgba(255,255,255,.15);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 34px;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(0,0,0,.08);
+        margin-bottom: 25px;
+    }
+
+    .info-header {
+        background: #009688;
+        color: white;
+        padding: 15px 22px;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .info-body {
+        padding: 22px;
+    }
+
+    .info-body p {
+        margin-bottom: 12px;
+        color: #555;
+    }
+
+    .info-body strong {
+        color: #333;
+    }
+
+    .notes-card {
+        background: #fffef7;
+        border-left: 5px solid #009688;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0,0,0,.05);
+        margin-bottom: 30px;
+    }
+
+    .notes-header {
+        padding: 15px 20px;
+        font-weight: 700;
+        color: #009688;
+        border-bottom: 1px solid #ececec;
+    }
+
+    .notes-body {
+        padding: 20px;
+        color: #555;
+        line-height: 1.8;
+    }
+
+    .result-card {
+        background: white;
+        border-radius: 18px;
+        box-shadow: 0 10px 25px rgba(0,0,0,.08);
+        overflow: hidden;
+    }
 
-    <div class="card shadow-lg border-0">
+    .result-header {
+        background: #009688;
+        color: white;
+        padding: 18px 25px;
+        font-size: 22px;
+        font-weight: 700;
+    }
 
-        <div class="card-header text-white"
-             style="background:#0d766e;">
+    .result-body {
+        padding: 30px;
+    }
 
-            <h3 class="mb-0">
-                <i class="fa-solid fa-microscope"></i>
-                Capture Test Result
-            </h3>
+    label {
+        font-weight: 600;
+        color: #444;
+        margin-bottom: 8px;
+    }
 
-        </div>
+    .form-control {
+        border-radius: 10px;
+        height: 48px;
+        border: 1px solid #d8d8d8;
+    }
 
-        <div class="card-body">
+    textarea.form-control {
+        height: 130px;
+        resize: vertical;
+    }
 
-            <!-- ============================= -->
-            <!-- PATIENT INFORMATION           -->
-            <!-- ============================= -->
+    .form-control:focus {
+        border-color: #009688;
+        box-shadow: 0 0 0 .15rem rgba(0,150,136,.15);
+    }
 
-            <div class="row mb-4">
+    .btn-save {
+        background: #009688;
+        color: white;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: .25s;
+    }
 
-                <div class="col-md-6">
+    .btn-save:hover {
+        background: #00796B;
+        color: white;
+        transform: translateY(-2px);
+    }
 
-                    <div class="card border-success">
+    .btn-cancel {
+        padding: 12px 28px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
 
-                        <div class="card-header bg-success text-white">
+</style>
 
-                            Patient Information
+<div class="page-container">
 
-                        </div>
+<div class="page-header">
 
-                        <div class="card-body">
+    <div>
 
-                            <p>
-                                <strong>Patient:</strong>
+        <h2>
 
-                                @patient?.Name @patient?.Surname
-                            </p>
+            <i class="fa-solid fa-flask-vial"></i>
 
-                            <p>
-                                <strong>ID Number:</strong>
+            Capture Laboratory Result
 
-                                @patient?.IDNumber
-                            </p>
+        </h2>
 
-                            <p>
-                                <strong>Email:</strong>
+        <p>
 
-                                @patient?.Email
-                            </p>
+            Record laboratory findings for this patient's requested investigation.
 
-                        </div>
+        </p>
 
-                    </div>
+    </div>
 
-                </div>
+    <div class="header-icon">
 
-                <div class="col-md-6">
+        <i class="fa-solid fa-microscope"></i>
 
-                    <div class="card border-info">
+    </div>
 
-                        <div class="card-header bg-info text-white">
+</div>
 
-                            Test Information
+<div class="row">
 
-                        </div>
+<div class="col-lg-6">
 
-                        <div class="card-body">
+<div class="info-card">
 
-                            <p>
+<div class="info-header">
 
-                                <strong>Request:</strong>
+<i class="fa-solid fa-user"></i>
 
-                                TR-@test?.RequestId
+Patient Information
 
-                            </p>
+</div>
 
-                            <p>
+<div class="info-body">
 
-                                <strong>Test Type:</strong>
+<p><strong>Patient:</strong> @patient?.Name @patient?.Surname</p>
 
-                                @test?.TestType?.Name
+<p><strong>ID Number:</strong> @patient?.IDNumber</p>
 
-                            </p>
+<p><strong>Email:</strong> @patient?.Email</p>
 
-                            <p>
+@* <p><strong>Contact:</strong> @patient?.PhoneNumber</p>
+ *@
+</div>
 
-                                <strong>Category:</strong>
+</div>
 
-                                @test?.TestType?.Category
+</div>
 
-                            </p>
+<div class="col-lg-6">
 
-                            <p>
+<div class="info-card">
 
-                                <strong>Urgency:</strong>
+<div class="info-header">
 
-                                @test?.TestRequest?.Urgency
+<i class="fa-solid fa-vials"></i>
 
-                            </p>
+Test Information
 
-                            <p>
+</div>
 
-                                <strong>Started:</strong>
+<div class="info-body">
 
-                                @test?.StartDateTime?.ToString("dd MMM yyyy HH:mm")
+<p><strong>Request:</strong> TR-@test?.RequestId</p>
 
-                            </p>
+<p><strong>Test:</strong> @test?.TestType?.Name</p>
 
-                        </div>
+<p><strong>Category:</strong> @test?.TestType?.Category</p>
 
-                    </div>
+<p><strong>Urgency:</strong> @test?.TestRequest?.Urgency</p>
 
-                </div>
+<p><strong>Started:</strong> @test?.StartDateTime?.ToString("dd MMM yyyy HH:mm")</p>
 
-            </div>
+</div>
 
-            <!-- ============================= -->
-            <!-- CLINICAL NOTES                -->
-            <!-- ============================= -->
+</div>
 
-            <div class="card border-warning mb-4">
+</div>
 
-                <div class="card-header bg-warning">
+</div>
 
-                    Doctor Clinical Notes
+<div class="notes-card">
 
-                </div>
+<div class="notes-header">
 
-                <div class="card-body">
+<i class="fa-solid fa-notes-medical"></i>
 
-                    @test?.TestRequest?.ClinicalNotes
+Doctor's Clinical Notes
 
-                </div>
+</div>
 
-            </div>
+<div class="notes-body">
 
-            <!-- ============================= -->
-            <!-- CAPTURE RESULT                -->
-            <!-- ============================= -->
+@if (!string.IsNullOrWhiteSpace(test?.TestRequest?.ClinicalNotes))
+{
+    @test.TestRequest.ClinicalNotes
+}
+else
+{
+    <span class="text-muted">
+        No clinical notes were provided by the requesting doctor.
+    </span>
+}
 
-            <form asp-action="Capture" method="post">
+</div>
 
-                <input type="hidden"
-                       asp-for="TestRequestItemId" />
+</div>
 
-                <div class="row">
+<div class="result-card">
 
-                    <div class="col-md-6 mb-3">
+<div class="result-header">
 
-                        <label asp-for="ResultValue"
-                               class="form-label fw-bold"></label>
+<i class="fa-solid fa-clipboard-check"></i>
 
-                        <input asp-for="ResultValue"
-                               class="form-control" />
+Laboratory Result
 
-                        <span asp-validation-for="ResultValue"
-                              class="text-danger"></span>
+</div>
 
-                    </div>
+<div class="result-body">
 
-                    <div class="col-md-6 mb-3">
+<form asp-action="Capture" method="post">
 
-                        <label asp-for="Units"
-                               class="form-label fw-bold"></label>
+<input asp-for="TestRequestItemId" type="hidden" />
 
-                        <input asp-for="Units"
-                               class="form-control" />
+<div asp-validation-summary="ModelOnly" class="text-danger mb-4"></div>
 
-                    </div>
+<div class="row">
 
-                </div>
+<div class="col-md-6 mb-4">
 
-                <div class="mb-3">
+<label asp-for="ResultValue"></label>
 
-                    <label asp-for="ReferenceRange"
-                           class="form-label fw-bold"></label>
+<input asp-for="ResultValue"
+       class="form-control"
+       placeholder="Enter the measured result" />
+
+<span asp-validation-for="ResultValue"
+      class="text-danger"></span>
+
+</div>
+
+<div class="col-md-6 mb-4">
+
+<label asp-for="Units"></label>
+
+<input asp-for="Units"
+       class="form-control"
+       placeholder="e.g. mmol/L, g/dL" />
+
+<span asp-validation-for="Units"
+      class="text-danger"></span>
+
+</div>
+
+</div>
+                <div class="mb-4">
+
+                    <label asp-for="ReferenceRange"></label>
 
                     <input asp-for="ReferenceRange"
-                           class="form-control" />
+                           class="form-control"
+                           placeholder="e.g. 4.0 - 11.0 x10⁹/L" />
+
+                    <span asp-validation-for="ReferenceRange"
+                          class="text-danger"></span>
 
                 </div>
 
                 <div class="mb-4">
 
-                    <label asp-for="Comments"
-                           class="form-label fw-bold"></label>
+                    <label asp-for="Comments"></label>
 
                     <textarea asp-for="Comments"
                               class="form-control"
-                              rows="4"></textarea>
+                              placeholder="Enter any observations, abnormalities or additional laboratory comments..."></textarea>
+
+                    <span asp-validation-for="Comments"
+                          class="text-danger"></span>
 
                 </div>
 
-                <button type="submit"
-                        class="btn btn-success">
+                <hr class="my-4" />
 
-                    <i class="fa-solid fa-floppy-disk"></i>
+                <div class="d-flex justify-content-end gap-3">
 
-                    Save Result
+                    <a asp-action="Index"
+                       class="btn btn-outline-secondary btn-cancel">
 
-                </button>
+                        <i class="fa-solid fa-arrow-left"></i>
 
-                <a asp-action="Index"
-                   class="btn btn-secondary">
+                        Back
 
-                    Cancel
+                    </a>
 
-                </a>
+                    <button type="submit"
+                            class="btn btn-save">
+
+                        <i class="fa-solid fa-floppy-disk"></i>
+
+                        Save Laboratory Result
+
+                    </button>
+
+                </div>
 
             </form>
 
@@ -232,4 +401,19 @@
 @section Scripts
 {
     <partial name="_ValidationScriptsPartial" />
+
+    <script>
+
+        // Automatically focus the first input when the page loads
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const resultInput = document.getElementById("ResultValue");
+
+            if (resultInput) {
+                resultInput.focus();
+            }
+
+        });
+
+    </script>
 }

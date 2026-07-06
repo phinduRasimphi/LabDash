@@ -21,7 +21,10 @@ namespace LabDash.Controllers
             _userManager = userManager;
         }
 
-        // Display tests available for the logged-in technician
+        // ==========================================================
+        // AVAILABLE TESTS
+        // ==========================================================
+        [HttpGet]
         public async Task<IActionResult> Index()
         {
             var technician = await _userManager.GetUserAsync(User);
@@ -38,12 +41,15 @@ namespace LabDash.Controllers
                     _context.TechnicianTestTypes.Any(a =>
                         a.TechnicianId == technician.Id &&
                         a.TestTypeId == t.TestTypeId))
+                .OrderBy(t => t.RequestId)
                 .ToListAsync();
 
             return View(tests);
         }
 
-        // Technician starts a test
+        // ==========================================================
+        // START TEST
+        // ==========================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> StartTest(int id)
@@ -61,62 +67,131 @@ namespace LabDash.Controllers
             if (item == null)
                 return NotFound();
 
-            // Get all consumables required for this test
+            if (item.Status != "Submitted")
+            {
+                TempData["Error"] = "This test cannot be started.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            // ======================================
+            // CHECK CONSUMABLE STOCK
+            // ======================================
+
             var consumables = await _context.TestTypeConsumables
-                .Include(x => x.Consumable)
-                .Where(x => x.TestTypeId == item.TestTypeId)
+                .Include(c => c.Consumable)
+                .Where(c => c.TestTypeId == item.TestTypeId)
                 .ToListAsync();
 
-            // ============================================
-            // CHECK THAT THERE IS ENOUGH STOCK
-            // ============================================
-            foreach (var c in consumables)
+            foreach (var consumable in consumables)
             {
-                if (c.Consumable.StockLevel < c.QuantityRequired)
+                if (consumable.Consumable.StockLevel < consumable.QuantityRequired)
                 {
                     TempData["Error"] =
-                        $"Cannot start the test. Not enough stock for '{c.Consumable.Name}'. " +
-                        $"Available: {c.Consumable.StockLevel}, Required: {c.QuantityRequired}.";
+                        $"Insufficient stock for {consumable.Consumable.Name}. " +
+                        $"Available: {consumable.Consumable.StockLevel}, " +
+                        $"Required: {consumable.QuantityRequired}.";
 
                     return RedirectToAction(nameof(Index));
                 }
             }
 
-            // ============================================
+            // ======================================
             // DEDUCT STOCK
-            // ============================================
-            foreach (var c in consumables)
+            // ======================================
+
+            foreach (var consumable in consumables)
             {
-                c.Consumable.StockLevel -= c.QuantityRequired;
-                c.Consumable.UpdatedAt = DateTime.Now;
+                consumable.Consumable.StockLevel -= consumable.QuantityRequired;
+                consumable.Consumable.UpdatedAt = DateTime.Now;
             }
 
-            // ============================================
+            // ======================================
             // ASSIGN TECHNICIAN
-            // ============================================
+            // ======================================
+
             item.AssignedTechnicianId = technician.Id;
             item.StartDateTime = DateTime.Now;
             item.Status = "In Progress";
 
-            var expectedCompletion =
-    item.StartDateTime.Value.AddHours(item.TestType.TurnaroundTimeHours);
+            // ======================================
+            // UPDATE REQUEST STATUS
+            // ======================================
 
-            // If this is the first test started for the request,
-            // update the request status as well.
-            bool firstTest = !_context.TestRequestItems.Any(x =>
-                x.RequestId == item.RequestId &&
-                x.Status == "In Progress");
-
-            if (firstTest)
-            {
-                item.TestRequest.Status = "In Progress";
-            }
+            item.TestRequest.Status = "In Progress";
 
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Test started successfully. Consumables have been deducted from stock.";
+            TempData["Success"] =
+                "Test started successfully. Consumables deducted from stock.";
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(InProgress));
+        }
+
+        // ==========================================================
+        // IN PROGRESS
+        // ==========================================================
+        [HttpGet]
+        public async Task<IActionResult> InProgress()
+        {
+            var technician = await _userManager.GetUserAsync(User);
+
+            if (technician == null)
+                return Challenge();
+
+            var tests = await _context.TestRequestItems
+                .Include(t => t.TestRequest)
+                .Include(t => t.TestType)
+                .Where(t =>
+                    t.AssignedTechnicianId == technician.Id &&
+                    t.Status == "In Progress")
+                .OrderBy(t => t.StartDateTime)
+                .ToListAsync();
+
+            return View(tests);
+        }
+
+        // ==========================================================
+        // COMPLETED TESTS
+        // ==========================================================
+        [HttpGet]
+        public async Task<IActionResult> Completed()
+        {
+            var technician = await _userManager.GetUserAsync(User);
+
+            if (technician == null)
+                return Challenge();
+
+            var tests = await _context.TestRequestItems
+                .Include(t => t.TestRequest)
+                .Include(t => t.TestType)
+                .Where(t =>
+                    t.AssignedTechnicianId == technician.Id &&
+                    t.Status == "Completed")
+                .OrderByDescending(t => t.CompletionDateTime)
+                .ToListAsync();
+
+            return View(tests);
+            }
+        //====================================================
+        // TEST HISTORY
+        //====================================================
+        [HttpGet]
+        public async Task<IActionResult> TestHistory()
+        {
+            var technician = await _userManager.GetUserAsync(User);
+
+            if (technician == null)
+                return Challenge();
+
+            var history = await _context.TestRequestItems
+                .Include(t => t.TestRequest)
+                .Include(t => t.TestType)
+                .Where(t => t.AssignedTechnicianId == technician.Id)
+                .OrderByDescending(t => t.CompletionDateTime ?? t.StartDateTime)
+                .ToListAsync();
+
+            return View(history);
         }
     }
 }
