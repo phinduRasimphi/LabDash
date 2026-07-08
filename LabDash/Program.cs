@@ -15,7 +15,8 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 
 builder.Services.AddIdentity<LabUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddEntityFrameworkStores<LabDbContext>();
+    .AddEntityFrameworkStores<LabDbContext>().AddDefaultTokenProviders();
+  
 builder.Services.AddControllersWithViews();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 
