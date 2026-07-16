@@ -1,8 +1,8 @@
-﻿using LabDash.Areas.Identity.Data;
-using LabDash.Models;
+﻿using LabDash.Models;
+using LabDash.Enums;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
+using LabDash.Areas.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,17 +32,20 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Challenge();
 
-            var tests = await _context.TestRequestItems
-                .Include(t => t.TestRequest)
-                .Include(t => t.TestType)
-                .Include(t => t.AssignedTechnician)
-                .Where(t =>
-                    t.Status == "Completed" &&
-                    t.AssignedTechnicianId != technician.Id)
-                .OrderBy(t => t.CompletionDateTime)
+            var queue = await _context.TestResults
+                .Include(r => r.TestRequestItem)
+                    .ThenInclude(t => t.TestRequest)
+                .Include(r => r.TestRequestItem)
+                    .ThenInclude(t => t.TestType)
+                .Include(r => r.CapturedByTechnician)
+                .Where(r =>
+                    r.Status == "Completed" &&
+                    r.CapturedByTechnicianId != technician.Id &&
+                    r.VerifiedByTechnicianId == null)
+                .OrderBy(r => r.DateCaptured)
                 .ToListAsync();
 
-            return View(tests);
+            return View(queue);
         }
 
         //---------------------------------------------------------
@@ -54,34 +57,39 @@ namespace LabDash.Controllers
             var item = await _context.TestRequestItems
                 .Include(t => t.TestType)
                 .Include(t => t.TestRequest)
+                    .ThenInclude(r => r.Patient)
                 .Include(t => t.AssignedTechnician)
-                .FirstOrDefaultAsync(t =>
-                    t.TestRequestItemId == id);
+                .FirstOrDefaultAsync(t => t.TestRequestItemId == id);
 
             if (item == null)
                 return NotFound();
 
-            var result = await _context.TestResults
-                .FirstOrDefaultAsync(r =>
-                    r.TestRequestItemId == id);
+            if (item.Status != "Completed")
+            {
+                TempData["Error"] = "This test is not awaiting verification.";
+                return RedirectToAction(nameof(Index));
+            }
 
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p =>
-                    p.PatientID == item.TestRequest.PatientId);
+            var result = await _context.TestResults
+                .FirstOrDefaultAsync(r => r.TestRequestItemId == id);
+
+            if (result == null)
+            {
+                TempData["Error"] = "No captured result exists for this test.";
+                return RedirectToAction(nameof(Index));
+            }
 
             ViewBag.TestItem = item;
-            ViewBag.Patient = patient;
+            ViewBag.Patient = item.TestRequest.Patient;
             ViewBag.Result = result;
 
             return View(new TestVerification
             {
-                TestRequestItemId = id
+                TestRequestItemId = id,
+                Status = "Verified"
             });
         }
 
-        //---------------------------------------------------------
-        // Verify Test
-        //---------------------------------------------------------
         //---------------------------------------------------------
         // Verify Test
         //---------------------------------------------------------
@@ -97,57 +105,105 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Challenge();
 
-            // Get the test item
+            //---------------------------------------------------------
+            // Get test item
+            //---------------------------------------------------------
             var item = await _context.TestRequestItems
                 .Include(t => t.TestRequest)
+                .Include(t => t.TestType)
                 .FirstOrDefaultAsync(t =>
                     t.TestRequestItemId == verification.TestRequestItemId);
 
             if (item == null)
                 return NotFound();
 
-            // Get the captured result
+            //---------------------------------------------------------
+            // Must still be completed
+            //---------------------------------------------------------
+            if (item.Status != "Completed")
+            {
+                TempData["Error"] =
+                    "This test is no longer awaiting verification.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            //---------------------------------------------------------
+            // Get captured result
+            //---------------------------------------------------------
             var result = await _context.TestResults
                 .FirstOrDefaultAsync(r =>
                     r.TestRequestItemId == verification.TestRequestItemId);
 
             if (result == null)
             {
-                TempData["Error"] = "No test result has been captured.";
+                TempData["Error"] =
+                    "No captured result exists for this test.";
+
                 return RedirectToAction(nameof(Index));
             }
 
             //---------------------------------------------------------
-            // Prevent technician from verifying own result
+            // Rule 1: Cannot verify own result
             //---------------------------------------------------------
             if (result.CapturedByTechnicianId == technician.Id)
             {
                 TempData["Error"] =
-                    "You cannot verify a test result that you captured.";
+                    "You cannot verify a result that you captured yourself.";
 
                 return RedirectToAction(nameof(Index));
             }
 
             //---------------------------------------------------------
-            // Save verification
+            // Rule 2: Must be assigned to this test type
+            //---------------------------------------------------------
+            bool assigned = await _context.TechnicianAssignments
+                .AnyAsync(x =>
+                    x.TechnicianId == technician.Id &&
+                    x.TestTypeId == item.TestTypeId);
+
+            if (!assigned)
+            {
+                TempData["Error"] =
+                    "You are not authorised to verify this test type.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            //---------------------------------------------------------
+            // Prevent double verification
+            //---------------------------------------------------------
+            if (!string.IsNullOrEmpty(result.VerifiedByTechnicianId))
+            {
+                TempData["Error"] =
+                    "This result has already been verified.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            //---------------------------------------------------------
+            // Save verification record
             //---------------------------------------------------------
             verification.VerifiedByTechnicianId = technician.Id;
             verification.VerificationDate = DateTime.Now;
 
-            if (verification.Status == "Verified")
-            {
-                item.Status = "Verified";
-            }
-            else
-            {
-                item.Status = "To Be Reviewed";
-            }
-
             _context.TestVerifications.Add(verification);
 
             //---------------------------------------------------------
-            // If every test in the request is verified,
-            // mark the whole request as verified
+            // Update TestResult
+            //---------------------------------------------------------
+            result.VerifiedByTechnicianId = technician.Id;
+            result.VerificationDate = DateTime.Now;
+            result.VerificationNote = verification.VerificationNotes;
+            result.Status = verification.Status;
+
+            //---------------------------------------------------------
+            // Update TestRequestItem
+            //---------------------------------------------------------
+            item.Status = verification.Status;
+
+            //---------------------------------------------------------
+            // If all tests are verified, verify request
             //---------------------------------------------------------
             bool allVerified = await _context.TestRequestItems
                 .Where(x => x.RequestId == item.RequestId)
@@ -160,7 +216,10 @@ namespace LabDash.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Verification completed successfully.";
+            TempData["Success"] =
+                verification.Status == "Verified"
+                    ? "Result verified successfully."
+                    : "Result returned for review.";
 
             return RedirectToAction(nameof(Index));
         }

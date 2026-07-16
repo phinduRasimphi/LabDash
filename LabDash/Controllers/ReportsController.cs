@@ -1,4 +1,5 @@
 ﻿using LabDash.Areas.Identity.Data;
+using LabDash.Enums;
 using LabDash.Models;
 using LabDash.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;

@@ -23,6 +23,7 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<Patient> Patients { get; set; }
     public DbSet<TestTypeConsumable> TestTypeConsumables { get; set; }
     public DbSet<TestVerification> TestVerifications { get; set; }
+    public DbSet<TechnicianAssignment> TechnicianAssignments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -1,4 +1,5 @@
 ﻿using LabDash.Areas.Identity.Data;
+using LabDash.Enums;
 using LabDash.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -35,7 +36,7 @@ namespace LabDash.Controllers
                 .Include(t => t.TestRequest)
                 .Include(t => t.TestType)
                 .Where(t =>
-                    t.Status == "To Be Reviewed" &&
+                    t.Status == "ToBeReviewed" &&
                     t.AssignedTechnicianId == technician.Id)
                 .OrderByDescending(t => t.CompletionDateTime)
                 .ToListAsync();
