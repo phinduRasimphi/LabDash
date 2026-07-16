@@ -1,5 +1,6 @@
 
 using LabDash.Areas.Identity.Data;
+using LabDash.Models;
 using LabDash.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -16,8 +17,10 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentity<LabUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<LabDbContext>().AddDefaultTokenProviders();
-  
+
 builder.Services.AddControllersWithViews();
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 
 var app = builder.Build();
@@ -215,6 +218,84 @@ using (var scope = app.Services.CreateScope())
         await userManager.CreateAsync(user, password);
 
         await userManager.AddToRoleAsync(user, "Lab_Manager");
+    }
+}
+using (var scope = app.Services.CreateScope())
+{
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
+
+    string email = "labdashrsa@gmail.com";
+    string password = "Password!123";
+
+    if (await userManager.FindByEmailAsync(email) == null)
+    {
+        var user = new LabUser();
+        user.Email = email;
+        user.UserName = email;
+        user.EmailConfirmed = true;
+        user.FirstName = "Phindulo";
+        user.LastName = "Rasimphi";
+        //user.HCRN = 0;
+        user.PhoneNumb = "0741234567";
+        user.Gender = "Male";
+
+        user.Timestamp_AccountCreated = DateTime.Now;
+        await userManager.CreateAsync(user, password);
+
+        await userManager.AddToRoleAsync(user, "Doctor");
+
+    }
+}
+using (var scope = app.Services.CreateScope())
+{
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
+
+    string email = "phindu.ras2003@gmail.com";
+    string password = "Password!123";
+
+    if (await userManager.FindByEmailAsync(email) == null)
+    {
+        var user = new LabUser();
+        user.Email = email;
+        user.UserName = email;
+        user.EmailConfirmed = true;
+        user.FirstName = "Phindulo";
+        user.LastName = "Rasimphi";
+        //user.HCRN = 0;
+        user.PhoneNumb = "0741234567";
+        user.Gender = "Male";
+
+        user.Timestamp_AccountCreated = DateTime.Now;
+        await userManager.CreateAsync(user, password);
+
+        await userManager.AddToRoleAsync(user, "Patient");
+
+    }
+}
+using (var scope = app.Services.CreateScope())
+{
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
+
+    string email = "mafhuwalesley@gmail.com";
+    string password = "Password!123";
+
+    if (await userManager.FindByEmailAsync(email) == null)
+    {
+        var user = new LabUser();
+        user.Email = email;
+        user.UserName = email;
+        user.EmailConfirmed = true;
+        user.FirstName = "Phindulo";
+        user.LastName = "Rasimphi";
+        //user.HCRN = 0;
+        user.PhoneNumb = "0741234567";
+        user.Gender = "Male";
+
+        user.Timestamp_AccountCreated = DateTime.Now;
+        await userManager.CreateAsync(user, password);
+
+        await userManager.AddToRoleAsync(user, "Patient");
+
     }
 }
 app.Run();

@@ -1,10 +1,9 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
-using LabDash.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Identity.Client;
+using System.Text.Encodings.Web;
 
 namespace LabDash.Controllers
 {
@@ -109,7 +108,7 @@ namespace LabDash.Controllers
                             string applicationName = "LabDash";
 
                             string supportEmail = "LabDashSupport@gmail.com";
-                            string RealAccount = "phindu.ras2003@gmail.com";
+                            string RealAccount = "labdashrsa@gmail.com";
 
                             var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
@@ -190,7 +189,7 @@ namespace LabDash.Controllers
 
             var user = await _userManager.FindByEmailAsync(model.Email);
 
-            if (user == null || !(await _userManager.IsEmailConfirmedAsync(user)))
+            if (user == null || string.IsNullOrEmpty(user.Email) || !(await _userManager.IsEmailConfirmedAsync(user)))
             {
                 return RedirectToAction(nameof(ForgotPasswordConfirmation));
             }
@@ -200,20 +199,48 @@ namespace LabDash.Controllers
             var resetLink = Url.Action(
                 "ResetPassword",
                 "Account",
-                new
-                {
-                    token = token,
-                    email = user.Email
-                },
+                new { token = token, email = user.Email },
                 Request.Scheme);
 
-            await _emailSender.SendEmailAsync(
-                user.Email,
-                "Reset Password",
-                $"Click <a href='{resetLink}'>here</a> to reset your password.");
+            if (string.IsNullOrEmpty(resetLink))
+            {
+                // Route generation failed - log this, it means something is misconfigured
+                // e.g. missing route, wrong controller/action name, no Request.Scheme available
+                return RedirectToAction(nameof(ForgotPasswordConfirmation));
+            }
 
-            return RedirectToAction(nameof(ForgotPasswordConfirmation));
+            var encodedResetLink = HtmlEncoder.Default.Encode(resetLink);
+
+            var emailBody =
+                $"<html><head><style>" +
+                $"body {{ font-family: Arial, sans-serif; }}" +
+                $".cta-button {{ background-color: #2f6db3; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px; }}" +
+                $".cta-button:hover {{ background-color: #265580; }}" +
+                $".footer {{ margin-top: 20px; font-size: 12px; color: #888; }}" +
+                $"</style></head>" +
+                $"<body>" +
+                $"<h1>Reset your LabDash password</h1>" +
+                $"<p>We received a request to reset your password. Click the button below to choose a new one:</p>" +
+                $"<p><a class='cta-button' href='{encodedResetLink}'>Reset Password</a></p>" +
+                $"<p>If you did not request a password reset, you can safely ignore this email.</p>" +
+                $"<div class='footer'><p>LabDash Team</p></div>" +
+                $"</body></html>";
+
+            try
+            {
+                await _emailSender.SendEmailAsync(user.Email, "Reset your password", emailBody);
+            }
+            catch (Exception ex)
+            {
+                // Log this somewhere you can actually see it (ILogger, console, etc.)
+                // Don't let a failed send silently look like success to the user,
+                // but also don't leak SMTP details back to them.
+              //  _logger?.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
+            }
+
+            return RedirectToAction("ForgotPasswordConfirmation", "Account");
         }
+
         [HttpGet]
         public IActionResult ForgotPasswordConfirmation()
         {
