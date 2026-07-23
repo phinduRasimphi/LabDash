@@ -5,628 +5,354 @@
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
-<div class="container-fluid py-4">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- PAGE HEADER -->
+<div class="th-wrap">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-
-        <div>
-
-            <h2 class="fw-bold text-teal">
-
-                <i class="fa-solid fa-clock-rotate-left me-2"></i>
-
-                Laboratory Test History
-
-            </h2>
-
-            <p class="text-muted mb-0">
-
-                View every laboratory test that has been assigned to and processed by you.
-
-            </p>
-
+    <div class="th-banner">
+        <div class="th-banner-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <div class="th-banner-text">
+            <h1>Laboratory test history</h1>
+            <p>View every laboratory test that has been assigned to and processed by you.</p>
         </div>
-
-        <div>
-
-            <a asp-action="Completed"
-               class="btn btn-outline-primary rounded-pill">
-
-                <i class="fa-solid fa-arrow-left me-2"></i>
-
-                Completed Tests
-
-            </a>
-
-        </div>
-
+        <a asp-action="Completed" class="th-tab-link">
+            <i class="fa-solid fa-arrow-left"></i> Completed tests
+        </a>
     </div>
 
-
-    <!-- DASHBOARD CARDS -->
-
-    <div class="row g-4 mb-4">
-
-        <div class="col-lg-3">
-
-            <div class="card border-0 shadow rounded-4">
-
-                <div class="card-body">
-
-                    <div class="d-flex justify-content-between">
-
-                        <div>
-
-                            <small class="text-muted">
-
-                                Total Tests
-
-                            </small>
-
-                            <h2 class="fw-bold mt-2">
-
-                                @ViewBag.TotalTests
-
-                            </h2>
-
-                        </div>
-
-                        <i class="fa-solid fa-vials fa-3x text-primary"></i>
-
-                    </div>
-
-                </div>
-
+    <div class="th-stats">
+        <div class="th-stat">
+            <div class="th-stat-icon c-teal"><i class="fa-solid fa-vials"></i></div>
+            <div>
+                <small>Total tests</small>
+                <div class="num">@ViewBag.TotalTests</div>
             </div>
-
         </div>
-
-
-        <div class="col-lg-3">
-
-            <div class="card border-0 shadow rounded-4">
-
-                <div class="card-body">
-
-                    <div class="d-flex justify-content-between">
-
-                        <div>
-
-                            <small class="text-muted">
-
-                                Completed
-
-                            </small>
-
-                            <h2 class="fw-bold mt-2 text-success">
-
-                                @ViewBag.Completed
-
-                            </h2>
-
-                        </div>
-
-                        <i class="fa-solid fa-circle-check fa-3x text-success"></i>
-
-                    </div>
-
-                </div>
-
+        <div class="th-stat">
+            <div class="th-stat-icon c-teal-deep"><i class="fa-solid fa-circle-check"></i></div>
+            <div>
+                <small>Completed</small>
+                <div class="num">@ViewBag.Completed</div>
             </div>
-
         </div>
-
-
-        <div class="col-lg-3">
-
-            <div class="card border-0 shadow rounded-4">
-
-                <div class="card-body">
-
-                    <div class="d-flex justify-content-between">
-
-                        <div>
-
-                            <small class="text-muted">
-
-                                Verified
-
-                            </small>
-
-                            <h2 class="fw-bold mt-2 text-info">
-
-                                @ViewBag.Verified
-
-                            </h2>
-
-                        </div>
-
-                        <i class="fa-solid fa-shield-check fa-3x text-info"></i>
-
-                    </div>
-
-                </div>
-
+        <div class="th-stat">
+            <div class="th-stat-icon c-info"><i class="fa-solid fa-shield-check"></i></div>
+            <div>
+                <small>Verified</small>
+                <div class="num">@ViewBag.Verified</div>
             </div>
-
         </div>
-
-
-        <div class="col-lg-3">
-
-            <div class="card border-0 shadow rounded-4">
-
-                <div class="card-body">
-
-                    <div class="d-flex justify-content-between">
-
-                        <div>
-
-                            <small class="text-muted">
-
-                                In Progress
-
-                            </small>
-
-                            <h2 class="fw-bold mt-2 text-warning">
-
-                                @ViewBag.InProgress
-
-                            </h2>
-
-                        </div>
-
-                        <i class="fa-solid fa-flask fa-3x text-warning"></i>
-
-                    </div>
-
-                </div>
-
+        <div class="th-stat">
+            <div class="th-stat-icon c-gold"><i class="fa-solid fa-flask"></i></div>
+            <div>
+                <small>In progress</small>
+                <div class="num">@ViewBag.InProgress</div>
             </div>
-
         </div>
-
     </div>
 
+    <form asp-action="TestHistory" method="get" class="th-search-row">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" name="search" class="th-search" value="@ViewBag.Search"
+               placeholder="Search patient name, surname, test type or status..." />
+        <button type="submit" class="th-search-btn">
+            <i class="fa-solid fa-search"></i> Search
+        </button>
+    </form>
 
-    <!-- SEARCH -->
+    <div class="th-panel-label">Technician audit trail <span class="th-count">@Model.Count() records</span></div>
 
-    <div class="card shadow border-0 rounded-4 mb-4">
-
-        <div class="card-body">
-
-            <form asp-action="TestHistory"
-                  method="get">
-
-                <div class="row">
-
-                    <div class="col-md-10">
-
-                        <input type="text"
-                               class="form-control form-control-lg"
-                               name="search"
-                               value="@ViewBag.Search"
-                               placeholder="Search patient name, surname, test type or status..." />
-
-                    </div>
-
-                    <div class="col-md-2">
-
-                        <button class="btn btn-teal btn-lg w-100">
-
-                            <i class="fa-solid fa-search me-2"></i>
-
-                            Search
-
-                        </button>
-
-                    </div>
-
-                </div>
-
-            </form>
-
-        </div>
-
-    </div>
-
-
-    <!-- HISTORY TABLE -->
-
-    <div class="card border-0 shadow rounded-4">
-
-        <div class="card-header bg-teal text-white">
-
-            <div class="d-flex justify-content-between align-items-center">
-
-                <h5 class="mb-0">
-
-                    <i class="fa-solid fa-clipboard-list me-2"></i>
-
-                    Technician Audit Trail
-
-                </h5>
-
-                <span class="badge bg-light text-dark">
-
-                    @Model.Count() Records
-
-                </span>
-
-            </div>
-
-        </div>
-
-        <div class="table-responsive">
-
-            <table class="table table-hover align-middle mb-0">
-
-                <thead class="table-light">
+    <div class="th-table-wrap">
+        <table class="th-table">
+            <thead>
+                <tr>
+                    <th>Patient</th>
+                    <th>Laboratory test</th>
+                    <th>Started</th>
+                    <th>Completed</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="historyTable">
+                @foreach (var item in Model)
+                {
+                    var initials = $"{item.TestRequest.Patient.Name?.FirstOrDefault()}{item.TestRequest.Patient.Surname?.FirstOrDefault()}";
 
                     <tr>
+                        <td>
+                            <div class="th-patient">
+                                <div class="th-avatar">@initials</div>
+                                <div>
+                                    <strong>@item.TestRequest.Patient.Name @item.TestRequest.Patient.Surname</strong>
+                                    <small>@item.TestRequest.Patient.IDNumber</small>
+                                </div>
+                            </div>
+                        </td>
 
-                        <th>Patient</th>
+                        <td>
+                            <strong>@item.TestType.Name</strong>
+                            <small>@item.TestType.Category</small>
+                        </td>
 
-                        <th>Laboratory Test</th>
+                        <td class="th-mono">
+                            @if (item.StartDateTime.HasValue)
+                            {
+                                @item.StartDateTime.Value.ToString("dd MMM yyyy HH:mm")
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </td>
 
-                        <th>Started</th>
+                        <td class="th-mono">
+                            @if (item.CompletionDateTime.HasValue)
+                            {
+                                @item.CompletionDateTime.Value.ToString("dd MMM yyyy HH:mm")
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </td>
 
-                        <th>Completed</th>
+                        <td>
+                            @switch (item.Status)
+                            {
+                                case "Submitted":
+                                    <span class="th-badge neutral">Submitted</span>
+                                    break;
+                                case "In Progress":
+                                    <span class="th-badge gold">In Progress</span>
+                                    break;
+                                case "Completed":
+                                    <span class="th-badge teal">Completed</span>
+                                    break;
+                                case "Verified":
+                                    <span class="th-badge verified">Verified</span>
+                                    break;
+                                case "To Be Reviewed":
+                                    <span class="th-badge urgent">To Be Reviewed</span>
+                                    break;
+                                default:
+                                    <span class="th-badge neutral">@item.Status</span>
+                                    break;
+                            }
+                        </td>
 
-                        <th>Status</th>
-
-                        <th width="220">Actions</th>
-
+                        <td>
+                            <div class="th-actions">
+                                <a asp-action="ProcessTest" asp-route-id="@item.TestRequestItemId" class="th-btn th-btn-outline">
+                                    <i class="fa-solid fa-eye"></i> View
+                                </a>
+                                <a asp-controller="CaptureResults" asp-action="Details" asp-route-id="@item.TestRequestItemId" class="th-btn th-btn-solid">
+                                    <i class="fa-solid fa-file-medical"></i> Results
+                                </a>
+                            </div>
+                        </td>
                     </tr>
-
-                </thead>
-
-                <tbody id="historyTable">
-                    @foreach (var item in Model)
-                    {
-                        <tr>
-
-                            <!-- PATIENT -->
-
-                            <td>
-
-                                <div class="d-flex align-items-center">
-
-                                    <div class="rounded-circle bg-teal text-white
-                                        d-flex justify-content-center align-items-center me-3"
-                                         style="width:45px;height:45px;">
-
-                                        <i class="fa-solid fa-user"></i>
-
-                                    </div>
-
-                                    <div>
-
-                                        <strong>
-
-                                            @item.TestRequest.Patient.Name
-                                            @item.TestRequest.Patient.Surname
-
-                                        </strong>
-
-                                        <br />
-
-                                        <small class="text-muted">
-
-                                            @item.TestRequest.Patient.IDNumber
-
-                                        </small>
-
-                                    </div>
-
-                                </div>
-
-                            </td>
-
-                            <!-- LAB TEST -->
-
-                            <td>
-
-                                <strong>
-
-                                    @item.TestType.Name
-
-                                </strong>
-
-                                <br />
-
-                                <small class="text-muted">
-
-                                    @item.TestType.Category
-
-                                </small>
-
-                            </td>
-
-                            <!-- STARTED -->
-
-                            <td>
-
-                                @if (item.StartDateTime.HasValue)
-                                {
-                                    @item.StartDateTime.Value.ToString("dd MMM yyyy HH:mm")
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-
-                            </td>
-
-                            <!-- COMPLETED -->
-
-                            <td>
-
-                                @if (item.CompletionDateTime.HasValue)
-                                {
-                                    @item.CompletionDateTime.Value.ToString("dd MMM yyyy HH:mm")
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-
-                            </td>
-
-                            <!-- STATUS -->
-
-                            <td>
-
-                                @switch (item.Status)
-                                {
-                                    case "Submitted":
-                                        <span class="badge bg-secondary">
-                                            Submitted
-                                        </span>
-                                        break;
-
-                                    case "In Progress":
-                                        <span class="badge bg-warning text-dark">
-                                            In Progress
-                                        </span>
-                                        break;
-
-                                    case "Completed":
-                                        <span class="badge bg-primary">
-                                            Completed
-                                        </span>
-                                        break;
-
-                                    case "Verified":
-                                        <span class="badge bg-success">
-                                            Verified
-                                        </span>
-                                        break;
-
-                                    case "To Be Reviewed":
-                                        <span class="badge bg-danger">
-                                            To Be Reviewed
-                                        </span>
-                                        break;
-
-                                    default:
-                                        <span class="badge bg-dark">
-                                            @item.Status
-                                        </span>
-                                        break;
-                                }
-
-                            </td>
-
-                            <!-- ACTIONS -->
-
-                            <td>
-
-                                <div class="d-flex gap-2 flex-wrap">
-
-                                    <a asp-action="ProcessTest"
-                                       asp-route-id="@item.TestRequestItemId"
-                                       class="btn btn-outline-primary btn-sm rounded-pill">
-
-                                        <i class="fa-solid fa-eye me-1"></i>
-
-                                        View
-
-                                    </a>
-
-                                    <a asp-controller="CaptureResults"
-                                       asp-action="Details"
-                                       asp-route-id="@item.TestRequestItemId"
-                                       class="btn btn-success btn-sm rounded-pill">
-
-                                        <i class="fa-solid fa-file-medical me-1"></i>
-
-                                        Results
-
-                                    </a>
-
-                                </div>
-
-                            </td>
-
-                        </tr>
-                    }
-
-                    @if (!Model.Any())
-                    {
-                        <tr>
-
-                            <td colspan="6">
-
-                                <div class="text-center py-5">
-
-                                    <i class="fa-solid fa-folder-open
-                                    fa-4x text-secondary mb-3"></i>
-
-                                    <h4>
-
-                                        No Test History Found
-
-                                    </h4>
-
-                                    <p class="text-muted">
-
-                                        There are no laboratory tests in your history that match
-                                        the selected search criteria.
-
-                                    </p>
-
-                                    <a asp-action="Index"
-                                       class="btn btn-teal rounded-pill mt-2">
-
-                                        <i class="fa-solid fa-arrow-left me-2"></i>
-
-                                        Back to Available Tests
-
-                                    </a>
-
-                                </div>
-
-                            </td>
-
-                        </tr>
-                    }
-
-                </tbody>
-
-            </table>
-
-        </div>
-
+                }
+
+                @if (!Model.Any())
+                {
+                    <tr class="th-empty-row">
+                        <td colspan="6">
+                            <div class="th-empty">
+                                <i class="fa-solid fa-folder-open"></i>
+                                <h3>No test history found</h3>
+                                <p>There are no laboratory tests in your history that match the selected search criteria.</p>
+                                <a asp-action="Index" class="th-btn th-btn-solid">
+                                    <i class="fa-solid fa-arrow-left"></i> Back to available tests
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
-    </div>
+</div>
 
 <style>
+    :root {
+        --th-paper: #F3F8F7;
+        --th-raised: #FFFFFF;
+        --th-ink: #14302C;
+        --th-ink-soft: #55716C;
+        --th-ink-faint: #90A9A4;
+        --th-line: #E3EEEC;
+        --th-line-strong: #CFE3DF;
 
-    body{
-        background:#f4f8fb;
+        --th-teal: #0E8C7F;
+        --th-teal-deep: #0A5850;
+        --th-teal-dim: #E5F4F1;
+        --th-teal-grad-start: #12988A;
+        --th-teal-grad-end: #0A5850;
+
+        --th-gold: #B4862A; --th-gold-dim: #FBF1DA;
+        --th-red: #B0463F; --th-red-dim: #F7E8E7;
+        --th-info: #2C6E9E; --th-info-dim: #E4F0F9;
+
+        --th-radius: 18px;
+        --th-radius-sm: 12px;
+        --th-shadow: 0 4px 18px rgba(10, 60, 55, 0.06);
+        --th-shadow-sm: 0 2px 8px rgba(10, 60, 55, 0.05);
     }
 
-    .text-teal{
-        color:#0f766e;
+    body { background: var(--th-paper); }
+
+    .th-wrap { max-width: 1180px; margin: 0 auto; padding: 24px 0 60px; color: var(--th-ink); font-family: 'Inter', sans-serif; }
+
+    /* Banner header */
+    .th-banner {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        background: linear-gradient(120deg, var(--th-teal-grad-start), var(--th-teal-grad-end));
+        border-radius: var(--th-radius);
+        padding: 26px 30px;
+        margin-bottom: 26px;
+        box-shadow: var(--th-shadow);
     }
-
-    .bg-teal{
-        background:#0f766e !important;
+    .th-banner-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.16);
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 22px;
+        flex-shrink: 0;
     }
-
-    .btn-teal{
-        background:#0f766e;
-        color:white;
-        border:none;
+    .th-banner-text { flex: 1; }
+    .th-banner h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 26px; margin: 0 0 4px; color: #fff; letter-spacing: -.01em; }
+    .th-banner p { margin: 0; color: rgba(255, 255, 255, 0.85); font-size: 14.5px; }
+    .th-tab-link {
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13.5px;
+        text-decoration: none; color: #fff;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 999px;
+        padding: 10px 20px;
+        display: inline-flex; align-items: center; gap: 8px;
+        transition: .15s; white-space: nowrap;
     }
+    .th-tab-link:hover { background: rgba(255, 255, 255, 0.26); color: #fff; }
 
-    .btn-teal:hover{
-        background:#115e59;
-        color:white;
+    /* Stat cards */
+    .th-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 26px; }
+    .th-stat {
+        background: var(--th-raised);
+        border-radius: var(--th-radius);
+        box-shadow: var(--th-shadow-sm);
+        padding: 20px 22px;
+        display: flex; align-items: center; gap: 16px;
+        transition: transform .18s, box-shadow .18s;
     }
-
-    .card{
-        border-radius:18px;
-        transition:.25s;
+    .th-stat:hover { transform: translateY(-3px); box-shadow: var(--th-shadow); }
+    .th-stat-icon {
+        width: 48px; height: 48px; border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 19px; flex-shrink: 0;
     }
+    .th-stat-icon.c-teal { background: var(--th-teal-dim); color: var(--th-teal); }
+    .th-stat-icon.c-teal-deep { background: var(--th-teal-dim); color: var(--th-teal-deep); }
+    .th-stat-icon.c-info { background: var(--th-info-dim); color: var(--th-info); }
+    .th-stat-icon.c-gold { background: var(--th-gold-dim); color: var(--th-gold); }
+    .th-stat small { display: block; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--th-ink-faint); margin-bottom: 4px; }
+    .th-stat .num { font-family: 'Poppins', sans-serif; font-size: 26px; font-weight: 700; color: var(--th-ink); }
 
-    .card:hover{
-        transform:translateY(-4px);
-        box-shadow:0 12px 28px rgba(0,0,0,.12)!important;
+    /* Search */
+    .th-search-row { margin-bottom: 22px; position: relative; display: flex; gap: 10px; align-items: center; }
+    .th-search-row i.fa-magnifying-glass { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--th-ink-faint); font-size: 14px; }
+    .th-search {
+        flex: 1;
+        padding: 14px 18px 14px 44px;
+        border: 1px solid var(--th-line-strong);
+        border-radius: 999px;
+        background: var(--th-raised);
+        font-family: 'Inter', sans-serif; font-size: 14px; color: var(--th-ink);
+        outline: none; transition: border-color .15s, box-shadow .15s;
+        box-shadow: var(--th-shadow-sm);
     }
-
-    .rounded-4{
-        border-radius:18px!important;
+    .th-search::placeholder { color: var(--th-ink-faint); }
+    .th-search:focus { border-color: var(--th-teal); box-shadow: 0 0 0 4px var(--th-teal-dim); }
+    .th-search-btn {
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13.5px;
+        background: var(--th-teal); color: #fff; border: none;
+        border-radius: 999px; padding: 14px 24px; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+        transition: .15s;
     }
+    .th-search-btn:hover { background: var(--th-teal-deep); }
 
-    .card-header{
-        border-top-left-radius:18px!important;
-        border-top-right-radius:18px!important;
+    .th-panel-label { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: .02em; color: var(--th-teal-deep); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+    .th-count { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11.5px; color: var(--th-teal-deep); background: var(--th-teal-dim); padding: 4px 11px; border-radius: 999px; }
+
+    /* Table */
+    .th-table-wrap { background: var(--th-raised); border-radius: var(--th-radius); box-shadow: var(--th-shadow); overflow: hidden; overflow-x: auto; }
+    .th-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .th-table thead th { text-align: left; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--th-ink-faint); padding: 16px 20px; background: var(--th-teal-dim); white-space: nowrap; }
+    .th-table thead th:first-child { border-top-left-radius: var(--th-radius); }
+    .th-table thead th:last-child { border-top-right-radius: var(--th-radius); }
+    .th-table tbody td { padding: 16px 20px; border-bottom: 1px solid var(--th-line); vertical-align: middle; }
+    .th-table tbody tr { transition: background .12s; }
+    .th-table tbody tr:hover { background: var(--th-teal-dim); }
+    .th-table tbody tr:last-child td { border-bottom: none; }
+    .th-table strong { display: block; font-size: 14px; color: var(--th-ink); font-weight: 600; }
+    .th-table small { display: block; font-size: 12px; color: var(--th-ink-faint); margin-top: 2px; }
+    .th-mono { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--th-ink-soft); }
+
+    .th-patient { display: flex; align-items: center; gap: 12px; }
+    .th-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--th-teal), var(--th-teal-deep)); color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 13px; flex-shrink: 0; text-transform: uppercase; }
+
+    .th-badge { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11.5px; letter-spacing: .02em; padding: 6px 13px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; }
+    .th-badge.neutral { background: var(--th-line); color: var(--th-ink-soft); }
+    .th-badge.gold { background: var(--th-gold-dim); color: var(--th-gold); }
+    .th-badge.teal { background: var(--th-teal-dim); color: var(--th-teal-deep); }
+    .th-badge.verified { background: var(--th-teal-dim); color: var(--th-teal-deep); }
+    .th-badge.urgent { background: var(--th-red-dim); color: var(--th-red); }
+
+    .th-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .th-btn { font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; padding: 9px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; transition: .15s; white-space: nowrap; border-radius: 999px; }
+    .th-btn-outline { border: 1px solid var(--th-teal); background: transparent; color: var(--th-teal-deep); }
+    .th-btn-outline:hover { background: var(--th-teal-dim); }
+    .th-btn-solid { border: 1px solid var(--th-teal); background: var(--th-teal); color: #fff; }
+    .th-btn-solid:hover { background: var(--th-teal-deep); border-color: var(--th-teal-deep); }
+
+    .th-empty { padding: 60px 24px; text-align: center; color: var(--th-ink-faint); }
+    .th-empty i { font-size: 32px; margin-bottom: 12px; display: block; color: var(--th-teal); }
+    .th-empty h3 { font-family: 'Poppins', sans-serif; color: var(--th-ink); margin: 0 0 6px; }
+    .th-empty p { margin: 0 0 18px; }
+    .th-empty .th-btn { display: inline-flex; }
+
+    @@media (max-width: 900px) {
+        .th-banner { flex-direction: column; align-items: flex-start; gap: 16px; }
+        .th-stats { grid-template-columns: 1fr 1fr; }
+        .th-search-row { flex-direction: column; align-items: stretch; }
+        .th-actions { flex-direction: column; }
     }
-
-    .table thead th{
-
-        font-weight:600;
-        color:#495057;
-        white-space:nowrap;
-
-    }
-
-    .table td,
-    .table th{
-
-        vertical-align:middle;
-
-    }
-
-    .table tbody tr:hover{
-
-        background:#f8fbfc;
-
-    }
-
-    .badge{
-
-        font-size:.80rem;
-        padding:.55rem .85rem;
-
-    }
-
-    .btn{
-
-        font-weight:600;
-
-    }
-
-    .form-control:focus{
-
-        border-color:#0f766e;
-        box-shadow:0 0 0 .2rem rgba(15,118,110,.15);
-
-    }
-
-    .table{
-
-        margin-bottom:0;
-
-    }
-
 </style>
 
-@section Scripts{
-
-<script>
-
-document.addEventListener("DOMContentLoaded", function () {
-
-    const search = document.querySelector("input[name='search']");
-
-    if(search){
-
-        search.addEventListener("keyup", function(){
-
-            let value = this.value.toLowerCase();
-
-            let rows = document.querySelectorAll("#historyTable tr");
-
-            rows.forEach(function(row){
-
-                let text = row.innerText.toLowerCase();
-
-                row.style.display =
-                    text.includes(value) ? "" : "none";
-
-            });
-
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const search = document.getElementById("searchInput");
+            if (search) {
+                search.addEventListener("keyup", function () {
+                    const value = this.value.toLowerCase();
+                    const rows = document.querySelectorAll("#historyTable tr");
+                    rows.forEach(function (row) {
+                        const text = row.innerText.toLowerCase();
+                        row.style.display = text.includes(value) ? "" : "none";
+                    });
+                });
+            }
         });
-
-    }
-
-});
-
-</script>
-
+    </script>
 }
