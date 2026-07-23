@@ -53,7 +53,7 @@ namespace LabDash.Controllers
             {
                 var user = await _userManager.FindByEmailAsync(model.Email);
 
-                 if (user != null)
+                if (user != null)
                 {
                     if (!await _userManager.IsEmailConfirmedAsync(user))
                     {
@@ -138,7 +138,7 @@ namespace LabDash.Controllers
        $" </body>" +
        $"</html>");
 
-                         return RedirectToAction("Index", "Dashboard");
+                            return RedirectToAction("Index", "Dashboard");
 
 
                         }
@@ -173,7 +173,7 @@ namespace LabDash.Controllers
             }
 
             return View(model);
-}
+        }
         [HttpGet]
         public IActionResult ForgotPassword()
         {
@@ -204,8 +204,6 @@ namespace LabDash.Controllers
 
             if (string.IsNullOrEmpty(resetLink))
             {
-                // Route generation failed - log this, it means something is misconfigured
-                // e.g. missing route, wrong controller/action name, no Request.Scheme available
                 return RedirectToAction(nameof(ForgotPasswordConfirmation));
             }
 
@@ -232,10 +230,7 @@ namespace LabDash.Controllers
             }
             catch (Exception ex)
             {
-                // Log this somewhere you can actually see it (ILogger, console, etc.)
-                // Don't let a failed send silently look like success to the user,
-                // but also don't leak SMTP details back to them.
-              //  _logger?.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
+                //  _logger?.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
             }
 
             return RedirectToAction("ForgotPasswordConfirmation", "Account");
@@ -300,5 +295,69 @@ namespace LabDash.Controllers
             await _signInManager.SignOutAsync();
             return RedirectToAction("Index", "Home");
         }
+
+        [HttpGet]
+        public IActionResult Register() => View(new PatientRegisterViewModel());
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Register(PatientRegisterViewModel model)
+        {
+            if (!ModelState.IsValid) return View(model);
+
+            var user = new LabUser
+            {
+                UserName = model.Email,
+                Email = model.Email,
+                FirstName = model.Name,
+                LastName = model.Surname,
+                PhoneNumb = model.CellphoneNumber
+            };
+
+            var result = await _userManager.CreateAsync(user, model.Password);
+
+            if (!result.Succeeded)
+            {
+                foreach (var e in result.Errors) ModelState.AddModelError("", e.Description);
+                return View(model);
+            }
+
+            await _userManager.AddToRoleAsync(user, "Patient");
+
+            _context.Patients.Add(new Patient
+            {
+                UserId = user.Id,
+                Name = model.Name,
+                Surname = model.Surname,
+                IDNumber = model.IDNumber,
+                DOB = model.DOB,
+                CellphoneNumber = model.CellphoneNumber,
+                HomeAddress = model.HomeAddress,
+                Email = model.Email
+            });
+            await _context.SaveChangesAsync();
+
+            var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var callbackUrl = Url.Action("EmailVerified", "Account",
+                new { userId = user.Id, code = Uri.EscapeDataString(code) }, Request.Scheme);
+            await _emailSender.SendEmailAsync(model.Email, "Confirm your email",
+                $"<p>Please confirm your account by <a href='{callbackUrl}'>clicking here</a>.</p>");
+
+            return RedirectToAction("RegisterConfirmation");
+        }
+
+        [HttpGet]
+        public IActionResult RegisterConfirmation() => View();
+
+        [HttpGet]
+        public async Task<IActionResult> EmailVerified(string userId, string code)
+
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+            var result = await _userManager.ConfirmEmailAsync(user, Uri.UnescapeDataString(code));
+            return result.Succeeded ? View("EmailConfirmed") : View("Error");
+        }
+
     }
 }

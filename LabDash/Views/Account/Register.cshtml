@@ -1,0 +1,316 @@
+﻿@model LabDash.Models.PatientRegisterViewModel
+
+@{
+    Layout = null;
+    ViewData["Title"] = "Patient Registration";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Create Account - Medical Laboratory</title>
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+
+    <style>
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: 'Segoe UI', sans-serif;
+            }
+
+            body {
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background-image: url('https://thumbs.dreamstime.com/b/futuristic-laboratory-interior-teal-hues-modern-design-high-tech-bathed-cool-light-showcasing-equipment-sterile-environment-394211945.jpg');
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                overflow: hidden;
+                padding: 40px 0;
+            }
+
+                body::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: rgba(0,0,0,.55);
+                    backdrop-filter: blur(2px);
+                }
+
+            .register-container {
+                position: relative;
+                z-index: 2;
+                width: 100%;
+                max-width: 1200px;
+                display: grid;
+                grid-template-columns: 1fr 500px;
+                gap: 80px;
+                align-items: center;
+                padding: 40px;
+            }
+
+            .hero {
+                color: white;
+            }
+
+                .hero h1 {
+                    font-size: 55px;
+                    font-weight: 700;
+                    margin-bottom: 20px;
+                    line-height: 1.1;
+                }
+
+                .hero p {
+                    font-size: 20px;
+                    line-height: 1.8;
+                    max-width: 650px;
+                    color: #e7f7f5;
+                }
+
+            .hero-icons {
+                margin-top: 40px;
+                display: flex;
+                gap: 20px;
+            }
+
+                .hero-icons div {
+                    width: 70px;
+                    height: 70px;
+                    border-radius: 20px;
+                    background: rgba(255,255,255,.12);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 28px;
+                    backdrop-filter: blur(10px);
+                }
+
+            .register-card {
+                background: rgba(255,255,255,.12);
+                backdrop-filter: blur(20px);
+                border: 1px solid rgba(255,255,255,.2);
+                padding: 40px;
+                border-radius: 30px;
+                color: white;
+                box-shadow: 0 25px 50px rgba(0,0,0,.35);
+                max-height: 85vh;
+                overflow-y: auto;
+            }
+
+                .register-card h2 {
+                    text-align: center;
+                    margin-bottom: 10px;
+                    font-size: 28px;
+                }
+
+                .register-card p.subtitle {
+                    text-align: center;
+                    margin-bottom: 25px;
+                    color: #d9f4f1;
+                }
+
+            .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+            }
+
+            .form-group {
+                margin-bottom: 18px;
+            }
+
+                .form-group label {
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: 500;
+                    font-size: 14px;
+                }
+
+            .form-control {
+                width: 100%;
+                padding: 13px;
+                border: none;
+                border-radius: 12px;
+                outline: none;
+                font-size: 15px;
+            }
+
+            .btn-register {
+                width: 100%;
+                border: none;
+                border-radius: 12px;
+                padding: 15px;
+                background: #0d766e;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: .3s;
+                margin-top: 10px;
+            }
+
+                .btn-register:hover {
+                    background: #0a5f58;
+                    transform: translateY(-2px);
+                }
+
+            .validation-summary-errors {
+                color: #ffd6d6;
+                margin-bottom: 15px;
+            }
+
+            .back-link {
+                display: block;
+                text-align: center;
+                margin-top: 20px;
+                color: #d9f4f1;
+                text-decoration: none;
+            }
+
+            @@media(max-width:900px) {
+
+                .register-container {
+                    grid-template-columns: 1fr;
+                }
+
+                .hero {
+                    display: none;
+                }
+
+                .register-card {
+                    max-width: 500px;
+                    margin: auto;
+                }
+
+                .form-row {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+    </style>
+</head>
+
+<body>
+
+    <div class="register-container">
+
+        <div class="hero">
+
+            <h1>
+                Join the<br />
+                Patient Portal
+            </h1>
+
+            <p>
+                Create your account to securely view test results,
+                track your health history, and manage your
+                details with your care team.
+            </p>
+
+            <div class="hero-icons">
+                <div><i class="fas fa-user-plus"></i></div>
+                <div><i class="fas fa-file-medical"></i></div>
+                <div><i class="fas fa-shield-heart"></i></div>
+            </div>
+
+        </div>
+
+        <div class="register-card">
+
+            <h2>Create New Account</h2>
+            <p class="subtitle">Patient registration</p>
+
+            <form asp-action="Register" method="post">
+
+                <div asp-validation-summary="All"></div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label asp-for="Name">Name</label>
+                        <input asp-for="Name" class="form-control" placeholder="First name" />
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="Surname">Surname</label>
+                        <input asp-for="Surname" class="form-control" placeholder="Surname" />
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label asp-for="IDNumber">SA ID Number</label>
+                        <input asp-for="IDNumber" class="form-control" placeholder="13-digit ID number" />
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="DOB">Date of Birth</label>
+                        <input asp-for="DOB" id="dobPicker" class="form-control"
+                               placeholder="Select date" autocomplete="off" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="CellphoneNumber">Cellphone Number</label>
+                    <input asp-for="CellphoneNumber" class="form-control" placeholder="082 123 4567" />
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Email">Email Address</label>
+                    <input asp-for="Email" class="form-control" placeholder="This will be your username" />
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="HomeAddress">Home Address</label>
+                    <input asp-for="HomeAddress" class="form-control" placeholder="Street, suburb, city" />
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label asp-for="Password">Password</label>
+                        <input asp-for="Password" type="password" class="form-control" placeholder="Create a password" />
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="ConfirmPassword">Confirm Password</label>
+                        <input asp-for="ConfirmPassword" type="password" class="form-control" placeholder="Re-enter password" />
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-register">
+                    <i class="fas fa-user-plus"></i>
+                    Create Account
+                </button>
+
+            </form>
+
+            <a asp-controller="Account" asp-action="Login" class="back-link">
+                Already have an account? Log in
+            </a>
+
+        </div>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+    <script>
+        flatpickr('#dobPicker', {
+        dateFormat: 'Y-m-d',
+        maxDate: 'today',
+        minDate: '1930-01-01',
+        allowInput: true,
+        disableMobile: true
+        });
+    </script>
+
+</body>
+</html>

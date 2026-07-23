@@ -27,10 +27,9 @@ public class LabUser : IdentityUser
     public string FullName => $"{FirstName} {LastName}";
 
 
-    [Required]
     [StringLength(50)]
     [DataType(DataType.Text)]
-    public string Gender { get; set; }
+    public string? Gender { get; set; }
 
 
 
