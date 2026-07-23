@@ -5,351 +5,285 @@
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-<style>
+<div class="pg-wrap">
 
-    body {
-        background: #eef7f8;
-        font-family: "Segoe UI", sans-serif;
+    <div class="pg-header">
+        <div>
+            <p class="pg-eyebrow"><i class="fa-solid fa-flask-vial"></i> Laboratory · work queue</p>
+            <h1>Tests in progress</h1>
+            <p class="pg-sub">Monitor active laboratory tests currently assigned to you.</p>
+        </div>
+        <a asp-action="Index" class="pg-tab-link">
+            <i class="fa-solid fa-arrow-left"></i> Available tests
+        </a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="pg-alert pg-alert-success">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>@TempData["Success"]</span>
+            <button type="button" class="pg-alert-close" onclick="this.parentElement.remove()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
     }
 
-    .page-container {
-        max-width: 1400px;
-        margin: 35px auto;
+    @if (TempData["Error"] != null)
+    {
+        <div class="pg-alert pg-alert-error">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>@TempData["Error"]</span>
+            <button type="button" class="pg-alert-close" onclick="this.parentElement.remove()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
     }
 
-    .page-card {
-        background: white;
-        border-radius: 18px;
-        overflow: hidden;
-        box-shadow: 0 12px 30px rgba(0,0,0,.08);
-    }
-
-    .page-header {
-        background: #009688;
-        color: white;
-        padding: 25px 35px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-        .page-header h2 {
-            margin: 0;
-            font-size: 34px;
-            font-weight: 700;
-        }
-
-        .page-header p {
-            margin-top: 5px;
-            opacity: .9;
-        }
-
-    .total-tests {
-        background: rgba(255,255,255,.15);
-        padding: 10px 18px;
-        border-radius: 30px;
-        font-weight: 600;
-    }
-
-    .toolbar {
-        padding: 20px 30px;
-        border-bottom: 1px solid #ececec;
-    }
-
-    .search-box {
-        width: 360px;
-        position: relative;
-    }
-
-        .search-box i {
-            position: absolute;
-            left: 15px;
-            top: 16px;
-            color: gray;
-        }
-
-        .search-box input {
-            height: 48px;
-            border-radius: 10px;
-            padding-left: 42px;
-        }
-
-    .table {
-        margin: 0;
-    }
-
-        .table thead {
-            background: #00897B;
-            color: white;
-        }
-
-        .table th,
-        .table td {
-            text-align: center;
-            vertical-align: middle;
-            padding: 16px;
-        }
-
-        .table tbody tr:hover {
-            background: #f7fbfb;
-        }
-
-    .status-badge {
-        border-radius: 30px;
-        padding: 8px 16px;
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    .btn-results {
-        background: #009688;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 18px;
-        font-weight: 600;
-        transition: .25s;
-    }
-
-        .btn-results:hover {
-            background: #00796B;
-            color: white;
-            transform: translateY(-2px);
-        }
-
-    .empty-state {
-        text-align: center;
-        padding: 60px;
-        color: gray;
-    }
-
-</style>
-
-<div class="page-container">
-
-    <div class="page-card">
-
-        <div class="page-header">
-
+    <div class="pg-stats">
+        <div class="pg-stat c-teal">
+            <i class="fa-solid fa-vials"></i>
             <div>
-
-                <h2>
-
-                    <i class="fas fa-hourglass-half"></i>
-
-                    Tests In Progress
-
-                </h2>
-
-                <p>
-
-                    Laboratory tests currently assigned to you.
-
-                </p>
-
+                <small>Active tests</small>
+                <div class="num">@ViewBag.Total</div>
             </div>
-
-            <div class="total-tests">
-
-                <i class="fas fa-vials"></i>
-
-                @Model.Count() Active Tests
-
-            </div>
-
         </div>
-
-        <div class="toolbar">
-
-            <div class="search-box">
-
-                <i class="fas fa-search"></i>
-
-                <input type="text"
-                       id="searchInput"
-                       class="form-control"
-                       placeholder="Search request or test..." />
-
+        <div class="pg-stat c-red">
+            <i class="fa-solid fa-clock"></i>
+            <div>
+                <small>Overdue</small>
+                <div class="num">@ViewBag.Overdue</div>
             </div>
-
         </div>
+        <div class="pg-stat c-teal-deep">
+            <i class="fa-solid fa-circle-check"></i>
+            <div>
+                <small>On schedule</small>
+                <div class="num">@(ViewBag.Total - ViewBag.Overdue)</div>
+            </div>
+        </div>
+    </div>
 
-        <table class="table table-hover">
+    <div class="pg-search-row">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" class="pg-search" placeholder="search patient or laboratory test..." />
+    </div>
 
+    <div class="pg-panel-label">Active laboratory tests <span class="pg-count">@Model.Count() tests</span></div>
+
+    <div class="pg-table-wrap">
+        <table class="pg-table">
             <thead>
-
                 <tr>
-
-                    <th>Request</th>
-
+                    <th>Patient</th>
                     <th>Test</th>
-
-                    <th>Category</th>
-
                     <th>Started</th>
-
-                    <th>Expected Completion</th>
-
+                    <th>Turnaround</th>
                     <th>Status</th>
-
-                    <th>Action</th>
-
+                    <th>Actions</th>
                 </tr>
-
             </thead>
-
-            <tbody>
-
-                @if (Model.Any())
+            <tbody id="progressTable">
+                @foreach (var item in Model)
                 {
-                    foreach (var item in Model)
-                    {
-                        var expected =
-                            item.StartDateTime?.AddHours(item.TestType.TurnaroundTimeHours);
+                    var expectedCompletion = item.StartDateTime.HasValue
+                        ? item.StartDateTime.Value.AddHours(item.TestType.TurnaroundTimeHours)
+                        : DateTime.Now;
 
-                        <tr>
+                    var isOverdue = item.StartDateTime.HasValue &&
+                                    DateTime.Now > expectedCompletion;
 
-                            <td>
+                    var initials = $"{item.TestRequest.Patient.Name?.FirstOrDefault()}{item.TestRequest.Patient.Surname?.FirstOrDefault()}";
 
-                                <strong>#@item.RequestId</strong>
+                    <tr class="@(isOverdue ? "pg-row-overdue" : "")">
 
-                            </td>
+                        <td>
+                            <div class="pg-patient">
+                                <div class="pg-avatar">@initials</div>
+                                <div>
+                                    <strong>@item.TestRequest.Patient.Name @item.TestRequest.Patient.Surname</strong>
+                                    <small>@item.TestRequest.Patient.IDNumber</small>
+                                </div>
+                            </div>
+                        </td>
 
-                            <td>
+                        <td>
+                            <strong>@item.TestType.Name</strong>
+                            <small>@item.TestType.Category</small>
+                        </td>
 
-                                @item.TestType.Name
+                        <td class="pg-mono">
+                            @if (item.StartDateTime.HasValue)
+                            {
+                                @item.StartDateTime.Value.ToString("dd MMM yyyy HH:mm")
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </td>
 
-                            </td>
+                        <td>
+                            @if (isOverdue)
+                            {
+                                <span class="pg-badge urgent"><i class="fa-solid fa-clock"></i> Overdue</span>
+                            }
+                            else
+                            {
+                                <span class="pg-badge routine">@item.TestType.TurnaroundTimeHours hrs</span>
+                            }
+                            <small class="pg-due @(isOverdue ? "pg-due-overdue" : "")">Due @expectedCompletion.ToString("dd MMM HH:mm")</small>
+                        </td>
 
-                            <td>
+                        <td>
+                            <span class="pg-badge pending">@item.Status</span>
+                        </td>
 
-                                @item.TestType.Category
-
-                            </td>
-
-                            <td>
-
-                                @item.StartDateTime?.ToString("dd MMM yyyy HH:mm")
-
-                            </td>
-
-                            <td>
-
-                                @if (expected.HasValue)
-                                {
-                                    @expected.Value.ToString("dd MMM yyyy HH:mm")
-
-                                    <br />
-
-                                    if (DateTime.Now < expected)
-                                    {
-                                        var remaining = expected.Value - DateTime.Now;
-
-                                        <small class="text-success">
-
-                                            <i class="fas fa-clock"></i>
-
-                                            @remaining.Days d
-                                            @remaining.Hours h
-                                            @remaining.Minutes m left
-
-                                        </small>
-                                    }
-                                    else
-                                    {
-                                        <small class="text-danger">
-
-                                            <i class="fas fa-triangle-exclamation"></i>
-
-                                            Overdue
-
-                                        </small>
-                                    }
-                                }
-
-                            </td>
-
-                            <td>
-
-                                <span class="badge bg-primary status-badge">
-
-                                    <i class="fas fa-spinner"></i>
-
-                                    In Progress
-
-                                </span>
-
-                            </td>
-
-                            <td>
-
-                                <a asp-controller="CaptureResults"
-                                   asp-action="Create"
-                                   asp-route-id="@item.TestRequestItemId"
-                                   class="btn btn-results">
-
-                                    <i class="fas fa-flask"></i>
-
-                                    Capture Results
-
+                        <td>
+                            <div class="pg-actions">
+                                <a asp-action="ProcessTest" asp-route-id="@item.TestRequestItemId" class="pg-btn pg-btn-outline">
+                                    <i class="fa-solid fa-eye"></i> Continue
                                 </a>
-
-                            </td>
-
-                        </tr>
-                    }
-                }
-                else
-                {
-                    <tr>
-
-                        <td colspan="7" class="empty-state">
-
-                            <i class="fas fa-vials fa-3x mb-3"></i>
-
-                            <h4>No Tests In Progress</h4>
-
-                            <p>
-
-                                You have no laboratory tests currently assigned.
-
-                            </p>
-
+                                <a asp-controller="CaptureResults" asp-action="Create" asp-route-id="@item.TestRequestItemId" class="pg-btn pg-btn-solid">
+                                    <i class="fa-solid fa-vial-circle-check"></i> Results
+                                </a>
+                            </div>
                         </td>
 
                     </tr>
                 }
 
+                @if (!Model.Any())
+                {
+                    <tr class="pg-empty-row">
+                        <td colspan="6">
+                            <div class="pg-empty">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <h3>No active tests</h3>
+                                <p>You currently have no laboratory tests in progress.</p>
+                                <a asp-action="Index" class="pg-btn pg-btn-solid">
+                                    <i class="fa-solid fa-flask"></i> View available tests
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
             </tbody>
-
         </table>
-
     </div>
-
 </div>
 
+<style>
+    :root {
+        --pg-paper: #F3F8F7;
+        --pg-raised: #FFFFFF;
+        --pg-ink: #14302C;
+        --pg-ink-soft: #4B6864;
+        --pg-ink-faint: #86A19C;
+        --pg-line: #D6E6E3;
+        --pg-line-strong: #A9C9C3;
+
+        --pg-teal: #0E7C72;
+        --pg-teal-deep: #0A5850;
+        --pg-teal-dim: #E1F3F0;
+
+        --pg-gold: #A9822A; --pg-gold-dim: #F6EFDC;
+        --pg-red: #B0463F; --pg-red-dim: #F7E8E7;
+    }
+
+    .pg-wrap { max-width: 1180px; margin: 0 auto; padding: 24px 0 60px; color: var(--pg-ink); font-family: 'Inter', sans-serif; }
+
+    .pg-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--pg-teal); margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+    .pg-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--pg-teal); padding-bottom: 22px; margin-bottom: 24px; }
+    .pg-header h1 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px; margin: 0 0 6px; letter-spacing: -.01em; }
+    .pg-sub { margin: 0; color: var(--pg-ink-soft); font-size: 15px; max-width: 480px; }
+    .pg-tab-link { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; letter-spacing: .04em; text-decoration: none; color: var(--pg-teal); border: 1px solid var(--pg-teal); padding: 10px 18px; display: inline-flex; align-items: center; gap: 8px; transition: .15s; background: var(--pg-raised); white-space: nowrap; }
+    .pg-tab-link:hover { background: var(--pg-teal); color: #fff; }
+
+    .pg-alert { display: flex; align-items: center; gap: 10px; padding: 13px 16px; font-size: 14px; border: 1px solid var(--pg-line-strong); border-left: 3px solid var(--pg-teal); margin-bottom: 18px; }
+    .pg-alert-success { background: var(--pg-teal-dim); color: var(--pg-teal-deep); border-left-color: var(--pg-teal); }
+    .pg-alert-error { background: var(--pg-red-dim); color: #7A312C; border-left-color: var(--pg-red); }
+    .pg-alert span { flex: 1; }
+    .pg-alert-close { background: none; border: none; cursor: pointer; color: inherit; opacity: .6; font-size: 13px; }
+    .pg-alert-close:hover { opacity: 1; }
+
+    .pg-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--pg-line-strong); border: 1px solid var(--pg-line-strong); margin-bottom: 26px; }
+    .pg-stat { background: var(--pg-raised); padding: 18px 20px; border-top: 3px solid var(--pg-teal); display: flex; align-items: center; gap: 16px; }
+    .pg-stat.c-teal { border-top-color: var(--pg-teal); }
+    .pg-stat.c-teal-deep { border-top-color: var(--pg-teal-deep); }
+    .pg-stat.c-red { border-top-color: var(--pg-red); }
+    .pg-stat i { font-size: 22px; color: var(--pg-teal); opacity: .5; }
+    .pg-stat.c-red i { color: var(--pg-red); }
+    .pg-stat small { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--pg-ink-faint); margin-bottom: 6px; }
+    .pg-stat .num { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; color: var(--pg-ink); }
+
+    .pg-search-row { margin-bottom: 22px; position: relative; }
+    .pg-search-row i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--pg-ink-faint); font-size: 14px; }
+    .pg-search { width: 100%; padding: 13px 16px 13px 42px; border: 1px solid var(--pg-line-strong); background: var(--pg-raised); font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; color: var(--pg-ink); outline: none; transition: border-color .15s, box-shadow .15s; }
+    .pg-search::placeholder { color: var(--pg-ink-faint); }
+    .pg-search:focus { border-color: var(--pg-teal); box-shadow: 0 0 0 3px var(--pg-teal-dim); }
+
+    .pg-panel-label { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--pg-teal-deep); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+    .pg-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--pg-ink-faint); text-transform: none; letter-spacing: normal; background: var(--pg-teal-dim); padding: 3px 9px; }
+
+    .pg-table-wrap { background: var(--pg-raised); border: 1px solid var(--pg-line); overflow-x: auto; }
+    .pg-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .pg-table thead th { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--pg-ink-faint); padding: 14px 18px; border-bottom: 2px solid var(--pg-teal); white-space: nowrap; }
+    .pg-table tbody td { padding: 16px 18px; border-bottom: 1px dashed var(--pg-line); vertical-align: middle; }
+    .pg-table tbody tr:hover { background: var(--pg-teal-dim); }
+    .pg-table tbody tr:last-child td { border-bottom: none; }
+    .pg-table strong { display: block; font-size: 14px; color: var(--pg-ink); font-weight: 600; }
+    .pg-table small { display: block; font-size: 12px; color: var(--pg-ink-faint); margin-top: 2px; }
+    .pg-mono { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--pg-ink-soft); }
+
+    .pg-patient { display: flex; align-items: center; gap: 12px; }
+    .pg-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--pg-teal-deep); color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; flex-shrink: 0; text-transform: uppercase; }
+
+    .pg-badge { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; padding: 5px 10px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+    .pg-badge.urgent { background: var(--pg-red-dim); color: var(--pg-red); }
+    .pg-badge.routine { background: var(--pg-teal-dim); color: var(--pg-teal-deep); }
+    .pg-badge.pending { background: var(--pg-gold-dim); color: var(--pg-gold); }
+    .pg-due { margin-top: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--pg-ink-faint); }
+    .pg-due-overdue { color: var(--pg-red); }
+
+    .pg-row-overdue { background: var(--pg-red-dim); }
+    .pg-row-overdue:hover { background: var(--pg-red-dim) !important; }
+
+    .pg-actions { display: flex; gap: 8px; }
+    .pg-btn { font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; padding: 8px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; transition: .15s; white-space: nowrap; }
+    .pg-btn-outline { border: 1px solid var(--pg-teal); background: transparent; color: var(--pg-teal-deep); }
+    .pg-btn-outline:hover { background: var(--pg-teal); color: #fff; }
+    .pg-btn-solid { border: 1px solid var(--pg-teal); background: var(--pg-teal); color: #fff; }
+    .pg-btn-solid:hover { background: var(--pg-teal-deep); border-color: var(--pg-teal-deep); }
+
+    .pg-empty { padding: 60px 24px; text-align: center; color: var(--pg-ink-faint); }
+    .pg-empty i { font-size: 32px; margin-bottom: 12px; display: block; color: var(--pg-teal); }
+    .pg-empty h3 { font-family: 'Space Grotesk', sans-serif; color: var(--pg-ink); margin: 0 0 6px; }
+    .pg-empty p { margin: 0 0 18px; }
+    .pg-empty .pg-btn { display: inline-flex; }
+
+    @@media (max-width: 900px) {
+        .pg-header { flex-direction: column; align-items: flex-start; gap: 14px; }
+        .pg-stats { grid-template-columns: 1fr; }
+        .pg-actions { flex-direction: column; }
+    }
+</style>
+
 @section Scripts {
-
     <script>
-
-        document.getElementById("searchInput").addEventListener("keyup", function () {
-
-            let value = this.value.toLowerCase();
-
-            document.querySelectorAll("tbody tr").forEach(function (row) {
-
-                row.style.display =
-                    row.innerText.toLowerCase().includes(value)
-                    ? ""
-                    : "none";
-
+        document.addEventListener("DOMContentLoaded", function () {
+            const searchBox = document.getElementById("searchInput");
+            searchBox.addEventListener("keyup", function () {
+                const value = this.value.toLowerCase();
+                const rows = document.querySelectorAll("#progressTable tr");
+                rows.forEach(function (row) {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.indexOf(value) > -1 ? "" : "none";
+                });
             });
-
         });
-
     </script>
-
 }
