@@ -1,4 +1,5 @@
 ﻿using LabDash.Areas.Identity.Data;
+using LabDash.Enums;
 using LabDash.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -21,9 +22,9 @@ namespace LabDash.Controllers
             _userManager = userManager;
         }
 
-        // ==========================================================
+        //==========================================================
         // AVAILABLE TESTS
-        // ==========================================================
+        //==========================================================
         [HttpGet]
         public async Task<IActionResult> Index()
         {
@@ -47,9 +48,9 @@ namespace LabDash.Controllers
             return View(tests);
         }
 
-        // ==========================================================
+        //==========================================================
         // START TEST
-        // ==========================================================
+        //==========================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> StartTest(int id)
@@ -70,13 +71,12 @@ namespace LabDash.Controllers
             if (item.Status != "Submitted")
             {
                 TempData["Error"] = "This test cannot be started.";
-
                 return RedirectToAction(nameof(Index));
             }
 
-            // ======================================
-            // CHECK CONSUMABLE STOCK
-            // ======================================
+            //------------------------------------------------------
+            // Check Consumable Stock
+            //------------------------------------------------------
 
             var consumables = await _context.TestTypeConsumables
                 .Include(c => c.Consumable)
@@ -89,16 +89,16 @@ namespace LabDash.Controllers
                 {
                     TempData["Error"] =
                         $"Insufficient stock for {consumable.Consumable.Name}. " +
-                        $"Available: {consumable.Consumable.StockLevel}, " +
-                        $"Required: {consumable.QuantityRequired}.";
+                        $"Required: {consumable.QuantityRequired}, " +
+                        $"Available: {consumable.Consumable.StockLevel}.";
 
                     return RedirectToAction(nameof(Index));
                 }
             }
 
-            // ======================================
-            // DEDUCT STOCK
-            // ======================================
+            //------------------------------------------------------
+            // Deduct Consumables
+            //------------------------------------------------------
 
             foreach (var consumable in consumables)
             {
@@ -106,31 +106,26 @@ namespace LabDash.Controllers
                 consumable.Consumable.UpdatedAt = DateTime.Now;
             }
 
-            // ======================================
-            // ASSIGN TECHNICIAN
-            // ======================================
+            //------------------------------------------------------
+            // Assign Technician
+            //------------------------------------------------------
 
             item.AssignedTechnicianId = technician.Id;
             item.StartDateTime = DateTime.Now;
             item.Status = "In Progress";
 
-            // ======================================
-            // UPDATE REQUEST STATUS
-            // ======================================
-
             item.TestRequest.Status = "In Progress";
 
             await _context.SaveChangesAsync();
 
-            TempData["Success"] =
-                "Test started successfully. Consumables deducted from stock.";
+            TempData["Success"] = "Test started successfully.";
 
             return RedirectToAction(nameof(InProgress));
         }
 
-        // ==========================================================
-        // IN PROGRESS
-        // ==========================================================
+        //==========================================================
+        // TESTS CURRENTLY IN PROGRESS
+        //==========================================================
         [HttpGet]
         public async Task<IActionResult> InProgress()
         {
@@ -151,9 +146,9 @@ namespace LabDash.Controllers
             return View(tests);
         }
 
-        // ==========================================================
+        //==========================================================
         // COMPLETED TESTS
-        // ==========================================================
+        //==========================================================
         [HttpGet]
         public async Task<IActionResult> Completed()
         {
@@ -167,15 +162,18 @@ namespace LabDash.Controllers
                 .Include(t => t.TestType)
                 .Where(t =>
                     t.AssignedTechnicianId == technician.Id &&
-                    t.Status == "Completed")
+                    (t.Status == "Completed" ||
+                     t.Status == "Verified" ||
+                     t.Status == "To Be Reviewed"))
                 .OrderByDescending(t => t.CompletionDateTime)
                 .ToListAsync();
 
             return View(tests);
-            }
-        //====================================================
+        }
+
+        //==========================================================
         // TEST HISTORY
-        //====================================================
+        //==========================================================
         [HttpGet]
         public async Task<IActionResult> TestHistory()
         {

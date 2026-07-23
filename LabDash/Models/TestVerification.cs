@@ -1,5 +1,6 @@
 ﻿using LabDash.Areas.Identity.Data;
 using System.ComponentModel.DataAnnotations;
+using LabDash.Enums;
 
 namespace LabDash.Models
 {
@@ -12,14 +13,12 @@ namespace LabDash.Models
 
         public virtual TestRequestItem TestRequestItem { get; set; }
 
-        // Technician performing the verification
         public string VerifiedByTechnicianId { get; set; }
 
         public virtual LabUser VerifiedByTechnician { get; set; }
 
         public DateTime VerificationDate { get; set; }
 
-        // Verified / To Be Reviewed
         public string Status { get; set; }
 
         public string? VerificationNotes { get; set; }

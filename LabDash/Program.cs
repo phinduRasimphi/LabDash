@@ -174,25 +174,51 @@ using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
 
-    string email = "labtech@gmail.com";
-    string password = "Password!123";
-
-    if (await userManager.FindByEmailAsync(email) == null)
+    var technicians = new[]
     {
-        var user = new LabUser();
-        user.Email = email;
-        user.UserName = email;
-        user.EmailConfirmed = true;
-        user.FirstName = "Siyolise";
-        user.LastName = "Sipika";
-        //user.HCRN = 0;
-        user.PhoneNumb = "0819859207";
-        user.Gender = "Female";
+        new
+        {
+            Email = "liyemasipika@icloud.com",
+            Password = "Password!123",
+            FirstName = "Siyolise",
+            LastName = "Sipika",
+            Phone = "0819859207",
+            Gender = "Female"
+        },
+        new
+        {
+            Email = "liyemasipika@gmail.com",
+            Password = "Password!123",
+            FirstName = "Liyema",
+            LastName = "Mabaso",
+            Phone = "0821234567",
+            Gender = "Male"
+        }
+    };
 
-        user.Timestamp_AccountCreated = DateTime.Now;
-        await userManager.CreateAsync(user, password);
+    foreach (var tech in technicians)
+    {
+        if (await userManager.FindByEmailAsync(tech.Email) == null)
+        {
+            var user = new LabUser
+            {
+                Email = tech.Email,
+                UserName = tech.Email,
+                EmailConfirmed = true,
+                FirstName = tech.FirstName,
+                LastName = tech.LastName,
+                PhoneNumb = tech.Phone,
+                Gender = tech.Gender,
+                Timestamp_AccountCreated = DateTime.Now
+            };
 
-        await userManager.AddToRoleAsync(user, "Lab_Technician");
+            var result = await userManager.CreateAsync(user, tech.Password);
+
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(user, "Lab_Technician");
+            }
+        }
     }
 }
 using (var scope = app.Services.CreateScope())

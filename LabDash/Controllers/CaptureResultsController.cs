@@ -1,4 +1,5 @@
 ﻿using LabDash.Areas.Identity.Data;
+using LabDash.Enums;
 using LabDash.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -36,7 +37,7 @@ namespace LabDash.Controllers
                 .Include(t => t.TestRequest)
                 .Where(t =>
                     t.AssignedTechnicianId == technician.Id &&
-                    t.Status == "In Progress")
+                   t.Status == "InProgress;")
                 .OrderBy(t => t.StartDateTime)
                 .ToListAsync();
 
@@ -108,7 +109,7 @@ namespace LabDash.Controllers
             _context.TestResults.Add(result);
 
             // Update Test Item
-            item.Status = "Completed";
+            item.Status = "Completed"; 
             item.CompletionDateTime = DateTime.Now;
 
             // Check if every test for the request is completed
