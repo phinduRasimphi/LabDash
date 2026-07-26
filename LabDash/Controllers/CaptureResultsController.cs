@@ -35,9 +35,8 @@ namespace LabDash.Controllers
             var tests = await _context.TestRequestItems
                 .Include(t => t.TestType)
                 .Include(t => t.TestRequest)
-                .Where(t =>
-                    t.AssignedTechnicianId == technician.Id &&
-                   t.Status == "InProgress;")
+                .Where(t => t.AssignedTechnicianId == technician.Id
+                         && t.Status == "In Progress")
                 .OrderBy(t => t.StartDateTime)
                 .ToListAsync();
 
@@ -50,19 +49,26 @@ namespace LabDash.Controllers
         [HttpGet]
         public async Task<IActionResult> Capture(int id)
         {
+            var technician = await _userManager.GetUserAsync(User);
+
+            if (technician == null)
+                return Challenge();
+
             var item = await _context.TestRequestItems
                 .Include(t => t.TestType)
                 .Include(t => t.TestRequest)
+                    .ThenInclude(r => r.Patient)
                 .FirstOrDefaultAsync(t => t.TestRequestItemId == id);
 
             if (item == null)
                 return NotFound();
 
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.PatientID == item.TestRequest.PatientId);
+            // Prevent technicians accessing other technicians' tests
+            if (item.AssignedTechnicianId != technician.Id)
+                return Forbid();
 
             ViewBag.TestItem = item;
-            ViewBag.Patient = patient;
+            ViewBag.Patient = item.TestRequest.Patient;
 
             return View(new TestResult
             {
@@ -77,42 +83,46 @@ namespace LabDash.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Capture(TestResult result)
         {
-            if (!ModelState.IsValid)
-            {
-                var itemReload = await _context.TestRequestItems
-                    .Include(t => t.TestType)
-                    .Include(t => t.TestRequest)
-                    .FirstOrDefaultAsync(t => t.TestRequestItemId == result.TestRequestItemId);
-
-                ViewBag.TestItem = itemReload;
-
-                ViewBag.Patient = await _context.Patients
-                    .FirstOrDefaultAsync(p =>
-                        p.PatientID == itemReload.TestRequest.PatientId);
-
-                return View(result);
-            }
-
             var technician = await _userManager.GetUserAsync(User);
 
+            if (technician == null)
+                return Challenge();
+
             var item = await _context.TestRequestItems
+                .Include(t => t.TestType)
                 .Include(t => t.TestRequest)
-                .FirstOrDefaultAsync(t =>
-                    t.TestRequestItemId == result.TestRequestItemId);
+                    .ThenInclude(r => r.Patient)
+                .FirstOrDefaultAsync(t => t.TestRequestItemId == result.TestRequestItemId);
 
             if (item == null)
                 return NotFound();
 
+            // Prevent technicians accessing other technicians' tests
+            if (item.AssignedTechnicianId != technician.Id)
+                return Forbid();
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.TestItem = item;
+                ViewBag.Patient = item.TestRequest.Patient;
+
+                return View(result);
+            }
+
+            // Save Result
             result.DateCaptured = DateTime.Now;
             result.CapturedByTechnicianId = technician.Id;
+            result.Status = "Completed";
 
             _context.TestResults.Add(result);
 
             // Update Test Item
-            item.Status = "Completed"; 
+            item.Status = "Completed";
             item.CompletionDateTime = DateTime.Now;
 
-            // Check if every test for the request is completed
+            await _context.SaveChangesAsync();
+
+            // Check if all tests on the request are completed
             bool allCompleted = await _context.TestRequestItems
                 .Where(x => x.RequestId == item.RequestId)
                 .AllAsync(x => x.Status == "Completed");
@@ -120,9 +130,9 @@ namespace LabDash.Controllers
             if (allCompleted)
             {
                 item.TestRequest.Status = "Completed";
-            }
 
-            await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
+            }
 
             TempData["Success"] = "Test result captured successfully.";
 

@@ -1,591 +1,848 @@
 ﻿@model IEnumerable<LabDash.Models.TestRequestItem>
 
 @{
-    ViewData["Title"] = "Capture Results";
+    ViewData["Title"] = "Capture Test Results";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
-    var total = Model.Count();
+    var totalTests = Model.Count();
 
-    var overdue = Model.Count(x =>
+    var overdueTests = Model.Count(x =>
         x.StartDateTime.HasValue &&
         x.StartDateTime.Value.AddHours(x.TestType.TurnaroundTimeHours) < DateTime.Now);
 
-    var stat = Model.Count(x => x.TestRequest.Urgency == "STAT");
+    var statRequests = Model.Count(x =>
+        x.TestRequest.Urgency == "STAT");
+
+    var urgentRequests = Model.Count(x =>
+        x.TestRequest.Urgency == "Urgent");
 }
 
 <link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Segoe+UI&display=swap" rel="stylesheet"/>
 
 <style>
 
-    body {
-        background: #eef7f8;
-        font-family: "Segoe UI", sans-serif;
-    }
+:root{
+    --teal-900:#00453d;
+    --teal-700:#00695c;
+    --teal-600:#00796B;
+    --teal-500:#009688;
+    --teal-100:rgba(0,150,136,.12);
+    --teal-50:#eef7f8;
+    --ink:#173a3a;
+    --muted:#5f7a78;
+    --danger:#e13b3b;
+    --danger-soft:rgba(225,59,59,.1);
+    --warning:#c98400;
+    --warning-soft:rgba(201,132,0,.12);
+    --line:#e5efee;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --shadow-soft:0 8px 24px rgba(9,50,46,.07);
+    --shadow-lift:0 16px 34px rgba(9,50,46,.12);
+}
 
-    .page-container {
-        max-width: 1450px;
-        margin: 35px auto;
-    }
+body{
+    background:var(--teal-50);
+    font-family:'Inter','Segoe UI',sans-serif;
+    color:var(--ink);
+}
 
-    .page-header {
-        background: linear-gradient(135deg,#009688,#00796B);
-        color: white;
-        border-radius: 18px;
-        padding: 28px 35px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 12px 30px rgba(0,0,0,.12);
-        margin-bottom: 30px;
-    }
+.page-container{
+    max-width:1500px;
+    margin:35px auto;
+    padding:0 16px;
+}
 
-        .page-header h2 {
-            margin: 0;
-            font-size: 34px;
-            font-weight: 700;
-        }
+*:focus-visible{
+    outline:3px solid #4fb8ac;
+    outline-offset:2px;
+    border-radius:6px;
+}
 
-        .page-header p {
-            margin: 6px 0 0;
-            opacity: .9;
-        }
+/*================ HEADER =================*/
 
-    .header-icon {
-        width: 80px;
-        height: 80px;
-        background: rgba(255,255,255,.15);
-        border-radius: 20px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 34px;
-    }
+.page-header{
+    background:linear-gradient(135deg,var(--teal-500),var(--teal-900));
+    color:white;
+    border-radius:var(--radius-lg);
+    padding:34px 38px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:26px;
+    box-shadow:var(--shadow-lift);
+    position:relative;
+    overflow:hidden;
+}
 
-    .stats {
-        display: grid;
-        grid-template-columns: repeat(3,1fr);
-        gap: 20px;
-        margin-bottom: 30px;
-    }
+.page-header::after{
+    content:"";
+    position:absolute;
+    right:-60px;
+    top:-60px;
+    width:220px;
+    height:220px;
+    border-radius:50%;
+    background:rgba(255,255,255,.07);
+}
 
-    .stat-card {
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 8px 20px rgba(0,0,0,.08);
-        padding: 22px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: .3s;
-    }
+.page-header h2{
+    font-size:32px;
+    font-weight:800;
+    letter-spacing:-.02em;
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
 
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
+.page-header p{
+    opacity:.9;
+    margin:0;
+    font-size:15px;
+}
 
-        .stat-card h5 {
-            color: #666;
-            font-size: 15px;
-            margin-bottom: 8px;
-        }
+.header-icon{
+    width:84px;
+    height:84px;
+    border-radius:20px;
+    background:rgba(255,255,255,.16);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:34px;
+    flex-shrink:0;
+    z-index:1;
+}
 
-        .stat-card h3 {
-            color: #009688;
-            font-size: 32px;
-            font-weight: bold;
-            margin: 0;
-        }
+/*================ STATISTICS =================*/
 
-    .stat-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 15px;
-        background: rgba(0,150,136,.12);
-        color: #009688;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 24px;
-    }
+.stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    margin-bottom:26px;
+}
 
-    .table-card {
-        background: white;
-        border-radius: 18px;
-        overflow: hidden;
-        box-shadow: 0 10px 25px rgba(0,0,0,.08);
-    }
+.stat-card{
+    background:white;
+    border-radius:var(--radius-md);
+    padding:22px 24px;
+    box-shadow:var(--shadow-soft);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    transition:.25s ease;
+    border:1px solid transparent;
+    cursor:pointer;
+}
 
-    .table-toolbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 22px 25px;
-        border-bottom: 1px solid #ececec;
-    }
+.stat-card:hover{
+    transform:translateY(-4px);
+    box-shadow:var(--shadow-lift);
+}
 
-        .table-toolbar h4 {
-            margin: 0;
-            color: #009688;
-            font-weight: 700;
-        }
+.stat-card.active{
+    border-color:var(--teal-500);
+    background:linear-gradient(0deg,var(--teal-100),var(--teal-100)),white;
+}
 
-    .search-box {
-        position: relative;
-        width: 350px;
-    }
+.stat-card h6{
+    color:var(--muted);
+    margin-bottom:6px;
+    font-size:13px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+}
 
-        .search-box i {
-            position: absolute;
-            left: 15px;
-            top: 15px;
-            color: gray;
-        }
+.stat-card h2{
+    margin:0;
+    color:var(--teal-700);
+    font-weight:800;
+    font-size:28px;
+}
 
-        .search-box input {
-            border-radius: 30px;
-            height: 46px;
-            padding-left: 42px;
-        }
+.stat-card.danger h2{ color:var(--danger); }
+.stat-card.warning h2{ color:var(--warning); }
 
-    .table {
-        margin-bottom: 0;
-    }
+.stat-icon{
+    width:56px;
+    height:56px;
+    border-radius:16px;
+    background:var(--teal-100);
+    color:var(--teal-600);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:24px;
+    flex-shrink:0;
+}
 
-        .table thead {
-            background: #00897B;
-            color: white;
-        }
+.stat-card.danger .stat-icon{ background:var(--danger-soft); color:var(--danger); }
+.stat-card.warning .stat-icon{ background:var(--warning-soft); color:var(--warning); }
 
-        .table th {
-            text-align: center;
-            padding: 16px;
-            border: none;
-            font-size: 14px;
-            letter-spacing: .4px;
-        }
+/*================ FILTER CHIPS =================*/
 
-        .table td {
-            text-align: center;
-            vertical-align: middle;
-            padding: 18px;
-        }
+.filter-bar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:18px;
+}
 
-        .table tbody tr:hover {
-            background: #f5fbfb;
-        }
+.filter-chip{
+    border:1.5px solid var(--line);
+    background:white;
+    color:var(--muted);
+    padding:8px 16px;
+    border-radius:30px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.2s;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+}
 
-    .badge-status {
-        border-radius: 30px;
-        padding: 8px 15px;
-        font-size: 13px;
-        font-weight: 600;
-    }
+.filter-chip:hover{
+    border-color:var(--teal-500);
+    color:var(--teal-700);
+}
 
-    .btn-capture {
-        background: #009688;
-        color: white;
-        border-radius: 8px;
-        padding: 10px 18px;
-        font-weight: 600;
-        transition: .25s;
-    }
+.filter-chip.active{
+    background:var(--teal-600);
+    border-color:var(--teal-600);
+    color:white;
+}
 
-        .btn-capture:hover {
-            background: #00796B;
-            color: white;
-            transform: translateY(-2px);
-        }
+.filter-chip .count{
+    background:rgba(0,0,0,.08);
+    border-radius:20px;
+    padding:1px 8px;
+    font-size:12px;
+}
 
-    .empty-state {
-        text-align: center;
-        padding: 70px;
-    }
+.filter-chip.active .count{
+    background:rgba(255,255,255,.25);
+}
 
-        .empty-state i {
-            font-size: 70px;
-            color: #009688;
-            margin-bottom: 20px;
-        }
+/*================ TABLE =================*/
 
-        .empty-state h3 {
-            color: #444;
-        }
+.table-card{
+    background:white;
+    border-radius:var(--radius-lg);
+    overflow:hidden;
+    box-shadow:var(--shadow-soft);
+}
 
-        .empty-state p {
-            color: gray;
-        }
+.table-header{
+    padding:20px 26px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:16px;
+    flex-wrap:wrap;
+}
 
-    @@media(max-width:992px) {
+.table-header h4{
+    color:var(--teal-700);
+    font-weight:700;
+    margin:0;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:18px;
+}
 
-        .stats {
-            grid-template-columns: 1fr;
-        }
+.table-header .result-count{
+    color:var(--muted);
+    font-weight:500;
+    font-size:13px;
+}
 
-        .page-header {
-            flex-direction: column;
-            text-align: center;
-            gap: 20px;
-        }
+.search-box{
+    position:relative;
+    width:320px;
+    max-width:100%;
+}
 
-        .table-toolbar {
-            flex-direction: column;
-            gap: 15px;
-        }
+.search-box input{
+    border-radius:30px;
+    padding-left:42px;
+    height:44px;
+    border:1.5px solid var(--line);
+}
 
-        .search-box {
-            width: 100%;
-        }
-    }
+.search-box input:focus{
+    border-color:var(--teal-500);
+    box-shadow:0 0 0 3px var(--teal-100);
+}
+
+.search-box i{
+    position:absolute;
+    top:15px;
+    left:16px;
+    color:var(--muted);
+}
+
+.table-scroll{
+    max-height:640px;
+    overflow:auto;
+}
+
+.table{
+    margin:0;
+}
+
+.table thead th{
+    position:sticky;
+    top:0;
+    z-index:2;
+    background:var(--teal-600);
+    color:white;
+}
+
+.table th{
+    text-align:center;
+    padding:14px 12px;
+    border:none;
+    font-size:12.5px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    font-weight:700;
+    white-space:nowrap;
+}
+
+.table th.sortable{
+    cursor:pointer;
+    user-select:none;
+}
+
+.table th.sortable i{
+    margin-left:6px;
+    opacity:.55;
+    font-size:11px;
+}
+
+.table th.sortable.sorted i{
+    opacity:1;
+}
+
+.table td{
+    vertical-align:middle;
+    text-align:center;
+    padding:16px 12px;
+    font-size:14px;
+    border-bottom:1px solid var(--line);
+}
+
+.table tbody tr{
+    transition:background .15s;
+}
+
+.table tbody tr:hover{
+    background:var(--teal-50);
+}
+
+.table tbody tr.row-overdue{
+    box-shadow:inset 4px 0 0 var(--danger);
+}
+
+.patient-name{
+    font-weight:600;
+}
+
+.muted-sub{
+    color:var(--muted);
+    font-size:12.5px;
+}
+
+/*================ BADGES =================*/
+
+.badge-status{
+    border-radius:25px;
+    padding:7px 14px;
+    font-size:12.5px;
+    font-weight:600;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+}
+
+.badge-stat{ background:var(--danger-soft); color:var(--danger); }
+.badge-urgent{ background:var(--warning-soft); color:var(--warning); }
+.badge-routine{ background:#eef0f2; color:#5c6670; }
+.badge-progress{ background:rgba(0,120,220,.1); color:#0d6efd; }
+.badge-completed{ background:rgba(25,160,90,.12); color:#188a52; }
+.badge-overdue{ background:var(--danger-soft); color:var(--danger); }
+.badge-default{ background:#eef0f2; color:#5c6670; }
+
+/*================ BUTTONS =================*/
+
+.btn-capture{
+    background:var(--teal-500);
+    color:white;
+    border:none;
+    border-radius:10px;
+    padding:9px 16px;
+    font-weight:600;
+    font-size:13.5px;
+    transition:.2s;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+}
+
+.btn-capture:hover{
+    background:var(--teal-700);
+    color:white;
+    transform:translateY(-2px);
+    box-shadow:0 6px 14px rgba(0,105,92,.28);
+}
+
+/*================ EMPTY =================*/
+
+.empty-state{
+    padding:60px 20px;
+    text-align:center;
+}
+
+.empty-state i{
+    font-size:56px;
+    color:var(--teal-500);
+    margin-bottom:16px;
+    opacity:.85;
+}
+
+.empty-state h3{
+    font-weight:700;
+    color:var(--ink);
+}
+
+/*================ RESPONSIVE =================*/
+
+@@media(max-width:992px){
+
+.stats{
+    grid-template-columns:repeat(2,1fr);
+}
+
+.page-header{
+    flex-direction:column;
+    text-align:center;
+    gap:18px;
+}
+
+.table-header{
+    flex-direction:column;
+    align-items:stretch;
+}
+
+.search-box{
+    width:100%;
+}
+
+}
+
+@@media(max-width:576px){
+
+.stats{
+    grid-template-columns:1fr;
+}
+
+}
 
 </style>
 
 <div class="page-container">
 
-    @if (TempData["Success"] != null)
-    {
-        <div class="alert alert-success shadow-sm mb-4">
+@if(TempData["Success"]!=null)
+{
+<div class="alert alert-success shadow-sm">
+    <i class="fa-solid fa-circle-check"></i>
+    @TempData["Success"]
+</div>
+}
 
-            <i class="fa-solid fa-circle-check"></i>
+<div class="page-header">
 
-            @TempData["Success"]
-
-        </div>
-    }
-
-    <div class="page-header">
-
-        <div>
-
-            <h2>
-
-                <i class="fa-solid fa-flask-vial"></i>
-
-                Capture Test Results
-
-            </h2>
-
-            <p>
-
-                Record laboratory findings for tests assigned to you.
-
-            </p>
-
-        </div>
-
-        <div class="header-icon">
-
-            <i class="fa-solid fa-microscope"></i>
-
-        </div>
-
+    <div>
+        <h2>
+            <i class="fa-solid fa-flask-vial"></i>
+            Capture Laboratory Results
+        </h2>
+        <p>Capture laboratory findings for tests assigned to you.</p>
     </div>
 
-    <div class="stats">
-
-        <div class="stat-card">
-
-            <div>
-
-                <h5>Assigned Tests</h5>
-
-                <h3>@total</h3>
-
-            </div>
-
-            <div class="stat-icon">
-
-                <i class="fa-solid fa-vials"></i>
-
-            </div>
-
-        </div>
-
-        <div class="stat-card">
-
-            <div>
-
-                <h5>Overdue Tests</h5>
-
-                <h3>@overdue</h3>
-
-            </div>
-
-            <div class="stat-icon">
-
-                <i class="fa-solid fa-triangle-exclamation"></i>
-
-            </div>
-
-        </div>
-
-        <div class="stat-card">
-
-            <div>
-
-                <h5>STAT Requests</h5>
-
-                <h3>@stat</h3>
-
-            </div>
-
-            <div class="stat-icon">
-
-                <i class="fa-solid fa-bolt"></i>
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <div class="table-card">
-
-        <div class="table-toolbar">
-
-            <h4>
-
-                <i class="fa-solid fa-list-check"></i>
-
-                Assigned Laboratory Tests
-
-            </h4>
-
-            <div class="search-box">
-
-                <i class="fa-solid fa-search"></i>
-
-                <input type="text"
-                       id="searchInput"
-                       class="form-control"
-                       placeholder="Search request, patient or test..." />
-
-            </div>
-
-        </div>
-        @if (!Model.Any())
-        {
-            <div class="empty-state">
-
-                <i class="fa-solid fa-vials"></i>
-
-                <h3>No Tests Assigned</h3>
-
-                <p>
-
-                    There are currently no laboratory tests assigned to you for result capturing.
-
-                </p>
-
-            </div>
-        }
-        else
-        {
-
-            <table class="table table-hover">
-
-                <thead>
-
-                    <tr>
-
-                        <th>Request</th>
-
-                        <th>Test Type</th>
-
-                        <th>Category</th>
-
-                        <th>Urgency</th>
-
-                        <th>Started</th>
-
-                        <th>Expected Completion</th>
-
-                        <th>Status</th>
-
-                        <th>Action</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    @foreach (var item in Model)
-                    {
-                        var expected =
-                            item.StartDateTime?.AddHours(item.TestType.TurnaroundTimeHours);
-
-                        bool overdueTest =
-                            expected.HasValue &&
-                            DateTime.Now > expected.Value;
-
-                        <tr>
-
-                            <td>
-
-                                <strong>TR-@item.RequestId</strong>
-
-                            </td>
-
-                            <td>
-
-                                @item.TestType.Name
-
-                            </td>
-
-                            <td>
-
-                                @item.TestType.Category
-
-                            </td>
-
-                            <td>
-
-                                @if (item.TestRequest.Urgency == "STAT")
-                                {
-                                    <span class="badge bg-danger badge-status">
-
-                                        <i class="fa-solid fa-bolt"></i>
-
-                                        STAT
-
-                                    </span>
-                                }
-                                else if (item.TestRequest.Urgency == "Urgent")
-                                {
-                                    <span class="badge bg-warning text-dark badge-status">
-
-                                        <i class="fa-solid fa-triangle-exclamation"></i>
-
-                                        Urgent
-
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary badge-status">
-
-                                        Routine
-
-                                    </span>
-                                }
-
-                            </td>
-
-                            <td>
-
-                                @item.StartDateTime?.ToString("dd MMM yyyy HH:mm")
-
-                            </td>
-
-                            <td>
-
-                                @if (expected.HasValue)
-                                {
-                                    @expected.Value.ToString("dd MMM yyyy HH:mm")
-
-                                    <br />
-
-                                    if (!overdueTest)
-                                    {
-                                        var remaining = expected.Value - DateTime.Now;
-
-                                        <small class="text-success">
-
-                                            <i class="fa-solid fa-clock"></i>
-
-                                            @remaining.Days d
-                                            @remaining.Hours h
-                                            @remaining.Minutes m left
-
-                                        </small>
-                                    }
-                                    else
-                                    {
-                                        var late = DateTime.Now - expected.Value;
-
-                                        <small class="text-danger">
-
-                                            <i class="fa-solid fa-clock"></i>
-
-                                            @late.Days d
-                                            @late.Hours h
-                                            @late.Minutes m overdue
-
-                                        </small>
-                                    }
-                                }
-
-                            </td>
-
-                            <td>
-
-                                @if (overdueTest)
-                                {
-                                    <span class="badge bg-danger badge-status">
-
-                                        OVERDUE
-
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-success badge-status">
-
-                                        @item.Status
-
-                                    </span>
-                                }
-
-                            </td>
-
-                            <td>
-
-                                <a asp-action="Capture"
-                                   asp-route-id="@item.TestRequestItemId"
-                                   class="btn btn-capture">
-
-                                    <i class="fa-solid fa-floppy-disk"></i>
-
-                                    Capture Result
-
-                                </a>
-
-                            </td>
-
-                        </tr>
-
-                    }
-
-                </tbody>
-
-            </table>
-
-        }
-
+    <div class="header-icon">
+        <i class="fa-solid fa-microscope"></i>
     </div>
 
 </div>
 
-@section Scripts {
+<div class="stats">
+
+    <div class="stat-card" data-filter="all">
+        <div>
+            <h6>Total Assigned</h6>
+            <h2>@totalTests</h2>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-vials"></i></div>
+    </div>
+
+    <div class="stat-card danger" data-filter="stat">
+        <div>
+            <h6>STAT Requests</h6>
+            <h2>@statRequests</h2>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-bolt"></i></div>
+    </div>
+
+    <div class="stat-card warning" data-filter="urgent">
+        <div>
+            <h6>Urgent Tests</h6>
+            <h2>@urgentRequests</h2>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    </div>
+
+    <div class="stat-card danger" data-filter="overdue">
+        <div>
+            <h6>Overdue Tests</h6>
+            <h2>@overdueTests</h2>
+        </div>
+        <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
+    </div>
+
+</div>
+
+<div class="table-card">
+
+    <div class="table-header">
+
+        <h4>
+            <i class="fa-solid fa-list-check"></i>
+            Assigned Laboratory Tests
+            <span class="result-count" id="resultCount"></span>
+        </h4>
+
+        <div class="search-box">
+            <i class="fa-solid fa-search"></i>
+            <input type="text"
+                   id="searchInput"
+                   class="form-control"
+                   placeholder="Search patient, request or test..."
+                   aria-label="Search assigned tests" />
+        </div>
+
+    </div>
+
+    @if(!Model.Any())
+    {
+    <div class="empty-state">
+        <i class="fa-solid fa-vials"></i>
+        <h3>No Assigned Tests</h3>
+        <p class="text-muted">There are currently no laboratory tests available for result capture.</p>
+    </div>
+    }
+    else
+    {
+
+    <div class="filter-bar" role="group" aria-label="Filter tests by urgency">
+        <button type="button" class="filter-chip active" data-filter="all">
+            All <span class="count">@totalTests</span>
+        </button>
+        <button type="button" class="filter-chip" data-filter="stat">
+            <i class="fa-solid fa-bolt"></i> STAT <span class="count">@statRequests</span>
+        </button>
+        <button type="button" class="filter-chip" data-filter="urgent">
+            <i class="fa-solid fa-triangle-exclamation"></i> Urgent <span class="count">@urgentRequests</span>
+        </button>
+        <button type="button" class="filter-chip" data-filter="overdue">
+            <i class="fa-solid fa-clock"></i> Overdue <span class="count">@overdueTests</span>
+        </button>
+    </div>
+
+    <div class="table-scroll">
+    <table class="table table-hover" id="resultsTable">
+
+        <thead>
+            <tr>
+                <th class="sortable" data-sort="request">Request <i class="fa-solid fa-sort"></i></th>
+                <th class="sortable" data-sort="patient">Patient <i class="fa-solid fa-sort"></i></th>
+                <th class="sortable" data-sort="test">Test <i class="fa-solid fa-sort"></i></th>
+                <th>Category</th>
+                <th class="sortable" data-sort="urgency">Urgency <i class="fa-solid fa-sort"></i></th>
+                <th class="sortable" data-sort="started">Started <i class="fa-solid fa-sort"></i></th>
+                <th class="sortable" data-sort="turnaround">Turnaround <i class="fa-solid fa-sort"></i></th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in Model)
+            {
+                var expectedCompletion = item.StartDateTime?.AddHours(item.TestType.TurnaroundTimeHours);
+
+                bool overdue =
+                    expectedCompletion.HasValue &&
+                    DateTime.Now > expectedCompletion.Value;
+
+                var urgencyKey = item.TestRequest.Urgency == "STAT" ? "stat"
+                    : item.TestRequest.Urgency == "Urgent" ? "urgent" : "routine";
+
+                <tr class="@(overdue ? "row-overdue" : "")"
+                    data-urgency="@urgencyKey"
+                    data-overdue="@(overdue ? "1" : "0")"
+                    data-request="TR-@item.RequestId"
+                    data-patient="@item.TestRequest.Patient.Name @item.TestRequest.Patient.Surname"
+                    data-test="@item.TestType.Name"
+                    data-started="@(item.StartDateTime?.ToString("o") ?? "")"
+                    data-expected="@(expectedCompletion?.ToString("o") ?? "")">
+
+                    <td><strong>TR-@item.RequestId</strong></td>
+
+                    <td class="patient-name">
+                        @item.TestRequest.Patient.Name
+                        @item.TestRequest.Patient.Surname
+                    </td>
+
+                    <td><strong>@item.TestType.Name</strong></td>
+
+                    <td>@item.TestType.Category</td>
+
+                    <td>
+                        @if (item.TestRequest.Urgency == "STAT")
+                        {
+                            <span class="badge-status badge-stat">
+                                <i class="fa-solid fa-bolt"></i> STAT
+                            </span>
+                        }
+                        else if (item.TestRequest.Urgency == "Urgent")
+                        {
+                            <span class="badge-status badge-urgent">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Urgent
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge-status badge-routine">Routine</span>
+                        }
+                    </td>
+
+                    <td>@(item.StartDateTime?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
+
+                    <td>
+                        @if (expectedCompletion.HasValue)
+                        {
+                            <div>@expectedCompletion.Value.ToString("dd MMM yyyy HH:mm")</div>
+                            <small class="live-countdown muted-sub @(overdue ? "text-danger fw-bold" : "text-success")"></small>
+                        }
+                        else
+                        {
+                            <span>-</span>
+                        }
+                    </td>
+
+                    <td>
+                        @if (overdue)
+                        {
+                            <span class="badge-status badge-overdue">OVERDUE</span>
+                        }
+                        else if (item.Status == "In Progress")
+                        {
+                            <span class="badge-status badge-progress">@item.Status</span>
+                        }
+                        else if (item.Status == "Completed")
+                        {
+                            <span class="badge-status badge-completed">@item.Status</span>
+                        }
+                        else
+                        {
+                            <span class="badge-status badge-default">@item.Status</span>
+                        }
+                    </td>
+
+                    <td>
+                        <a asp-action="Capture"
+                           asp-route-id="@item.TestRequestItemId"
+                           class="btn-capture">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            Capture Result
+                        </a>
+                    </td>
+
+                </tr>
+            }
+        </tbody>
+
+    </table>
+    </div>
+
+    <div class="empty-state d-none" id="noResults">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <h3>No matching tests</h3>
+        <p class="text-muted">Try a different search term or clear the active filter.</p>
+    </div>
+
+    }
+
+</div>
+
+</div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
 
     <script>
+        (function () {
+            var table = document.getElementById("resultsTable");
+            if (!table) return;
 
-        document.getElementById("searchInput").addEventListener("keyup", function () {
+            var searchInput = document.getElementById("searchInput");
+            var rows = Array.prototype.slice.call(table.querySelectorAll("tbody tr"));
+            var chips = document.querySelectorAll(".filter-chip, .stat-card[data-filter]");
+            var noResults = document.getElementById("noResults");
+            var resultCount = document.getElementById("resultCount");
+            var currentFilter = "all";
+            var currentSort = { key: null, dir: 1 };
 
-            var value = this.value.toLowerCase();
+            function matchesFilter(row) {
+                if (currentFilter === "all") return true;
+                if (currentFilter === "overdue") return row.dataset.overdue === "1";
+                return row.dataset.urgency === currentFilter;
+            }
 
-            document.querySelectorAll("tbody tr").forEach(function (row) {
+            function matchesSearch(row, term) {
+                if (!term) return true;
+                return row.innerText.toLowerCase().indexOf(term) > -1;
+            }
 
-                row.style.display =
-                    row.innerText.toLowerCase().indexOf(value) > -1
-                        ? ""
-                        : "none";
+            function applyFilters() {
+                var term = (searchInput.value || "").toLowerCase();
+                var visibleCount = 0;
 
+                rows.forEach(function (row) {
+                    var show = matchesFilter(row) && matchesSearch(row, term);
+                    row.style.display = show ? "" : "none";
+                    if (show) visibleCount++;
+                });
+
+                resultCount.textContent = visibleCount + " of " + rows.length + " shown";
+                noResults.classList.toggle("d-none", visibleCount > 0);
+            }
+
+            searchInput.addEventListener("keyup", applyFilters);
+
+            chips.forEach(function (chip) {
+                chip.addEventListener("click", function () {
+                    currentFilter = chip.dataset.filter;
+
+                    document.querySelectorAll(".filter-chip").forEach(function (c) {
+                        c.classList.toggle("active", c.dataset.filter === currentFilter);
+                    });
+                    document.querySelectorAll(".stat-card[data-filter]").forEach(function (c) {
+                        c.classList.toggle("active", c.dataset.filter === currentFilter);
+                    });
+
+                    applyFilters();
+                });
             });
 
-        });
+            // Sorting
+            var sortIndexMap = { request: 0, patient: 1, test: 2, urgency: 4, started: 5, turnaround: 6 };
+            var urgencyRank = { stat: 0, urgent: 1, routine: 2 };
 
+            table.querySelectorAll("th.sortable").forEach(function (th) {
+                th.addEventListener("click", function () {
+                    var key = th.dataset.sort;
+
+                    if (currentSort.key === key) {
+                        currentSort.dir *= -1;
+                    } else {
+                        currentSort.key = key;
+                        currentSort.dir = 1;
+                    }
+
+                    table.querySelectorAll("th.sortable").forEach(function (h) {
+                        h.classList.remove("sorted");
+                        h.querySelector("i").className = "fa-solid fa-sort";
+                    });
+                    th.classList.add("sorted");
+                    th.querySelector("i").className = currentSort.dir === 1
+                        ? "fa-solid fa-sort-up"
+                        : "fa-solid fa-sort-down";
+
+                    var tbody = table.querySelector("tbody");
+                    var sorted = rows.slice().sort(function (a, b) {
+                        var av, bv;
+
+                        if (key === "urgency") {
+                            av = urgencyRank[a.dataset.urgency];
+                            bv = urgencyRank[b.dataset.urgency];
+                        } else if (key === "started") {
+                            av = a.dataset.started ? new Date(a.dataset.started).getTime() : 0;
+                            bv = b.dataset.started ? new Date(b.dataset.started).getTime() : 0;
+                        } else if (key === "turnaround") {
+                            av = a.dataset.expected ? new Date(a.dataset.expected).getTime() : 0;
+                            bv = b.dataset.expected ? new Date(b.dataset.expected).getTime() : 0;
+                        } else {
+                            av = (a.dataset[key] || "").toString().toLowerCase();
+                            bv = (b.dataset[key] || "").toString().toLowerCase();
+                        }
+
+                        if (av < bv) return -1 * currentSort.dir;
+                        if (av > bv) return 1 * currentSort.dir;
+                        return 0;
+                    });
+
+                    sorted.forEach(function (row) { tbody.appendChild(row); });
+                    rows = sorted;
+                });
+            });
+
+            // Live countdown / overdue timer, refreshed every 30s
+            function formatDiff(ms) {
+                var abs = Math.abs(ms);
+                var totalMinutes = Math.floor(abs / 60000);
+                var days = Math.floor(totalMinutes / 1440);
+                var hours = Math.floor((totalMinutes % 1440) / 60);
+                var minutes = totalMinutes % 60;
+                return days + "d " + hours + "h " + minutes + "m";
+            }
+
+            function tickCountdowns() {
+                var now = Date.now();
+                rows.forEach(function (row) {
+                    var expected = row.dataset.expected;
+                    if (!expected) return;
+
+                    var el = row.querySelector(".live-countdown");
+                    if (!el) return;
+
+                    var diff = new Date(expected).getTime() - now;
+                    var overdue = diff < 0;
+
+                    el.innerHTML = '<i class="fa-solid fa-clock"></i> ' +
+                        formatDiff(diff) + (overdue ? " overdue" : " left");
+                    el.classList.toggle("text-danger", overdue);
+                    el.classList.toggle("fw-bold", overdue);
+                    el.classList.toggle("text-success", !overdue);
+                });
+            }
+
+            tickCountdowns();
+            setInterval(tickCountdowns, 30000);
+            applyFilters();
+        })();
     </script>
-
 }

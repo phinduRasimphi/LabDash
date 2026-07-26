@@ -3,7 +3,7 @@
 @using LabDash.Models
 
 @{
-    ViewData["Title"] = "Capture Test Result";
+    ViewData["Title"] = "Capture Laboratory Result";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
     var test = ViewBag.TestItem as TestRequestItem;
@@ -12,380 +12,594 @@
 
 <link rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Segoe+UI&display=swap" rel="stylesheet"/>
 
 <style>
 
-    body {
-        background: #eef7f8;
-        font-family: "Segoe UI", sans-serif;
-    }
+:root{
+    --teal-900:#00453d;
+    --teal-700:#00695c;
+    --teal-600:#00796B;
+    --teal-500:#009688;
+    --teal-100:rgba(0,150,136,.12);
+    --teal-50:#eef7f8;
+    --ink:#173a3a;
+    --muted:#5f7a78;
+    --danger:#e13b3b;
+    --danger-soft:rgba(225,59,59,.1);
+    --warning:#c98400;
+    --warning-soft:rgba(201,132,0,.12);
+    --info:#0d6efd;
+    --info-soft:rgba(13,110,253,.1);
+    --line:#e5efee;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --shadow-soft:0 8px 24px rgba(9,50,46,.07);
+    --shadow-lift:0 16px 34px rgba(9,50,46,.12);
+}
 
-    .page-container {
-        max-width: 1350px;
-        margin: 35px auto;
-    }
+body{
+    background:var(--teal-50);
+    font-family:'Inter','Segoe UI',sans-serif;
+    color:var(--ink);
+}
 
-    .page-header {
-        background: linear-gradient(135deg,#009688,#00796B);
-        color: white;
-        padding: 30px 35px;
-        border-radius: 18px;
-        margin-bottom: 30px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 12px 30px rgba(0,0,0,.10);
-    }
+.page-container{
+    max-width:1450px;
+    margin:35px auto;
+    padding:0 16px;
+}
 
-    .page-header h2 {
-        margin: 0;
-        font-size: 34px;
-        font-weight: 700;
-    }
+*:focus-visible{
+    outline:3px solid #4fb8ac;
+    outline-offset:2px;
+    border-radius:6px;
+}
 
-    .page-header p {
-        margin-top: 6px;
-        opacity: .9;
-    }
+/*================ HEADER =================*/
 
-    .header-icon {
-        width: 80px;
-        height: 80px;
-        border-radius: 20px;
-        background: rgba(255,255,255,.15);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 34px;
-    }
+.page-header{
+    background:linear-gradient(135deg,var(--teal-500),var(--teal-900));
+    color:white;
+    padding:34px 38px;
+    border-radius:var(--radius-lg);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:26px;
+    box-shadow:var(--shadow-lift);
+    position:relative;
+    overflow:hidden;
+}
 
-    .info-card {
-        background: white;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 8px 20px rgba(0,0,0,.08);
-        margin-bottom: 25px;
-    }
+.page-header::after{
+    content:"";
+    position:absolute;
+    right:-60px;
+    top:-60px;
+    width:220px;
+    height:220px;
+    border-radius:50%;
+    background:rgba(255,255,255,.07);
+}
 
-    .info-header {
-        background: #009688;
-        color: white;
-        padding: 15px 22px;
-        font-size: 18px;
-        font-weight: 600;
-    }
+.page-header h2{
+    font-size:32px;
+    font-weight:800;
+    letter-spacing:-.02em;
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
 
-    .info-body {
-        padding: 22px;
-    }
+.page-header p{
+    margin:0;
+    opacity:.9;
+    font-size:15px;
+}
 
-    .info-body p {
-        margin-bottom: 12px;
-        color: #555;
-    }
+.header-icon{
+    width:84px;
+    height:84px;
+    background:rgba(255,255,255,.16);
+    border-radius:20px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:34px;
+    flex-shrink:0;
+    z-index:1;
+}
 
-    .info-body strong {
-        color: #333;
-    }
+/*================ CARDS =================*/
 
-    .notes-card {
-        background: #fffef7;
-        border-left: 5px solid #009688;
-        border-radius: 12px;
-        box-shadow: 0 6px 18px rgba(0,0,0,.05);
-        margin-bottom: 30px;
-    }
+.info-card,
+.notes-card,
+.result-card{
+    background:white;
+    border-radius:var(--radius-lg);
+    overflow:hidden;
+    box-shadow:var(--shadow-soft);
+    margin-bottom:22px;
+}
 
-    .notes-header {
-        padding: 15px 20px;
-        font-weight: 700;
-        color: #009688;
-        border-bottom: 1px solid #ececec;
-    }
+.card-header-custom{
+    background:var(--teal-600);
+    color:white;
+    padding:16px 24px;
+    font-size:17px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
 
-    .notes-body {
-        padding: 20px;
-        color: #555;
-        line-height: 1.8;
-    }
+.card-body-custom{
+    padding:24px;
+}
 
-    .result-card {
-        background: white;
-        border-radius: 18px;
-        box-shadow: 0 10px 25px rgba(0,0,0,.08);
-        overflow: hidden;
-    }
+.card-body-custom p{
+    margin-bottom:13px;
+    color:var(--muted);
+    font-size:14.5px;
+}
 
-    .result-header {
-        background: #009688;
-        color: white;
-        padding: 18px 25px;
-        font-size: 22px;
-        font-weight: 700;
-    }
+.card-body-custom strong{
+    color:var(--ink);
+    font-weight:600;
+    margin-right:4px;
+}
 
-    .result-body {
-        padding: 30px;
-    }
+/*================ ALERT BOXES =================*/
 
-    label {
-        font-weight: 600;
-        color: #444;
-        margin-bottom: 8px;
-    }
+.medical-alert,
+.allergy-alert,
+.medication-alert{
+    border-radius:12px;
+    padding:16px 18px;
+    margin-top:14px;
+}
 
-    .form-control {
-        border-radius: 10px;
-        height: 48px;
-        border: 1px solid #d8d8d8;
-    }
+.medical-alert{
+    background:var(--warning-soft);
+    border-left:5px solid var(--warning);
+}
 
-    textarea.form-control {
-        height: 130px;
-        resize: vertical;
-    }
+.allergy-alert{
+    background:var(--danger-soft);
+    border-left:5px solid var(--danger);
+}
 
-    .form-control:focus {
-        border-color: #009688;
-        box-shadow: 0 0 0 .15rem rgba(0,150,136,.15);
-    }
+.medication-alert{
+    background:var(--info-soft);
+    border-left:5px solid var(--info);
+}
 
-    .btn-save {
-        background: #009688;
-        color: white;
-        border: none;
-        padding: 12px 28px;
-        border-radius: 8px;
-        font-weight: 600;
-        transition: .25s;
-    }
+.medical-alert h6,
+.allergy-alert h6,
+.medication-alert h6{
+    font-weight:700;
+    color:var(--ink);
+    font-size:13.5px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    margin-bottom:8px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
 
-    .btn-save:hover {
-        background: #00796B;
-        color: white;
-        transform: translateY(-2px);
-    }
+.medical-alert p,
+.allergy-alert p,
+.medication-alert p{
+    margin:0;
+    color:var(--ink);
+    font-size:14.5px;
+}
 
-    .btn-cancel {
-        padding: 12px 28px;
-        border-radius: 8px;
-        font-weight: 600;
-    }
+/*================ BADGES =================*/
+
+.badge-status{
+    border-radius:25px;
+    padding:6px 14px;
+    font-size:12.5px;
+    font-weight:600;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+}
+
+.badge-stat{ background:var(--danger-soft); color:var(--danger); }
+.badge-urgent{ background:var(--warning-soft); color:var(--warning); }
+.badge-routine{ background:#eef0f2; color:#5c6670; }
+.badge-progress{ background:var(--info-soft); color:var(--info); }
+.badge-completed{ background:rgba(25,160,90,.12); color:#188a52; }
+
+/*================ FORM =================*/
+
+.form-label.fw-bold{
+    color:var(--ink);
+    font-size:14px;
+    font-weight:700 !important;
+    margin-bottom:6px;
+}
+
+.form-control-lg{
+    border-radius:12px;
+    border:1.5px solid var(--line);
+    padding:12px 16px;
+    font-size:15px;
+}
+
+.form-control-lg:focus{
+    border-color:var(--teal-500);
+    box-shadow:0 0 0 3px var(--teal-100);
+}
+
+textarea.form-control{
+    border-radius:12px;
+    border:1.5px solid var(--line);
+}
+
+textarea.form-control:focus{
+    border-color:var(--teal-500);
+    box-shadow:0 0 0 3px var(--teal-100);
+}
+
+.summary-tile{
+    border:1px solid var(--line) !important;
+    border-radius:var(--radius-md);
+    padding:20px 14px !important;
+    background:var(--teal-50);
+    transition:.2s;
+    height:100%;
+}
+
+.summary-tile i{
+    margin-bottom:10px;
+}
+
+.summary-tile h6{
+    font-weight:700;
+    color:var(--ink);
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    margin-bottom:6px;
+}
+
+.btn-save{
+    background:var(--teal-500);
+    border:none;
+    color:white;
+    font-weight:700;
+    border-radius:12px;
+    transition:.2s;
+}
+
+.btn-save:hover{
+    background:var(--teal-700);
+    color:white;
+    transform:translateY(-2px);
+    box-shadow:0 8px 18px rgba(0,105,92,.3);
+}
+
+.btn-back{
+    border-radius:12px;
+    font-weight:600;
+    border:1.5px solid var(--line);
+    color:var(--muted);
+}
+
+.btn-back:hover{
+    border-color:var(--teal-500);
+    color:var(--teal-700);
+}
+
+.is-valid{
+    border:2px solid #198754 !important;
+    background:#f4fff7;
+}
+
+.is-invalid{
+    border:2px solid var(--danger) !important;
+    background:#fff5f5;
+}
+
+#abnormalAlert{
+    border-left:6px solid var(--danger);
+    border-radius:12px;
+    animation:fadeIn .35s ease-in-out;
+    background:#fff2f2;
+}
+
+@@keyframes fadeIn{
+    from{ opacity:0; transform:translateY(-10px); }
+    to{ opacity:1; transform:translateY(0); }
+}
+
+/*================ RESPONSIVE =================*/
+
+@@media(max-width:992px){
+
+.page-header{
+    flex-direction:column;
+    text-align:center;
+    gap:18px;
+}
+
+}
 
 </style>
 
 <div class="page-container">
 
-<div class="page-header">
+    <div class="page-header">
 
-    <div>
+        <div>
+            <h2>
+                <i class="fa-solid fa-flask-vial"></i>
+                Capture Laboratory Result
+            </h2>
+            <p>Capture laboratory findings and review the patient's clinical information before submitting results.</p>
+        </div>
 
-        <h2>
-
-            <i class="fa-solid fa-flask-vial"></i>
-
-            Capture Laboratory Result
-
-        </h2>
-
-        <p>
-
-            Record laboratory findings for this patient's requested investigation.
-
-        </p>
+        <div class="header-icon">
+            <i class="fa-solid fa-microscope"></i>
+        </div>
 
     </div>
 
-    <div class="header-icon">
-
-        <i class="fa-solid fa-microscope"></i>
-
-    </div>
-
-</div>
-
-<div class="row">
-
-<div class="col-lg-6">
-
-<div class="info-card">
-
-<div class="info-header">
-
-<i class="fa-solid fa-user"></i>
-
-Patient Information
-
-</div>
-
-<div class="info-body">
-
-<p><strong>Patient:</strong> @patient?.Name @patient?.Surname</p>
-
-<p><strong>ID Number:</strong> @patient?.IDNumber</p>
-
-<p><strong>Email:</strong> @patient?.Email</p>
-
-@* <p><strong>Contact:</strong> @patient?.PhoneNumber</p>
- *@
-</div>
-
-</div>
-
-</div>
-
-<div class="col-lg-6">
-
-<div class="info-card">
-
-<div class="info-header">
-
-<i class="fa-solid fa-vials"></i>
-
-Test Information
-
-</div>
-
-<div class="info-body">
-
-<p><strong>Request:</strong> TR-@test?.RequestId</p>
-
-<p><strong>Test:</strong> @test?.TestType?.Name</p>
-
-<p><strong>Category:</strong> @test?.TestType?.Category</p>
-
-<p><strong>Urgency:</strong> @test?.TestRequest?.Urgency</p>
-
-<p><strong>Started:</strong> @test?.StartDateTime?.ToString("dd MMM yyyy HH:mm")</p>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-<div class="notes-card">
-
-<div class="notes-header">
-
-<i class="fa-solid fa-notes-medical"></i>
-
-Doctor's Clinical Notes
-
-</div>
-
-<div class="notes-body">
-
-@if (!string.IsNullOrWhiteSpace(test?.TestRequest?.ClinicalNotes))
-{
-    @test.TestRequest.ClinicalNotes
-}
-else
-{
-    <span class="text-muted">
-        No clinical notes were provided by the requesting doctor.
-    </span>
-}
-
-</div>
-
-</div>
-
-<div class="result-card">
-
-<div class="result-header">
-
-<i class="fa-solid fa-clipboard-check"></i>
-
-Laboratory Result
-
-</div>
-
-<div class="result-body">
-
-<form asp-action="Capture" method="post">
-
-<input asp-for="TestRequestItemId" type="hidden" />
-
-<div asp-validation-summary="ModelOnly" class="text-danger mb-4"></div>
-
-<div class="row">
-
-<div class="col-md-6 mb-4">
-
-<label asp-for="ResultValue"></label>
-
-<input asp-for="ResultValue"
-       class="form-control"
-       placeholder="Enter the measured result" />
-
-<span asp-validation-for="ResultValue"
-      class="text-danger"></span>
-
-</div>
-
-<div class="col-md-6 mb-4">
-
-<label asp-for="Units"></label>
-
-<input asp-for="Units"
-       class="form-control"
-       placeholder="e.g. mmol/L, g/dL" />
-
-<span asp-validation-for="Units"
-      class="text-danger"></span>
-
-</div>
-
-</div>
-                <div class="mb-4">
-
-                    <label asp-for="ReferenceRange"></label>
-
-                    <input asp-for="ReferenceRange"
-                           class="form-control"
-                           placeholder="e.g. 4.0 - 11.0 x10⁹/L" />
-
-                    <span asp-validation-for="ReferenceRange"
-                          class="text-danger"></span>
+    <div class="row">
+
+        <div class="col-lg-6">
+
+            <div class="info-card">
+
+                <div class="card-header-custom">
+                    <i class="fa-solid fa-user"></i>
+                    Patient Information
+                </div>
+
+                <div class="card-body-custom">
+
+                    <p><strong>Patient Name:</strong> @patient?.Name @patient?.Surname</p>
+                    <p><strong>ID Number:</strong> @patient?.IDNumber</p>
+                    <p><strong>Email:</strong> @patient?.Email</p>
+
+                    <div class="allergy-alert">
+                        <h6><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i> Allergies</h6>
+                        @if (!string.IsNullOrWhiteSpace(patient?.Allergies))
+                        {
+                            <p>@patient.Allergies</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No allergies recorded.</p>
+                        }
+                    </div>
+
+                    <div class="medical-alert">
+                        <h6><i class="fa-solid fa-heart-pulse" style="color:var(--warning)"></i> Medical Conditions</h6>
+                        @if (!string.IsNullOrWhiteSpace(patient?.MedicalConditions))
+                        {
+                            <p>@patient.MedicalConditions</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No medical conditions recorded.</p>
+                        }
+                    </div>
+
+                    <div class="medication-alert">
+                        <h6><i class="fa-solid fa-pills" style="color:var(--info)"></i> Medication</h6>
+                        @if (!string.IsNullOrWhiteSpace(patient?.Medication))
+                        {
+                            <p>@patient.Medication</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No current medication recorded.</p>
+                        }
+                    </div>
 
                 </div>
 
+            </div>
+
+        </div>
+
+        <div class="col-lg-6">
+
+            <div class="info-card">
+
+                <div class="card-header-custom">
+                    <i class="fa-solid fa-vials"></i>
+                    Test Information
+                </div>
+
+                <div class="card-body-custom">
+
+                    <p><strong>Request Number:</strong> TR-@test?.RequestId</p>
+                    <p><strong>Test Type:</strong> @test?.TestType?.Name</p>
+                    <p><strong>Category:</strong> @test?.TestType?.Category</p>
+                    <p>
+                        <strong>Urgency:</strong>
+                        @{
+                            var urgency = test?.TestRequest?.Urgency;
+                            var urgencyBadgeClass = urgency == "STAT" ? "badge-stat"
+                                : urgency == "Urgent" ? "badge-urgent" : "badge-routine";
+                        }
+                        <span class="badge-status @urgencyBadgeClass">@urgency</span>
+                    </p>
+                    <p><strong>Date Started:</strong> @test?.StartDateTime?.ToString("dd MMM yyyy HH:mm")</p>
+                    <p>
+                        <strong>Status:</strong>
+                        @{
+                            var status = test?.Status;
+                            var statusBadgeClass = status == "Completed" ? "badge-completed"
+                                : status == "In Progress" ? "badge-progress" : "badge-routine";
+                        }
+                        <span class="badge-status @statusBadgeClass">@status</span>
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="notes-card">
+
+                <div class="card-header-custom">
+                    <i class="fa-solid fa-notes-medical"></i>
+                    Doctor Clinical Notes
+                </div>
+
+                <div class="card-body-custom">
+                    @if (!string.IsNullOrWhiteSpace(test?.TestRequest?.ClinicalNotes))
+                    {
+                        <p>@test.TestRequest.ClinicalNotes</p>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No clinical notes were provided for this request.</p>
+                    }
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="result-card">
+
+        <div class="card-header-custom">
+            <i class="fa-solid fa-clipboard-check"></i>
+            Laboratory Result Entry
+        </div>
+
+        <div class="card-body-custom">
+
+            <form asp-action="Capture" method="post">
+
+                <input asp-for="TestRequestItemId" type="hidden" />
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                <div class="row">
+
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="ResultValue" class="form-label fw-bold">Result Value</label>
+                        <input asp-for="ResultValue"
+                               id="ResultValue"
+                               class="form-control form-control-lg"
+                               placeholder="Enter laboratory result..." />
+                        <span asp-validation-for="ResultValue" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="Units" class="form-label fw-bold">Units</label>
+                        <input asp-for="Units"
+                               class="form-control form-control-lg"
+                               placeholder="e.g mmol/L, mg/dL, g/L" />
+                        <span asp-validation-for="Units" class="text-danger"></span>
+                    </div>
+
+                </div>
+
+                <div class="row">
+
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="ReferenceRange" class="form-label fw-bold">Reference Range</label>
+                        <input asp-for="ReferenceRange"
+                               id="ReferenceRange"
+                               class="form-control form-control-lg"
+                               placeholder="Example: 4 - 10" />
+                        <span asp-validation-for="ReferenceRange" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label fw-bold">Capture Date &amp; Time</label>
+                        <input class="form-control form-control-lg"
+                               readonly
+                               value="@DateTime.Now.ToString("dd MMM yyyy HH:mm")" />
+                    </div>
+
+                </div>
+
+                <div id="abnormalAlert" class="alert alert-danger shadow-sm" style="display:none;">
+                    <h5 class="mb-2">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        Abnormal Result Detected
+                    </h5>
+                    <p class="mb-0">
+                        The entered result appears to fall outside the supplied reference range.
+                        Please verify the value before saving.
+                    </p>
+                </div>
+
                 <div class="mb-4">
-
-                    <label asp-for="Comments"></label>
-
+                    <label asp-for="Comments" class="form-label fw-bold">Laboratory Comments / Notes</label>
                     <textarea asp-for="Comments"
+                              rows="6"
                               class="form-control"
-                              placeholder="Enter any observations, abnormalities or additional laboratory comments..."></textarea>
+                              placeholder="Enter observations, abnormalities, interpretation or additional laboratory notes..."></textarea>
+                    <span asp-validation-for="Comments" class="text-danger"></span>
+                </div>
 
-                    <span asp-validation-for="Comments"
-                          class="text-danger"></span>
+                <hr />
+
+                <div class="row text-center">
+
+                    <div class="col-md-3 mb-3">
+                        <div class="summary-tile">
+                            <i class="fa-solid fa-user-doctor fa-2x" style="color:var(--teal-600)"></i>
+                            <h6>Captured By</h6>
+                            <small class="text-muted">Logged-in Technician</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="summary-tile">
+                            <i class="fa-solid fa-vial-circle-check fa-2x" style="color:var(--info)"></i>
+                            <h6>Status</h6>
+                            <small class="badge-status badge-completed">Completed</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="summary-tile">
+                            <i class="fa-solid fa-calendar-check fa-2x" style="color:var(--warning)"></i>
+                            <h6>Date</h6>
+                            <small>@DateTime.Now.ToString("dd MMM yyyy")</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="summary-tile">
+                            <i class="fa-solid fa-clock fa-2x" style="color:var(--teal-500)"></i>
+                            <h6>Time</h6>
+                            <small>@DateTime.Now.ToString("HH:mm")</small>
+                        </div>
+                    </div>
 
                 </div>
 
-                <hr class="my-4" />
+                <hr class="mt-4 mb-4" />
 
                 <div class="d-flex justify-content-end gap-3">
 
-                    <a asp-action="Index"
-                       class="btn btn-outline-secondary btn-cancel">
-
+                    <a asp-action="Index" class="btn btn-back btn-lg">
                         <i class="fa-solid fa-arrow-left"></i>
-
                         Back
-
                     </a>
 
-                    <button type="submit"
-                            class="btn btn-save">
-
+                    <button type="submit" class="btn btn-save btn-lg px-5">
                         <i class="fa-solid fa-floppy-disk"></i>
-
                         Save Laboratory Result
-
                     </button>
 
                 </div>
@@ -404,14 +618,57 @@ Laboratory Result
 
     <script>
 
-        // Automatically focus the first input when the page loads
         document.addEventListener("DOMContentLoaded", function () {
 
             const resultInput = document.getElementById("ResultValue");
+            const rangeInput = document.getElementById("ReferenceRange");
+            const abnormalAlert = document.getElementById("abnormalAlert");
 
             if (resultInput) {
                 resultInput.focus();
             }
+
+            function checkAbnormalResult() {
+
+                abnormalAlert.style.display = "none";
+
+                resultInput.classList.remove("is-invalid");
+                resultInput.classList.remove("is-valid");
+
+                if (resultInput.value === "" || rangeInput.value === "")
+                    return;
+
+                let result = parseFloat(resultInput.value);
+
+                if (isNaN(result))
+                    return;
+
+                let range = rangeInput.value
+                    .replace(/\s/g, "")
+                    .split("-");
+
+                if (range.length != 2)
+                    return;
+
+                let minimum = parseFloat(range[0]);
+                let maximum = parseFloat(range[1]);
+
+                if (isNaN(minimum) || isNaN(maximum))
+                    return;
+
+                if (result < minimum || result > maximum) {
+                    abnormalAlert.style.display = "block";
+                    resultInput.classList.add("is-invalid");
+                } else {
+                    resultInput.classList.add("is-valid");
+                }
+
+            }
+
+            resultInput.addEventListener("keyup", checkAbnormalResult);
+            resultInput.addEventListener("change", checkAbnormalResult);
+            rangeInput.addEventListener("keyup", checkAbnormalResult);
+            rangeInput.addEventListener("change", checkAbnormalResult);
 
         });
 
