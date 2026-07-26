@@ -396,9 +396,9 @@ textarea.form-control:focus{
 
                     <div class="medication-alert">
                         <h6><i class="fa-solid fa-pills" style="color:var(--info)"></i> Medication</h6>
-                        @if (!string.IsNullOrWhiteSpace(patient?.Medication))
+                        @if (!string.IsNullOrWhiteSpace(patient?.CurrentMedication))
                         {
-                            <p>@patient.Medication</p>
+                            <p>@patient.CurrentMedication</p>
                         }
                         else
                         {
@@ -514,11 +514,23 @@ textarea.form-control:focus{
 
                     <div class="col-md-6 mb-4">
                         <label asp-for="ReferenceRange" class="form-label fw-bold">Reference Range</label>
+                        @{
+                            var hasDefinedRange = !string.IsNullOrWhiteSpace(Model.ReferenceRange);
+                        }
                         <input asp-for="ReferenceRange"
                                id="ReferenceRange"
                                class="form-control form-control-lg"
-                               placeholder="Example: 4 - 10" />
+                               placeholder="Not defined for this test type"
+                               readonly="@hasDefinedRange" />
                         <span asp-validation-for="ReferenceRange" class="text-danger"></span>
+                        @if (hasDefinedRange)
+                        {
+                            <small class="text-muted">Set automatically from this test type. Abnormal results are flagged for you.</small>
+                        }
+                        else
+                        {
+                            <small class="text-muted">No numeric range is defined for this test type, so abnormal-result flagging won't apply here.</small>
+                        }
                     </div>
 
                     <div class="col-md-6 mb-4">
@@ -674,3 +686,4 @@ textarea.form-control:focus{
 
     </script>
 }
+

@@ -70,9 +70,22 @@ namespace LabDash.Controllers
             ViewBag.TestItem = item;
             ViewBag.Patient = item.TestRequest.Patient;
 
+            // Pre-fill the reference range from the test type itself, rather than
+            // relying on the technician to type it in. If the test type doesn't
+            // define a numeric range (e.g. a qualitative test), this is left blank
+            // and automatic abnormal-detection simply won't apply to that result.
+            string? referenceRangeDisplay = null;
+
+            if (item.TestType.ReferenceRangeLow.HasValue && item.TestType.ReferenceRangeHigh.HasValue)
+            {
+                referenceRangeDisplay =
+                    $"{item.TestType.ReferenceRangeLow.Value} - {item.TestType.ReferenceRangeHigh.Value}";
+            }
+
             return View(new TestResult
             {
-                TestRequestItemId = item.TestRequestItemId
+                TestRequestItemId = item.TestRequestItemId,
+                ReferenceRange = referenceRangeDisplay
             });
         }
 
@@ -109,6 +122,31 @@ namespace LabDash.Controllers
                 return View(result);
             }
 
+            // ------------------------------------------------------------------
+            // AUTOMATIC ABNORMAL RESULT DETECTION (server-side, authoritative)
+            // ------------------------------------------------------------------
+            // The reference range always comes from the test type, never from
+            // whatever the client submitted, so this can't be bypassed or
+            // tampered with by disabling JavaScript or editing form values.
+            result.IsAbnormal = false;
+
+            if (item.TestType.ReferenceRangeLow.HasValue
+                && item.TestType.ReferenceRangeHigh.HasValue
+                && decimal.TryParse(result.ResultValue, out var numericResult))
+            {
+                result.IsAbnormal =
+                    numericResult < item.TestType.ReferenceRangeLow.Value ||
+                    numericResult > item.TestType.ReferenceRangeHigh.Value;
+            }
+
+            // Always store the range that was actually in effect at capture time,
+            // regardless of what (if anything) was rendered in the form.
+            if (item.TestType.ReferenceRangeLow.HasValue && item.TestType.ReferenceRangeHigh.HasValue)
+            {
+                result.ReferenceRange =
+                    $"{item.TestType.ReferenceRangeLow.Value} - {item.TestType.ReferenceRangeHigh.Value}";
+            }
+
             // Save Result
             result.DateCaptured = DateTime.Now;
             result.CapturedByTechnicianId = technician.Id;
@@ -134,7 +172,9 @@ namespace LabDash.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            TempData["Success"] = "Test result captured successfully.";
+            TempData["Success"] = result.IsAbnormal
+                ? "Test result captured successfully. Result flagged as abnormal."
+                : "Test result captured successfully.";
 
             return RedirectToAction(nameof(Index));
         }
