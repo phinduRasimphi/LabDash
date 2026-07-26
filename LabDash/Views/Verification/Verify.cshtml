@@ -3,7 +3,7 @@
 @using LabDash.Models
 
 @{
-    ViewData["Title"] = "Verify Test";
+    ViewData["Title"] = "Verify Laboratory Result";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
     var test = ViewBag.TestItem as TestRequestItem;
@@ -11,216 +11,725 @@
     var result = ViewBag.Result as TestResult;
 }
 
-<div class="container-fluid">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Segoe+UI&display=swap" rel="stylesheet" />
 
-    <div class="card shadow-lg border-0">
+<style>
 
-        <div class="card-header text-white"
-             style="background:#0d766e;">
+    :root {
+        --teal-900: #00453d;
+        --teal-700: #00695c;
+        --teal-600: #00796B;
+        --teal-500: #009688;
+        --teal-100: rgba(0,150,136,.12);
+        --teal-50: #eef7f8;
+        --ink: #173a3a;
+        --muted: #5f7a78;
+        --danger: #e13b3b;
+        --danger-soft: rgba(225,59,59,.1);
+        --warning: #c98400;
+        --warning-soft: rgba(201,132,0,.12);
+        --info: #0d6efd;
+        --info-soft: rgba(13,110,253,.1);
+        --line: #e5efee;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --shadow-soft: 0 8px 24px rgba(9,50,46,.07);
+        --shadow-lift: 0 16px 34px rgba(9,50,46,.12);
+    }
 
-            <h3 class="mb-0">
+    body {
+        background: var(--teal-50);
+        font-family: 'Inter','Segoe UI',sans-serif;
+        color: var(--ink);
+    }
+
+    .page-container {
+        max-width: 1450px;
+        margin: 35px auto;
+        padding: 0 16px;
+    }
+
+    *:focus-visible {
+        outline: 3px solid #4fb8ac;
+        outline-offset: 2px;
+        border-radius: 6px;
+    }
+
+    /*================ HEADER =================*/
+
+    .page-header {
+        background: linear-gradient(135deg,var(--teal-500),var(--teal-900));
+        color: white;
+        padding: 34px 38px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 26px;
+        box-shadow: var(--shadow-lift);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .page-header::after {
+            content: "";
+            position: absolute;
+            right: -60px;
+            top: -60px;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.07);
+        }
+
+        .page-header h2 {
+            margin: 0;
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -.02em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-header p {
+            margin-top: 6px;
+            opacity: .9;
+            font-size: 15px;
+        }
+
+    .header-icon {
+        width: 84px;
+        height: 84px;
+        border-radius: 20px;
+        background: rgba(255,255,255,.16);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 34px;
+        flex-shrink: 0;
+        z-index: 1;
+    }
+
+    /*================ CARDS =================*/
+
+    .info-card,
+    .notes-card,
+    .result-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-soft);
+        margin-bottom: 22px;
+    }
+
+    .card-header-custom {
+        background: var(--teal-600);
+        color: white;
+        padding: 16px 24px;
+        font-size: 17px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .card-body-custom {
+        padding: 24px;
+    }
+
+        .card-body-custom p {
+            margin-bottom: 12px;
+            color: var(--muted);
+            font-size: 14.5px;
+        }
+
+        .card-body-custom strong {
+            color: var(--ink);
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+    .alert-box {
+        background: var(--danger-soft);
+        border-left: 5px solid var(--danger);
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin-top: 14px;
+    }
+
+        .alert-box strong {
+            font-weight: 700;
+            color: var(--ink);
+            font-size: 13.5px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+
+        .alert-box hr {
+            margin: 8px 0;
+            opacity: .15;
+        }
+
+        .alert-box p {
+            margin: 0;
+            color: var(--ink);
+            font-size: 14.5px;
+        }
+
+    /*================ ABNORMAL BANNER =================*/
+
+    .abnormal-banner {
+        background: var(--danger-soft);
+        border: 1.5px solid rgba(225,59,59,.35);
+        border-radius: var(--radius-md);
+        padding: 16px 20px;
+        margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: var(--danger);
+    }
+
+        .abnormal-banner i {
+            font-size: 26px;
+        }
+
+        .abnormal-banner strong {
+            display: block;
+            font-size: 15.5px;
+        }
+
+        .abnormal-banner span {
+            font-size: 13.5px;
+            color: var(--ink);
+            opacity: .85;
+        }
+
+    /*================ RESULT TABLE =================*/
+
+    .table-bordered {
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        border: 1px solid var(--line) !important;
+    }
+
+        .table-bordered th {
+            background: var(--teal-50);
+            color: var(--ink);
+            font-weight: 700;
+            border-color: var(--line) !important;
+            width: 250px;
+        }
+
+        .table-bordered td {
+            border-color: var(--line) !important;
+        }
+
+        .table-bordered tbody tr:nth-of-type(odd) {
+            background-color: #fafdfd;
+        }
+
+    /*================ BADGES =================*/
+
+    .badge-status {
+        border-radius: 25px;
+        padding: 6px 14px;
+        font-size: 12.5px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .badge-completed {
+        background: rgba(25,160,90,.12);
+        color: #188a52;
+    }
+
+    .badge-review {
+        background: var(--warning-soft);
+        color: var(--warning);
+    }
+
+    .badge-verified {
+        background: var(--info-soft);
+        color: var(--info);
+    }
+
+    .badge-default {
+        background: #eef0f2;
+        color: #5c6670;
+    }
+
+    .badge-abnormal {
+        background: var(--danger-soft);
+        color: var(--danger);
+    }
+
+    /*================ INFO/WARNING BOXES =================*/
+
+    .reminder-box {
+        background: var(--info-soft);
+        border-left: 5px solid var(--info);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-top: 22px;
+    }
+
+        .reminder-box strong {
+            color: var(--ink);
+            font-size: 14.5px;
+        }
+
+    .rules-box {
+        background: var(--warning-soft);
+        border-left: 5px solid var(--warning);
+        border-radius: 12px;
+        padding: 18px 20px;
+    }
+
+        .rules-box h5 {
+            font-size: 15.5px;
+            font-weight: 700;
+            color: var(--ink);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .rules-box ul {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--ink);
+            font-size: 14px;
+        }
+
+        .rules-box li {
+            margin-bottom: 6px;
+        }
+
+            .rules-box li:last-child {
+                margin-bottom: 0;
+            }
+
+    /*================ FORM =================*/
+
+    .form-label.fw-bold {
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 700 !important;
+        margin-bottom: 6px;
+    }
+
+    textarea.form-control {
+        border-radius: 12px;
+        border: 1.5px solid var(--line);
+    }
+
+        textarea.form-control:focus {
+            border-color: var(--teal-500);
+            box-shadow: 0 0 0 3px var(--teal-100);
+        }
+
+    .summary-tile {
+        border: 1px solid var(--line) !important;
+        border-radius: var(--radius-md);
+        padding: 20px 14px !important;
+        background: var(--teal-50);
+        height: 100%;
+    }
+
+        .summary-tile h6 {
+            font-weight: 700;
+            color: var(--ink);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            margin-bottom: 6px;
+        }
+
+    .btn-verify-submit {
+        background: var(--teal-500);
+        border: none;
+        color: white;
+        font-weight: 700;
+        border-radius: 12px;
+        transition: .2s;
+    }
+
+        .btn-verify-submit:hover {
+            background: var(--teal-700);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(0,105,92,.3);
+        }
+
+    .btn-return {
+        background: var(--warning);
+        border: none;
+        color: white;
+        font-weight: 700;
+        border-radius: 12px;
+        transition: .2s;
+    }
+
+        .btn-return:hover {
+            background: #a86e00;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+    .btn-back-outline {
+        border-radius: 12px;
+        font-weight: 600;
+        border: 1.5px solid var(--line);
+        color: var(--muted);
+        background: white;
+    }
+
+        .btn-back-outline:hover {
+            border-color: var(--teal-500);
+            color: var(--teal-700);
+        }
+
+    /*================ RESPONSIVE =================*/
+
+    @@media(max-width:992px) {
+
+        .page-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 18px;
+        }
+    }
+
+</style>
+
+<div class="page-container">
+
+    <div class="page-header">
+
+        <div>
+            <h2>
                 <i class="fa-solid fa-check-double"></i>
-                Verify Test Result
-            </h3>
+                Verify Laboratory Result
+            </h2>
+            <p>Review the captured laboratory result before approving or returning it for review.</p>
+        </div>
+
+        <div class="header-icon">
+            <i class="fa-solid fa-microscope"></i>
+        </div>
+
+    </div>
+
+    @if (result != null && result.IsAbnormal)
+    {
+        <div class="abnormal-banner">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>
+                <strong>This result was automatically flagged as abnormal</strong>
+                <span>The captured value falls outside the test type's reference range. Review it with extra care before verifying.</span>
+            </div>
+        </div>
+    }
+
+    <div class="row">
+
+        <div class="col-lg-6">
+
+            <div class="info-card">
+
+                <div class="card-header-custom">
+                    <i class="fa-solid fa-user"></i>
+                    Patient Information
+                </div>
+
+                <div class="card-body-custom">
+
+                    <p><strong>Patient Name:</strong> @patient?.Name @patient?.Surname</p>
+                    <p><strong>ID Number:</strong> @patient?.IDNumber</p>
+                    <p><strong>Email:</strong> @patient?.Email</p>
+
+                    <div class="alert-box">
+                        <strong>Allergies</strong>
+                        <hr />
+                        @if (!string.IsNullOrWhiteSpace(patient?.Allergies))
+                        {
+                            <p>@patient.Allergies</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No allergies recorded.</p>
+                        }
+                    </div>
+
+                    <div class="alert-box">
+                        <strong>Medical Conditions</strong>
+                        <hr />
+                        @if (!string.IsNullOrWhiteSpace(patient?.MedicalConditions))
+                        {
+                            <p>@patient.MedicalConditions</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No medical conditions recorded.</p>
+                        }
+                    </div>
+
+                    <div class="alert-box">
+                        <strong>Medication</strong>
+                        <hr />
+                        @if (!string.IsNullOrWhiteSpace(patient?.Medication))
+                        {
+                            <p>@patient.Medication</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No medication recorded.</p>
+                        }
+                    </div>
+
+                </div>
+
+            </div>
 
         </div>
 
-        <div class="card-body">
+        <div class="col-lg-6">
 
-            <!-- ======================= -->
-            <!-- Patient Information -->
-            <!-- ======================= -->
+            <div class="info-card">
 
-            <div class="row mb-4">
-
-                <div class="col-md-6">
-
-                    <div class="card border-success">
-
-                        <div class="card-header bg-success text-white">
-                            Patient Information
-                        </div>
-
-                        <div class="card-body">
-
-                            <p>
-                                <strong>Name:</strong>
-                                @patient?.Name @patient?.Surname
-                            </p>
-
-                            <p>
-                                <strong>ID Number:</strong>
-                                @patient?.IDNumber
-                            </p>
-
-                            <p>
-                                <strong>Email:</strong>
-                                @patient?.Email
-                            </p>
-
-                        </div>
-
-                    </div>
-
+                <div class="card-header-custom">
+                    <i class="fa-solid fa-vials"></i>
+                    Test Information
                 </div>
 
-                <div class="col-md-6">
+                <div class="card-body-custom">
 
-                    <div class="card border-info">
-
-                        <div class="card-header bg-info text-white">
-                            Test Details
-                        </div>
-
-                        <div class="card-body">
-
-                            <p>
-                                <strong>Request:</strong>
-                                TR-@test?.RequestId
-                            </p>
-
-                            <p>
-                                <strong>Test:</strong>
-                                @test?.TestType?.Name
-                            </p>
-
-                            <p>
-                                <strong>Category:</strong>
-                                @test?.TestType?.Category
-                            </p>
-
-                            <p>
-                                <strong>Captured By:</strong>
-                                @test?.AssignedTechnician?.FullName
-                            </p>
-
-                        </div>
-
-                    </div>
+                    <p><strong>Request Number:</strong> TR-@test?.RequestId</p>
+                    <p><strong>Test Type:</strong> @test?.TestType?.Name</p>
+                    <p><strong>Category:</strong> @test?.TestType?.Category</p>
+                    <p><strong>Captured By:</strong> @result?.CapturedByTechnician?.FullName</p>
+                    <p><strong>Date Captured:</strong> @(result?.DateCaptured.ToString("dd MMM yyyy HH:mm"))</p>
+                    <p>
+                        <strong>Status:</strong>
+                        <span class="badge-status badge-completed">@result?.Status</span>
+                    </p>
 
                 </div>
 
             </div>
 
-            <!-- ======================= -->
-            <!-- Clinical Notes -->
-            <!-- ======================= -->
+            <div class="notes-card">
 
-            <div class="card border-warning mb-4">
-
-                <div class="card-header bg-warning">
+                <div class="card-header-custom">
+                    <i class="fa-solid fa-notes-medical"></i>
                     Doctor Clinical Notes
                 </div>
 
-                <div class="card-body">
-
-                    @test?.TestRequest?.ClinicalNotes
-
+                <div class="card-body-custom">
+                    @if (!string.IsNullOrWhiteSpace(test?.TestRequest?.ClinicalNotes))
+                    {
+                        <p>@test.TestRequest.ClinicalNotes</p>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No clinical notes were provided.</p>
+                    }
                 </div>
 
             </div>
 
-            <!-- ======================= -->
-            <!-- Captured Result -->
-            <!-- ======================= -->
+        </div>
 
-            <div class="card border-primary mb-4">
+    </div>
 
-                <div class="card-header bg-primary text-white">
+    <div class="result-card">
 
-                    Captured Result
+        <div class="card-header-custom">
+            <i class="fa-solid fa-flask"></i>
+            Captured Laboratory Result
+        </div>
 
-                </div>
+        <div class="card-body-custom">
 
-                <div class="card-body">
+            <table class="table table-bordered table-striped align-middle">
 
-                    <table class="table table-bordered">
+                <tbody>
 
-                        <tr>
-                            <th style="width:220px;">Result</th>
-                            <td>@result?.ResultValue</td>
-                        </tr>
+                    <tr>
+                        <th>Result Value</th>
+                        <td>
+                            <strong class="fs-5">@result?.ResultValue</strong>
+                            @if (result != null && result.IsAbnormal)
+                            {
+                                <span class="badge-status badge-abnormal ms-2">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Abnormal
+                                </span>
+                            }
+                        </td>
+                    </tr>
 
-                        <tr>
-                            <th>Units</th>
-                            <td>@result?.Units</td>
-                        </tr>
+                    <tr>
+                        <th>Units</th>
+                        <td>@(!string.IsNullOrWhiteSpace(result?.Units) ? result.Units : "N/A")</td>
+                    </tr>
 
-                        <tr>
-                            <th>Reference Range</th>
-                            <td>@result?.ReferenceRange</td>
-                        </tr>
+                    <tr>
+                        <th>Reference Range</th>
+                        <td>@(!string.IsNullOrWhiteSpace(result?.ReferenceRange) ? result.ReferenceRange : "N/A")</td>
+                    </tr>
 
-                        <tr>
-                            <th>Comments</th>
-                            <td>@result?.Comments</td>
-                        </tr>
+                    <tr>
+                        <th>Laboratory Comments</th>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(result?.Comments))
+                            {
+                                @result.Comments
+                            }
+                            else
+                            {
+                                <span class="text-muted">No laboratory comments captured.</span>
+                            }
+                        </td>
+                    </tr>
 
-                        <tr>
-                            <th>Date Captured</th>
-                            <td>@result?.DateCaptured.ToString("dd MMM yyyy HH:mm")</td>
-                        </tr>
+                    <tr>
+                        <th>Captured By</th>
+                        <td>@result?.CapturedByTechnician?.FullName</td>
+                    </tr>
 
-                    </table>
+                    <tr>
+                        <th>Date Captured</th>
+                        <td>@(result?.DateCaptured.ToString("dd MMM yyyy HH:mm"))</td>
+                    </tr>
 
-                </div>
+                    <tr>
+                        <th>Current Status</th>
+                        <td>
+                            @if (result?.Status == "Completed")
+                            {
+                                <span class="badge-status badge-completed">Completed</span>
+                            }
+                            else if (result?.Status == "To Be Reviewed")
+                            {
+                                <span class="badge-status badge-review">To Be Reviewed</span>
+                            }
+                            else if (result?.Status == "Verified")
+                            {
+                                <span class="badge-status badge-verified">Verified</span>
+                            }
+                            else
+                            {
+                                <span class="badge-status badge-default">@result?.Status</span>
+                            }
+                        </td>
+                    </tr>
 
+                </tbody>
+
+            </table>
+
+            <div class="reminder-box">
+                <i class="fa-solid fa-circle-info" style="color:var(--info)"></i>
+                <strong>Verification Reminder</strong>
+                <hr style="margin:8px 0; opacity:.15;" />
+                Carefully review the laboratory result together with the patient's medical conditions,
+                allergies, medication and the doctor's clinical notes before approving the result.
             </div>
 
-            <!-- ======================= -->
-            <!-- Verification -->
-            <!-- ======================= -->
+        </div>
+
+    </div>
+
+    <div class="result-card">
+
+        <div class="card-header-custom">
+            <i class="fa-solid fa-check-circle"></i>
+            Verification Decision
+        </div>
+
+        <div class="card-body-custom">
 
             <form asp-action="Verify" method="post">
 
                 <input asp-for="TestRequestItemId" type="hidden" />
 
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
                 <div class="mb-4">
-
-                    <label asp-for="VerificationNotes"
-                           class="form-label fw-bold">
-
-                        Verification Notes
-
-                    </label>
-
+                    <label asp-for="VerificationNotes" class="form-label fw-bold">Verification Notes</label>
                     <textarea asp-for="VerificationNotes"
                               class="form-control"
-                              rows="5"
-                              placeholder="Enter comments if returning for review..."></textarea>
+                              rows="6"
+                              placeholder="Provide comments if approving or explain why the result is being returned for review..."></textarea>
+                    <span asp-validation-for="VerificationNotes" class="text-danger"></span>
+                </div>
+
+                <div class="rules-box">
+                    <h5><i class="fa-solid fa-triangle-exclamation"></i> Verification Rules</h5>
+                    <ul>
+                        <li>Review the captured laboratory result carefully before making a decision.</li>
+                        <li>Verify that the patient's clinical notes support the laboratory findings.</li>
+                        <li>Confirm the patient's allergies, medical conditions and medication.</li>
+                        <li>If the result is incorrect, return it for review with detailed notes.</li>
+                        <li>A laboratory technician may <strong>not</strong> verify a result that they personally captured.</li>
+                    </ul>
+                </div>
+
+                <hr class="mt-4" />
+
+                <div class="row text-center mb-4">
+
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="summary-tile">
+                            <i class="fa-solid fa-user-check fa-2x" style="color:var(--teal-600)"></i>
+                            <h6>Verifier</h6>
+                            <small class="text-muted">Logged-in Laboratory Technician</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="summary-tile">
+                            <i class="fa-solid fa-calendar-check fa-2x" style="color:var(--info)"></i>
+                            <h6>Date</h6>
+                            <small>@DateTime.Now.ToString("dd MMM yyyy")</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="summary-tile">
+                            <i class="fa-solid fa-clock fa-2x" style="color:var(--teal-500)"></i>
+                            <h6>Time</h6>
+                            <small>@DateTime.Now.ToString("HH:mm")</small>
+                        </div>
+                    </div>
 
                 </div>
 
-                <div class="d-flex gap-3">
+                <div class="d-flex justify-content-end gap-3 flex-wrap">
 
-                    <button type="submit"
-                            name="Status"
-                            value="Verified"
-                            class="btn btn-success btn-lg">
-
-                        <i class="fa-solid fa-circle-check"></i>
-
-                        Verify Test
-
-                    </button>
-
-                    <button type="submit"
-                            name="Status"
-                            value="To Be Reviewed"
-                            class="btn btn-warning btn-lg">
-
-                        <i class="fa-solid fa-rotate-left"></i>
-
-                        Return For Review
-
-                    </button>
-
-                    <a asp-action="Index"
-                       class="btn btn-secondary btn-lg">
-
-                        Cancel
-
+                    <a asp-action="Index" class="btn btn-back-outline btn-lg">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        Back
                     </a>
+
+                    <button type="submit" name="Status" value="To Be Reviewed" class="btn btn-return btn-lg">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        Return For Review
+                    </button>
+
+                    <button type="submit" name="Status" value="Verified" class="btn btn-verify-submit btn-lg">
+                        <i class="fa-solid fa-check-double"></i>
+                        Verify Result
+                    </button>
 
                 </div>
 
@@ -235,4 +744,18 @@
 @section Scripts
 {
     <partial name="_ValidationScriptsPartial" />
+
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function() {
+
+            const notes = document.getElementById("VerificationNotes");
+
+            if (notes) {
+                notes.focus();
+            }
+
+        });
+
+    </script>
 }
