@@ -1,0 +1,62 @@
+﻿@model LabDash.Models.AuditLogViewModel
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "Audit Log";
+    ViewData["ActivePage"] = "AuditLog";
+}
+
+<div class="a-page-title" style="margin-bottom:4px">Audit Log 🛡️</div>
+<div class="a-page-sub" style="margin-bottom:18px">Recent system activity across all users and roles</div>
+
+<div class="a-card">
+    <div class="a-ch">
+        <div class="a-ct"><i class="fas fa-history"></i> Recent System Activity</div>
+        <span class="a-cc">@Model.Entries.Count entries</span>
+    </div>
+    <div class="a-cb" style="padding:0">
+        <div style="padding:13px 16px 0">
+            <div class="a-search">
+                <input placeholder="Search logs…" />
+                <select>
+                    <option>All Users</option>
+                    <option>Admin</option>
+                    <option>Doctors</option>
+                    <option>Technicians</option>
+                    <option>Patients</option>
+                </select>
+                <select>
+                    <option>All Actions</option>
+                    <option>Create</option>
+                    <option>Update</option>
+                    <option>Delete</option>
+                    <option>Login</option>
+                </select>
+            </div>
+        </div>
+        <table class="a-table">
+            <thead>
+                <tr><th>Timestamp</th><th>User</th><th>Role</th><th>Action</th><th>Details</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Entries)
+                {
+                    <tr>
+                        <td style="white-space:nowrap;">@e.Timestamp</td>
+                        <td><strong>@e.User</strong></td>
+                        <td>
+                            <span class="a-badge
+                                @(e.Role == "Admin" ? "a-badge-admin" :
+                                                                    e.Role == "Doctor" ? "a-badge-doctor" :
+                                                                    e.Role == "Technician" ? "a-badge-tech" :
+                                                                                             "a-badge-patient")">
+                                @e.Role
+                            </span>
+                        </td>
+                        <td>@e.Action</td>
+                        <td style="font-size:10px;color:var(--a-text-soft);">@e.Details</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

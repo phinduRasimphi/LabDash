@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using LabDash.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace LabDash.Controllers
 {
@@ -6,7 +7,15 @@ namespace LabDash.Controllers
     {
         public IActionResult Index()
         {
-            return View();
+            var model = new AdminDashboardViewModel
+            {
+                ConditionCount = 0,
+                AllergyCount = 0,
+                MedicationCount = 0,
+                UserCount = 14
+            };
+
+            return View(model);
         }
     }
 }

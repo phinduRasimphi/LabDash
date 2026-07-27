@@ -1,0 +1,237 @@
+﻿@model LabDash.Models.MedicationListViewModel
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "Medications";
+    ViewData["ActivePage"] = "Medications";
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="a-alert">
+        <i class="fas fa-check-circle"></i> @TempData["Success"]
+    </div>
+}
+
+<div class="a-page-header">
+    <div>
+        <div class="a-page-title">
+            <i class="fas fa-pills"></i> Manage Medications 💊
+        </div>
+        <div class="a-page-sub">Maintain the list of medications used across the system</div>
+    </div>
+    <button class="a-btn" onclick="openModal('modal-add')">
+        <i class="fas fa-plus"></i> Add Medication
+    </button>
+</div>
+
+<!-- Categories Card -->
+<div class="a-card">
+    <div class="a-ch">
+        <div class="a-ct">
+            <i class="fas fa-folder"></i> Medication Categories
+        </div>
+        <span class="a-cc">@Model.Categories.Count categories</span>
+    </div>
+    <div class="a-cb">
+        <div class="a-chips-row" id="cat-chips">
+            @foreach (var cat in Model.Categories)
+            {
+                <span class="a-chip a-chip-med">
+                    @cat
+                    <span class="a-chip-rm" onclick="removeChip(this)">✕</span>
+                </span>
+            }
+        </div>
+        <div class="a-tag-input">
+            <input id="new-cat" placeholder="New category name…" />
+            <button class="a-btn" type="button" onclick="addChip('cat-chips','new-cat','a-chip a-chip-med')">
+                <i class="fas fa-plus"></i> Add Category
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- All Medications Card -->
+<div class="a-card">
+    <div class="a-ch">
+        <div class="a-ct">
+            <i class="fas fa-pills"></i> All Medications
+        </div>
+        <span class="a-cc">@Model.Medications.Count items</span>
+    </div>
+
+    <div style="padding: 16px 20px 0;">
+        <div class="a-search">
+            <input id="med-search" placeholder="🔍  Search medications…" oninput="filterTable('med-search','med-cat-filter','med-tbody')" />
+            <select id="med-cat-filter" onchange="filterTable('med-search','med-cat-filter','med-tbody')">
+                <option value="">All Categories</option>
+                @foreach (var cat in Model.Categories)
+                {
+                    <option value="@cat">@cat</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <table class="a-table">
+        <thead>
+            <tr>
+                <th>Medication Name</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th style="width:180px;">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody id="med-tbody">
+            @foreach (var item in Model.Medications)
+            {
+                <tr data-name="@item.MedicationName.ToLower()"
+                    data-cat="@item.Category">
+
+                    <td>@item.MedicationName</td>
+
+                    <td>
+                        <span class="a-badge a-badge-med">
+                            @item.Category
+                        </span>
+                    </td>
+
+                    <td>@item.Description</td>
+
+                    <td>
+                        @if (item.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactive</span>
+                        }
+                    </td>
+
+                    <td>
+                        <button class="a-btn-edit"
+                                onclick="openEditModal('@item.MedicationId',
+                            '@item.MedicationName',
+                            '@item.Category')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+
+                        <form asp-action="DeleteMedication"
+                              method="post"
+                              style="display:inline;">
+                            @Html.AntiForgeryToken()
+
+                            <input type="hidden"
+                                   name="id"
+                                   value="@item.MedicationId" />
+
+                            <button class="a-btn-danger">
+                                <i class="fas fa-trash"></i> Deactivate
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (!Model.Medications.Any())
+    {
+        <div style="padding:40px;text-align:center;">
+            No medications found.
+        </div>
+    }
+</div>
+
+<!-- ADD MODAL -->
+<div class="a-modal-overlay" id="modal-add">
+    <div class="a-modal">
+        <div class="a-modal-title">
+            <span><i class="fas fa-plus-circle" style="color:var(--a-sidebar-bg);margin-right:8px;"></i>Add New Medication</span>
+            <span class="a-modal-close" onclick="closeModal('modal-add')">✕</span>
+        </div>
+        <form asp-action="AddMedication" method="post">
+            @Html.AntiForgeryToken()
+            <div class="a-form-group" style="margin-bottom:16px;">
+                <label>Medication Name</label>
+                <input name="name" placeholder="e.g. Metformin 850mg" required />
+            </div>
+            <div class="a-form-group" style="margin-bottom:16px;">
+                <label>Category</label>
+                <select name="category">
+                    @foreach (var cat in Model.Categories)
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="a-modal-actions">
+                <button type="button" class="a-btn-cancel" onclick="closeModal('modal-add')">Cancel</button>
+                <button type="submit" class="a-btn">
+                    <i class="fas fa-save"></i> Save Medication
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="a-modal-overlay" id="modal-edit">
+    <div class="a-modal">
+        <div class="a-modal-title">
+            <span><i class="fas fa-edit" style="color:var(--a-blue);margin-right:8px;"></i>Edit Medication</span>
+            <span class="a-modal-close" onclick="closeModal('modal-edit')">✕</span>
+        </div>
+        <form asp-action="EditMedication" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" id="edit-id" />
+            <div class="a-form-group" style="margin-bottom:16px;">
+                <label>Medication Name</label>
+                <input name="name" id="edit-name" placeholder="e.g. Metformin 850mg" required />
+            </div>
+            <div class="a-form-group" style="margin-bottom:16px;">
+                <label>Category</label>
+                <select name="category" id="edit-category">
+                    @foreach (var cat in Model.Categories)
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="a-modal-actions">
+                <button type="button" class="a-btn-cancel" onclick="closeModal('modal-edit')">Cancel</button>
+                <button type="submit" class="a-btn">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openEditModal(id, name, category) {
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-name').value = name;
+            var sel = document.getElementById('edit-category');
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === category) { sel.selectedIndex = i; break; }
+            }
+            openModal('modal-edit');
+        }
+
+        function filterTable(searchId, filterId, tbodyId) {
+            var q = document.getElementById(searchId).value.toLowerCase();
+            var cat = document.getElementById(filterId).value;
+            var rows = document.getElementById(tbodyId).querySelectorAll('tr');
+            rows.forEach(function(row) {
+                var nameMatch = row.dataset.name.includes(q);
+                var catMatch = !cat || row.dataset.cat === cat;
+                row.style.display = (nameMatch && catMatch) ? '' : 'none';
+            });
+        }
+    </script>
+}
