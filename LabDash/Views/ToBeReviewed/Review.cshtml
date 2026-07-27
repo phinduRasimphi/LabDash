@@ -1,5 +1,4 @@
 ﻿@model LabDash.Models.TestResult
-
 @using LabDash.Models
 
 @{
@@ -11,230 +10,550 @@
     var verification = ViewBag.Verification as TestVerification;
 }
 
-<div class="container-fluid">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <div class="card shadow-lg border-0">
+<div class="rw-wrap">
 
-        <div class="card-header text-white" style="background:#0d766e;">
+    <div class="rw-panel">
 
-            <h3 class="mb-0">
-                <i class="fa-solid fa-rotate-left"></i>
-                Returned Test Review
-            </h3>
-
+        <div class="rw-panel-head">
+            <div class="rw-panel-icon"><i class="fa-solid fa-rotate-left"></i></div>
+            <div>
+                <h3>Returned Test Review</h3>
+                <p>Resolve the verifier's feedback and resubmit the result.</p>
+            </div>
         </div>
 
-        <div class="card-body">
+        <div class="rw-panel-body">
 
-            <!-- Patient Information -->
+            <!-- Patient + Test Information -->
+            <div class="rw-info-grid">
 
-            <div class="row mb-4">
-
-                <div class="col-md-6">
-
-                    <div class="card border-success">
-
-                        <div class="card-header bg-success text-white">
-
-                            Patient Information
-
-                        </div>
-
-                        <div class="card-body">
-
-                            <p>
-                                <strong>Name:</strong>
-                                @patient?.Name @patient?.Surname
-                            </p>
-
-                            <p>
-                                <strong>ID Number:</strong>
-                                @patient?.IDNumber
-                            </p>
-
-                            <p>
-                                <strong>Email:</strong>
-                                @patient?.Email
-                            </p>
-
-                        </div>
-
+                <div class="rw-info-card rw-info-card-patient">
+                    <div class="rw-info-head">
+                        <i class="fa-solid fa-user"></i> Patient information
                     </div>
-
+                    <div class="rw-info-body">
+                        <div class="rw-info-row">
+                            <span>Name</span>
+                            <strong>@patient?.Name @patient?.Surname</strong>
+                        </div>
+                        <div class="rw-info-row">
+                            <span>ID number</span>
+                            <strong>@patient?.IDNumber</strong>
+                        </div>
+                        <div class="rw-info-row">
+                            <span>Email</span>
+                            <strong>@patient?.Email</strong>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="col-md-6">
-
-                    <div class="card border-primary">
-
-                        <div class="card-header bg-primary text-white">
-
-                            Test Information
-
-                        </div>
-
-                        <div class="card-body">
-
-                            <p>
-                                <strong>Request:</strong>
-                                TR-@test?.RequestId
-                            </p>
-
-                            <p>
-                                <strong>Test:</strong>
-                                @test?.TestType?.Name
-                            </p>
-
-                            <p>
-                                <strong>Category:</strong>
-                                @test?.TestType?.Category
-                            </p>
-
-                        </div>
-
+                <div class="rw-info-card rw-info-card-test">
+                    <div class="rw-info-head">
+                        <i class="fa-solid fa-vial"></i> Test information
                     </div>
-
+                    <div class="rw-info-body">
+                        <div class="rw-info-row">
+                            <span>Request</span>
+                            <strong>TR-@test?.RequestId</strong>
+                        </div>
+                        <div class="rw-info-row">
+                            <span>Test</span>
+                            <strong>@test?.TestType?.Name</strong>
+                        </div>
+                        <div class="rw-info-row">
+                            <span>Category</span>
+                            <strong>@test?.TestType?.Category</strong>
+                        </div>
+                    </div>
                 </div>
 
             </div>
 
             <!-- Doctor Notes -->
-
-            <div class="card border-info mb-4">
-
-                <div class="card-header bg-info text-white">
-
-                    Doctor Clinical Notes
-
+            <div class="rw-note-card">
+                <div class="rw-note-head">
+                    <i class="fa-solid fa-notes-medical"></i> Doctor clinical notes
                 </div>
-
-                <div class="card-body">
-
-                    @test?.TestRequest?.ClinicalNotes
-
+                <div class="rw-note-body">
+                    @if (string.IsNullOrWhiteSpace(test?.TestRequest?.ClinicalNotes))
+                    {
+                        <span class="rw-muted">No clinical notes provided.</span>
+                    }
+                    else
+                    {
+                        @test?.TestRequest?.ClinicalNotes
+                    }
                 </div>
-
             </div>
 
             <!-- Verification Feedback -->
-
-            <div class="card border-warning mb-4">
-
-                <div class="card-header bg-warning">
-
-                    Verification Feedback
-
+            <div class="rw-feedback-card">
+                <div class="rw-feedback-head">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Verification feedback
                 </div>
-
-                <div class="card-body">
-
-                    <p>
-
-                        <strong>Returned By:</strong>
-
-                        @verification?.VerifiedByTechnicianId
-
-                    </p>
-
-                    <p>
-
-                        <strong>Date:</strong>
-
-                        @verification?.VerificationDate.ToString("dd MMM yyyy HH:mm")
-
-                    </p>
-
-                    <p>
-
-                        <strong>Reason:</strong>
-
-                    </p>
-
-                    <div class="alert alert-warning">
-
-                        @verification?.VerificationNotes
-
+                <div class="rw-feedback-body">
+                    <div class="rw-feedback-meta">
+                        <div>
+                            <span>Returned by</span>
+                            <strong>@verification?.VerifiedByTechnicianId</strong>
+                        </div>
+                        <div>
+                            <span>Date</span>
+                            <strong>@verification?.VerificationDate.ToString("dd MMM yyyy HH:mm")</strong>
+                        </div>
                     </div>
-
+                    <div class="rw-feedback-reason">
+                        <span>Reason</span>
+                        <p>@verification?.VerificationNotes</p>
+                    </div>
                 </div>
-
             </div>
 
             <!-- Edit Result -->
-
-            <form asp-action="Review" method="post">
-
-                <input asp-for="ResultId" type="hidden" />
-
-                <input asp-for="TestRequestItemId" type="hidden" />
-
-                <div class="mb-3">
-
-                    <label asp-for="ResultValue" class="form-label"></label>
-
-                    <input asp-for="ResultValue"
-                           class="form-control" />
-
-                    <span asp-validation-for="ResultValue"
-                          class="text-danger"></span>
-
+            <div class="rw-form-card">
+                <div class="rw-form-head">
+                    <i class="fa-solid fa-pen"></i> Update result
                 </div>
 
-                <div class="mb-3">
+                <form asp-action="Review" method="post" class="rw-form-body">
 
-                    <label asp-for="Units" class="form-label"></label>
+                    <input asp-for="ResultId" type="hidden" />
+                    <input asp-for="TestRequestItemId" type="hidden" />
 
-                    <input asp-for="Units"
-                           class="form-control" />
+                    <div class="rw-form-grid">
 
-                </div>
+                        <div class="rw-field">
+                            <label asp-for="ResultValue"></label>
+                            <input asp-for="ResultValue" class="rw-input" />
+                            <span asp-validation-for="ResultValue" class="rw-error"></span>
+                        </div>
 
-                <div class="mb-3">
+                        <div class="rw-field">
+                            <label asp-for="Units"></label>
+                            <input asp-for="Units" class="rw-input" />
+                        </div>
 
-                    <label asp-for="ReferenceRange"
-                           class="form-label"></label>
+                        <div class="rw-field rw-field-wide">
+                            <label asp-for="ReferenceRange"></label>
+                            <input asp-for="ReferenceRange" class="rw-input" />
+                        </div>
 
-                    <input asp-for="ReferenceRange"
-                           class="form-control" />
+                        <div class="rw-field rw-field-wide">
+                            <label asp-for="Comments"></label>
+                            <textarea asp-for="Comments" rows="4" class="rw-textarea"></textarea>
+                        </div>
 
-                </div>
+                    </div>
 
-                <div class="mb-3">
+                    <div class="rw-form-actions">
+                        <button type="submit" class="rw-btn-submit">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            Save &amp; resubmit
+                        </button>
+                        <a asp-action="Index" class="rw-btn-cancel">Cancel</a>
+                    </div>
 
-                    <label asp-for="Comments"
-                           class="form-label"></label>
-
-                    <textarea asp-for="Comments"
-                              rows="4"
-                              class="form-control"></textarea>
-
-                </div>
-
-                <button type="submit"
-                        class="btn btn-success">
-
-                    <i class="fa-solid fa-paper-plane"></i>
-
-                    Save & Resubmit
-
-                </button>
-
-                <a asp-action="Index"
-                   class="btn btn-secondary">
-
-                    Cancel
-
-                </a>
-
-            </form>
+                </form>
+            </div>
 
         </div>
-
     </div>
-
 </div>
 
 @section Scripts
 {
     <partial name="_ValidationScriptsPartial" />
 }
+
+<style>
+    :root {
+        --rw-teal: #0E8C7F;
+        --rw-teal-deep: #0A5850;
+        --rw-teal-dim: #E3F4F1;
+        --rw-ink: #102C27;
+        --rw-ink-soft: #52716C;
+        --rw-ink-faint: #8FA9A3;
+        --rw-line: #E1EEEC;
+        --rw-amber: #B4862A;
+        --rw-amber-dim: #FBF1DA;
+        --rw-blue: #2C6E9E;
+        --rw-blue-dim: #E4F0F9;
+        --rw-red: #B0463F;
+        --rw-red-dim: #F7E8E7;
+        --rw-radius: 18px;
+        --rw-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+    }
+
+    .rw-wrap {
+        font-family: 'Inter', sans-serif;
+        color: var(--rw-ink);
+        max-width: 980px;
+        margin: 0 auto;
+        animation: rwFadeIn .4s ease;
+    }
+
+    @@keyframes rwFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .rw-panel {
+        background: #fff;
+        border-radius: var(--rw-radius);
+        box-shadow: var(--rw-shadow);
+        overflow: hidden;
+    }
+
+    .rw-panel-head {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 26px 30px;
+        background: linear-gradient(120deg, var(--rw-teal), var(--rw-teal-deep));
+    }
+
+    .rw-panel-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        flex-shrink: 0;
+        background: rgba(255,255,255,.16);
+        border: 1px solid rgba(255,255,255,.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 20px;
+    }
+
+    .rw-panel-head h3 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 18px;
+        color: #fff;
+        margin: 0 0 3px;
+    }
+
+    .rw-panel-head p {
+        margin: 0;
+        color: rgba(255,255,255,.85);
+        font-size: 13px;
+    }
+
+    .rw-panel-body {
+        padding: 30px;
+    }
+
+    /* ============ INFO CARDS ============ */
+    .rw-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-bottom: 22px;
+    }
+
+    .rw-info-card {
+        border-radius: 14px;
+        border: 1px solid var(--rw-line);
+        overflow: hidden;
+    }
+
+    .rw-info-head {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 12.5px;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        padding: 13px 18px;
+    }
+
+    .rw-info-card-patient .rw-info-head {
+        background: var(--rw-teal-dim);
+        color: var(--rw-teal-deep);
+    }
+
+    .rw-info-card-test .rw-info-head {
+        background: var(--rw-blue-dim);
+        color: var(--rw-blue);
+    }
+
+    .rw-info-body {
+        padding: 16px 18px;
+    }
+
+    .rw-info-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
+        font-size: 13.5px;
+        border-bottom: 1px dashed var(--rw-line);
+    }
+
+        .rw-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .rw-info-row span {
+            color: var(--rw-ink-soft);
+        }
+
+        .rw-info-row strong {
+            color: var(--rw-ink);
+            font-weight: 600;
+            text-align: right;
+        }
+
+    /* ============ NOTE CARD (doctor notes) ============ */
+    .rw-note-card {
+        border-radius: 14px;
+        border: 1px solid var(--rw-line);
+        margin-bottom: 18px;
+        overflow: hidden;
+    }
+
+    .rw-note-head {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 12.5px;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        padding: 13px 18px;
+        background: var(--rw-teal-dim);
+        color: var(--rw-teal-deep);
+    }
+
+    .rw-note-body {
+        padding: 16px 18px;
+        font-size: 14px;
+        line-height: 1.7;
+        color: var(--rw-ink);
+    }
+
+    .rw-muted {
+        color: var(--rw-ink-faint);
+        font-style: italic;
+    }
+
+    /* ============ FEEDBACK CARD (verification) ============ */
+    .rw-feedback-card {
+        border-radius: 14px;
+        border: 1px solid var(--rw-amber-dim);
+        background: #FFFDF7;
+        margin-bottom: 26px;
+        overflow: hidden;
+    }
+
+    .rw-feedback-head {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 12.5px;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        padding: 13px 18px;
+        background: var(--rw-amber-dim);
+        color: var(--rw-amber);
+    }
+
+    .rw-feedback-body {
+        padding: 18px;
+    }
+
+    .rw-feedback-meta {
+        display: flex;
+        gap: 32px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+        .rw-feedback-meta span {
+            display: block;
+            font-size: 11.5px;
+            color: var(--rw-ink-faint);
+            margin-bottom: 3px;
+        }
+
+        .rw-feedback-meta strong {
+            font-size: 13.5px;
+            color: var(--rw-ink);
+        }
+
+    .rw-feedback-reason span {
+        display: block;
+        font-size: 11.5px;
+        color: var(--rw-ink-faint);
+        margin-bottom: 6px;
+    }
+
+    .rw-feedback-reason p {
+        margin: 0;
+        background: #fff;
+        border: 1px solid var(--rw-amber-dim);
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 14px;
+        color: var(--rw-ink);
+        line-height: 1.6;
+    }
+
+    /* ============ FORM CARD ============ */
+    .rw-form-card {
+        border-radius: 14px;
+        border: 1px solid var(--rw-line);
+        overflow: hidden;
+    }
+
+    .rw-form-head {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 12.5px;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        padding: 13px 18px;
+        background: var(--rw-teal-dim);
+        color: var(--rw-teal-deep);
+    }
+
+    .rw-form-body {
+        padding: 20px 18px;
+    }
+
+    .rw-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .rw-field {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .rw-field-wide {
+        grid-column: 1 / -1;
+    }
+
+    .rw-field label {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 12.5px;
+        color: var(--rw-ink-soft);
+    }
+
+    .rw-input, .rw-textarea {
+        border-radius: 10px;
+        border: 1px solid var(--rw-line);
+        background: #fff;
+        padding: 11px 14px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: var(--rw-ink);
+        outline: none;
+        transition: border-color .15s, box-shadow .15s;
+        width: 100%;
+    }
+
+    .rw-textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+        .rw-input:focus, .rw-textarea:focus {
+            border-color: var(--rw-teal);
+            box-shadow: 0 0 0 3px var(--rw-teal-dim);
+        }
+
+    .rw-error {
+        color: var(--rw-red);
+        font-size: 12px;
+    }
+
+    .rw-form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 22px;
+    }
+
+    .rw-btn-submit {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        border: none;
+        cursor: pointer;
+        background: var(--rw-teal);
+        color: #fff;
+        border-radius: 999px;
+        padding: 12px 24px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 13.5px;
+        transition: background .15s, transform .15s;
+    }
+
+        .rw-btn-submit:hover {
+            background: var(--rw-teal-deep);
+            transform: translateY(-1px);
+        }
+
+    .rw-btn-cancel {
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        background: #fff;
+        color: var(--rw-ink-soft);
+        border: 1px solid var(--rw-line);
+        border-radius: 999px;
+        padding: 12px 22px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 13.5px;
+        transition: .15s;
+    }
+
+        .rw-btn-cancel:hover {
+            background: var(--rw-teal-dim);
+            color: var(--rw-teal-deep);
+            border-color: var(--rw-teal-dim);
+        }
+
+    @@media (max-width: 720px) {
+        .rw-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .rw-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .rw-panel-body {
+            padding: 20px;
+        }
+
+        .rw-feedback-meta {
+            gap: 20px;
+        }
+    }
+</style>

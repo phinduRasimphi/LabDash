@@ -1251,9 +1251,13 @@
         HEADER
     =========================================== -->
     <div class="db-banner">
+        <div class="db-banner-pattern"></div>
 
         <div class="db-banner-left">
-            <div class="db-banner-icon"><i class="fa-solid fa-flask-vial"></i></div>
+            <div class="db-banner-icon">
+                <span class="db-icon-ring"></span>
+                <i class="fa-solid fa-flask-vial"></i>
+            </div>
             <div class="db-banner-text">
                 <h1>Welcome, <span>@User.Identity?.Name</span></h1>
                 <p>Laboratory Technician Dashboard</p>
@@ -1272,25 +1276,48 @@
     </div>
 
     <!-- ==========================================
-        WORKFLOW PULSE (signature element)
-        A single glanceable strip showing where today's
-        specimens sit across the testing pipeline.
+        WORKFLOW PIPELINE (signature element)
+        A connected stepper showing where today's
+        specimens sit across the testing lifecycle.
     =========================================== -->
     <div class="db-pulse">
         <div class="db-pulse-label">
             <i class="fa-solid fa-timeline"></i> Today's specimen pipeline
         </div>
-        <div class="db-pulse-track">
-            <div class="db-pulse-seg seg-teal" style="width:25%"><span>Selected · 0</span></div>
-            <div class="db-pulse-seg seg-blue" style="width:25%"><span>Waiting selection · 0</span></div>
-            <div class="db-pulse-seg seg-green" style="width:25%"><span>Waiting verification · 0</span></div>
-            <div class="db-pulse-seg seg-purple" style="width:25%"><span>Waiting review · 0</span></div>
+
+        <div class="db-flow">
+            <div class="db-flow-node">
+                <div class="db-flow-circle n-teal"><i class="fa-solid fa-vial-circle-check"></i></div>
+                <div class="db-flow-count">0</div>
+                <div class="db-flow-label">Selected</div>
+            </div>
+            <div class="db-flow-line"><span class="db-flow-line-fill" style="width:0%"></span></div>
+
+            <div class="db-flow-node">
+                <div class="db-flow-circle n-blue"><i class="fa-solid fa-hourglass-half"></i></div>
+                <div class="db-flow-count">0</div>
+                <div class="db-flow-label">Waiting selection</div>
+            </div>
+            <div class="db-flow-line"><span class="db-flow-line-fill" style="width:0%"></span></div>
+
+            <div class="db-flow-node">
+                <div class="db-flow-circle n-green"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="db-flow-count">0</div>
+                <div class="db-flow-label">Waiting verification</div>
+            </div>
+            <div class="db-flow-line"><span class="db-flow-line-fill" style="width:0%"></span></div>
+
+            <div class="db-flow-node">
+                <div class="db-flow-circle n-purple"><i class="fa-solid fa-file-medical"></i></div>
+                <div class="db-flow-count">0</div>
+                <div class="db-flow-label">Waiting review</div>
+            </div>
         </div>
-        <p class="db-pulse-note">
-            You currently have <strong>0 selected tests</strong>, <strong>0 waiting selection</strong>,
-            <strong>0 waiting verification</strong>, <strong>0 waiting review</strong>,
-            <strong>0 STAT tests</strong> and <strong>0 overdue requests</strong>.
-        </p>
+
+        <div class="db-pulse-chips">
+            <span class="db-chip chip-stat"><i class="fa-solid fa-bolt"></i> 0 STAT tests</span>
+            <span class="db-chip chip-overdue"><i class="fa-solid fa-triangle-exclamation"></i> 0 overdue requests</span>
+        </div>
     </div>
 
     <!-- ==========================================
@@ -1345,7 +1372,7 @@
 
     <div class="db-grid db-grid-4 db-grid-mt">
 
-        <div class="db-stat">
+        <div class="db-stat db-stat-urgent">
             <div class="db-stat-icon c-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
             <div class="db-stat-body">
                 <div class="num counter" data-value="0">0</div>
@@ -1354,7 +1381,7 @@
             </div>
         </div>
 
-        <div class="db-stat">
+        <div class="db-stat db-stat-urgent">
             <div class="db-stat-icon c-orange"><i class="fa-solid fa-hourglass-end"></i></div>
             <div class="db-stat-body">
                 <div class="num counter" data-value="0">0</div>
@@ -1399,30 +1426,34 @@
             <div class="db-action-icon"><i class="fa-solid fa-vials"></i></div>
             <h5>Available tests</h5>
             <p>View test requests waiting to be selected.</p>
+            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
         <a asp-controller="CaptureResults" asp-action="Index" class="db-action">
             <div class="db-action-icon"><i class="fa-solid fa-flask"></i></div>
             <h5>Capture results</h5>
             <p>Record laboratory findings and observations.</p>
+            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
         <a asp-controller="Verification" asp-action="Index" class="db-action">
             <div class="db-action-icon"><i class="fa-solid fa-circle-check"></i></div>
             <h5>Verification</h5>
             <p>Verify captured results before review.</p>
+            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
         <a asp-controller="ToBeReviewed" asp-action="Index" class="db-action">
             <div class="db-action-icon"><i class="fa-solid fa-file-medical"></i></div>
             <h5>Review results</h5>
             <p>Review and approve laboratory reports.</p>
+            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
     </div>
 
     <!-- ==========================================
-        PERFORMANCE SECTION
+        PERFORMANCE STRIP
     =========================================== -->
     <div class="db-section-head db-mt-lg">
         <div>
@@ -1431,32 +1462,38 @@
         </div>
     </div>
 
-    <div class="db-grid db-grid-4 db-mb-lg">
-
-        <div class="db-mini">
-            <div class="db-mini-icon"><i class="fa-solid fa-microscope"></i></div>
-            <h4>36</h4>
-            <span>Completed tests</span>
+    <div class="db-perf-strip db-mb-lg">
+        <div class="db-perf-item">
+            <div class="db-perf-icon"><i class="fa-solid fa-microscope"></i></div>
+            <div>
+                <h4>36</h4>
+                <span>Completed tests</span>
+            </div>
         </div>
-
-        <div class="db-mini">
-            <div class="db-mini-icon"><i class="fa-solid fa-stopwatch"></i></div>
-            <h4>2h 18m</h4>
-            <span>Average TAT</span>
+        <div class="db-perf-div"></div>
+        <div class="db-perf-item">
+            <div class="db-perf-icon"><i class="fa-solid fa-stopwatch"></i></div>
+            <div>
+                <h4>2h 18m</h4>
+                <span>Average TAT</span>
+            </div>
         </div>
-
-        <div class="db-mini">
-            <div class="db-mini-icon"><i class="fa-solid fa-vials"></i></div>
-            <h4>12</h4>
-            <span>Pending tests</span>
+        <div class="db-perf-div"></div>
+        <div class="db-perf-item">
+            <div class="db-perf-icon"><i class="fa-solid fa-vials"></i></div>
+            <div>
+                <h4>12</h4>
+                <span>Pending tests</span>
+            </div>
         </div>
-
-        <div class="db-mini">
-            <div class="db-mini-icon"><i class="fa-solid fa-chart-line"></i></div>
-            <h4>98%</h4>
-            <span>Completion rate</span>
+        <div class="db-perf-div"></div>
+        <div class="db-perf-item">
+            <div class="db-perf-icon"><i class="fa-solid fa-chart-line"></i></div>
+            <div>
+                <h4>98%</h4>
+                <span>Completion rate</span>
+            </div>
         </div>
-
     </div>
 
     <!-- ==========================================
@@ -1602,19 +1639,19 @@
 
 <style>
     :root {
-        --db-paper: #F3F8F7;
+        --db-paper: #F0F7F6;
         --db-raised: #FFFFFF;
-        --db-ink: #14302C;
-        --db-ink-soft: #55716C;
-        --db-ink-faint: #90A9A4;
-        --db-line: #E3EEEC;
-        --db-line-strong: #CFE3DF;
+        --db-ink: #102C27;
+        --db-ink-soft: #52716C;
+        --db-ink-faint: #8FA9A3;
+        --db-line: #E1EEEC;
+        --db-line-strong: #CCE3DF;
 
         --db-teal: #0E8C7F;
         --db-teal-deep: #0A5850;
-        --db-teal-dim: #E5F4F1;
-        --db-teal-grad-start: #10998A;
-        --db-teal-grad-end: #0A5850;
+        --db-teal-dim: #E3F4F1;
+        --db-teal-grad-start: #12A392;
+        --db-teal-grad-end: #0A4F48;
 
         --db-blue: #2C6E9E; --db-blue-dim: #E4F0F9;
         --db-green: #2E8B57; --db-green-dim: #E4F5EB;
@@ -1625,7 +1662,7 @@
 
         --db-radius: 20px;
         --db-radius-sm: 13px;
-        --db-shadow: 0 6px 24px rgba(10, 60, 55, 0.07);
+        --db-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
         --db-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
     }
 
@@ -1647,6 +1684,7 @@
 
     /* ============ BANNER ============ */
     .db-banner {
+        position: relative;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -1655,19 +1693,37 @@
         border-radius: var(--db-radius);
         padding: 32px 36px;
         margin-bottom: 22px;
-        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.18);
+        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
+        overflow: hidden;
+    }
+    .db-banner-pattern {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%),
+                           radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        pointer-events: none;
     }
 
-    .db-banner-left { display: flex; align-items: center; gap: 22px; }
+    .db-banner-left { display: flex; align-items: center; gap: 22px; position: relative; z-index: 1; }
 
     .db-banner-icon {
+        position: relative;
         width: 76px; height: 76px; border-radius: 50%;
         background: rgba(255,255,255,.16);
         border: 2px solid rgba(255,255,255,.32);
         display: flex; align-items: center; justify-content: center;
         color: #fff; font-size: 30px; flex-shrink: 0;
     }
+    .db-icon-ring {
+        position: absolute; inset: -6px; border-radius: 50%;
+        border: 1.5px solid rgba(255,255,255,.4);
+        animation: dbRingPulse 2.4s ease-out infinite;
+    }
+    @@keyframes dbRingPulse {
+        0% { transform: scale(0.9); opacity: .8; }
+        100% { transform: scale(1.35); opacity: 0; }
+    }
 
+    .db-banner-text { position: relative; z-index: 1; }
     .db-banner-text h1 {
         font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 26px;
         margin: 0 0 4px; color: #fff; letter-spacing: -.01em;
@@ -1684,6 +1740,7 @@
     }
 
     .db-clock {
+        position: relative; z-index: 1;
         min-width: 230px; text-align: left;
         border-left: 1px solid rgba(255,255,255,.28);
         padding-left: 28px; flex-shrink: 0;
@@ -1698,37 +1755,49 @@
         letter-spacing: .02em; color: #fff; margin-top: 2px;
     }
 
-    /* ============ WORKFLOW PULSE (signature) ============ */
+    /* ============ WORKFLOW PIPELINE (signature) ============ */
     .db-pulse {
         background: var(--db-raised);
         border-radius: var(--db-radius);
         box-shadow: var(--db-shadow);
-        padding: 22px 26px;
+        padding: 26px 30px;
         margin-bottom: 28px;
     }
     .db-pulse-label {
         font-family: 'Inter', sans-serif; font-weight: 700; font-size: 12.5px;
         letter-spacing: .03em; text-transform: uppercase; color: var(--db-teal-deep);
-        display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+        display: flex; align-items: center; gap: 8px; margin-bottom: 22px;
     }
-    .db-pulse-track {
-        display: flex; width: 100%; height: 34px; border-radius: 999px; overflow: hidden;
-        background: var(--db-line); margin-bottom: 14px;
-    }
-    .db-pulse-seg {
+
+    .db-flow { display: flex; align-items: flex-start; }
+    .db-flow-node { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; width: 130px; }
+    .db-flow-circle {
+        width: 48px; height: 48px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        min-width: 2px; position: relative; transition: width .3s ease;
+        font-size: 18px; color: #fff; margin-bottom: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,.12);
     }
-    .db-pulse-seg span {
-        font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 700; color: #fff;
-        white-space: nowrap; letter-spacing: .01em; padding: 0 6px;
+    .db-flow-circle.n-teal { background: var(--db-teal); }
+    .db-flow-circle.n-blue { background: var(--db-blue); }
+    .db-flow-circle.n-green { background: var(--db-green); }
+    .db-flow-circle.n-purple { background: var(--db-purple); }
+    .db-flow-count { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 20px; color: var(--db-ink); }
+    .db-flow-label { font-size: 12px; color: var(--db-ink-soft); text-align: center; margin-top: 2px; }
+
+    .db-flow-line {
+        flex: 1 1 auto; height: 3px; background: var(--db-line);
+        border-radius: 3px; margin-top: 24px; position: relative; overflow: hidden;
     }
-    .db-pulse-seg.seg-teal { background: var(--db-teal); }
-    .db-pulse-seg.seg-blue { background: var(--db-blue); }
-    .db-pulse-seg.seg-green { background: var(--db-green); }
-    .db-pulse-seg.seg-purple { background: var(--db-purple); }
-    .db-pulse-note { margin: 0; font-size: 13.5px; color: var(--db-ink-soft); line-height: 1.7; }
-    .db-pulse-note strong { color: var(--db-ink); }
+    .db-flow-line-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--db-teal); border-radius: 3px; }
+
+    .db-pulse-chips { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+    .db-chip {
+        display: inline-flex; align-items: center; gap: 8px;
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12.5px;
+        padding: 8px 16px; border-radius: 999px;
+    }
+    .db-chip.chip-stat { background: var(--db-red-dim); color: var(--db-red); }
+    .db-chip.chip-overdue { background: var(--db-orange-dim); color: var(--db-orange); }
 
     /* ============ SECTION HEADS ============ */
     .db-section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
@@ -1749,10 +1818,11 @@
         box-shadow: var(--db-shadow-sm);
         padding: 22px;
         display: flex; align-items: center; gap: 16px;
-        border-left: 4px solid var(--db-teal);
+        border-top: 3px solid var(--db-teal);
         transition: transform .2s, box-shadow .2s;
     }
     .db-stat:hover { transform: translateY(-5px); box-shadow: var(--db-shadow); }
+    .db-stat-urgent { border-top-color: var(--db-red); }
 
     .db-stat-icon {
         width: 54px; height: 54px; border-radius: 15px; flex-shrink: 0;
@@ -1767,7 +1837,6 @@
     .db-stat-icon.c-orange { background: var(--db-orange-dim); color: var(--db-orange); }
     .db-stat-icon.c-gold { background: var(--db-gold-dim); color: var(--db-gold); }
 
-    .db-stat:nth-child(1) { border-left-color: var(--db-teal); }
     .db-stat .num { font-family: 'Poppins', sans-serif; font-size: 27px; font-weight: 700; color: var(--db-ink); }
     .db-stat h5 { margin: 2px 0 0; font-size: 13.5px; font-weight: 600; }
     .db-stat small { color: var(--db-ink-faint); font-size: 12px; }
@@ -1776,7 +1845,7 @@
     .db-action {
         display: block; text-decoration: none; color: var(--db-ink);
         background: var(--db-raised); border-radius: var(--db-radius);
-        padding: 28px 24px; text-align: center;
+        padding: 28px 24px; text-align: left;
         box-shadow: var(--db-shadow-sm);
         position: relative; overflow: hidden;
         transition: transform .25s, box-shadow .25s;
@@ -1786,28 +1855,34 @@
         background: linear-gradient(90deg, var(--db-teal), var(--db-teal-deep));
     }
     .db-action:hover { transform: translateY(-6px); box-shadow: var(--db-shadow); color: var(--db-ink); text-decoration: none; }
+    .db-action:hover .db-action-go { transform: translateX(4px); opacity: 1; }
     .db-action-icon {
-        width: 62px; height: 62px; margin: 0 auto 16px; border-radius: 16px;
+        width: 54px; height: 54px; margin-bottom: 16px; border-radius: 16px;
         background: var(--db-teal-dim); color: var(--db-teal);
-        display: flex; align-items: center; justify-content: center; font-size: 26px;
+        display: flex; align-items: center; justify-content: center; font-size: 23px;
     }
     .db-action h5 { font-weight: 700; margin: 0 0 8px; font-size: 15px; }
     .db-action p { color: var(--db-ink-soft); margin: 0; font-size: 13px; line-height: 1.6; }
+    .db-action-go {
+        display: inline-flex; margin-top: 14px; color: var(--db-teal);
+        opacity: .5; transition: transform .2s, opacity .2s; font-size: 13px;
+    }
 
-    /* ============ MINI PERFORMANCE CARDS ============ */
-    .db-mini {
-        background: var(--db-raised); border-radius: var(--db-radius-sm);
-        box-shadow: var(--db-shadow-sm); padding: 22px; text-align: center;
-        transition: transform .2s;
+    /* ============ PERFORMANCE STRIP ============ */
+    .db-perf-strip {
+        background: var(--db-raised); border-radius: var(--db-radius);
+        box-shadow: var(--db-shadow-sm); display: flex; align-items: center;
+        padding: 22px 10px;
     }
-    .db-mini:hover { transform: translateY(-4px); }
-    .db-mini-icon {
-        width: 54px; height: 54px; border-radius: 50%; margin: 0 auto 14px;
+    .db-perf-item { flex: 1; display: flex; align-items: center; gap: 14px; justify-content: center; }
+    .db-perf-icon {
+        width: 46px; height: 46px; border-radius: 50%;
         background: var(--db-teal-dim); color: var(--db-teal);
-        display: flex; align-items: center; justify-content: center; font-size: 21px;
+        display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
     }
-    .db-mini h4 { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700; margin: 0 0 4px; }
-    .db-mini span { color: var(--db-ink-soft); font-size: 12.5px; }
+    .db-perf-item h4 { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 700; margin: 0; text-align: left; }
+    .db-perf-item span { color: var(--db-ink-soft); font-size: 12.5px; }
+    .db-perf-div { width: 1px; align-self: stretch; background: var(--db-line); margin: 0 4px; }
 
     /* ============ PANELS (filter / queue) ============ */
     .db-panel {
@@ -1868,6 +1943,16 @@
     .db-table tbody tr:last-child td { border-bottom: none; }
     .db-text-center { text-align: center; }
 
+    /* Urgency / status badges (for use once bound to Model) */
+    .db-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11.5px;
+        padding: 5px 12px; border-radius: 999px;
+    }
+    .db-badge.b-stat { background: var(--db-red-dim); color: var(--db-red); }
+    .db-badge.b-urgent { background: var(--db-orange-dim); color: var(--db-orange); }
+    .db-badge.b-routine { background: var(--db-teal-dim); color: var(--db-teal-deep); }
+
     .db-empty { padding: 60px 24px; text-align: center; }
     .db-empty i {
         width: 96px; height: 96px; margin: 0 auto 20px; border-radius: 50%;
@@ -1898,12 +1983,15 @@
     @@media (max-width: 1100px) {
         .db-grid-4 { grid-template-columns: repeat(2, 1fr); }
         .db-filter-grid { grid-template-columns: 1fr 1fr; }
+        .db-perf-strip { flex-wrap: wrap; gap: 16px; }
+        .db-perf-div { display: none; }
     }
 
     @@media (max-width: 900px) {
         .db-banner { flex-direction: column; align-items: flex-start; gap: 24px; }
         .db-clock { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.28); padding-left: 0; padding-top: 18px; }
         .db-banner-left { flex-direction: column; text-align: center; width: 100%; }
+        .db-flow { overflow-x: auto; }
     }
 
     @@media (max-width: 640px) {
@@ -1911,7 +1999,8 @@
         .db-grid-4 { grid-template-columns: 1fr; }
         .db-filter-grid { grid-template-columns: 1fr; }
         .db-panel-head { flex-direction: column; align-items: flex-start; gap: 10px; }
-        .db-pulse-seg span { font-size: 0; }
+        .db-flow-node { width: 100px; }
+        .db-flow-label { font-size: 10.5px; }
     }
 </style>
 

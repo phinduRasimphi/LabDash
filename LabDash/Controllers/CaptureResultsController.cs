@@ -32,11 +32,14 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Challenge();
 
+            // "In Progress"     -> first-time capture
+            // "To Be Reviewed"  -> returned by a verifier, reassigned back
+            //                      to this technician for resubmission
             var tests = await _context.TestRequestItems
                 .Include(t => t.TestType)
                 .Include(t => t.TestRequest)
                 .Where(t => t.AssignedTechnicianId == technician.Id
-                         && t.Status == "In Progress")
+                         && (t.Status == "In Progress" || t.Status == "To Be Reviewed"))
                 .OrderBy(t => t.StartDateTime)
                 .ToListAsync();
 
@@ -67,6 +70,15 @@ namespace LabDash.Controllers
             if (item.AssignedTechnicianId != technician.Id)
                 return Forbid();
 
+            // Only items still awaiting a first capture, or returned for
+            // rework, are eligible — a Completed/Verified item shouldn't
+            // be re-openable here.
+            if (item.Status != "In Progress" && item.Status != "To Be Reviewed")
+            {
+                TempData["Error"] = "This test is no longer available for result capture.";
+                return RedirectToAction(nameof(Index));
+            }
+
             ViewBag.TestItem = item;
             ViewBag.Patient = item.TestRequest.Patient;
 
@@ -82,10 +94,22 @@ namespace LabDash.Controllers
                     $"{item.TestType.ReferenceRangeLow.Value} - {item.TestType.ReferenceRangeHigh.Value}";
             }
 
+            // On a resubmission there is already a TestResult tied to this item —
+            // load it so the technician sees (and can adjust) what they previously
+            // entered, plus the reviewer's note explaining why it came back.
+            var existingResult = await _context.TestResults
+                .FirstOrDefaultAsync(r => r.TestRequestItemId == item.TestRequestItemId);
+
+            ViewBag.IsResubmission = item.Status == "To Be Reviewed";
+            ViewBag.PreviousVerificationNote = existingResult?.VerificationNote;
+
             return View(new TestResult
             {
                 TestRequestItemId = item.TestRequestItemId,
-                ReferenceRange = referenceRangeDisplay
+                ResultValue = existingResult?.ResultValue,
+                Units = existingResult?.Units,
+                ReferenceRange = referenceRangeDisplay ?? existingResult?.ReferenceRange,
+                Comments = existingResult?.Comments
             });
         }
 
@@ -114,10 +138,21 @@ namespace LabDash.Controllers
             if (item.AssignedTechnicianId != technician.Id)
                 return Forbid();
 
+            if (item.Status != "In Progress" && item.Status != "To Be Reviewed")
+            {
+                TempData["Error"] = "This test is no longer available for result capture.";
+                return RedirectToAction(nameof(Index));
+            }
+
             if (!ModelState.IsValid)
             {
                 ViewBag.TestItem = item;
                 ViewBag.Patient = item.TestRequest.Patient;
+                ViewBag.IsResubmission = item.Status == "To Be Reviewed";
+
+                var existingForReload = await _context.TestResults
+                    .FirstOrDefaultAsync(r => r.TestRequestItemId == result.TestRequestItemId);
+                ViewBag.PreviousVerificationNote = existingForReload?.VerificationNote;
 
                 return View(result);
             }
@@ -139,20 +174,49 @@ namespace LabDash.Controllers
                     numericResult > item.TestType.ReferenceRangeHigh.Value;
             }
 
-            // Always store the range that was actually in effect at capture time,
-            // regardless of what (if anything) was rendered in the form.
             if (item.TestType.ReferenceRangeLow.HasValue && item.TestType.ReferenceRangeHigh.HasValue)
             {
                 result.ReferenceRange =
                     $"{item.TestType.ReferenceRangeLow.Value} - {item.TestType.ReferenceRangeHigh.Value}";
             }
 
-            // Save Result
-            result.DateCaptured = DateTime.Now;
-            result.CapturedByTechnicianId = technician.Id;
-            result.Status = "Completed";
+            // ------------------------------------------------------------------
+            // FIRST CAPTURE vs RESUBMISSION
+            // ------------------------------------------------------------------
+            // A TestRequestItem should only ever have one TestResult tied to it.
+            // On a resubmission (item.Status == "To Be Reviewed") that row
+            // already exists, so it's updated in place rather than inserted
+            // again — otherwise the verification queue's "unverified result
+            // for this item" lookup becomes ambiguous between two rows.
+            var existingResult = await _context.TestResults
+                .FirstOrDefaultAsync(r => r.TestRequestItemId == result.TestRequestItemId);
 
-            _context.TestResults.Add(result);
+            if (existingResult != null)
+            {
+                existingResult.ResultValue = result.ResultValue;
+                existingResult.Units = result.Units;
+                existingResult.ReferenceRange = result.ReferenceRange;
+                existingResult.Comments = result.Comments;
+                existingResult.IsAbnormal = result.IsAbnormal;
+                existingResult.DateCaptured = DateTime.Now;
+                existingResult.CapturedByTechnicianId = technician.Id;
+                existingResult.Status = "Completed";
+
+                // Clear the prior verification outcome so this cycles back into
+                // the verification queue cleanly. The earlier decision and note
+                // are not lost — they remain on record in TestVerifications.
+                existingResult.VerifiedByTechnicianId = null;
+                existingResult.VerificationDate = null;
+                existingResult.VerificationNote = null;
+            }
+            else
+            {
+                result.DateCaptured = DateTime.Now;
+                result.CapturedByTechnicianId = technician.Id;
+                result.Status = "Completed";
+
+                _context.TestResults.Add(result);
+            }
 
             // Update Test Item
             item.Status = "Completed";

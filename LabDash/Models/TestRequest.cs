@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using LabDash.Areas.Identity.Data;
+using System.ComponentModel.DataAnnotations;
 
 namespace LabDash.Models
 {
@@ -21,7 +22,8 @@ namespace LabDash.Models
 
         public DateTime SubmittedDate { get; set; }
         public virtual Patient Patient { get; set; }
-
+        public string? RequestingDoctorId { get; set; }
+        public virtual LabUser? RequestingDoctor { get; set; }
         public virtual ICollection<Sample> Samples { get; set; }
             = new List<Sample>();
 
