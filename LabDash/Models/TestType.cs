@@ -13,6 +13,9 @@ namespace LabDash.Models
 
         public string RequiredSampleType { get; set; }
         public int TurnaroundTimeHours { get; set; }
+        
+        public decimal? ReferenceRangeLow { get; set; }
+        public decimal? ReferenceRangeHigh { get; set; }
 
         public virtual ICollection<TestRequestItem> TestRequestItems { get; set; }
             = new List<TestRequestItem>();

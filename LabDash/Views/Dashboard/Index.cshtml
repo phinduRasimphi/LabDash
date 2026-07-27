@@ -1239,328 +1239,174 @@
         </script>
     }
     else if (User.IsInRole("Lab_Technician"))
-    {
+   {
     ViewData["Title"] = "Laboratory Technician Dashboard";
 }
 
-<div class="dashboard">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<div class="db-wrap">
 
     <!-- ==========================================
         HEADER
     =========================================== -->
-    <div class="dashboard-header">
+    <div class="db-banner">
+        <div class="db-banner-pattern"></div>
 
-        <div class="header-left">
-
-            <div class="welcome-icon">
+        <div class="db-banner-left">
+            <div class="db-banner-icon">
+                <span class="db-icon-ring"></span>
                 <i class="fa-solid fa-flask-vial"></i>
             </div>
-
-            <div class="header-title">
-                <h2>
-                    Welcome,
-                    <span>@User.Identity?.Name</span>
-                </h2>
-
-                <p>
-                    Laboratory Technician Dashboard
-                </p>
-
-                <div class="summary-badges">
-
-                    <span class="summary-pill">
-                        <i class="fa-solid fa-calendar-days"></i>
-                        Daily Work Queue
-                    </span>
-
-                    <span class="summary-pill">
-                        <i class="fa-solid fa-vials"></i>
-                        Laboratory Information System
-                    </span>
-
+            <div class="db-banner-text">
+                <h1>Welcome, <span>@User.Identity?.Name</span></h1>
+                <p>Laboratory Technician Dashboard</p>
+                <div class="db-pills">
+                    <span class="db-pill"><i class="fa-solid fa-calendar-days"></i> Daily work queue</span>
+                    <span class="db-pill"><i class="fa-solid fa-vials"></i> Laboratory information system</span>
                 </div>
-
             </div>
-
         </div>
 
-        <div class="clock-card">
-
-            <small>Today's Date</small>
-
+        <div class="db-clock">
+            <small>Today's date</small>
             <div id="currentDate"></div>
-
             <div id="currentTime"></div>
-
         </div>
-
     </div>
 
     <!-- ==========================================
-        DAILY SUMMARY
+        WORKFLOW PIPELINE (signature element)
+        A connected stepper showing where today's
+        specimens sit across the testing lifecycle.
     =========================================== -->
-
-    <div class="summary-alert">
-
-        <div class="summary-icon">
-            <i class="fa-solid fa-circle-info"></i>
+    <div class="db-pulse">
+        <div class="db-pulse-label">
+            <i class="fa-solid fa-timeline"></i> Today's specimen pipeline
         </div>
 
-        <div>
+        <div class="db-flow">
+            <div class="db-flow-node">
+                <div class="db-flow-circle n-teal"><i class="fa-solid fa-vial-circle-check"></i></div>
+                <div class="db-flow-count">0</div>
+                <div class="db-flow-label">Selected</div>
+            </div>
+            <div class="db-flow-line"><span class="db-flow-line-fill" style="width:0%"></span></div>
 
-            <h5>Today's Summary</h5>
+            <div class="db-flow-node">
+                <div class="db-flow-circle n-blue"><i class="fa-solid fa-hourglass-half"></i></div>
+                <div class="db-flow-count">0</div>
+                <div class="db-flow-label">Waiting selection</div>
+            </div>
+            <div class="db-flow-line"><span class="db-flow-line-fill" style="width:0%"></span></div>
 
-            <p>
+            <div class="db-flow-node">
+                <div class="db-flow-circle n-green"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="db-flow-count">0</div>
+                <div class="db-flow-label">Waiting verification</div>
+            </div>
+            <div class="db-flow-line"><span class="db-flow-line-fill" style="width:0%"></span></div>
 
-                You currently have
-                <strong>0 Selected Tests</strong>,
-                <strong>0 Waiting Selection</strong>,
-                <strong>0 Waiting Verification</strong>,
-                <strong>0 Waiting Review</strong>,
-                <strong>0 STAT Tests</strong>,
-                and
-                <strong>0 Overdue Requests.</strong>
-
-            </p>
-
+            <div class="db-flow-node">
+                <div class="db-flow-circle n-purple"><i class="fa-solid fa-file-medical"></i></div>
+                <div class="db-flow-count">0</div>
+                <div class="db-flow-label">Waiting review</div>
+            </div>
         </div>
 
+        <div class="db-pulse-chips">
+            <span class="db-chip chip-stat"><i class="fa-solid fa-bolt"></i> 0 STAT tests</span>
+            <span class="db-chip chip-overdue"><i class="fa-solid fa-triangle-exclamation"></i> 0 overdue requests</span>
+        </div>
     </div>
 
     <!-- ==========================================
         TODAY'S WORKLOAD
     =========================================== -->
-
-    <div class="section-header">
-
+    <div class="db-section-head">
         <div>
+            <h3>Today's workload</h3>
+            <p>Overview of your current laboratory workload.</p>
+        </div>
+    </div>
 
-            <h3>Today's Workload</h3>
+    <div class="db-grid db-grid-4">
 
-            <p>
-                Overview of your current laboratory workload.
-            </p>
+        <div class="db-stat">
+            <div class="db-stat-icon c-teal"><i class="fa-solid fa-vials"></i></div>
+            <div class="db-stat-body">
+                <div class="num counter" data-value="0">0</div>
+                <h5>Selected tests</h5>
+                <small>Currently assigned</small>
+            </div>
+        </div>
 
+        <div class="db-stat">
+            <div class="db-stat-icon c-blue"><i class="fa-solid fa-clock"></i></div>
+            <div class="db-stat-body">
+                <div class="num counter" data-value="0">0</div>
+                <h5>Waiting selection</h5>
+                <small>Awaiting technician</small>
+            </div>
+        </div>
+
+        <div class="db-stat">
+            <div class="db-stat-icon c-green"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="db-stat-body">
+                <div class="num counter" data-value="0">0</div>
+                <h5>Waiting verification</h5>
+                <small>Pending validation</small>
+            </div>
+        </div>
+
+        <div class="db-stat">
+            <div class="db-stat-icon c-purple"><i class="fa-solid fa-file-medical"></i></div>
+            <div class="db-stat-body">
+                <div class="num counter" data-value="0">0</div>
+                <h5>Waiting review</h5>
+                <small>Ready for review</small>
+            </div>
         </div>
 
     </div>
 
-    <div class="row g-4">
+    <div class="db-grid db-grid-4 db-grid-mt">
 
-        <!-- Selected -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card border-primary">
-
-                <div class="icon-circle bg-primary-soft">
-
-                    <i class="fa-solid fa-vials"></i>
-
-                </div>
-
-                <div class="stat-content">
-
-                    <h2 class="counter" data-value="0">0</h2>
-
-                    <h5>Selected Tests</h5>
-
-                    <small>Currently Assigned</small>
-
-                </div>
-
+        <div class="db-stat db-stat-urgent">
+            <div class="db-stat-icon c-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="db-stat-body">
+                <div class="num counter" data-value="0">0</div>
+                <h5>STAT tests</h5>
+                <small>Immediate attention</small>
             </div>
-
         </div>
 
-        <!-- Waiting Selection -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card border-blue">
-
-                <div class="icon-circle bg-blue-soft">
-
-                    <i class="fa-solid fa-clock"></i>
-
-                </div>
-
-                <div class="stat-content">
-
-                    <h2 class="counter" data-value="0">0</h2>
-
-                    <h5>Waiting Selection</h5>
-
-                    <small>Awaiting Technician</small>
-
-                </div>
-
+        <div class="db-stat db-stat-urgent">
+            <div class="db-stat-icon c-orange"><i class="fa-solid fa-hourglass-end"></i></div>
+            <div class="db-stat-body">
+                <div class="num counter" data-value="0">0</div>
+                <h5>Overdue tests</h5>
+                <small>Past turnaround time</small>
             </div>
-
         </div>
 
-        <!-- Verification -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card border-green">
-
-                <div class="icon-circle bg-green-soft">
-
-                    <i class="fa-solid fa-circle-check"></i>
-
-                </div>
-
-                <div class="stat-content">
-
-                    <h2 class="counter" data-value="0">0</h2>
-
-                    <h5>Waiting Verification</h5>
-
-                    <small>Pending Validation</small>
-
-                </div>
-
+        <div class="db-stat">
+            <div class="db-stat-icon c-gold"><i class="fa-solid fa-stopwatch"></i></div>
+            <div class="db-stat-body">
+                <div class="num counter" data-value="0">0</div>
+                <h5>Near deadline</h5>
+                <small>Approaching TAT limit</small>
             </div>
-
         </div>
 
-        <!-- Review -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card border-purple">
-
-                <div class="icon-circle bg-purple-soft">
-
-                    <i class="fa-solid fa-file-medical"></i>
-
-                </div>
-
-                <div class="stat-content">
-
-                    <h2 class="counter" data-value="0">0</h2>
-
-                    <h5>Waiting Review</h5>
-
-                    <small>Ready For Review</small>
-
-                </div>
-
+        <div class="db-stat">
+            <div class="db-stat-icon c-teal-deep"><i class="fa-solid fa-award"></i></div>
+            <div class="db-stat-body">
+                <div class="num counter" data-value="0">0</div>
+                <h5>Completed today</h5>
+                <small>Tests finalised</small>
             </div>
-
-        </div>
-
-    </div>
-
-    <!-- ==========================================
-        SECOND ROW
-    =========================================== -->
-
-    <div class="row g-4 mt-1">
-
-        <!-- STAT -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card border-red">
-
-                <div class="icon-circle bg-red-soft">
-
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-
-                </div>
-
-                <div class="stat-content">
-
-                    <h2 class="counter" data-value="0">0</h2>
-
-                    <h5>STAT Tests</h5>
-
-                    <small>Immediate Attention</small>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- Overdue -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card border-orange">
-
-                <div class="icon-circle bg-orange-soft">
-
-                    <i class="fa-solid fa-hourglass-end"></i>
-
-                </div>
-
-                <div class="stat-content">
-
-                    <h2 class="counter" data-value="0">0</h2>
-
-                    <h5>Overdue Tests</h5>
-
-                    <small>Past Turnaround Time</small>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- Near Deadline -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card border-yellow">
-
-                <div class="icon-circle bg-yellow-soft">
-
-                    <i class="fa-solid fa-stopwatch"></i>
-
-                </div>
-
-                <div class="stat-content">
-
-                    <h2 class="counter" data-value="0">0</h2>
-
-                    <h5>Near Deadline</h5>
-
-                    <small>Approaching TAT Limit</small>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- Completed -->
-
-        <div class="col-xl-3 col-md-6">
-
-            <div class="stat-card border-success">
-
-                <div class="icon-circle bg-success-soft">
-
-                    <i class="fa-solid fa-award"></i>
-
-                </div>
-
-                <div class="stat-content">
-
-                    <h2 class="counter" data-value="0">0</h2>
-
-                    <h5>Completed Today</h5>
-
-                    <small>Tests Finalised</small>
-
-                </div>
-
-            </div>
-
         </div>
 
     </div>
@@ -1568,1250 +1414,596 @@
     <!-- ==========================================
         QUICK ACTIONS
     =========================================== -->
-
-    <div class="section-header mt-5">
-
+    <div class="db-section-head db-mt-lg">
         <div>
-
-            <h3>Quick Actions</h3>
-
-            <p>
-                Access your most frequently used laboratory functions.
-            </p>
-
+            <h3>Quick actions</h3>
+            <p>Access your most frequently used laboratory functions.</p>
         </div>
-
     </div>
 
-    <div class="row g-4">
+    <div class="db-grid db-grid-4">
 
-        <div class="col-lg-3 col-md-6">
+        <a asp-controller="AvailableTests" asp-action="Index" class="db-action">
+            <div class="db-action-icon"><i class="fa-solid fa-vials"></i></div>
+            <h5>Available tests</h5>
+            <p>View test requests waiting to be selected.</p>
+            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+        </a>
 
-            <a asp-controller="AvailableTests"
-               asp-action="Index"
-               class="action-card">
+        <a asp-controller="CaptureResults" asp-action="Index" class="db-action">
+            <div class="db-action-icon"><i class="fa-solid fa-flask"></i></div>
+            <h5>Capture results</h5>
+            <p>Record laboratory findings and observations.</p>
+            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+        </a>
 
-                <div class="action-icon">
+        <a asp-controller="Verification" asp-action="Index" class="db-action">
+            <div class="db-action-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <h5>Verification</h5>
+            <p>Verify captured results before review.</p>
+            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+        </a>
 
-                    <i class="fa-solid fa-vials"></i>
-
-                </div>
-
-                <h5>Available Tests</h5>
-
-                <p>
-                    View test requests waiting to be selected.
-                </p>
-
-            </a>
-
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-
-            <a asp-controller="CaptureResults"
-               asp-action="Index"
-               class="action-card">
-
-                <div class="action-icon">
-
-                    <i class="fa-solid fa-flask"></i>
-
-                </div>
-
-                <h5>Capture Results</h5>
-
-                <p>
-                    Record laboratory findings and observations.
-                </p>
-
-            </a>
-
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-
-            <a asp-controller="Verification"
-               asp-action="Index"
-               class="action-card">
-
-                <div class="action-icon">
-
-                    <i class="fa-solid fa-circle-check"></i>
-
-                </div>
-
-                <h5>Verification</h5>
-
-                <p>
-                    Verify captured results before review.
-                </p>
-
-            </a>
-
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-
-            <a asp-controller="ToBeReviewed"
-               asp-action="Index"
-               class="action-card">
-
-                <div class="action-icon">
-
-                    <i class="fa-solid fa-file-medical"></i>
-
-                </div>
-
-                <h5>Review Results</h5>
-
-                <p>
-                    Review and approve laboratory reports.
-                </p>
-
-            </a>
-
-        </div>
+        <a asp-controller="ToBeReviewed" asp-action="Index" class="db-action">
+            <div class="db-action-icon"><i class="fa-solid fa-file-medical"></i></div>
+            <h5>Review results</h5>
+            <p>Review and approve laboratory reports.</p>
+            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+        </a>
 
     </div>
 
     <!-- ==========================================
-        PERFORMANCE SECTION
+        PERFORMANCE STRIP
     =========================================== -->
-
-    <div class="section-header mt-5">
-
+    <div class="db-section-head db-mt-lg">
         <div>
-
-            <h3>Today's Performance</h3>
-
-            <p>
-                Daily laboratory productivity overview.
-            </p>
-
+            <h3>Today's performance</h3>
+            <p>Daily laboratory productivity overview.</p>
         </div>
-
     </div>
 
-    <div class="row g-4 mb-5">
-
-        <div class="col-lg-3 col-md-6">
-
-            <div class="mini-card">
-
-                <i class="fa-solid fa-microscope"></i>
-
+    <div class="db-perf-strip db-mb-lg">
+        <div class="db-perf-item">
+            <div class="db-perf-icon"><i class="fa-solid fa-microscope"></i></div>
+            <div>
                 <h4>36</h4>
-
-                <span>Completed Tests</span>
-
+                <span>Completed tests</span>
             </div>
-
         </div>
-
-        <div class="col-lg-3 col-md-6">
-
-            <div class="mini-card">
-
-                <i class="fa-solid fa-stopwatch"></i>
-
+        <div class="db-perf-div"></div>
+        <div class="db-perf-item">
+            <div class="db-perf-icon"><i class="fa-solid fa-stopwatch"></i></div>
+            <div>
                 <h4>2h 18m</h4>
-
                 <span>Average TAT</span>
-
             </div>
-
         </div>
-
-        <div class="col-lg-3 col-md-6">
-
-            <div class="mini-card">
-
-                <i class="fa-solid fa-vials"></i>
-
+        <div class="db-perf-div"></div>
+        <div class="db-perf-item">
+            <div class="db-perf-icon"><i class="fa-solid fa-vials"></i></div>
+            <div>
                 <h4>12</h4>
-
-                <span>Pending Tests</span>
-
+                <span>Pending tests</span>
             </div>
-
         </div>
-
-        <div class="col-lg-3 col-md-6">
-
-            <div class="mini-card">
-
-                <i class="fa-solid fa-chart-line"></i>
-
+        <div class="db-perf-div"></div>
+        <div class="db-perf-item">
+            <div class="db-perf-icon"><i class="fa-solid fa-chart-line"></i></div>
+            <div>
                 <h4>98%</h4>
-
-                <span>Completion Rate</span>
-
+                <span>Completion rate</span>
             </div>
-
         </div>
-
     </div>
 
-            <!-- ==========================================
+    <!-- ==========================================
         FILTER PANEL
     =========================================== -->
+    <div class="db-panel db-mb-lg">
+        <div class="db-panel-head">
+            <span><i class="fa-solid fa-filter"></i> Filter work queue</span>
+            <span class="db-panel-tag">Search laboratory requests</span>
+        </div>
+        <div class="db-panel-body">
+            <div class="db-filter-grid">
 
-            <div class="card dashboard-card mb-5">
-
-                <div class="card-header">
-
-                    <div class="d-flex justify-content-between align-items-center">
-
-                        <h4 class="mb-0">
-                            <i class="fa-solid fa-filter text-success me-2"></i>
-                            Filter Work Queue
-                        </h4>
-
-                        <span class="badge bg-success rounded-pill">
-                            Search Laboratory Requests
-                        </span>
-
-                    </div>
-
+                <div class="db-field">
+                    <label>Urgency</label>
+                    <select class="db-select">
+                        <option>All</option>
+                        <option>Routine</option>
+                        <option>Urgent</option>
+                        <option>STAT</option>
+                    </select>
                 </div>
 
-                <div class="card-body">
+                <div class="db-field">
+                    <label>Category</label>
+                    <select class="db-select">
+                        <option>All categories</option>
+                    </select>
+                </div>
 
-                    <div class="row g-3">
+                <div class="db-field db-field-wide">
+                    <label>Due time</label>
+                    <input type="datetime-local" class="db-input" />
+                </div>
 
-                        <div class="col-lg-2 col-md-6">
+                <div class="db-field db-field-wide">
+                    <label>Request number</label>
+                    <input type="text" class="db-input" placeholder="LAB000123" />
+                </div>
 
-                            <label class="form-label fw-semibold">
-                                Urgency
-                            </label>
-
-                            <select class="form-select">
-
-                                <option>All</option>
-                                <option>Routine</option>
-                                <option>Urgent</option>
-                                <option>STAT</option>
-
-                            </select>
-
-                        </div>
-
-                        <div class="col-lg-2 col-md-6">
-
-                            <label class="form-label fw-semibold">
-                                Category
-                            </label>
-
-                            <select class="form-select">
-
-                                <option>All Categories</option>
-
-                            </select>
-
-                        </div>
-
-                        <div class="col-lg-3 col-md-6">
-
-                            <label class="form-label fw-semibold">
-                                Due Time
-                            </label>
-
-                            <input type="datetime-local"
-                                   class="form-control" />
-
-                        </div>
-
-                        <div class="col-lg-3 col-md-6">
-
-                            <label class="form-label fw-semibold">
-                                Request Number
-                            </label>
-
-                            <input type="text"
-                                   class="form-control"
-                                   placeholder="LAB000123" />
-
-                        </div>
-
-                        <div class="col-lg-2 d-grid">
-
-                            <label class="form-label invisible">
-                                Search
-                            </label>
-
-                            <button class="btn btn-success">
-
-                                <i class="fa-solid fa-magnifying-glass me-2"></i>
-
-                                Apply
-
-                            </button>
-
-                        </div>
-
-                    </div>
-
+                <div class="db-field db-field-btn">
+                    <button class="db-btn-apply">
+                        <i class="fa-solid fa-magnifying-glass"></i> Apply
+                    </button>
                 </div>
 
             </div>
+        </div>
+    </div>
 
-            <!-- ==========================================
+    <!-- ==========================================
         TECHNICIAN TEST QUEUE
     =========================================== -->
-
-            <div class="card dashboard-card">
-
-                <div class="card-header">
-
-                    <div class="d-flex justify-content-between align-items-center">
-
-                        <div>
-
-                            <h4 class="mb-1">
-
-                                <i class="fa-solid fa-list-check text-success me-2"></i>
-
-                                Technician Test Queue
-
-                            </h4>
-
-                            <small class="text-muted">
-
-                                Laboratory requests currently assigned to you.
-
-                            </small>
-
-                        </div>
-
-                        <span class="badge bg-primary rounded-pill px-3 py-2">
-
-                            0 Tests
-
-                        </span>
-
-                    </div>
-
-                </div>
-
-                <div class="card-body p-0">
-
-                    <div class="table-responsive">
-
-                        <table class="table table-hover align-middle mb-0">
-
-                            <thead>
-
-                                <tr>
-
-                                    <th>Request #</th>
-
-                                    <th>Patient</th>
-
-                                    <th>Category</th>
-
-                                    <th>Urgency</th>
-
-                                    <th>Status</th>
-
-                                    <th>Due Time</th>
-
-                                    <th class="text-center">
-
-                                        Action
-
-                                    </th>
-
-                                </tr>
-
-                            </thead>
-
-                            <tbody>
-
-                                <!-- Replace with Model later -->
-
-                                <tr>
-
-                                    <td colspan="7">
-
-                                        <div class="empty-state">
-
-                                            <i class="fa-solid fa-microscope"></i>
-
-                                            <h3>
-
-                                                You're all caught up!
-
-                                            </h3>
-
-                                            <p>
-
-                                                There are currently no laboratory
-                                                requests assigned to you.
-
-                                                <br />
-
-                                                New requests will appear here once
-                                                available.
-
-                                            </p>
-
-                                            <a asp-controller="AvailableTests"
-                                               asp-action="Index"
-                                               class="btn btn-success">
-
-                                                <i class="fa-solid fa-vials me-2"></i>
-
-                                                View Available Tests
-
-                                            </a>
-
-                                        </div>
-
-                                    </td>
-
-                                </tr>
-
-                            </tbody>
-
-                        </table>
-
-                    </div>
-
-                </div>
-
+    <div class="db-panel">
+        <div class="db-panel-head">
+            <div>
+                <span><i class="fa-solid fa-list-check"></i> Technician test queue</span>
+                <small>Laboratory requests currently assigned to you.</small>
             </div>
-
-            <!-- ==========================================
-        FOOTER
-    =========================================== -->
-
-            <div class="dashboard-footer">
-
-                <hr />
-
-                <div class="footer-content">
-
-                    <i class="fa-solid fa-flask-vial"></i>
-
-                    <span>
-
-                        Laboratory Information Management System
-
-                    </span>
-
-                    <span class="footer-divider">
-
-                        |
-
-                    </span>
-
-                    <span>
-
-                        Technician Dashboard
-
-                    </span>
-
-                    <span class="footer-divider">
-
-                        |
-
-                    </span>
-
-                    <span>
-
-                        @DateTime.Now.Year
-
-                    </span>
-
-                </div>
-
-            </div>
-
+            <span class="db-panel-count">0 tests</span>
         </div>
 
-        @section Scripts {
-
-            <script>
-
-                function updateClock() {
-
-                const now = new Date();
-
-                document.getElementById("currentDate").innerHTML =
-                now.toLocaleDateString("en-ZA", {
-
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric"
-
-                });
-
-                document.getElementById("currentTime").innerHTML =
-                now.toLocaleTimeString("en-ZA", {
-
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit"
-
-                });
-
-                }
-
-                updateClock();
-
-                setInterval(updateClock, 1000);
-
-                // Animated Counters
-
-                document.querySelectorAll(".counter").forEach(counter => {
-
-                let target = Number(counter.dataset.value);
-
-                let current = 0;
-
-                let increment = target > 0 ? Math.ceil(target / 40) : 1;
-
-                const timer = setInterval(() => {
-
-                current += increment;
-
-                if (current >= target) {
-
-                counter.innerHTML = target;
-
-                clearInterval(timer);
-
-                }
-                else {
-
-                counter.innerHTML = current;
-
-                }
-
-                }, 30);
-
-                });
-
-            </script>
-
-        }
-
-        <style>
-
-            :root {
-            --primary: #0E7A83;
-            --primary-dark: #0A646C;
-            --secondary: #14B8A6;
-            --blue: #2563EB;
-            --green: #16A34A;
-            --purple: #7C3AED;
-            --red: #EF4444;
-            --orange: #F97316;
-            --yellow: #F59E0B;
-            --background: #F4F8FB;
-            --card: #FFFFFF;
-            --border: #E5E7EB;
-            --text: #1F2937;
-            --muted: #6B7280;
-            --shadow: 0 10px 30px rgba(0,0,0,.06);
-            }
-
-            /*****************************************
-            BODY
-            *****************************************/
-
-            body {
-            background: var(--background);
-            font-family: 'Segoe UI',Tahoma,sans-serif;
-            color: var(--text);
-            }
-
-            .dashboard {
-            padding: 30px;
-            animation: fadeIn .6s ease;
-            }
-
-            @@keyframes fadeIn {
-
-            from {
-            opacity: 0;
-            transform: translateY(15px);
-            }
-
-            to {
-            opacity: 1;
-            transform: translateY(0);
-            }
-            }
-
-            /*****************************************
-            HEADER
-            *****************************************/
-
-            .dashboard-header {
-            background: linear-gradient(135deg,#0E7A83,#13A6B2);
-            color: white;
-            border-radius: 22px;
-            padding: 35px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            box-shadow: 0 15px 35px rgba(14,122,131,.25);
-            }
-
-            .header-left {
-            display: flex;
-            align-items: center;
-            gap: 25px;
-            }
-
-            .welcome-icon {
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            background: rgba(255,255,255,.15);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 38px;
-            border: 2px solid rgba(255,255,255,.2);
-            }
-
-            .header-title h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 5px;
-            }
-
-            .header-title h2 span {
-            color: #fff;
-            }
-
-            .header-title p {
-            color: #E8FDFD;
-            margin-bottom: 15px;
-            font-size: 1.1rem;
-            }
-
-            /*****************************************
-            SUMMARY PILLS
-            *****************************************/
-
-            .summary-badges {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            }
-
-            .summary-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border-radius: 30px;
-            background: rgba(255,255,255,.18);
-            color: white;
-            font-size: .9rem;
-            backdrop-filter: blur(5px);
-            }
-
-            .summary-pill i {
-            color: #FFF;
-            }
-
-            /*****************************************
-            CLOCK
-            *****************************************/
-
-            .clock-card {
-            min-width: 270px;
-            text-align: left;
-            border-left: 2px solid rgba(255,255,255,.25);
-            padding-left: 30px;
-            }
-
-            .clock-card small {
-            color: #DFF9F8;
-            font-size: .9rem;
-            }
-
-            #currentDate {
-            margin-top: 8px;
-            font-size: 1.05rem;
-            color: white;
-            }
-
-            #currentTime {
-            font-size: 2.3rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            color: white;
-            }
-
-            /*****************************************
-            SUMMARY ALERT
-            *****************************************/
-
-            .summary-alert {
-            display: flex;
-            align-items: flex-start;
-            gap: 20px;
-            background: white;
-            border-left: 6px solid var(--primary);
-            border-radius: 18px;
-            padding: 25px;
-            margin-bottom: 35px;
-            box-shadow: var(--shadow);
-            }
-
-            .summary-icon {
-            width: 65px;
-            height: 65px;
-            border-radius: 50%;
-            background: #E6FAF8;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            flex-shrink: 0;
-            }
-
-            .summary-alert h5 {
-            font-weight: 700;
-            margin-bottom: 6px;
-            }
-
-            .summary-alert p {
-            margin: 0;
-            color: var(--muted);
-            line-height: 1.7;
-            }
-
-            /*****************************************
-            SECTION TITLES
-            *****************************************/
-
-            .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            }
-
-            .section-header h3 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 4px;
-            }
-
-            .section-header p {
-            margin: 0;
-            color: var(--muted);
-            }
-
-            /*****************************************
-            STAT CARDS
-            *****************************************/
-
-            .stat-card {
-            position: relative;
-            overflow: hidden;
-            background: white;
-            border-radius: 20px;
-            padding: 25px;
-            display: flex;
-            gap: 18px;
-            align-items: center;
-            box-shadow: var(--shadow);
-            transition: .3s;
-            height: 100%;
-            border-left: 5px solid var(--primary);
-            }
-
-            .stat-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 18px 40px rgba(0,0,0,.10);
-            }
-
-            .stat-card::after {
-            content: "";
-            position: absolute;
-            top: -35px;
-            right: -35px;
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: rgba(14,122,131,.05);
-            }
-
-            .stat-content {
-            z-index: 2;
-            }
-
-            .stat-content h2 {
-            margin: 0;
-            font-size: 2.3rem;
-            font-weight: 700;
-            }
-
-            .stat-content h5 {
-            margin-top: 5px;
-            margin-bottom: 2px;
-            font-weight: 600;
-            }
-
-            .stat-content small {
-            color: var(--muted);
-            }
-
-            /*****************************************
-            ICON CIRCLES
-            *****************************************/
-
-            .icon-circle {
-            width: 72px;
-            height: 72px;
-            border-radius: 18px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 30px;
-            flex-shrink: 0;
-            }
-
-            .bg-primary-soft {
-            background: #D9F5F2;
-            color: var(--primary);
-            }
-
-            .bg-blue-soft {
-            background: #E3EEFF;
-            color: var(--blue);
-            }
-
-            .bg-green-soft {
-            background: #E6F8EC;
-            color: var(--green);
-            }
-
-            .bg-purple-soft {
-            background: #F1EAFF;
-            color: var(--purple);
-            }
-
-            .bg-red-soft {
-            background: #FDE9E9;
-            color: var(--red);
-            }
-
-            .bg-orange-soft {
-            background: #FFF0E6;
-            color: var(--orange);
-            }
-
-            .bg-yellow-soft {
-            background: #FFF8DD;
-            color: var(--yellow);
-            }
-
-            .bg-success-soft {
-            background: #DFF7E7;
-            color: var(--green);
-            }
-
-            /*****************************************
-            COLOURED BORDERS
-            *****************************************/
-
-            .border-primary {
-            border-left-color: var(--primary);
-            }
-
-            .border-blue {
-            border-left-color: var(--blue);
-            }
-
-            .border-green {
-            border-left-color: var(--green);
-            }
-
-            .border-purple {
-            border-left-color: var(--purple);
-            }
-
-            .border-red {
-            border-left-color: var(--red);
-            }
-
-            .border-orange {
-            border-left-color: var(--orange);
-            }
-
-            .border-yellow {
-            border-left-color: var(--yellow);
-            }
-
-            .border-success {
-            border-left-color: var(--green);
-            }
-
-        /*****************************************
-        QUICK ACTION CARDS
-        *****************************************/
-
-        .action-card {
-        display: block;
-        text-decoration: none;
-        background: #FFFFFF;
-        color: var(--text);
-        border-radius: 20px;
-        padding: 28px;
-        text-align: center;
-        height: 100%;
-        box-shadow: var(--shadow);
-        transition: .35s;
-        position: relative;
-        overflow: hidden;
-        }
-
-        .action-card::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 5px;
-        background: linear-gradient(90deg,var(--primary),var(--secondary));
-        }
-
-        .action-card:hover {
-        transform: translateY(-8px);
-        text-decoration: none;
-        color: var(--text);
-        box-shadow: 0 18px 35px rgba(0,0,0,.10);
-        }
-
-        .action-icon {
-        width: 75px;
-        height: 75px;
-        margin: auto;
-        margin-bottom: 20px;
-        border-radius: 20px;
-        background: #E8FAF8;
-        color: var(--primary);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 32px;
-        }
-
-        .action-card h5 {
-        font-weight: 700;
-        margin-bottom: 10px;
-        }
-
-        .action-card p {
-        color: var(--muted);
-        margin: 0;
-        line-height: 1.6;
-        }
-
-        /*****************************************
-        PERFORMANCE CARDS
-        *****************************************/
-
-        .mini-card {
-        background: #FFFFFF;
-        border-radius: 18px;
-        padding: 25px;
-        text-align: center;
-        box-shadow: var(--shadow);
-        transition: .3s;
-        height: 100%;
-        }
-
-        .mini-card:hover {
-        transform: translateY(-5px);
-        }
-
-        .mini-card i {
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
-        background: #E8FAF8;
-        color: var(--primary);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin: 0 auto 18px;
-        font-size: 28px;
-        }
-
-        .mini-card h4 {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 5px;
-        }
-
-        .mini-card span {
-        color: var(--muted);
-        }
-
-        /*****************************************
-        DASHBOARD CARD
-        *****************************************/
-
-        .dashboard-card {
-        background: #FFFFFF;
-        border: none;
-        border-radius: 20px;
-        box-shadow: var(--shadow);
-        overflow: hidden;
-        }
-
-        .dashboard-card .card-header {
-        background: #FFFFFF;
-        border-bottom: 1px solid #EDF2F7;
-        padding: 24px 30px;
-        }
-
-        .dashboard-card .card-body {
-        padding: 30px;
-        }
-
-        /*****************************************
-        FORMS
-        *****************************************/
-
-        .form-label {
-        font-weight: 600;
-        color: var(--text);
-        }
-
-        .form-control,
-        .form-select {
-        height: 50px;
-        border-radius: 12px;
-        border: 1px solid #D7DEE6;
-        }
-
-        .form-control:focus,
-        .form-select:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 .2rem rgba(14,122,131,.15);
-        }
-
-        /*****************************************
-        BUTTON
-        *****************************************/
-
-        .btn-success {
-        background: var(--primary);
-        border: none;
-        border-radius: 12px;
-        padding: 12px 22px;
-        font-weight: 600;
-        }
-
-        .btn-success:hover {
-        background: var(--primary-dark);
-        }
-
-        /*****************************************
-        TABLE
-        *****************************************/
-
-        .table {
-        margin-bottom: 0;
-        }
-
-        .table thead {
-        background: #F8FAFC;
-        }
-
-        .table thead th {
-        border: none;
-        padding: 18px;
-        color: #374151;
-        font-weight: 700;
-        border-bottom: 2px solid #E5E7EB;
-        }
-
-        .table tbody td {
-        padding: 20px 18px;
-        vertical-align: middle;
-        }
-
-        .table tbody tr {
-        transition: .25s;
-        }
-
-        .table tbody tr:hover {
-        background: #F9FCFD;
-        }
-
-        /*****************************************
-        BADGES
-        *****************************************/
-
-        .badge {
-        font-size: .8rem;
-        padding: 8px 14px;
-        font-weight: 600;
-        }
-
-        /*****************************************
-        EMPTY STATE
-        *****************************************/
-
-        .empty-state {
-        padding: 70px 20px;
-        text-align: center;
-        }
-
-        .empty-state i {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        background: #E8FAF8;
-        color: var(--primary);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin: auto;
-        margin-bottom: 25px;
-        font-size: 55px;
-        }
-
-        .empty-state h3 {
-        font-weight: 700;
-        margin-bottom: 12px;
-        }
-
-        .empty-state p {
-        color: var(--muted);
-        margin-bottom: 30px;
-        line-height: 1.8;
-        }
-
-        /*****************************************
+        <div class="db-table-wrap">
+            <table class="db-table">
+                <thead>
+                    <tr>
+                        <th>Request #</th>
+                        <th>Patient</th>
+                        <th>Category</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Due time</th>
+                        <th class="db-text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Replace with Model later -->
+                    <tr>
+                        <td colspan="7">
+                            <div class="db-empty">
+                                <i class="fa-solid fa-microscope"></i>
+                                <h3>You're all caught up!</h3>
+                                <p>There are currently no laboratory requests assigned to you.<br />New requests will appear here once available.</p>
+                                <a asp-controller="AvailableTests" asp-action="Index" class="db-btn-solid">
+                                    <i class="fa-solid fa-vials"></i> View available tests
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==========================================
         FOOTER
-        *****************************************/
+    =========================================== -->
+    <div class="db-footer">
+        <hr />
+        <div class="db-footer-content">
+            <i class="fa-solid fa-flask-vial"></i>
+            <span>Laboratory Information Management System</span>
+            <span class="db-footer-divider">|</span>
+            <span>Technician Dashboard</span>
+            <span class="db-footer-divider">|</span>
+            <span>@DateTime.Now.Year</span>
+        </div>
+    </div>
 
-        .dashboard-footer {
-        margin-top: 50px;
-        text-align: center;
+</div>
+
+@section Scripts {
+    <script>
+        function updateClock() {
+            const now = new Date();
+            document.getElementById("currentDate").innerHTML = now.toLocaleDateString("en-ZA", {
+                weekday: "long", day: "numeric", month: "long", year: "numeric"
+            });
+            document.getElementById("currentTime").innerHTML = now.toLocaleTimeString("en-ZA", {
+                hour: "2-digit", minute: "2-digit", second: "2-digit"
+            });
         }
+        updateClock();
+        setInterval(updateClock, 1000);
 
-        .dashboard-footer hr {
-        margin-bottom: 25px;
-        }
+        // Animated counters
+        document.querySelectorAll(".counter").forEach(counter => {
+            let target = Number(counter.dataset.value);
+            let current = 0;
+            let increment = target > 0 ? Math.ceil(target / 40) : 1;
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    counter.innerHTML = target;
+                    clearInterval(timer);
+                } else {
+                    counter.innerHTML = current;
+                }
+            }, 30);
+        });
+    </script>
+}
 
-        .footer-content {
+<style>
+    :root {
+        --db-paper: #F0F7F6;
+        --db-raised: #FFFFFF;
+        --db-ink: #102C27;
+        --db-ink-soft: #52716C;
+        --db-ink-faint: #8FA9A3;
+        --db-line: #E1EEEC;
+        --db-line-strong: #CCE3DF;
+
+        --db-teal: #0E8C7F;
+        --db-teal-deep: #0A5850;
+        --db-teal-dim: #E3F4F1;
+        --db-teal-grad-start: #12A392;
+        --db-teal-grad-end: #0A4F48;
+
+        --db-blue: #2C6E9E; --db-blue-dim: #E4F0F9;
+        --db-green: #2E8B57; --db-green-dim: #E4F5EB;
+        --db-purple: #6D4EA8; --db-purple-dim: #EEE8F9;
+        --db-red: #B0463F; --db-red-dim: #F7E8E7;
+        --db-orange: #B76A2C; --db-orange-dim: #FBEEE1;
+        --db-gold: #B4862A; --db-gold-dim: #FBF1DA;
+
+        --db-radius: 20px;
+        --db-radius-sm: 13px;
+        --db-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+        --db-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
+    }
+
+    body { background: var(--db-paper); }
+
+    .db-wrap {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 26px 24px 60px;
+        color: var(--db-ink);
+        font-family: 'Inter', sans-serif;
+        animation: dbFadeIn .5s ease;
+    }
+
+    @@keyframes dbFadeIn {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============ BANNER ============ */
+    .db-banner {
+        position: relative;
         display: flex;
-        justify-content: center;
+        justify-content: space-between;
         align-items: center;
-        flex-wrap: wrap;
-        gap: 12px;
-        color: #6B7280;
-        font-size: .95rem;
-        }
+        gap: 24px;
+        background: linear-gradient(125deg, var(--db-teal-grad-start), var(--db-teal-grad-end));
+        border-radius: var(--db-radius);
+        padding: 32px 36px;
+        margin-bottom: 22px;
+        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
+        overflow: hidden;
+    }
+    .db-banner-pattern {
+        position: absolute; inset: 0;
+        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%),
+                           radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        pointer-events: none;
+    }
 
-        .footer-content i {
-        color: var(--primary);
-        }
+    .db-banner-left { display: flex; align-items: center; gap: 22px; position: relative; z-index: 1; }
 
-        .footer-divider {
-        color: #D1D5DB;
-        }
+    .db-banner-icon {
+        position: relative;
+        width: 76px; height: 76px; border-radius: 50%;
+        background: rgba(255,255,255,.16);
+        border: 2px solid rgba(255,255,255,.32);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 30px; flex-shrink: 0;
+    }
+    .db-icon-ring {
+        position: absolute; inset: -6px; border-radius: 50%;
+        border: 1.5px solid rgba(255,255,255,.4);
+        animation: dbRingPulse 2.4s ease-out infinite;
+    }
+    @@keyframes dbRingPulse {
+        0% { transform: scale(0.9); opacity: .8; }
+        100% { transform: scale(1.35); opacity: 0; }
+    }
 
-        /*****************************************
-        RESPONSIVE
-        *****************************************/
+    .db-banner-text { position: relative; z-index: 1; }
+    .db-banner-text h1 {
+        font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 26px;
+        margin: 0 0 4px; color: #fff; letter-spacing: -.01em;
+    }
+    .db-banner-text h1 span { color: #E9FFFB; }
+    .db-banner-text p { margin: 0 0 14px; color: rgba(255,255,255,.85); font-size: 14.5px; }
 
-        @@media(max - width:992px) {
+    .db-pills { display: flex; gap: 10px; flex-wrap: wrap; }
+    .db-pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 7px 15px; border-radius: 999px;
+        background: rgba(255,255,255,.16); color: #fff;
+        font-size: 12.5px; font-weight: 500;
+    }
 
-        .dashboard-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 30px;
-        }
+    .db-clock {
+        position: relative; z-index: 1;
+        min-width: 230px; text-align: left;
+        border-left: 1px solid rgba(255,255,255,.28);
+        padding-left: 28px; flex-shrink: 0;
+    }
+    .db-clock small {
+        font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+        color: #DFF9F8; font-size: 11px;
+    }
+    #currentDate { margin-top: 6px; font-size: 14px; color: #fff; }
+    #currentTime {
+        font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 600;
+        letter-spacing: .02em; color: #fff; margin-top: 2px;
+    }
 
-        .clock-card {
-        width: 100%;
-        border-left: none;
-        border-top: 1px solid rgba(255,255,255,.3);
-        padding-top: 20px;
-        padding-left: 0;
-        }
+    /* ============ WORKFLOW PIPELINE (signature) ============ */
+    .db-pulse {
+        background: var(--db-raised);
+        border-radius: var(--db-radius);
+        box-shadow: var(--db-shadow);
+        padding: 26px 30px;
+        margin-bottom: 28px;
+    }
+    .db-pulse-label {
+        font-family: 'Inter', sans-serif; font-weight: 700; font-size: 12.5px;
+        letter-spacing: .03em; text-transform: uppercase; color: var(--db-teal-deep);
+        display: flex; align-items: center; gap: 8px; margin-bottom: 22px;
+    }
 
-        .header-left {
-        flex-direction: column;
-        text-align: center;
-        width: 100%;
-        }
-        }
+    .db-flow { display: flex; align-items: flex-start; }
+    .db-flow-node { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; width: 130px; }
+    .db-flow-circle {
+        width: 48px; height: 48px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px; color: #fff; margin-bottom: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,.12);
+    }
+    .db-flow-circle.n-teal { background: var(--db-teal); }
+    .db-flow-circle.n-blue { background: var(--db-blue); }
+    .db-flow-circle.n-green { background: var(--db-green); }
+    .db-flow-circle.n-purple { background: var(--db-purple); }
+    .db-flow-count { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 20px; color: var(--db-ink); }
+    .db-flow-label { font-size: 12px; color: var(--db-ink-soft); text-align: center; margin-top: 2px; }
 
-        @@media(max - width:768px) {
+    .db-flow-line {
+        flex: 1 1 auto; height: 3px; background: var(--db-line);
+        border-radius: 3px; margin-top: 24px; position: relative; overflow: hidden;
+    }
+    .db-flow-line-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--db-teal); border-radius: 3px; }
 
-        .dashboard {
-        padding: 20px;
-        }
+    .db-pulse-chips { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+    .db-chip {
+        display: inline-flex; align-items: center; gap: 8px;
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12.5px;
+        padding: 8px 16px; border-radius: 999px;
+    }
+    .db-chip.chip-stat { background: var(--db-red-dim); color: var(--db-red); }
+    .db-chip.chip-overdue { background: var(--db-orange-dim); color: var(--db-orange); }
 
-        .dashboard-header {
-        padding: 25px;
-        }
+    /* ============ SECTION HEADS ============ */
+    .db-section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .db-section-head h3 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 20px; margin: 0 0 3px; }
+    .db-section-head p { margin: 0; color: var(--db-ink-soft); font-size: 13.5px; }
+    .db-mt-lg { margin-top: 44px; }
+    .db-mb-lg { margin-bottom: 30px; }
 
-        .header-title h2 {
-        font-size: 1.6rem;
-        }
+    /* ============ GRIDS ============ */
+    .db-grid { display: grid; gap: 18px; }
+    .db-grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .db-grid-mt { margin-top: 18px; }
 
-        #currentTime {
-        font-size: 1.8rem;
-        }
+    /* ============ STAT CARDS ============ */
+    .db-stat {
+        background: var(--db-raised);
+        border-radius: var(--db-radius);
+        box-shadow: var(--db-shadow-sm);
+        padding: 22px;
+        display: flex; align-items: center; gap: 16px;
+        border-top: 3px solid var(--db-teal);
+        transition: transform .2s, box-shadow .2s;
+    }
+    .db-stat:hover { transform: translateY(-5px); box-shadow: var(--db-shadow); }
+    .db-stat-urgent { border-top-color: var(--db-red); }
 
-        .summary-alert {
-        flex-direction: column;
-        text-align: center;
-        }
+    .db-stat-icon {
+        width: 54px; height: 54px; border-radius: 15px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: 21px;
+    }
+    .db-stat-icon.c-teal { background: var(--db-teal-dim); color: var(--db-teal); }
+    .db-stat-icon.c-teal-deep { background: var(--db-teal-dim); color: var(--db-teal-deep); }
+    .db-stat-icon.c-blue { background: var(--db-blue-dim); color: var(--db-blue); }
+    .db-stat-icon.c-green { background: var(--db-green-dim); color: var(--db-green); }
+    .db-stat-icon.c-purple { background: var(--db-purple-dim); color: var(--db-purple); }
+    .db-stat-icon.c-red { background: var(--db-red-dim); color: var(--db-red); }
+    .db-stat-icon.c-orange { background: var(--db-orange-dim); color: var(--db-orange); }
+    .db-stat-icon.c-gold { background: var(--db-gold-dim); color: var(--db-gold); }
 
-        .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-        }
+    .db-stat .num { font-family: 'Poppins', sans-serif; font-size: 27px; font-weight: 700; color: var(--db-ink); }
+    .db-stat h5 { margin: 2px 0 0; font-size: 13.5px; font-weight: 600; }
+    .db-stat small { color: var(--db-ink-faint); font-size: 12px; }
 
-        .stat-card {
-        flex-direction: column;
-        text-align: center;
-        }
+    /* ============ QUICK ACTION CARDS ============ */
+    .db-action {
+        display: block; text-decoration: none; color: var(--db-ink);
+        background: var(--db-raised); border-radius: var(--db-radius);
+        padding: 28px 24px; text-align: left;
+        box-shadow: var(--db-shadow-sm);
+        position: relative; overflow: hidden;
+        transition: transform .25s, box-shadow .25s;
+    }
+    .db-action::before {
+        content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
+        background: linear-gradient(90deg, var(--db-teal), var(--db-teal-deep));
+    }
+    .db-action:hover { transform: translateY(-6px); box-shadow: var(--db-shadow); color: var(--db-ink); text-decoration: none; }
+    .db-action:hover .db-action-go { transform: translateX(4px); opacity: 1; }
+    .db-action-icon {
+        width: 54px; height: 54px; margin-bottom: 16px; border-radius: 16px;
+        background: var(--db-teal-dim); color: var(--db-teal);
+        display: flex; align-items: center; justify-content: center; font-size: 23px;
+    }
+    .db-action h5 { font-weight: 700; margin: 0 0 8px; font-size: 15px; }
+    .db-action p { color: var(--db-ink-soft); margin: 0; font-size: 13px; line-height: 1.6; }
+    .db-action-go {
+        display: inline-flex; margin-top: 14px; color: var(--db-teal);
+        opacity: .5; transition: transform .2s, opacity .2s; font-size: 13px;
+    }
 
-        .icon-circle {
-        margin-bottom: 10px;
-        }
+    /* ============ PERFORMANCE STRIP ============ */
+    .db-perf-strip {
+        background: var(--db-raised); border-radius: var(--db-radius);
+        box-shadow: var(--db-shadow-sm); display: flex; align-items: center;
+        padding: 22px 10px;
+    }
+    .db-perf-item { flex: 1; display: flex; align-items: center; gap: 14px; justify-content: center; }
+    .db-perf-icon {
+        width: 46px; height: 46px; border-radius: 50%;
+        background: var(--db-teal-dim); color: var(--db-teal);
+        display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+    }
+    .db-perf-item h4 { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 700; margin: 0; text-align: left; }
+    .db-perf-item span { color: var(--db-ink-soft); font-size: 12.5px; }
+    .db-perf-div { width: 1px; align-self: stretch; background: var(--db-line); margin: 0 4px; }
 
-        .action-card {
-        margin-bottom: 15px;
-        }
+    /* ============ PANELS (filter / queue) ============ */
+    .db-panel {
+        background: var(--db-raised); border-radius: var(--db-radius);
+        box-shadow: var(--db-shadow); overflow: hidden;
+    }
+    .db-panel-head {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 18px 26px; border-bottom: 1px solid var(--db-line);
+    }
+    .db-panel-head span:first-child {
+        font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15.5px; color: var(--db-ink);
+        display: flex; align-items: center; gap: 10px;
+    }
+    .db-panel-head span:first-child i { color: var(--db-teal); }
+    .db-panel-head small { display: block; color: var(--db-ink-faint); font-size: 12.5px; margin-top: 2px; }
+    .db-panel-tag {
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11.5px;
+        background: var(--db-teal-dim); color: var(--db-teal-deep);
+        padding: 6px 13px; border-radius: 999px;
+    }
+    .db-panel-count {
+        font-family: 'Inter', sans-serif; font-weight: 700; font-size: 12.5px;
+        background: var(--db-teal); color: #fff; padding: 7px 15px; border-radius: 999px;
+    }
+    .db-panel-body { padding: 26px; }
 
-        .mini-card {
-        margin-bottom: 15px;
-        }
+    /* ============ FILTER FORM ============ */
+    .db-filter-grid { display: grid; grid-template-columns: 1fr 1fr 1.4fr 1.4fr auto; gap: 16px; align-items: end; }
+    .db-field { display: flex; flex-direction: column; gap: 7px; }
+    .db-field label {
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px;
+        letter-spacing: .02em; color: var(--db-ink-soft);
+    }
+    .db-select, .db-input {
+        height: 46px; border-radius: var(--db-radius-sm); border: 1px solid var(--db-line-strong);
+        padding: 0 14px; font-family: 'Inter', sans-serif; font-size: 13.5px; color: var(--db-ink);
+        background: var(--db-raised); outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    .db-select:focus, .db-input:focus { border-color: var(--db-teal); box-shadow: 0 0 0 3px var(--db-teal-dim); }
+    .db-btn-apply {
+        height: 46px; border: none; border-radius: 999px; padding: 0 24px;
+        background: var(--db-teal); color: #fff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13.5px;
+        display: inline-flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; transition: .15s;
+    }
+    .db-btn-apply:hover { background: var(--db-teal-deep); }
 
-        .footer-content {
-        flex-direction: column;
-        gap: 6px;
-        }
+    /* ============ TABLE ============ */
+    .db-table-wrap { overflow-x: auto; }
+    .db-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .db-table thead th {
+        text-align: left; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 11.5px;
+        letter-spacing: .04em; text-transform: uppercase; color: var(--db-ink-faint);
+        padding: 15px 22px; background: var(--db-teal-dim); white-space: nowrap;
+    }
+    .db-table tbody td { padding: 16px 22px; border-bottom: 1px solid var(--db-line); }
+    .db-table tbody tr:hover { background: var(--db-teal-dim); }
+    .db-table tbody tr:last-child td { border-bottom: none; }
+    .db-text-center { text-align: center; }
 
-        .footer-divider {
-        display: none;
-        }
-        }
+    /* Urgency / status badges (for use once bound to Model) */
+    .db-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11.5px;
+        padding: 5px 12px; border-radius: 999px;
+    }
+    .db-badge.b-stat { background: var(--db-red-dim); color: var(--db-red); }
+    .db-badge.b-urgent { background: var(--db-orange-dim); color: var(--db-orange); }
+    .db-badge.b-routine { background: var(--db-teal-dim); color: var(--db-teal-deep); }
 
-    </style>
+    .db-empty { padding: 60px 24px; text-align: center; }
+    .db-empty i {
+        width: 96px; height: 96px; margin: 0 auto 20px; border-radius: 50%;
+        background: var(--db-teal-dim); color: var(--db-teal);
+        display: flex; align-items: center; justify-content: center; font-size: 42px;
+    }
+    .db-empty h3 { font-family: 'Poppins', sans-serif; font-weight: 700; margin: 0 0 10px; }
+    .db-empty p { color: var(--db-ink-soft); margin: 0 0 22px; line-height: 1.7; }
+
+    .db-btn-solid {
+        display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+        background: var(--db-teal); color: #fff; border-radius: 999px; padding: 11px 22px;
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13.5px; transition: .15s;
+    }
+    .db-btn-solid:hover { background: var(--db-teal-deep); color: #fff; }
+
+    /* ============ FOOTER ============ */
+    .db-footer { margin-top: 50px; text-align: center; }
+    .db-footer hr { border: none; border-top: 1px solid var(--db-line); margin-bottom: 22px; }
+    .db-footer-content {
+        display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px;
+        color: var(--db-ink-faint); font-size: 13px;
+    }
+    .db-footer-content i { color: var(--db-teal); }
+    .db-footer-divider { color: var(--db-line-strong); }
+
+    /* ============ RESPONSIVE ============ */
+    @@media (max-width: 1100px) {
+        .db-grid-4 { grid-template-columns: repeat(2, 1fr); }
+        .db-filter-grid { grid-template-columns: 1fr 1fr; }
+        .db-perf-strip { flex-wrap: wrap; gap: 16px; }
+        .db-perf-div { display: none; }
+    }
+
+    @@media (max-width: 900px) {
+        .db-banner { flex-direction: column; align-items: flex-start; gap: 24px; }
+        .db-clock { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.28); padding-left: 0; padding-top: 18px; }
+        .db-banner-left { flex-direction: column; text-align: center; width: 100%; }
+        .db-flow { overflow-x: auto; }
+    }
+
+    @@media (max-width: 640px) {
+        .db-wrap { padding: 20px 16px 50px; }
+        .db-grid-4 { grid-template-columns: 1fr; }
+        .db-filter-grid { grid-template-columns: 1fr; }
+        .db-panel-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+        .db-flow-node { width: 100px; }
+        .db-flow-label { font-size: 10.5px; }
+    }
+</style>
 
     }
 

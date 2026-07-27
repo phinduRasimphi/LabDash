@@ -5,118 +5,355 @@
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success">
-        <i class="fa-solid fa-circle-check"></i>
-        @TempData["Success"]
-    </div>
-}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<div class="card shadow-lg border-0">
+<div class="rv-wrap">
 
-    <div class="card-header text-white"
-         style="background:#0d766e;">
+    @if (TempData["Success"] != null)
+    {
+        <div class="rv-alert rv-alert-success">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>@TempData["Success"]</span>
+        </div>
+    }
 
-        <h3 class="mb-0">
-            <i class="fa-solid fa-rotate-left"></i>
-            Tests Returned For Review
-        </h3>
+    <div class="rv-panel">
 
-    </div>
-
-    <div class="card-body">
-
-        @if (!Model.Any())
-        {
-            <div class="alert alert-info">
-
-                <i class="fa-solid fa-circle-info"></i>
-
-                You have no tests waiting for review.
-
+        <div class="rv-panel-head">
+            <div class="rv-panel-head-left">
+                <div class="rv-panel-icon"><i class="fa-solid fa-rotate-left"></i></div>
+                <div>
+                    <h3>Tests Returned For Review</h3>
+                    <p>Results awaiting your review and sign-off.</p>
+                </div>
             </div>
-        }
-        else
-        {
+            @if (Model.Any())
+            {
+                <span class="rv-panel-count">@Model.Count() waiting</span>
+            }
+        </div>
 
-            <table class="table table-hover table-bordered align-middle">
+        <div class="rv-panel-body">
 
-                <thead class="table-light">
+            @if (!Model.Any())
+            {
+                <div class="rv-empty">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <h4>All caught up</h4>
+                    <p>You have no tests waiting for review right now.</p>
+                </div>
+            }
+            else
+            {
+                <div class="rv-table-wrap">
+                    <table class="rv-table">
+                        <thead>
+                            <tr>
+                                <th>Request</th>
+                                <th>Test type</th>
+                                <th>Category</th>
+                                <th>Completed</th>
+                                <th>Status</th>
+                                <th class="rv-text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td><span class="rv-request-id">TR-@item.RequestId</span></td>
+                                    <td>@item.TestType.Name</td>
+                                    <td>
+                                        <span class="rv-cat-pill">@item.TestType.Category</span>
+                                    </td>
+                                    <td class="rv-muted">
+                                        @(item.CompletionDateTime?.ToString("dd MMM yyyy HH:mm") ?? "—")
+                                    </td>
+                                    <td>
+                                        <span class="rv-badge rv-badge-warning">
+                                            <i class="fa-solid fa-clock-rotate-left"></i>
+                                            @item.Status
+                                        </span>
+                                    </td>
+                                    <td class="rv-text-center">
+                                        <a asp-action="Review" asp-route-id="@item.TestRequestItemId" class="rv-btn-review">
+                                            <i class="fa-solid fa-pen"></i>
+                                            Review result
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
 
-                    <tr>
-
-                        <th>Request</th>
-
-                        <th>Test Type</th>
-
-                        <th>Category</th>
-
-                        <th>Completed</th>
-
-                        <th>Status</th>
-
-                        <th>Action</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    @foreach (var item in Model)
-                    {
-                        <tr>
-
-                            <td>
-                                TR-@item.RequestId
-                            </td>
-
-                            <td>
-                                @item.TestType.Name
-                            </td>
-
-                            <td>
-                                @item.TestType.Category
-                            </td>
-
-                            <td>
-                                @(item.CompletionDateTime?.ToString("dd MMM yyyy HH:mm"))
-                            </td>
-
-                            <td>
-
-                                <span class="badge bg-warning text-dark">
-
-                                    @item.Status
-
-                                </span>
-
-                            </td>
-
-                            <td>
-
-                                <a asp-action="Review"
-                                   asp-route-id="@item.TestRequestItemId"
-                                   class="btn btn-warning">
-
-                                    <i class="fa-solid fa-pen"></i>
-
-                                    Review Result
-
-                                </a>
-
-                            </td>
-
-                        </tr>
-                    }
-
-                </tbody>
-
-            </table>
-
-        }
-
+        </div>
     </div>
-
 </div>
+
+<style>
+    :root {
+        --rv-teal: #0E8C7F;
+        --rv-teal-deep: #0A5850;
+        --rv-teal-dim: #E3F4F1;
+        --rv-ink: #102C27;
+        --rv-ink-soft: #52716C;
+        --rv-ink-faint: #8FA9A3;
+        --rv-line: #E1EEEC;
+        --rv-amber: #B4862A;
+        --rv-amber-dim: #FBF1DA;
+        --rv-green: #2E8B57;
+        --rv-green-dim: #E4F5EB;
+        --rv-radius: 18px;
+        --rv-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+    }
+
+    .rv-wrap {
+        font-family: 'Inter', sans-serif;
+        color: var(--rv-ink);
+        max-width: 1100px;
+        margin: 0 auto;
+        animation: rvFadeIn .4s ease;
+    }
+
+    @@keyframes rvFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .rv-alert {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 18px;
+        border-radius: 12px;
+        margin-bottom: 18px;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .rv-alert-success {
+        background: var(--rv-green-dim);
+        color: var(--rv-green);
+    }
+
+    .rv-alert i {
+        font-size: 16px;
+    }
+
+    .rv-panel {
+        background: #fff;
+        border-radius: var(--rv-radius);
+        box-shadow: var(--rv-shadow);
+        overflow: hidden;
+    }
+
+    .rv-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 24px 28px;
+        background: linear-gradient(120deg, var(--rv-teal), var(--rv-teal-deep));
+    }
+
+    .rv-panel-head-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .rv-panel-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: rgba(255,255,255,.16);
+        border: 1px solid rgba(255,255,255,.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 19px;
+        flex-shrink: 0;
+    }
+
+    .rv-panel-head h3 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 18px;
+        color: #fff;
+        margin: 0 0 3px;
+    }
+
+    .rv-panel-head p {
+        margin: 0;
+        color: rgba(255,255,255,.85);
+        font-size: 13px;
+    }
+
+    .rv-panel-count {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 12.5px;
+        background: rgba(255,255,255,.18);
+        color: #fff;
+        padding: 7px 15px;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+
+    .rv-panel-body {
+        padding: 8px 0 0;
+    }
+
+    /* ============ EMPTY STATE ============ */
+    .rv-empty {
+        padding: 60px 24px;
+        text-align: center;
+    }
+
+        .rv-empty i {
+            width: 84px;
+            height: 84px;
+            margin: 0 auto 18px;
+            border-radius: 50%;
+            background: var(--rv-teal-dim);
+            color: var(--rv-teal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 34px;
+        }
+
+        .rv-empty h4 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            margin: 0 0 8px;
+            font-size: 17px;
+        }
+
+        .rv-empty p {
+            color: var(--rv-ink-soft);
+            margin: 0;
+            font-size: 14px;
+        }
+
+    /* ============ TABLE ============ */
+    .rv-table-wrap {
+        overflow-x: auto;
+    }
+
+    .rv-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+        .rv-table thead th {
+            text-align: left;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 11.5px;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: var(--rv-ink-faint);
+            padding: 14px 28px;
+            background: var(--rv-teal-dim);
+            white-space: nowrap;
+        }
+
+        .rv-table tbody td {
+            padding: 16px 28px;
+            border-bottom: 1px solid var(--rv-line);
+        }
+
+        .rv-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .rv-table tbody tr:hover {
+            background: #FAFDFC;
+        }
+
+    .rv-text-center {
+        text-align: center;
+    }
+
+    .rv-muted {
+        color: var(--rv-ink-soft);
+    }
+
+    .rv-request-id {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 13.5px;
+        color: var(--rv-teal-deep);
+    }
+
+    .rv-cat-pill {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 500;
+        background: var(--rv-teal-dim);
+        color: var(--rv-teal-deep);
+        padding: 4px 11px;
+        border-radius: 999px;
+    }
+
+    .rv-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 6px 13px;
+        border-radius: 999px;
+    }
+
+    .rv-badge-warning {
+        background: var(--rv-amber-dim);
+        color: var(--rv-amber);
+    }
+
+    .rv-btn-review {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        background: var(--rv-teal);
+        color: #fff;
+        border-radius: 999px;
+        padding: 9px 18px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 13px;
+        transition: background .15s, transform .15s;
+    }
+
+        .rv-btn-review:hover {
+            background: var(--rv-teal-deep);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+    @@media (max-width: 700px) {
+        .rv-panel-head {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .rv-table thead th, .rv-table tbody td {
+            padding: 12px 16px;
+        }
+    }
+</style>

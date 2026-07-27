@@ -1,126 +1,834 @@
-﻿@model IEnumerable<LabDash.Models.TestRequestItem>
+﻿@model IEnumerable<LabDash.Models.TestResult>
 
 @{
     ViewData["Title"] = "Verification Queue";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    var totalPending = Model.Count();
+    var abnormalCount = Model.Count(x => x.IsAbnormal);
+    var reviewCount = Model.Count(x => x.Status == "To Be Reviewed");
+    var oldestCaptured = Model.Any() ? Model.Min(x => x.DateCaptured) : (DateTime?)null;
 }
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success">
-        <i class="fa-solid fa-circle-check"></i>
-        @TempData["Success"]
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Segoe+UI&display=swap" rel="stylesheet" />
+
+<style>
+
+    :root {
+        --teal-900: #00453d;
+        --teal-700: #00695c;
+        --teal-600: #00796B;
+        --teal-500: #009688;
+        --teal-100: rgba(0,150,136,.12);
+        --teal-50: #eef7f8;
+        --ink: #173a3a;
+        --muted: #5f7a78;
+        --danger: #e13b3b;
+        --danger-soft: rgba(225,59,59,.1);
+        --warning: #c98400;
+        --warning-soft: rgba(201,132,0,.12);
+        --info: #0d6efd;
+        --info-soft: rgba(13,110,253,.1);
+        --line: #e5efee;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --shadow-soft: 0 8px 24px rgba(9,50,46,.07);
+        --shadow-lift: 0 16px 34px rgba(9,50,46,.12);
+    }
+
+    body {
+        background: var(--teal-50);
+        font-family: 'Inter','Segoe UI',sans-serif;
+        color: var(--ink);
+    }
+
+    .page-container {
+        max-width: 1500px;
+        margin: 35px auto;
+        padding: 0 16px;
+    }
+
+    *:focus-visible {
+        outline: 3px solid #4fb8ac;
+        outline-offset: 2px;
+        border-radius: 6px;
+    }
+
+    /*================ HEADER =================*/
+
+    .page-header {
+        background: linear-gradient(135deg,var(--teal-500),var(--teal-900));
+        color: #fff;
+        padding: 32px 36px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 26px;
+        box-shadow: var(--shadow-lift);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .page-header::after {
+            content: "";
+            position: absolute;
+            right: -60px;
+            top: -60px;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.07);
+        }
+
+        .page-header h2 {
+            margin: 0;
+            font-weight: 800;
+            font-size: 30px;
+            letter-spacing: -.02em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-header p {
+            margin-top: 6px;
+            opacity: .9;
+            font-size: 15px;
+        }
+
+    .header-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: rgba(255,255,255,.16);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 32px;
+        flex-shrink: 0;
+        z-index: 1;
+    }
+
+    /*================ STATS =================*/
+
+    .stats {
+        display: grid;
+        grid-template-columns: repeat(4,1fr);
+        gap: 18px;
+        margin-bottom: 26px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: var(--radius-md);
+        padding: 22px 24px;
+        box-shadow: var(--shadow-soft);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: .25s ease;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lift);
+        }
+
+        .stat-card.active {
+            border-color: var(--teal-500);
+            background: linear-gradient(0deg,var(--teal-100),var(--teal-100)),white;
+        }
+
+        .stat-card h6 {
+            color: var(--muted);
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .stat-card h2 {
+            margin: 0;
+            color: var(--teal-700);
+            font-weight: 800;
+            font-size: 26px;
+        }
+
+        .stat-card.danger h2 {
+            color: var(--danger);
+        }
+
+        .stat-card.warning h2 {
+            color: var(--warning);
+        }
+
+    .stat-icon {
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
+        background: var(--teal-100);
+        color: var(--teal-600);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    .stat-card.danger .stat-icon {
+        background: var(--danger-soft);
+        color: var(--danger);
+    }
+
+    .stat-card.warning .stat-icon {
+        background: var(--warning-soft);
+        color: var(--warning);
+    }
+
+    /*================ ALERTS =================*/
+
+    .alert {
+        border-radius: var(--radius-md);
+        border: none;
+    }
+
+    /*================ FILTER CHIPS =================*/
+
+    .filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .filter-chip {
+        border: 1.5px solid var(--line);
+        background: white;
+        color: var(--muted);
+        padding: 8px 16px;
+        border-radius: 30px;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: .2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .filter-chip:hover {
+            border-color: var(--teal-500);
+            color: var(--teal-700);
+        }
+
+        .filter-chip.active {
+            background: var(--teal-600);
+            border-color: var(--teal-600);
+            color: white;
+        }
+
+        .filter-chip .count {
+            background: rgba(0,0,0,.08);
+            border-radius: 20px;
+            padding: 1px 8px;
+            font-size: 12px;
+        }
+
+        .filter-chip.active .count {
+            background: rgba(255,255,255,.25);
+        }
+
+    /*================ QUEUE CARD =================*/
+
+    .queue-card {
+        background: #fff;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-soft);
+        overflow: hidden;
+    }
+
+    .queue-header {
+        background: var(--teal-600);
+        color: white;
+        padding: 18px 26px;
+        font-size: 18px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+        .queue-header .result-count {
+            font-size: 13px;
+            font-weight: 500;
+            opacity: .85;
+        }
+
+    .queue-body {
+        padding: 24px 26px;
+    }
+
+    .search-box {
+        position: relative;
+        max-width: 360px;
+        margin-bottom: 20px;
+    }
+
+        .search-box input {
+            border-radius: 30px;
+            padding-left: 42px;
+            height: 44px;
+            border: 1.5px solid var(--line);
+        }
+
+            .search-box input:focus {
+                border-color: var(--teal-500);
+                box-shadow: 0 0 0 3px var(--teal-100);
+            }
+
+        .search-box i {
+            position: absolute;
+            top: 15px;
+            left: 16px;
+            color: var(--muted);
+        }
+
+    .table-scroll {
+        max-height: 640px;
+        overflow: auto;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--line);
+    }
+
+    .table {
+        margin: 0;
+    }
+
+        .table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f2f7f8;
+        }
+
+        .table th {
+            color: #0d5f59;
+            font-weight: 700;
+            border: none;
+            padding: 14px 12px;
+            font-size: 12.5px;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            white-space: nowrap;
+        }
+
+            .table th.sortable {
+                cursor: pointer;
+                user-select: none;
+            }
+
+                .table th.sortable i {
+                    margin-left: 6px;
+                    opacity: .5;
+                    font-size: 11px;
+                }
+
+                .table th.sortable.sorted i {
+                    opacity: 1;
+                }
+
+        .table td {
+            vertical-align: middle;
+            padding: 16px 12px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .table tbody tr {
+            transition: background .15s;
+        }
+
+            .table tbody tr:hover {
+                background: var(--teal-50);
+            }
+
+            .table tbody tr.row-abnormal {
+                box-shadow: inset 4px 0 0 var(--danger);
+            }
+
+    /*================ BADGES =================*/
+
+    .badge-status {
+        font-size: .82rem;
+        padding: 7px 14px;
+        border-radius: 25px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .badge-completed {
+        background: rgba(25,160,90,.12);
+        color: #188a52;
+    }
+
+    .badge-review {
+        background: var(--warning-soft);
+        color: var(--warning);
+    }
+
+    .badge-default {
+        background: #eef0f2;
+        color: #5c6670;
+    }
+
+    .badge-abnormal {
+        background: var(--danger-soft);
+        color: var(--danger);
+    }
+
+    /*================ BUTTON =================*/
+
+    .btn-verify {
+        background: var(--teal-500);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 9px 18px;
+        font-weight: 600;
+        font-size: 13.5px;
+        transition: .2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+        .btn-verify:hover {
+            background: var(--teal-700);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(0,105,92,.28);
+        }
+
+    .btn-history {
+        background: white;
+        color: var(--muted);
+        border: 1.5px solid var(--line);
+        border-radius: 10px;
+        width: 38px;
+        height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        transition: .2s;
+    }
+
+        .btn-history:hover {
+            border-color: var(--teal-500);
+            color: var(--teal-700);
+        }
+
+    /*================ EMPTY =================*/
+
+    .empty-state {
+        padding: 50px 20px;
+        text-align: center;
+    }
+
+        .empty-state i {
+            font-size: 50px;
+            color: var(--teal-500);
+            margin-bottom: 14px;
+            opacity: .85;
+        }
+
+    /*================ RESPONSIVE =================*/
+
+    @@media(max-width:992px) {
+
+        .stats {
+            grid-template-columns: repeat(2,1fr);
+        }
+
+        .page-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 16px;
+        }
+
+        .search-box {
+            max-width: 100%;
+        }
+    }
+
+    @@media(max-width:576px) {
+
+        .stats {
+            grid-template-columns: 1fr;
+        }
+    }
+
+</style>
+
+<div class="page-container">
+
+    <div class="page-header">
+
+        <div>
+            <h2>
+                <i class="fa-solid fa-check-double"></i>
+                Laboratory Verification Queue
+            </h2>
+            <p>Verify completed laboratory results captured by other technicians.</p>
+        </div>
+
+        <div class="header-icon">
+            <i class="fa-solid fa-microscope"></i>
+        </div>
+
     </div>
-}
 
-<div class="card shadow-lg border-0">
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success shadow-sm">
+            <i class="fa-solid fa-circle-check"></i>
+            @TempData["Success"]
+        </div>
+    }
 
-    <div class="card-header text-white"
-         style="background:#0d766e;">
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger shadow-sm">
+            <i class="fa-solid fa-circle-xmark"></i>
+            @TempData["Error"]
+        </div>
+    }
 
-        <h3 class="mb-0">
-            <i class="fa-solid fa-check-double"></i>
-            Verification Queue
-        </h3>
+    @if (Model.Any())
+    {
+        <div class="stats">
 
-    </div>
-
-    <div class="card-body">
-
-        @if (!Model.Any())
-        {
-            <div class="alert alert-info">
-
-                <i class="fa-solid fa-circle-info"></i>
-
-                There are no completed tests waiting for verification.
-
+            <div class="stat-card" data-filter="all">
+                <div>
+                    <h6>Awaiting Verification</h6>
+                    <h2>@totalPending</h2>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-list-check"></i></div>
             </div>
-        }
-        else
-        {
 
-            <table class="table table-hover align-middle">
+            <div class="stat-card danger" data-filter="abnormal">
+                <div>
+                    <h6>Flagged Abnormal</h6>
+                    <h2>@abnormalCount</h2>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            </div>
 
-                <thead class="table-light">
+            <div class="stat-card warning" data-filter="review">
+                <div>
+                    <h6>To Be Reviewed</h6>
+                    <h2>@reviewCount</h2>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-rotate-left"></i></div>
+            </div>
 
-                    <tr>
+            <div class="stat-card">
+                <div>
+                    <h6>Oldest Awaiting</h6>
+                    <h2 style="font-size:18px;">@(oldestCaptured?.ToString("dd MMM HH:mm") ?? "-")</h2>
+                </div>
+                <div class="stat-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+            </div>
 
-                        <th>Request</th>
+        </div>
+    }
 
-                        <th>Test Type</th>
+    <div class="queue-card">
 
-                        <th>Category</th>
+        <div class="queue-header">
+            <span><i class="fa-solid fa-list-check"></i> Verification Queue</span>
+            @if (Model.Any())
+            {
+                <span class="result-count" id="resultCount"></span>
+            }
+        </div>
 
-                        <th>Captured By</th>
+        <div class="queue-body">
 
-                        <th>Completed</th>
+            @if (!Model.Any())
+            {
+                <div class="empty-state">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <h3>All caught up</h3>
+                    <p class="text-muted">There are currently no completed laboratory results awaiting verification.</p>
+                </div>
+            }
+            else
+            {
 
-                        <th>Status</th>
+                <div class="filter-bar" role="group" aria-label="Filter results">
+                    <button type="button" class="filter-chip active" data-filter="all">
+                        All <span class="count">@totalPending</span>
+                    </button>
+                    <button type="button" class="filter-chip" data-filter="abnormal">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Abnormal <span class="count">@abnormalCount</span>
+                    </button>
+                    <button type="button" class="filter-chip" data-filter="review">
+                        <i class="fa-solid fa-rotate-left"></i> To Be Reviewed <span class="count">@reviewCount</span>
+                    </button>
+                </div>
 
-                        <th></th>
+                <div class="search-box">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text"
+                           id="searchInput"
+                           class="form-control"
+                           placeholder="Search patient or test..."
+                           aria-label="Search verification queue" />
+                </div>
 
-                    </tr>
+                <div class="table-scroll">
+                    <table class="table table-hover align-middle" id="resultsTable">
 
-                </thead>
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="request">Request <i class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" data-sort="patient">Patient <i class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" data-sort="test">Test Type <i class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" data-sort="capturedby">Captured By <i class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" data-sort="captured">Date Captured <i class="fa-solid fa-sort"></i></th>
+                                <th>Result</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
 
-                <tbody>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                var reviewKey = item.Status == "To Be Reviewed" ? "review" : "other";
 
-                    @foreach (var item in Model)
-                    {
-                        <tr>
+                                <tr class="@(item.IsAbnormal ? "row-abnormal" : "")"
+                                    data-abnormal="@(item.IsAbnormal ? "1" : "0")"
+                                    data-review="@reviewKey"
+                                    data-request="TR-@item.TestRequestItem.RequestId"
+                                    data-patient="@item.TestRequestItem.TestRequest.Patient.Name @item.TestRequestItem.TestRequest.Patient.Surname"
+                                    data-test="@item.TestRequestItem.TestType.Name"
+                                    data-capturedby="@item.CapturedByTechnician?.FullName"
+                                    data-captured="@item.DateCaptured.ToString("o")">
 
-                            <td>
-                                TR-@item.RequestId
-                            </td>
+                                    <td><strong>TR-@item.TestRequestItem.RequestId</strong></td>
 
-                            <td>
-                                @item.TestType.Name
-                            </td>
+                                    <td>
+                                        @item.TestRequestItem.TestRequest.Patient.Name
+                                        @item.TestRequestItem.TestRequest.Patient.Surname
+                                    </td>
 
-                            <td>
-                                @item.TestType.Category
-                            </td>
+                                    <td>
+                                        <strong>@item.TestRequestItem.TestType.Name</strong>
+                                        <br />
+                                        <small class="text-muted">@item.TestRequestItem.TestType.Category</small>
+                                    </td>
 
-                            <td>
-                                @item.AssignedTechnician?.FullName
-                            </td>
+                                    <td>
+                                        <span class="fw-semibold">@item.CapturedByTechnician?.FullName</span>
+                                    </td>
 
-                            <td>
-                                @item.CompletionDateTime?.ToString("dd MMM yyyy HH:mm")
-                            </td>
+                                    <td>@item.DateCaptured.ToString("dd MMM yyyy HH:mm")</td>
 
-                            <td>
+                                    <td>
+                                        @item.ResultValue
+                                        @if (!string.IsNullOrWhiteSpace(item.Units))
+                                        {
+                                            <text> @item.Units</text>
+                                        }
+                                        @if (item.IsAbnormal)
+                                        {
+                                            <div>
+                                                <span class="badge-status badge-abnormal">
+                                                    <i class="fa-solid fa-triangle-exclamation"></i> Abnormal
+                                                </span>
+                                            </div>
+                                        }
+                                    </td>
 
-                                <span class="badge bg-success">
-                                    @item.Status
-                                </span>
+                                    <td>
+                                        @if (item.Status == "Completed")
+                                        {
+                                            <span class="badge-status badge-completed">
+                                                <i class="fa-solid fa-check"></i> @item.Status
+                                            </span>
+                                        }
+                                        else if (item.Status == "To Be Reviewed")
+                                        {
+                                            <span class="badge-status badge-review">
+                                                <i class="fa-solid fa-rotate-left"></i> @item.Status
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge-status badge-default">@item.Status</span>
+                                        }
+                                    </td>
 
-                            </td>
+                                    <td>
+                                        <div class="d-flex gap-2 justify-content-center">
+                                            <a asp-action="Verify"
+                                               asp-route-id="@item.TestRequestItemId"
+                                               class="btn-verify">
+                                                <i class="fa-solid fa-check-double"></i>
+                                                Verify
+                                            </a>
+                                            <a asp-action="History"
+                                               asp-route-id="@item.TestRequestItemId"
+                                               class="btn-history"
+                                               title="View review history">
+                                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                            </a>
+                                        </div>
+                                    </td>
 
-                            <td>
+                                </tr>
+                            }
+                        </tbody>
 
-                                <a asp-action="Verify"
-                                   asp-route-id="@item.TestRequestItemId"
-                                   class="btn btn-primary">
+                    </table>
+                </div>
 
-                                    <i class="fa-solid fa-check"></i>
+                <div class="empty-state d-none" id="noResults">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <h3>No matching results</h3>
+                    <p class="text-muted">Try a different search term or clear the active filter.</p>
+                </div>
 
-                                    Verify
+            }
 
-                                </a>
-
-                            </td>
-
-                        </tr>
-                    }
-
-                </tbody>
-
-            </table>
-
-        }
+        </div>
 
     </div>
 
 </div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        (function() {
+            var table = document.getElementById("resultsTable");
+            if (!table) return;
+
+            var searchInput = document.getElementById("searchInput");
+            var rows = Array.prototype.slice.call(table.querySelectorAll("tbody tr"));
+            var chips = document.querySelectorAll(".filter-chip, .stat-card[data-filter]");
+            var noResults = document.getElementById("noResults");
+            var resultCount = document.getElementById("resultCount");
+            var currentFilter = "all";
+            var currentSort = { key: null, dir: 1 };
+
+            function matchesFilter(row) {
+                if (currentFilter === "all") return true;
+                if (currentFilter === "abnormal") return row.dataset.abnormal === "1";
+                if (currentFilter === "review") return row.dataset.review === "review";
+                return true;
+            }
+
+            function matchesSearch(row, term) {
+                if (!term) return true;
+                return row.innerText.toLowerCase().indexOf(term) > -1;
+            }
+
+            function applyFilters() {
+                var term = (searchInput.value || "").toLowerCase();
+                var visibleCount = 0;
+
+                rows.forEach(function(row) {
+                    var show = matchesFilter(row) && matchesSearch(row, term);
+                    row.style.display = show ? "" : "none";
+                    if (show) visibleCount++;
+                });
+
+                if (resultCount) {
+                    resultCount.textContent = visibleCount + " of " + rows.length + " shown";
+                }
+                noResults.classList.toggle("d-none", visibleCount > 0);
+            }
+
+            searchInput.addEventListener("keyup", applyFilters);
+
+            chips.forEach(function(chip) {
+                chip.addEventListener("click", function() {
+                    currentFilter = chip.dataset.filter;
+
+                    document.querySelectorAll(".filter-chip").forEach(function(c) {
+                        c.classList.toggle("active", c.dataset.filter === currentFilter);
+                    });
+                    document.querySelectorAll(".stat-card[data-filter]").forEach(function(c) {
+                        c.classList.toggle("active", c.dataset.filter === currentFilter);
+                    });
+
+                    applyFilters();
+                });
+            });
+
+            var urgencyRankless = {};
+
+            table.querySelectorAll("th.sortable").forEach(function(th) {
+                th.addEventListener("click", function() {
+                    var key = th.dataset.sort;
+
+                    if (currentSort.key === key) {
+                        currentSort.dir *= -1;
+                    } else {
+                        currentSort.key = key;
+                        currentSort.dir = 1;
+                    }
+
+                    table.querySelectorAll("th.sortable").forEach(function(h) {
+                        h.classList.remove("sorted");
+                        h.querySelector("i").className = "fa-solid fa-sort";
+                    });
+                    th.classList.add("sorted");
+                    th.querySelector("i").className = currentSort.dir === 1
+                        ? "fa-solid fa-sort-up"
+                        : "fa-solid fa-sort-down";
+
+                    var tbody = table.querySelector("tbody");
+                    var sorted = rows.slice().sort(function(a, b) {
+                        var av, bv;
+
+                        if (key === "captured") {
+                            av = new Date(a.dataset.captured).getTime();
+                            bv = new Date(b.dataset.captured).getTime();
+                        } else {
+                            av = (a.dataset[key] || "").toString().toLowerCase();
+                            bv = (b.dataset[key] || "").toString().toLowerCase();
+                        }
+
+                        if (av < bv) return -1 * currentSort.dir;
+                        if (av > bv) return 1 * currentSort.dir;
+                        return 0;
+                    });
+
+                    sorted.forEach(function(row) { tbody.appendChild(row); });
+                    rows = sorted;
+                });
+            });
+
+            applyFilters();
+        })();
+    </script>
+}
+

@@ -1,511 +1,334 @@
 ﻿@model IEnumerable<LabDash.Models.TestRequestItem>
 
 @{
-    ViewData["Title"] = "Completed Tests";
+    ViewData["Title"] = "Completed Laboratory Tests";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
-
-    var completedToday = Model.Count(x =>
-        x.CompletionDateTime.HasValue &&
-        x.CompletionDateTime.Value.Date == DateTime.Today);
-
-    var totalCompleted = Model.Count();
-
-    double averageHours = 0;
-
-    var completedWithDates = Model
-        .Where(x => x.StartDateTime.HasValue && x.CompletionDateTime.HasValue)
-        .ToList();
-
-    if (completedWithDates.Any())
-    {
-        averageHours = completedWithDates
-            .Average(x => (x.CompletionDateTime.Value - x.StartDateTime.Value).TotalHours);
-    }
 }
 
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<style>
+<div class="cp-wrap">
 
-    body {
-        background: #eef7f8;
-        font-family: 'Segoe UI',sans-serif;
-    }
-
-    .page-container {
-        max-width: 1450px;
-        margin: 35px auto;
-    }
-
-    .page-header {
-        background: linear-gradient(135deg,#009688,#00796B);
-        color: white;
-        border-radius: 18px;
-        padding: 30px 35px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        box-shadow: 0 12px 30px rgba(0,0,0,.10);
-    }
-
-        .page-header h2 {
-            margin: 0;
-            font-size: 34px;
-            font-weight: 700;
-        }
-
-        .page-header p {
-            margin-top: 8px;
-            opacity: .92;
-        }
-
-    .header-icon {
-        width: 80px;
-        height: 80px;
-        border-radius: 20px;
-        background: rgba(255,255,255,.15);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 34px;
-    }
-
-    .stats {
-        display: grid;
-        grid-template-columns: repeat(3,1fr);
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-
-    .stat-card {
-        background: white;
-        border-radius: 16px;
-        padding: 22px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 8px 22px rgba(0,0,0,.08);
-        transition: .25s;
-    }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-        }
-
-        .stat-card h6 {
-            color: #666;
-            margin-bottom: 8px;
-            font-size: 15px;
-        }
-
-        .stat-card h3 {
-            margin: 0;
-            color: #009688;
-            font-size: 32px;
-            font-weight: bold;
-        }
-
-    .stat-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 15px;
-        background: rgba(0,150,136,.12);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        color: #009688;
-        font-size: 24px;
-    }
-
-    .table-card {
-        background: white;
-        border-radius: 18px;
-        overflow: hidden;
-        box-shadow: 0 10px 25px rgba(0,0,0,.08);
-    }
-
-    .table-toolbar {
-        padding: 22px 25px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid #ececec;
-    }
-
-        .table-toolbar h4 {
-            margin: 0;
-            color: #009688;
-            font-weight: 700;
-        }
-
-    .search-box {
-        width: 350px;
-        position: relative;
-    }
-
-        .search-box i {
-            position: absolute;
-            left: 15px;
-            top: 15px;
-            color: gray;
-        }
-
-        .search-box input {
-            border-radius: 30px;
-            padding-left: 42px;
-            height: 46px;
-        }
-
-    .table {
-        margin-bottom: 0;
-    }
-
-        .table thead {
-            background: #00897B;
-            color: white;
-        }
-
-        .table th {
-            text-align: center;
-            padding: 16px;
-            border: none;
-        }
-
-        .table td {
-            text-align: center;
-            vertical-align: middle;
-            padding: 18px;
-        }
-
-        .table tbody tr:hover {
-            background: #f5fbfb;
-        }
-
-    .badge-complete {
-        background: #009688;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 30px;
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    .empty-state {
-        padding: 70px;
-        text-align: center;
-    }
-
-        .empty-state i {
-            font-size: 70px;
-            color: #009688;
-            margin-bottom: 20px;
-        }
-
-        .empty-state h3 {
-            color: #444;
-        }
-
-        .empty-state p {
-            color: gray;
-        }
-
-    @@media(max-width:992px) {
-
-        .stats {
-            grid-template-columns: 1fr;
-        }
-
-        .page-header {
-            flex-direction: column;
-            text-align: center;
-            gap: 20px;
-        }
-
-        .table-toolbar {
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .search-box {
-            width: 100%;
-        }
-    }
-
-</style>
-
-<div class="page-container">
-
-    <div class="page-header">
-
-        <div>
-
-            <h2>
-
-                <i class="fa-solid fa-circle-check"></i>
-
-                Completed Tests
-
-            </h2>
-
-            <p>
-
-                View all laboratory tests that you have successfully completed.
-
-            </p>
-
+    <div class="cp-banner">
+        <div class="cp-banner-icon"><i class="fa-solid fa-vial-circle-check"></i></div>
+        <div class="cp-banner-text">
+            <h1>Completed laboratory tests</h1>
+            <p>Review completed, verified and returned laboratory tests assigned to you.</p>
         </div>
-
-        <div class="header-icon">
-
-            <i class="fa-solid fa-award"></i>
-
-        </div>
-
+        <a asp-action="InProgress" class="cp-tab-link">
+            <i class="fa-solid fa-arrow-left"></i> Back to in progress
+        </a>
     </div>
 
-    <div class="stats">
-
-        <div class="stat-card">
-
-            <div>
-
-                <h6>Total Completed</h6>
-
-                <h3>@totalCompleted</h3>
-
-            </div>
-
-            <div class="stat-icon">
-
-                <i class="fa-solid fa-vials"></i>
-
-            </div>
-
+    @if (TempData["Success"] != null)
+    {
+        <div class="cp-alert cp-alert-success">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>@TempData["Success"]</span>
+            <button type="button" class="cp-alert-close" onclick="this.parentElement.remove()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
+    }
 
-        <div class="stat-card">
-
+    <div class="cp-stats">
+        <div class="cp-stat">
+            <div class="cp-stat-icon c-teal"><i class="fa-solid fa-vial-circle-check"></i></div>
             <div>
-
-                <h6>Completed Today</h6>
-
-                <h3>@completedToday</h3>
-
+                <small>Completed</small>
+                <div class="num">@ViewBag.TotalCompleted</div>
             </div>
-
-            <div class="stat-icon">
-
-                <i class="fa-solid fa-calendar-check"></i>
-
-            </div>
-
         </div>
-
-        <div class="stat-card">
-
+        <div class="cp-stat">
+            <div class="cp-stat-icon c-teal-deep"><i class="fa-solid fa-shield-check"></i></div>
             <div>
-
-                <h6>Average Turnaround</h6>
-
-                <h3>@averageHours.ToString("0.0") h</h3>
-
+                <small>Verified</small>
+                <div class="num">@ViewBag.TotalVerified</div>
             </div>
-
-            <div class="stat-icon">
-
-                <i class="fa-solid fa-clock"></i>
-
-            </div>
-
         </div>
-
+        <div class="cp-stat">
+            <div class="cp-stat-icon c-gold"><i class="fa-solid fa-rotate-left"></i></div>
+            <div>
+                <small>Returned for review</small>
+                <div class="num">@ViewBag.Returned</div>
+            </div>
+        </div>
     </div>
 
-    <div class="table-card">
+    <div class="cp-search-row">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" class="cp-search" placeholder="Search patient or laboratory test..." />
+    </div>
 
-        <div class="table-toolbar">
+    <div class="cp-panel-label">Laboratory test history <span class="cp-count">@Model.Count() tests</span></div>
 
-            <h4>
-
-                <i class="fa-solid fa-list-check"></i>
-
-                Completed Laboratory Tests
-
-            </h4>
-
-            <div class="search-box">
-
-                <i class="fa-solid fa-search"></i>
-
-                <input type="text"
-                       id="searchInput"
-                       class="form-control"
-                       placeholder="Search completed tests..." />
-
-            </div>
-
-        </div>
-        @if (!Model.Any())
-        {
-            <div class="empty-state">
-
-                <i class="fa-solid fa-circle-check"></i>
-
-                <h3>No Completed Tests</h3>
-
-                <p>
-
-                    You have not completed any laboratory tests yet.
-
-                </p>
-
-            </div>
-        }
-        else
-        {
-
-            <table class="table table-hover">
-
-                <thead>
+    <div class="cp-table-wrap">
+        <table class="cp-table">
+            <thead>
+                <tr>
+                    <th>Patient</th>
+                    <th>Test</th>
+                    <th>Completed</th>
+                    <th>Status</th>
+                    <th>Technician</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="completedTable">
+                @foreach (var item in Model)
+                {
+                    var initials = $"{item.TestRequest.Patient.Name?.FirstOrDefault()}{item.TestRequest.Patient.Surname?.FirstOrDefault()}";
 
                     <tr>
+                        <td>
+                            <div class="cp-patient">
+                                <div class="cp-avatar">@initials</div>
+                                <div>
+                                    <strong>@item.TestRequest.Patient.Name @item.TestRequest.Patient.Surname</strong>
+                                    <small>@item.TestRequest.Patient.IDNumber</small>
+                                </div>
+                            </div>
+                        </td>
 
-                        <th>Request</th>
+                        <td>
+                            <strong>@item.TestType.Name</strong>
+                            <small>@item.TestType.Category</small>
+                        </td>
 
-                        <th>Test Type</th>
+                        <td class="cp-mono">
+                            @if (item.CompletionDateTime.HasValue)
+                            {
+                                @item.CompletionDateTime.Value.ToString("dd MMM yyyy HH:mm")
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </td>
 
-                        <th>Category</th>
+                        <td>
+                            @if (item.Status == "Verified")
+                            {
+                                <span class="cp-badge verified"><i class="fa-solid fa-shield-check"></i> Verified</span>
+                            }
+                            else if (item.Status == "Completed")
+                            {
+                                <span class="cp-badge completed"><i class="fa-solid fa-circle-check"></i> Completed</span>
+                            }
+                            else
+                            {
+                                <span class="cp-badge review"><i class="fa-solid fa-rotate-left"></i> To be reviewed</span>
+                            }
+                        </td>
 
-                        <th>Started</th>
+                        <td>@(item.AssignedTechnician?.FullName ?? item.AssignedTechnician?.UserName)</td>
 
-                        <th>Completed</th>
-
-                        <th>Turnaround Time</th>
-
-                        <th>Status</th>
-
+                        <td>
+                            <div class="cp-actions">
+                                <a asp-action="ProcessTest" asp-route-id="@item.TestRequestItemId" class="cp-btn cp-btn-outline">
+                                    <i class="fa-solid fa-eye"></i> View
+                                </a>
+                                <a asp-controller="CaptureResults" asp-action="Details" asp-route-id="@item.TestRequestItemId" class="cp-btn cp-btn-solid">
+                                    <i class="fa-solid fa-file-medical"></i> Results
+                                </a>
+                            </div>
+                        </td>
                     </tr>
+                }
 
-                </thead>
-
-                <tbody>
-
-                    @foreach (var item in Model)
-                    {
-                        TimeSpan? turnaround = null;
-
-                        if (item.StartDateTime.HasValue &&
-                            item.CompletionDateTime.HasValue)
-                        {
-                            turnaround =
-                                item.CompletionDateTime.Value -
-                                item.StartDateTime.Value;
-                        }
-
-                        <tr>
-
-                            <td>
-
-                                <strong>TR-@item.RequestId</strong>
-
-                            </td>
-
-                            <td>
-
-                                @item.TestType.Name
-
-                            </td>
-
-                            <td>
-
-                                @item.TestType.Category
-
-                            </td>
-
-                            <td>
-
-                                @item.StartDateTime?.ToString("dd MMM yyyy HH:mm")
-
-                            </td>
-
-                            <td>
-
-                                @item.CompletionDateTime?.ToString("dd MMM yyyy HH:mm")
-
-                            </td>
-
-                            <td>
-
-                                @if (turnaround != null)
-                                {
-                                    <span class="text-success fw-semibold">
-
-                                        <i class="fa-solid fa-clock"></i>
-
-                                        @turnaround.Value.Days d
-                                        @turnaround.Value.Hours h
-                                        @turnaround.Value.Minutes m
-
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">
-
-                                        -
-
-                                    </span>
-                                }
-
-                            </td>
-
-                            <td>
-
-                                <span class="badge-complete">
-
-                                    <i class="fa-solid fa-circle-check"></i>
-
-                                    Completed
-
-                                </span>
-
-                            </td>
-
-                        </tr>
-                    }
-
-                </tbody>
-
-            </table>
-
-        }
-
+                @if (!Model.Any())
+                {
+                    <tr class="cp-empty-row">
+                        <td colspan="6">
+                            <div class="cp-empty">
+                                <i class="fa-solid fa-folder-open"></i>
+                                <h3>No completed tests</h3>
+                                <p>You have not completed, verified, or received any laboratory tests for review yet.</p>
+                                <a asp-action="InProgress" class="cp-btn cp-btn-solid">
+                                    <i class="fa-solid fa-flask"></i> Return to in progress
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
-
 </div>
 
-@section Scripts
-{
+<style>
+    :root {
+        --cp-paper: #F3F8F7;
+        --cp-raised: #FFFFFF;
+        --cp-ink: #14302C;
+        --cp-ink-soft: #55716C;
+        --cp-ink-faint: #90A9A4;
+        --cp-line: #E3EEEC;
+        --cp-line-strong: #CFE3DF;
 
+        --cp-teal: #0E8C7F;
+        --cp-teal-deep: #0A5850;
+        --cp-teal-dim: #E5F4F1;
+        --cp-teal-grad-start: #12988A;
+        --cp-teal-grad-end: #0A5850;
+
+        --cp-gold: #B4862A; --cp-gold-dim: #FBF1DA;
+        --cp-red: #B0463F; --cp-red-dim: #F7E8E7;
+
+        --cp-radius: 18px;
+        --cp-radius-sm: 12px;
+        --cp-shadow: 0 4px 18px rgba(10, 60, 55, 0.06);
+        --cp-shadow-sm: 0 2px 8px rgba(10, 60, 55, 0.05);
+    }
+
+    .cp-wrap { max-width: 1180px; margin: 0 auto; padding: 24px 0 60px; color: var(--cp-ink); font-family: 'Inter', sans-serif; }
+
+    /* Banner header */
+    .cp-banner {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        background: linear-gradient(120deg, var(--cp-teal-grad-start), var(--cp-teal-grad-end));
+        border-radius: var(--cp-radius);
+        padding: 26px 30px;
+        margin-bottom: 26px;
+        box-shadow: var(--cp-shadow);
+    }
+    .cp-banner-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.16);
+        border: 2px solid rgba(255, 255, 255, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+    .cp-banner-text { flex: 1; }
+    .cp-banner h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 26px; margin: 0 0 4px; color: #fff; letter-spacing: -.01em; }
+    .cp-banner p { margin: 0; color: rgba(255, 255, 255, 0.85); font-size: 14.5px; }
+    .cp-tab-link {
+        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13.5px;
+        text-decoration: none; color: #fff;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 999px;
+        padding: 10px 20px;
+        display: inline-flex; align-items: center; gap: 8px;
+        transition: .15s; white-space: nowrap;
+    }
+    .cp-tab-link:hover { background: rgba(255, 255, 255, 0.26); }
+
+    .cp-alert {
+        display: flex; align-items: center; gap: 10px;
+        padding: 14px 18px; font-size: 14px;
+        background: var(--cp-teal-dim); color: var(--cp-teal-deep);
+        border-radius: var(--cp-radius-sm);
+        margin-bottom: 20px;
+    }
+    .cp-alert span { flex: 1; }
+    .cp-alert-close { background: none; border: none; cursor: pointer; color: inherit; opacity: .6; font-size: 13px; }
+    .cp-alert-close:hover { opacity: 1; }
+
+    /* Stat cards */
+    .cp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 26px; }
+    .cp-stat {
+        background: var(--cp-raised);
+        border-radius: var(--cp-radius);
+        box-shadow: var(--cp-shadow-sm);
+        padding: 20px 22px;
+        display: flex; align-items: center; gap: 16px;
+    }
+    .cp-stat-icon {
+        width: 48px; height: 48px; border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 19px; flex-shrink: 0;
+    }
+    .cp-stat-icon.c-teal { background: var(--cp-teal-dim); color: var(--cp-teal); }
+    .cp-stat-icon.c-teal-deep { background: var(--cp-teal-dim); color: var(--cp-teal-deep); }
+    .cp-stat-icon.c-gold { background: var(--cp-gold-dim); color: var(--cp-gold); }
+    .cp-stat small { display: block; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--cp-ink-faint); margin-bottom: 4px; }
+    .cp-stat .num { font-family: 'Poppins', sans-serif; font-size: 26px; font-weight: 700; color: var(--cp-ink); }
+
+    /* Search */
+    .cp-search-row { margin-bottom: 22px; position: relative; }
+    .cp-search-row i { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--cp-ink-faint); font-size: 14px; }
+    .cp-search {
+        width: 100%; padding: 14px 18px 14px 44px;
+        border: 1px solid var(--cp-line-strong);
+        border-radius: 999px;
+        background: var(--cp-raised);
+        font-family: 'Inter', sans-serif; font-size: 14px; color: var(--cp-ink);
+        outline: none; transition: border-color .15s, box-shadow .15s;
+        box-shadow: var(--cp-shadow-sm);
+    }
+    .cp-search::placeholder { color: var(--cp-ink-faint); }
+    .cp-search:focus { border-color: var(--cp-teal); box-shadow: 0 0 0 4px var(--cp-teal-dim); }
+
+    .cp-panel-label { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: .02em; color: var(--cp-teal-deep); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+    .cp-count { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11.5px; color: var(--cp-teal-deep); background: var(--cp-teal-dim); padding: 4px 11px; border-radius: 999px; }
+
+    /* Table */
+    .cp-table-wrap { background: var(--cp-raised); border-radius: var(--cp-radius); box-shadow: var(--cp-shadow); overflow: hidden; overflow-x: auto; }
+    .cp-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .cp-table thead th { text-align: left; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--cp-ink-faint); padding: 16px 20px; background: var(--cp-teal-dim); white-space: nowrap; }
+    .cp-table thead th:first-child { border-top-left-radius: var(--cp-radius); }
+    .cp-table thead th:last-child { border-top-right-radius: var(--cp-radius); }
+    .cp-table tbody td { padding: 16px 20px; border-bottom: 1px solid var(--cp-line); vertical-align: middle; }
+    .cp-table tbody tr { transition: background .12s; }
+    .cp-table tbody tr:hover { background: var(--cp-teal-dim); }
+    .cp-table tbody tr:last-child td { border-bottom: none; }
+    .cp-table strong { display: block; font-size: 14px; color: var(--cp-ink); font-weight: 600; }
+    .cp-table small { display: block; font-size: 12px; color: var(--cp-ink-faint); margin-top: 2px; }
+    .cp-mono { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--cp-ink-soft); }
+
+    .cp-patient { display: flex; align-items: center; gap: 12px; }
+    .cp-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--cp-teal), var(--cp-teal-deep)); color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 13px; flex-shrink: 0; text-transform: uppercase; }
+
+    .cp-badge { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11.5px; letter-spacing: .02em; padding: 6px 13px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; }
+    .cp-badge.verified { background: var(--cp-teal-dim); color: var(--cp-teal-deep); }
+    .cp-badge.completed { background: var(--cp-line); color: var(--cp-ink-soft); }
+    .cp-badge.review { background: var(--cp-gold-dim); color: var(--cp-gold); }
+
+    .cp-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cp-btn { font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; padding: 9px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; transition: .15s; white-space: nowrap; border-radius: 999px; }
+    .cp-btn-outline { border: 1px solid var(--cp-teal); background: transparent; color: var(--cp-teal-deep); }
+    .cp-btn-outline:hover { background: var(--cp-teal-dim); }
+    .cp-btn-solid { border: 1px solid var(--cp-teal); background: var(--cp-teal); color: #fff; }
+    .cp-btn-solid:hover { background: var(--cp-teal-deep); border-color: var(--cp-teal-deep); }
+
+    .cp-empty { padding: 60px 24px; text-align: center; color: var(--cp-ink-faint); }
+    .cp-empty i { font-size: 32px; margin-bottom: 12px; display: block; color: var(--cp-teal); }
+    .cp-empty h3 { font-family: 'Poppins', sans-serif; color: var(--cp-ink); margin: 0 0 6px; }
+    .cp-empty p { margin: 0 0 18px; }
+    .cp-empty .cp-btn { display: inline-flex; }
+
+    @@media (max-width: 900px) {
+        .cp-banner { flex-direction: column; align-items: flex-start; gap: 16px; }
+        .cp-stats { grid-template-columns: 1fr; }
+        .cp-actions { flex-direction: column; }
+    }
+</style>
+
+@section Scripts {
     <script>
-
-        document.getElementById("searchInput").addEventListener("keyup", function () {
-
-            var value = this.value.toLowerCase();
-
-            document.querySelectorAll("tbody tr").forEach(function (row) {
-
-                row.style.display =
-                    row.innerText.toLowerCase().includes(value)
-                    ? ""
-                    : "none";
-
-            });
-
+        document.addEventListener("DOMContentLoaded", function () {
+            const search = document.getElementById("searchInput");
+            if (search) {
+                search.addEventListener("keyup", function () {
+                    const value = this.value.toLowerCase();
+                    const rows = document.querySelectorAll("#completedTable tr");
+                    rows.forEach(function (row) {
+                        const text = row.innerText.toLowerCase();
+                        row.style.display = text.includes(value) ? "" : "none";
+                    });
+                });
+            }
         });
-
     </script>
-
 }
+

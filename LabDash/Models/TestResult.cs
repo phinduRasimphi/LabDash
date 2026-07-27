@@ -23,6 +23,7 @@ namespace LabDash.Models
 
         public string CapturedByTechnicianId { get; set; }
         public virtual LabUser CapturedByTechnician { get; set; }
+        public bool IsAbnormal { get; set; }
 
         // Verification
         public string? VerifiedByTechnicianId { get; set; }

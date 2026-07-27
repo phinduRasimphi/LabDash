@@ -23,6 +23,11 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 
+builder.Services.AddScoped<IEmailSender, EmailSender>();
+builder.Services.AddScoped<IEmailAttachmentSender, EmailSender>();
+builder.Services.AddScoped<IVerifiedResultsPdfGenerator, VerifiedResultsPdfGenerator>();
+builder.Services.AddScoped<IVerifiedResultsNotificationService, VerifiedResultsNotificationService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
