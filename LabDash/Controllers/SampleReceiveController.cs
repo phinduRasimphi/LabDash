@@ -1,5 +1,6 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -20,11 +21,8 @@ namespace LabDash.Controllers
         public IActionResult Receive()
         {
             ViewBag.RequestList = new SelectList(
-                _context.TestRequests
-                        .Where(r => r.Status == "Pending")
-                        .ToList(),
-                "RequestId",
-                "RequestId");
+                _context.TestRequests.Where(r => r.Status == "Pending").ToList(),
+                "RequestId", "RequestId");
 
             return View();
         }
@@ -37,12 +35,8 @@ namespace LabDash.Controllers
             if (!ModelState.IsValid)
             {
                 ViewBag.RequestList = new SelectList(
-                    _context.TestRequests
-                            .Where(r => r.Status == "Pending")
-                            .ToList(),
-                    "RequestId",
-                    "RequestId");
-
+                    _context.TestRequests.Where(r => r.Status == "Pending").ToList(),
+                    "RequestId", "RequestId");
                 return View(sample);
             }
 
@@ -52,35 +46,37 @@ namespace LabDash.Controllers
             if (request == null)
             {
                 ModelState.AddModelError("", "The selected test request could not be found.");
-
                 ViewBag.RequestList = new SelectList(
-                    _context.TestRequests
-                            .Where(r => r.Status == "Pending")
-                            .ToList(),
-                    "RequestId",
-                    "RequestId");
-
+                    _context.TestRequests.Where(r => r.Status == "Pending").ToList(),
+                    "RequestId", "RequestId");
                 return View(sample);
             }
 
-            // Update Test Request
+            if (request.Status != "Pending")
+            {
+                ModelState.AddModelError("", "This request has already been received or is no longer pending.");
+                ViewBag.RequestList = new SelectList(
+                    _context.TestRequests.Where(r => r.Status == "Pending").ToList(),
+                    "RequestId", "RequestId");
+                return View(sample);
+            }
+
             request.Status = "Samples Received";
             request.DateTimeReceived = DateTime.Now;
 
-            // Save Sample Reception
             sample.DateTimeReceived = DateTime.Now;
             sample.Status = "Samples Received";
+            sample.TechnicianName = User.Identity?.Name ?? "Unknown";
 
             _context.SampleReceives.Add(sample);
-
             _context.SaveChanges();
 
             TempData["Success"] = "Sample received successfully.";
-
             return RedirectToAction(nameof(Index));
         }
 
         // List of Received Samples
+        [HttpGet]
         public IActionResult Index()
         {
             var samples = _context.SampleReceives
