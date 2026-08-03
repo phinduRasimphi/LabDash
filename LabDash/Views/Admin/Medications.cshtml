@@ -145,7 +145,61 @@
         </div>
     }
 </div>
+<!-- Deactivated Medications Card -->
+<div class="a-card">
+    <div class="a-ch">
+        <div class="a-ct">
+            <i class="fas fa-ban"></i> Deactivated Medications
+        </div>
+        <span class="a-cc">@Model.InactiveMedications.Count items</span>
+    </div>
 
+    <table class="a-table">
+        <thead>
+            <tr>
+                <th>Medication Name</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th style="width:120px;">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in Model.InactiveMedications)
+            {
+                <tr>
+                    <td>@item.MedicationName</td>
+                    <td>
+                        <span class="a-badge a-badge-med">
+                            @item.Category
+                        </span>
+                    </td>
+                    <td>@item.Description</td>
+                    <td>
+                        <span class="badge bg-danger">Inactive</span>
+                    </td>
+                    <td>
+                        <form asp-action="ReactivateMedication" method="post" style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@item.MedicationId" />
+                            <button class="a-btn-edit">
+                                <i class="fas fa-undo"></i> Reactivate
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (!Model.InactiveMedications.Any())
+    {
+        <div style="padding:40px;text-align:center;">
+            No deactivated medications.
+        </div>
+    }
+</div>
 <!-- ADD MODAL -->
 <div class="a-modal-overlay" id="modal-add">
     <div class="a-modal">

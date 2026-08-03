@@ -141,7 +141,61 @@
     }
 
 </div>
+<!-- Deactivated Allergies Card -->
+<div class="a-card">
+    <div class="a-ch">
+        <div class="a-ct">
+            <i class="fas fa-ban"></i> Deactivated Allergies
+        </div>
+        <span class="a-cc">@Model.InactiveAllergies.Count items</span>
+    </div>
 
+    <table class="a-table">
+        <thead>
+            <tr>
+                <th>Allergy Name</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th style="width:120px;">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in Model.InactiveAllergies)
+            {
+                <tr>
+                    <td>@item.AllergyName</td>
+                    <td>
+                        <span class="a-badge a-badge-allergy">
+                            @item.Category
+                        </span>
+                    </td>
+                    <td>@item.Description</td>
+                    <td>
+                        <span class="badge bg-danger">Inactive</span>
+                    </td>
+                    <td>
+                        <form asp-action="ReactivateAllergy" method="post" style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@item.AllergyId" />
+                            <button class="a-btn-edit">
+                                <i class="fas fa-undo"></i> Reactivate
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (!Model.InactiveAllergies.Any())
+    {
+        <div style="padding:40px;text-align:center;">
+            No deactivated allergies.
+        </div>
+    }
+</div>
 <!-- ADD MODAL -->
 <div class="a-modal-overlay" id="modal-add">
     <div class="a-modal">

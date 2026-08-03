@@ -33,7 +33,7 @@ namespace LabDash.Models
     {
         public string PageTitle { get; set; } = "";
 
-        public List<string> Categories { get; set; } = new();
+        public List<Category> Categories { get; set; } = new();
 
         // Active Conditions
         public List<MedicalCondition> Conditions { get; set; } = new();
@@ -42,7 +42,7 @@ namespace LabDash.Models
         public List<MedicalCondition> InactiveConditions { get; set; } = new();
 
         public string NewName { get; set; } = "";
-        public string NewCategory { get; set; } = "";
+        public int NewCategory { get; set; }
         public string NewDescription { get; set; } = "";
     }
 
@@ -78,12 +78,17 @@ namespace LabDash.Models
 
     public class SystemTablesViewModel
     {
-        public List<SystemTableItem> SampleTypes { get; set; } = new();
-        public List<SystemTableItem> Units { get; set; } = new();
+        public List<SampleTypeLookup> SampleTypes { get; set; } = new();
+        public List<Unit> Units { get; set; } = new();
     }
 
     public class AuditLogViewModel
     {
         public List<AuditEntry> Entries { get; set; } = new();
     }
+
+    
+
+
+
 }

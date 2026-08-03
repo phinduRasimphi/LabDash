@@ -1,0 +1,162 @@
+﻿@model LabDash.Models.ReportViewModel
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "Reports";
+    ViewData["ActivePage"] = "Reports";
+}
+
+<div class="p-content">
+    <div class="p-hero">
+        <div class="p-hero-inner">
+            <div>
+                <h1 class="p-hero-title">My Reports 📄</h1>
+                <p class="p-hero-subtitle">Generate, view, and download your comprehensive medical summaries.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-r2">
+        <div class="p-card">
+            <div class="p-ch">
+                <div class="p-ct"><i class="fas fa-file-pdf"></i> Generate New Report</div>
+            </div>
+            <div class="p-cb">
+                <form asp-action="Reports" method="post">
+                    @Html.AntiForgeryToken()
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; font-weight: 600; color: #1a4c6e; margin-bottom: 5px;">From Date</label>
+                            <input asp-for="FromDate" type="date" class="p-input" style="width:100%;" />
+                        </div>
+                        <div>
+                            <label style="display: block; font-weight: 600; color: #1a4c6e; margin-bottom: 5px;">To Date</label>
+                            <input asp-for="ToDate" type="date" class="p-input" style="width:100%;" />
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-weight: 600; color: #1a4c6e; margin-bottom: 5px;">Report Type</label>
+                        <select class="p-input" style="width:100%; height: 45px;">
+                            <option>All test results grouped by category</option>
+                            <option>Monthly Health Trend</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="p-btn" style="width:100%; padding: 12px;">
+                        <i class="fas fa-file-pdf"></i> Generate PDF Report
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="p-card">
+            <div class="p-ch">
+                <div class="p-ct"><i class="fas fa-history"></i> Recent Downloads</div>
+            </div>
+            <div class="p-cb" style="padding: 0;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead style="background: #f8f9fa;">
+                        <tr>
+                            <th style="padding: 12px; text-align: left; color: #1a4c6e;">Report Name</th>
+                            <th style="padding: 12px; text-align: left; color: #1a4c6e;">Generated</th>
+                            <th style="padding: 12px; text-align: center; color: #1a4c6e;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 12px;">Jan 2026 – Apr 2026</td>
+                            <td style="padding: 12px;">30 Apr 2026</td>
+                            <td style="padding: 12px; text-align: center;">
+                                <button class="p-btn" style="padding: 5px 10px; font-size: 0.8rem; background: #66788a;">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px;">Jul 2025 – Dec 2025</td>
+                            <td style="padding: 12px;">2 Jan 2026</td>
+                            <td style="padding: 12px; text-align: center;">
+                                <button class="p-btn" style="padding: 5px 10px; font-size: 0.8rem; background: #66788a;">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.FilteredResults != null && Model.FilteredResults.Any())
+    {
+        <div class="p-card" style="margin-top: 25px;">
+            <div class="p-ch">
+                <div class="p-ct">
+                    <i class="fas fa-list"></i> Results for Selected Period
+                </div>
+                <span class="p-htag p-ht-c">@Model.FilteredResults.Count Entries</span>
+            </div>
+            <div class="p-cb" style="padding: 0; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: #f0f7f8;">
+                        <tr>
+                            <th style="padding: 15px; text-align: left;">Req #</th>
+                            <th style="padding: 15px; text-align: left;">Test</th>
+                            <th style="padding: 15px; text-align: left;">Category</th>
+                            <th style="padding: 15px; text-align: center;">Result</th>
+                            <th style="padding: 15px; text-align: left;">Date</th>
+                            <th style="padding: 15px; text-align: center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.FilteredResults)
+                        {
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 15px; font-weight: 600; color: #1a4c6e;">#@r.RequestID</td>
+                                <td style="padding: 15px;">@r.TestName</td>
+                                <td style="padding: 15px;"><span class="p-htag" style="background: #eee; color: #444;">@r.Category</span></td>
+                                <td style="padding: 15px; text-align: center;">
+                                    <strong style="color: @(r.IsAbnormal ? "#dc3545" : "#0f717e")">@r.ResultValue @r.Unit</strong>
+                                </td>
+                                <td style="padding: 15px;">@r.ResultDate.ToString("dd MMM yyyy")</td>
+                                <td style="padding: 15px; text-align: center;">
+                                    @if (r.IsAbnormal)
+                                    {
+                                        <span class="p-htag p-ht-a" style="background: #f8d7da; color: #721c24;">ABNORMAL</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="p-htag p-ht-c">NORMAL</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .p-input {
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.3s;
+    }
+
+        .p-input:focus {
+            border-color: #0f717e;
+        }
+
+    /* Ensuring table headers look professional */
+    th {
+        font-weight: 700;
+        color: #1a4c6e;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+</style>

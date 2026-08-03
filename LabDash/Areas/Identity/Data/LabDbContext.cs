@@ -3,6 +3,7 @@ using LabDash.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection.Emit;
 
 namespace LabDash.Areas.Identity.Data;
 
@@ -28,10 +29,20 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<Allergy> Allergies { get; set; }
     public DbSet<Medication> Medications { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
-
+    public DbSet<Category> Categories { get; set; }
+    public DbSet<SampleTypeLookup> SampleTypeLookups { get; set; }
+    public DbSet<Unit> Units { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+
+        builder.Entity<Patient>()
+        .HasOne<LabUser>()
+        .WithMany()
+        .HasForeignKey(p => p.UserId)
+        .HasPrincipalKey(u => u.Id)
+        .OnDelete(DeleteBehavior.NoAction);
 
         builder.Entity<SampleReceive>()
             .HasOne(s => s.TestRequest)
@@ -85,13 +96,9 @@ public class LabDbContext : IdentityDbContext<LabUser>
         // Admin Subsystem Configuration
         // =============================
 
-        builder.Entity<MedicalCondition>()
-            .Property(x => x.ConditionName)
-            .HasMaxLength(100);
 
-        builder.Entity<MedicalCondition>()
-            .Property(x => x.Category)
-            .HasMaxLength(50);
+
+
 
         builder.Entity<Allergy>()
             .Property(x => x.AllergyName)
@@ -120,8 +127,16 @@ public class LabDbContext : IdentityDbContext<LabUser>
         builder.Entity<AuditLog>()
             .Property(x => x.TableName)
             .HasMaxLength(50);
+
+        builder.Entity<MedicalCondition>()
+    .HasOne(m => m.Category)
+    .WithMany()
+    .HasForeignKey(m => m.CategoryId)
+    .OnDelete(DeleteBehavior.Restrict); // categories are soft-deleted, never hard-deleted
         // Customize the ASP.NET Identity model and override the defaults if needed.
         // For example, you can rename the ASP.NET Identity table names and more.
         // Add your customizations after calling base.OnModelCreating(builder);
+
+        
     }
 }

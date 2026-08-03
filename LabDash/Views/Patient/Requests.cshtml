@@ -1,0 +1,241 @@
+﻿
+@model List<LabDash.Models.TestRequestViewModel>
+
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "My Test Requests";
+    ViewData["ActivePage"] = "Requests";
+}
+
+<div class="p-content">
+    <div class="p-hero">
+        <div class="p-hero-inner">
+            <div>
+                <h1 class="p-hero-title">My Test Requests 📋</h1>
+                <p class="p-hero-subtitle">
+                    Track the progress of your laboratory and diagnostic orders.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-card">
+        <div class="p-ch">
+            <div class="p-ct">
+                <i class="fas fa-file-medical"></i> All Test Requests
+            </div>
+
+            <span class="p-htag p-ht-c">
+                @Model.Count Total Requests
+            </span>
+        </div>
+
+        <div class="p-cb" style="padding: 0; overflow-x: auto;">
+
+            @if (Model != null && Model.Any())
+            {
+                <table style="width: 100%; border-collapse: collapse;">
+
+                    <thead style="background: #f0f7f8;">
+                        <tr>
+                            <th style="padding: 15px; text-align: left;">
+                                Request #
+                            </th>
+
+                            <th style="padding: 15px; text-align: left;">
+                                Date
+                            </th>
+
+                            <th style="padding: 15px; text-align: left;">
+                                Doctor
+                            </th>
+
+                            <th style="padding: 15px; text-align: left;">
+                                Tests Requested
+                            </th>
+
+                            <th style="padding: 15px; text-align: center;">
+                                Urgency
+                            </th>
+
+                            <th style="padding: 15px; text-align: center;">
+                                Status
+                            </th>
+
+                            <th style="padding: 15px; text-align: center;">
+                                Action
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var r in Model.OrderByDescending(x => x.RequestDate))
+                        {
+                            <tr style="border-bottom: 1px solid #eee;">
+
+                                <td style="padding: 15px; font-weight: 600; color: #1a4c6e;">
+                                    #@r.RequestID
+                                </td>
+
+                                <td style="padding: 15px;">
+                                    @r.RequestDate.ToString("dd MMM yyyy")
+                                </td>
+
+                                <td style="padding: 15px;">
+                                    <div style="font-weight: 600; color: #333;">
+                                        Dr. @r.DoctorName
+                                    </div>
+                                </td>
+
+                                <td style="padding: 15px; max-width: 250px;">
+                                    <div style="
+                                        font-size: 0.85rem;
+                                        color: #555;
+                                        white-space: nowrap;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;"
+                                         title="@string.Join(", ", r.Tests)">
+
+                                        @string.Join(", ", r.Tests)
+
+                                    </div>
+                                </td>
+
+                                <td style="padding: 15px; text-align: center;">
+
+                                    @if (!string.IsNullOrEmpty(r.Urgency) &&
+                                        (r.Urgency.ToLower() == "high" ||
+                                         r.Urgency.ToLower() == "urgent"))
+                                    {
+                                        <span class="p-htag p-ht-a"
+                                              style="
+                                            background: #fff3e0;
+                                            color: #e65100;
+                                            border: 1px solid #ffcc80;">
+
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            @r.Urgency.ToUpper()
+
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="p-htag"
+                                              style="
+                                            background: #f5f5f5;
+                                            color: #757575;">
+
+                                            @r.Urgency?.ToUpper()
+
+                                        </span>
+                                    }
+
+                                </td>
+
+                                <td style="padding: 15px; text-align: center;">
+
+                                    @{
+                                        var status = r.Status?.ToLower();
+
+                                        var statusColor = status switch
+                                        {
+                                            "completed" => "#d4edda",
+                                            "pending" => "#fff3cd",
+                                            "cancelled" => "#f8d7da",
+                                            _ => "#e2e3e5"
+                                        };
+
+                                        var textStatus = status switch
+                                        {
+                                            "completed" => "#155724",
+                                            "pending" => "#856404",
+                                            "cancelled" => "#721c24",
+                                            _ => "#383d41"
+                                        };
+                                    }
+
+                                    <span class="p-htag"
+                                          style="
+                                        background: @statusColor;
+                                        color: @textStatus;
+                                        font-weight: 700;">
+
+                                        @r.Status
+
+                                    </span>
+
+                                </td>
+
+                                <td style="padding: 15px; text-align: center;">
+
+                                    <a href="@Url.Action("Results", "Patient")"
+                                       class="p-btn"
+                                       style="
+                                        padding: 6px 12px;
+                                        font-size: 0.8rem;
+                                        text-decoration: none;
+                                        display: inline-block;">
+
+                                        <i class="fas fa-eye"></i> View
+
+                                    </a>
+
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+            }
+            else
+            {
+                <div style="
+                    text-align: center;
+                    padding: 50px 20px;
+                    color: #66788a;">
+
+                    <i class="fas fa-file-medical"
+                       style="
+                        font-size: 3rem;
+                        margin-bottom: 15px;
+                        color: #0f717e;">
+                    </i>
+
+                    <h3 style="color: #1a4c6e;">
+                        No Test Requests
+                    </h3>
+
+                    <p>
+                        You currently have no laboratory or diagnostic test requests.
+                    </p>
+
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+<style>
+
+    th {
+        font-weight: 700;
+        color: #1a4c6e;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+
+    tbody tr:hover {
+        background-color: #fcfdfe;
+    }
+
+    [title] {
+        cursor: help;
+    }
+
+</style>
+```

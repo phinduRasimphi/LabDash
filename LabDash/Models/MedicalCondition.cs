@@ -11,9 +11,8 @@ namespace LabDash.Models
         [Display(Name = "Condition Name")]
         public string ConditionName { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(50)]
-        public string Category { get; set; } = string.Empty;
+        public int CategoryId { get; set; }
+        public Category? Category { get; set; }   // navigation property, not a string anymore
 
         [StringLength(250)]
         public string? Description { get; set; }

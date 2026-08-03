@@ -14,6 +14,13 @@
     </div>
 }
 
+@if (TempData["Error"] != null)
+{
+    <div class="a-alert a-alert-error">
+        <i class="fas fa-exclamation-circle"></i> @TempData["Error"]
+    </div>
+}
+
 <div class="a-page-header">
     <div>
         <div class="a-page-title">
@@ -38,18 +45,18 @@
         <div class="a-chips-row" id="cat-chips">
             @foreach (var cat in Model.Categories)
             {
-                <span class="a-chip @chipClass">
-                    @cat
-                    <span class="a-chip-rm" onclick="removeChip(this)">✕</span>
-                </span>
+                <span class="a-chip @chipClass">@cat.Name</span>
             }
         </div>
-        <div class="a-tag-input">
-            <input id="new-cat" placeholder="New category name…" />
-            <button class="a-btn" type="button" onclick="addChip('cat-chips','new-cat','a-chip @chipClass')">
+
+        <form asp-action="AddCategory" method="post" class="a-tag-input">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="type" value="Condition" />
+            <input name="name" placeholder="New category name…" required />
+            <button class="a-btn" type="submit">
                 <i class="fas fa-plus"></i> Add Category
             </button>
-        </div>
+        </form>
     </div>
 </div>
 
@@ -69,7 +76,7 @@
                 <option value="">All Categories</option>
                 @foreach (var cat in Model.Categories)
                 {
-                    <option value="@cat">@cat</option>
+                    <option value="@cat.Name">@cat.Name</option>
                 }
             </select>
         </div>
@@ -90,13 +97,13 @@
             @foreach (var item in Model.Conditions)
             {
                 <tr data-name="@item.ConditionName.ToLower()"
-                    data-cat="@item.Category">
+                    data-cat="@item.Category?.Name">
 
                     <td>@item.ConditionName</td>
 
                     <td>
                         <span class="a-badge a-badge-cond">
-                            @item.Category
+                            @item.Category?.Name
                         </span>
                     </td>
 
@@ -117,7 +124,8 @@
                         <button class="a-btn-edit"
                                 onclick="openEditModal('@item.MedicalConditionId',
                             '@item.ConditionName',
-                            '@item.Category')">
+                            '@item.CategoryId',
+                            '@Html.Raw(Html.Encode(item.Description ?? "").Replace("'", "\\'"))')">
                             <i class="fas fa-edit"></i> Edit
                         </button>
 
@@ -148,6 +156,37 @@
     }
 </div>
 
+@if (Model.InactiveConditions.Any())
+{
+    <div class="a-card">
+        <div class="a-ch">
+            <div class="a-ct">
+                <i class="fas fa-archive"></i> Deactivated Conditions
+            </div>
+            <span class="a-cc">@Model.InactiveConditions.Count items</span>
+        </div>
+        <table class="a-table">
+            <thead>
+                <tr>
+                    <th>Condition Name</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.InactiveConditions)
+                {
+                    <tr>
+                        <td>@item.ConditionName</td>
+                        <td>@item.Category?.Name</td>
+                        <td>@item.Description</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
 <!-- ADD MODAL -->
 <div class="a-modal-overlay" id="modal-add">
     <div class="a-modal">
@@ -163,12 +202,17 @@
             </div>
             <div class="a-form-group" style="margin-bottom:16px;">
                 <label>Category</label>
-                <select name="category">
+                <select name="categoryId" required>
+                    <option value="">-- Select Category --</option>
                     @foreach (var cat in Model.Categories)
                     {
-                        <option value="@cat">@cat</option>
+                        <option value="@cat.CategoryId">@cat.Name</option>
                     }
                 </select>
+            </div>
+            <div class="a-form-group" style="margin-bottom:16px;">
+                <label>Description (optional)</label>
+                <input name="description" placeholder="Short description" />
             </div>
             <div class="a-modal-actions">
                 <button type="button" class="a-btn-cancel" onclick="closeModal('modal-add')">Cancel</button>
@@ -196,12 +240,16 @@
             </div>
             <div class="a-form-group" style="margin-bottom:16px;">
                 <label>Category</label>
-                <select name="category" id="edit-category">
+                <select name="categoryId" id="edit-category" required>
                     @foreach (var cat in Model.Categories)
                     {
-                        <option value="@cat">@cat</option>
+                        <option value="@cat.CategoryId">@cat.Name</option>
                     }
                 </select>
+            </div>
+            <div class="a-form-group" style="margin-bottom:16px;">
+                <label>Description (optional)</label>
+                <input name="description" id="edit-description" placeholder="Short description" />
             </div>
             <div class="a-modal-actions">
                 <button type="button" class="a-btn-cancel" onclick="closeModal('modal-edit')">Cancel</button>
@@ -215,12 +263,14 @@
 
 @section Scripts {
     <script>
-        function openEditModal(id, name, category) {
+        function openEditModal(id, name, categoryId, description) {
             document.getElementById('edit-id').value = id;
             document.getElementById('edit-name').value = name;
+            document.getElementById('edit-description').value = description;
+
             var sel = document.getElementById('edit-category');
             for (var i = 0; i < sel.options.length; i++) {
-                if (sel.options[i].value === category) { sel.selectedIndex = i; break; }
+                if (sel.options[i].value === String(categoryId)) { sel.selectedIndex = i; break; }
             }
             openModal('modal-edit');
         }

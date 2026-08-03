@@ -7,7 +7,7 @@ namespace LabDash.Models
         [Key]
         public int PatientID { get; set; }
 
-        public string UserId { get; set; }
+        public string? UserId { get; set; }
 
         [Required] public string Name { get; set; }
         [Required] public string Surname { get; set; }
