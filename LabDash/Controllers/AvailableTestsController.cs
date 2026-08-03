@@ -1,10 +1,12 @@
 ﻿using LabDash.Areas.Identity.Data;
-using LabDash.Enums;
 using LabDash.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace LabDash.Controllers
 {
@@ -40,19 +42,20 @@ namespace LabDash.Controllers
                 .ToListAsync();
 
             var tests = await _context.TestRequestItems
-    .Include(x => x.TestType)
-    .Include(x => x.TestRequest)
-        .ThenInclude(x => x.Patient)
-    .Include(x => x.AssignedTechnician)
-    .Where(x =>
-        assignedTypes.Contains(x.TestTypeId) &&
-        x.Status == "Submitted" &&
-        x.TestRequest.Status == "Samples Received")
-    .OrderByDescending(x => x.TestRequest.RequestDate)
-    .ToListAsync();
+                .Include(x => x.TestType)
+                .Include(x => x.TestRequest)
+                    .ThenInclude(x => x.Patient)
+                .Include(x => x.AssignedTechnician)
+                .Where(x =>
+                    assignedTypes.Contains(x.TestTypeId) &&
+                    x.Status == "Submitted" &&
+                    x.TestRequest.Status == "Samples Received")
+                .OrderByDescending(x => x.TestRequest.RequestDate)
+                .ToListAsync();
 
             return View(tests);
         }
+
         [HttpGet]
         public async Task<IActionResult> GetPatient(int id)
         {
@@ -135,6 +138,38 @@ namespace LabDash.Controllers
 
             if (item == null)
                 return NotFound();
+
+            //------------------------------------------------------
+            // Enforce: technician may only start test types that
+            // have been assigned to them by the lab manager
+            //------------------------------------------------------
+
+            bool isAssignedType = await _context.TechnicianTestTypes
+                .AnyAsync(x =>
+                    x.TechnicianId == technician.Id &&
+                    x.TestTypeId == item.TestTypeId);
+
+            if (!isAssignedType)
+            {
+                TempData["Error"] =
+                    "You are not assigned to perform this test type.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            //------------------------------------------------------
+            // Enforce: samples for the request must have been
+            // received before a technician can select a test
+            //------------------------------------------------------
+
+            if (item.TestRequest.Status == "Pending" ||
+                item.TestRequest.Status == "Submitted")
+            {
+                TempData["Error"] =
+                    "Samples for this request have not been received yet.";
+
+                return RedirectToAction(nameof(Index));
+            }
 
             if (item.Status != "Submitted")
             {
@@ -421,6 +456,27 @@ namespace LabDash.Controllers
 
             if (item == null)
                 return NotFound();
+
+            //------------------------------------------------------
+            // Enforce: only the technician assigned to this test
+            // may complete it
+            //------------------------------------------------------
+
+            if (item.AssignedTechnicianId != technician.Id)
+            {
+                TempData["Error"] =
+                    "You can only complete tests assigned to you.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (item.Status != "In Progress")
+            {
+                TempData["Error"] =
+                    "Only tests that are in progress can be completed.";
+
+                return RedirectToAction(nameof(InProgress));
+            }
 
             item.Status = "Completed";
             item.CompletionDateTime = DateTime.Now;
