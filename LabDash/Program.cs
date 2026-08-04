@@ -154,7 +154,7 @@ using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
 
-    string email = "doctor@gmail.com";
+    string email = "kamogelomakuwa01@gmail.com";
     string password = "Password!123";
 
     if (await userManager.FindByEmailAsync(email) == null)
