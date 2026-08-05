@@ -251,32 +251,7 @@ using (var scope = app.Services.CreateScope())
         await userManager.AddToRoleAsync(user, "Lab_Manager");
     }
 }
-using (var scope = app.Services.CreateScope())
-{
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
 
-    string email = "labdashrsa@gmail.com";
-    string password = "Password!123";
-
-    if (await userManager.FindByEmailAsync(email) == null)
-    {
-        var user = new LabUser();
-        user.Email = email;
-        user.UserName = email;
-        user.EmailConfirmed = true;
-        user.FirstName = "Phindulo";
-        user.LastName = "Rasimphi";
-        //user.HCRN = 0;
-        user.PhoneNumb = "0741234567";
-        user.Gender = "Male";
-
-        user.Timestamp_AccountCreated = DateTime.Now;
-        await userManager.CreateAsync(user, password);
-
-        await userManager.AddToRoleAsync(user, "Doctor");
-
-    }
-}
 using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
