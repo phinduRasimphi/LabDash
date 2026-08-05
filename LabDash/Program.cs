@@ -154,6 +154,31 @@ using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
 
+    string email = "kamogelomakuwa01@gmail.com";
+    string password = "Password!123";
+
+    if (await userManager.FindByEmailAsync(email) == null)
+    {
+        var user = new LabUser();
+        user.Email = email;
+        user.UserName = email;
+        user.EmailConfirmed = true;
+        user.FirstName = "Kamogelo";
+        user.LastName = "Makuwa";
+        //user.HCRN = 0;
+        user.PhoneNumb = "0824773857";
+        user.Gender = "Female";
+
+        user.Timestamp_AccountCreated = DateTime.Now;
+        await userManager.CreateAsync(user, password);
+
+        await userManager.AddToRoleAsync(user, "Doctor");
+    }
+}
+using (var scope = app.Services.CreateScope())
+{
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
+
     var technicians = new[]
     {
         new
@@ -226,32 +251,7 @@ using (var scope = app.Services.CreateScope())
         await userManager.AddToRoleAsync(user, "Lab_Manager");
     }
 }
-using (var scope = app.Services.CreateScope())
-{
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
 
-    string email = "labdashdoctor@gmail.com";
-    string password = "Password!123";
-
-    if (await userManager.FindByEmailAsync(email) == null)
-    {
-        var user = new LabUser();
-        user.Email = email;
-        user.UserName = email;
-        user.EmailConfirmed = true;
-        user.FirstName = "Kamogelo";
-        user.LastName = "Makuwa";
-        //user.HCRN = 0;
-        user.PhoneNumb = "0824773857";
-        user.Gender = "Female";
-
-        user.Timestamp_AccountCreated = DateTime.Now;
-        await userManager.CreateAsync(user, password);
-
-        await userManager.AddToRoleAsync(user, "Doctor");
-
-    }
-}
 using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
