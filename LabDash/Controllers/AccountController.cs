@@ -361,5 +361,7 @@ namespace LabDash.Controllers
             return result.Succeeded ? View("EmailConfirmed") : View("Error");
         }
 
+        
+
     }
 }

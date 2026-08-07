@@ -141,6 +141,7 @@
         border: 1px solid #dce8e7;
         color: #00695C;
         font-weight: 600;
+        transition: border-color .2s, color .2s;
     }
 
     .rps-readonly-avatar {
@@ -193,10 +194,16 @@
         transition: .3s;
     }
 
-        .rps-btn-receive:hover {
+        .rps-btn-receive:hover:not(:disabled) {
             background: #00796B;
             color: white;
             transform: translateY(-2px);
+        }
+
+        .rps-btn-receive:disabled {
+            background: #b0bec5;
+            cursor: not-allowed;
+            transform: none;
         }
 
     .rps-validation-summary ul {
@@ -263,7 +270,7 @@
 
             <div class="rps-body">
 
-                <form asp-action="Receive" method="post">
+                <form asp-action="Receive" method="post" id="receiveSampleForm">
 
                     <div asp-validation-summary="ModelOnly" class="rps-validation-summary rps-text-danger"></div>
 
@@ -280,6 +287,7 @@
                         <div>
 
                             <select asp-for="RequestId"
+                                    id="requestIdSelect"
                                     asp-items="ViewBag.RequestList"
                                     class="rps-form-select">
 
@@ -302,7 +310,7 @@
 
                         <label class="rps-form-label">
                             <i class="fas fa-user"></i>
-                            Technician Receiving Sample
+                            Technician
                         </label>
 
                         <div>
@@ -310,11 +318,15 @@
                             <div class="rps-readonly-display">
                                 <span class="rps-readonly-avatar">
                                     @{
-                                        var currentName = User.Identity?.Name ?? "?";
+                                        var currentName = string.IsNullOrWhiteSpace(User.Identity?.Name) ? "Unknown" : User.Identity!.Name!;
                                         var displayInitials = string.Join("", currentName
                                                                     .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                                                                     .Take(2)
                                                                     .Select(n => n[0])).ToUpper();
+                                        if (string.IsNullOrEmpty(displayInitials))
+                                        {
+                                            displayInitials = "?";
+                                        }
                                     }
                                     @displayInitials
                                 </span>
@@ -338,13 +350,21 @@
                         <label asp-for="SampleBarcode" class="rps-form-label">
                             <i class="fas fa-barcode"></i>
                             Sample Barcode
+                            <span class="rps-required">*</span>
                         </label>
 
                         <div>
 
                             <input asp-for="SampleBarcode"
+                                   id="sampleBarcodeInput"
                                    class="rps-form-control"
-                                   placeholder="Scan or enter barcode" />
+                                   placeholder="Scan or enter barcode"
+                                   autocomplete="off"
+                                   autocorrect="off"
+                                   autocapitalize="off"
+                                   spellcheck="false"
+                                   data-lpignore="true"
+                                   data-form-type="other" />
 
                             <span asp-validation-for="SampleBarcode"
                                   class="rps-text-danger"></span>
@@ -355,31 +375,23 @@
 
                     <hr class="rps-divider" />
 
-                    <!-- Sample Type -->
+                    <!-- Sample Type (resolved from barcode, read-only) -->
 
                     <div class="rps-form-row">
 
-                        <label asp-for="SampleType" class="rps-form-label">
+                        <label class="rps-form-label">
                             <i class="fas fa-flask"></i>
                             Sample Type
                         </label>
 
                         <div>
 
-                            <select asp-for="SampleType" class="rps-form-select">
+                            <div class="rps-readonly-display" id="sampleTypeDisplay">
+                                <i class="fas fa-circle-question" style="color:#9aa;"></i>
+                                <span id="sampleTypeText">Select a request and enter a barcode</span>
+                            </div>
 
-                                <option value="">-- Select Sample Type --</option>
-
-                                <option>Blood</option>
-                                <option>Urine</option>
-                                <option>Saliva</option>
-                                <option>Stool</option>
-                                <option>Sputum</option>
-                                <option>Plasma</option>
-                                <option>Serum</option>
-                                <option>Tissue</option>
-
-                            </select>
+                            <input type="hidden" asp-for="SampleType" id="sampleTypeHidden" />
 
                             <span asp-validation-for="SampleType"
                                   class="rps-text-danger"></span>
@@ -414,12 +426,12 @@
 
                     <div class="rps-footer-buttons">
 
-                        <button type="reset" class="btn rps-btn-clear">
+                        <button type="reset" class="btn rps-btn-clear" id="clearFormBtn">
                             <i class="fas fa-rotate-left"></i>
                             Clear Form
                         </button>
 
-                        <button type="submit" class="btn rps-btn-receive">
+                        <button type="submit" class="btn rps-btn-receive" id="submitReceiveBtn" disabled>
                             <i class="fas fa-vials"></i>
                             Receive Sample
                         </button>
@@ -440,4 +452,104 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+
+    <script>
+        (function() {
+            const requestSelect = document.getElementById('requestIdSelect');
+            const barcodeInput = document.getElementById('sampleBarcodeInput');
+            const typeDisplay = document.getElementById('sampleTypeDisplay');
+            const typeText = document.getElementById('sampleTypeText');
+            const typeHidden = document.getElementById('sampleTypeHidden');
+            const submitBtn = document.getElementById('submitReceiveBtn');
+
+            let debounceTimer = null;
+
+            function resetTypeDisplay(message, isError) {
+                typeText.textContent = message;
+                typeHidden.value = '';
+                typeDisplay.style.borderColor = isError ? '#dc3545' : '#dce8e7';
+                typeDisplay.style.color = isError ? '#dc3545' : '#00695C';
+                if (submitBtn) submitBtn.disabled = true;
+            }
+
+            async function lookupSampleType() {
+                const requestId = requestSelect ? requestSelect.value : '';
+                const barcode = barcodeInput.value.trim();
+
+                if (!requestId) {
+                    resetTypeDisplay('Select a test request first', false);
+                    return;
+                }
+
+                if (!barcode) {
+                    resetTypeDisplay('Enter a barcode', false);
+                    return;
+                }
+
+                typeText.textContent = 'Looking up...';
+
+                try {
+                    const res = await fetch(
+                        `/SampleReceive/GetSampleType?requestId=${encodeURIComponent(requestId)}&barcode=${encodeURIComponent(barcode)}`
+                    );
+                    const data = await res.json();
+
+                    if (data.found) {
+                        typeText.textContent = data.sampleType;
+                        typeHidden.value = data.sampleType;
+                        typeDisplay.style.borderColor = '#dce8e7';
+                        typeDisplay.style.color = '#00695C';
+                        if (submitBtn) submitBtn.disabled = false;
+                    } else {
+                        resetTypeDisplay(data.message || 'Barcode not recognized for this request', true);
+                    }
+                } catch (err) {
+                    resetTypeDisplay('Could not verify barcode — check your connection', true);
+                }
+            }
+
+            if (requestSelect) {
+                requestSelect.addEventListener('change', function() {
+                    // Changing the request invalidates any barcode already typed
+                    lookupSampleType();
+                });
+            }
+
+            barcodeInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(lookupSampleType, 400);
+            });
+
+            // Also resolve immediately on Enter/Tab, since barcode scanners
+            // typically send the scanned value followed by an Enter keystroke.
+            barcodeInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    clearTimeout(debounceTimer);
+                    lookupSampleType();
+                }
+            });
+
+            const clearBtn = document.getElementById('clearFormBtn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function() {
+                    // native reset fires first; wait a tick then reset the derived display
+                    setTimeout(function() {
+                        resetTypeDisplay('Select a test request and enter a barcode', false);
+                    }, 0);
+                });
+            }
+
+            // Never trust a browser-restored or pre-filled barcode value.
+            // pageshow also covers bfcache restores (back/forward navigation),
+            // which DOMContentLoaded does not.
+            window.addEventListener('pageshow', function() {
+                barcodeInput.value = '';
+                resetTypeDisplay('Select a test request and enter a barcode', false);
+            });
+
+            // Start disabled until a valid barcode/type is confirmed
+            if (submitBtn) submitBtn.disabled = true;
+        })();
+    </script>
 }

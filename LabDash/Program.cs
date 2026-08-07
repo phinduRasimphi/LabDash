@@ -166,7 +166,7 @@ using (var scope = app.Services.CreateScope())
         user.FirstName = "Kamogelo";
         user.LastName = "Makuwa";
         //user.HCRN = 0;
-        user.PhoneNumb = "0867501735";
+        user.PhoneNumb = "0824773857";
         user.Gender = "Female";
 
         user.Timestamp_AccountCreated = DateTime.Now;

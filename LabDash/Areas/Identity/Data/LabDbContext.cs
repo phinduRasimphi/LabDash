@@ -28,6 +28,7 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<MedicalCondition> MedicalConditions { get; set; }
     public DbSet<Allergy> Allergies { get; set; }
     public DbSet<Medication> Medications { get; set; }
+    public DbSet<Sample> Samples { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<SampleTypeLookup> SampleTypeLookups { get; set; }
