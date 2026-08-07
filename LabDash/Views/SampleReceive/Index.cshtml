@@ -3,6 +3,10 @@
 @{
     ViewData["Title"] = "Received Samples";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    // South Africa Standard Time — adjust the ID if this app is deployed
+    // across multiple timezones and should instead use the current user's TZ.
+    var localTz = TimeZoneInfo.FindSystemTimeZoneById("South Africa Standard Time");
 }
 
 <link rel="stylesheet"
@@ -206,8 +210,6 @@
     }
 
     .src-badge-status {
-        background: #009688;
-        color: white;
         border-radius: 30px;
         padding: 8px 16px;
         font-size: 13px;
@@ -215,6 +217,21 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
+    }
+
+    .src-badge-received {
+        background: #009688;
+        color: white;
+    }
+
+    .src-badge-partial {
+        background: #FFA000;
+        color: white;
+    }
+
+    .src-badge-default {
+        background: #90A4AE;
+        color: white;
     }
 
     .src-date-primary {
@@ -362,7 +379,9 @@
 
                         <th>Date &amp; Time Received</th>
 
-                        <th>Status</th>
+                        <th>Sample Status</th>
+
+                        <th>Request Status</th>
 
                     </tr>
 
@@ -374,11 +393,42 @@
                     {
                         foreach (var item in Model)
                         {
-                            var initials = string.Join("", (item.TechnicianName ?? "?")
+                            var techName = string.IsNullOrWhiteSpace(item.TechnicianName)
+                                ? "Unknown"
+                                : item.TechnicianName;
+
+                            var initials = string.Join("", techName
                                                             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
                                                             .Take(2)
                                                             .Select(n => n[0]))
                                                             .ToUpper();
+
+                            if (string.IsNullOrEmpty(initials))
+                            {
+                                initials = "?";
+                            }
+
+                            // Stored as UTC in the database (see SampleReceiveController) —
+                            // convert to local time for display.
+                            var localReceived = TimeZoneInfo.ConvertTimeFromUtc(
+                                DateTime.SpecifyKind(item.DateTimeReceived, DateTimeKind.Utc),
+                                localTz);
+
+                            var requestStatus = item.TestRequest?.Status ?? "Unknown";
+
+                            var requestBadgeClass = requestStatus switch
+                            {
+                                "Samples Received" => "src-badge-received",
+                                "Partially Received" => "src-badge-partial",
+                                _ => "src-badge-default"
+                            };
+
+                            var requestIcon = requestStatus switch
+                            {
+                                "Samples Received" => "fa-check-circle",
+                                "Partially Received" => "fa-hourglass-half",
+                                _ => "fa-question-circle"
+                            };
 
                             <tr>
 
@@ -393,25 +443,27 @@
                                 <td>
                                     <div class="src-technician-cell">
                                         <span class="src-avatar">@initials</span>
-                                        @item.TechnicianName
+                                        @techName
                                     </div>
                                 </td>
 
                                 <td>
-                                    <div class="src-date-primary">@item.DateTimeReceived.ToString("dd MMM yyyy")</div>
-                                    <div class="src-date-secondary">@item.DateTimeReceived.ToString("HH:mm")</div>
+                                    <div class="src-date-primary">@localReceived.ToString("dd MMM yyyy")</div>
+                                    <div class="src-date-secondary">@localReceived.ToString("HH:mm")</div>
                                 </td>
 
                                 <td>
-
-                                    <span class="src-badge-status">
-
+                                    <span class="src-badge-status src-badge-received">
                                         <i class="fas fa-check-circle"></i>
-
                                         @item.Status
-
                                     </span>
+                                </td>
 
+                                <td>
+                                    <span class="src-badge-status @requestBadgeClass">
+                                        <i class="fas @requestIcon"></i>
+                                        @requestStatus
+                                    </span>
                                 </td>
 
                             </tr>
@@ -421,7 +473,7 @@
                     {
                         <tr>
 
-                            <td colspan="6" class="src-empty-row">
+                            <td colspan="7" class="src-empty-row">
 
                                 <i class="fas fa-inbox fa-3x mb-3"></i>
 
@@ -451,26 +503,30 @@
 
             const searchInput = document.getElementById("srcSearchInput");
 
-            searchInput.addEventListener("keyup", function() {
+            if (searchInput) {
 
-                const filter = this.value.toLowerCase();
+                searchInput.addEventListener("keyup", function() {
 
-                const rows = document.querySelectorAll(".src-table tbody tr");
+                    const filter = this.value.toLowerCase();
 
-                rows.forEach(function(row) {
+                    const rows = document.querySelectorAll(".src-table tbody tr");
 
-                    const text = row.innerText.toLowerCase();
+                    rows.forEach(function(row) {
 
-                    if (text.indexOf(filter) > -1) {
-                        row.style.display = "";
-                    }
-                    else {
-                        row.style.display = "none";
-                    }
+                        const text = row.innerText.toLowerCase();
+
+                        if (text.indexOf(filter) > -1) {
+                            row.style.display = "";
+                        }
+                        else {
+                            row.style.display = "none";
+                        }
+
+                    });
 
                 });
 
-            });
+            }
 
         });
 
