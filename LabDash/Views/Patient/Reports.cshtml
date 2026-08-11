@@ -1,162 +1,1884 @@
 ﻿@model LabDash.Models.ReportViewModel
+
 @{
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
     ViewData["Title"] = "Reports";
     ViewData["ActivePage"] = "Reports";
+
+    var totalResults = Model.FilteredResults?.Count ?? 0;
+
+    var abnormalResults = Model.FilteredResults?.Count(r => r.IsAbnormal) ?? 0;
+
+    var normalResults = totalResults - abnormalResults;
+
+    var categories = Model.FilteredResults?
+        .Select(r => r.Category)
+        .Where(c => !string.IsNullOrWhiteSpace(c))
+        .Distinct()
+        .Count() ?? 0;
+
+    var requests = Model.FilteredResults?
+        .Select(r => r.RequestID)
+        .Distinct()
+        .Count() ?? 0;
+
+    var abnormalPercentage = totalResults > 0
+        ? (double)abnormalResults / totalResults * 100
+        : 0;
+
+
 }
 
-<div class="p-content">
-    <div class="p-hero">
-        <div class="p-hero-inner">
+<div class="rp-wrap">
+
+    <!-- =========================================================
+     HERO
+========================================================== -->
+
+    <section class="rp-hero">
+
+        <div class="rp-hero-bg"></div>
+
+        <div class="rp-hero-content">
+
+            <div class="rp-hero-icon">
+                <i class="fas fa-file-medical"></i>
+            </div>
+
             <div>
-                <h1 class="p-hero-title">My Reports 📄</h1>
-                <p class="p-hero-subtitle">Generate, view, and download your comprehensive medical summaries.</p>
-            </div>
-        </div>
-    </div>
 
-    <div class="p-r2">
-        <div class="p-card">
-            <div class="p-ch">
-                <div class="p-ct"><i class="fas fa-file-pdf"></i> Generate New Report</div>
-            </div>
-            <div class="p-cb">
-                <form asp-action="Reports" method="post">
-                    @Html.AntiForgeryToken()
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                        <div>
-                            <label style="display: block; font-weight: 600; color: #1a4c6e; margin-bottom: 5px;">From Date</label>
-                            <input asp-for="FromDate" type="date" class="p-input" style="width:100%;" />
-                        </div>
-                        <div>
-                            <label style="display: block; font-weight: 600; color: #1a4c6e; margin-bottom: 5px;">To Date</label>
-                            <input asp-for="ToDate" type="date" class="p-input" style="width:100%;" />
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; font-weight: 600; color: #1a4c6e; margin-bottom: 5px;">Report Type</label>
-                        <select class="p-input" style="width:100%; height: 45px;">
-                            <option>All test results grouped by category</option>
-                            <option>Monthly Health Trend</option>
-                        </select>
-                    </div>
-
-                    <button type="submit" class="p-btn" style="width:100%; padding: 12px;">
-                        <i class="fas fa-file-pdf"></i> Generate PDF Report
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <div class="p-card">
-            <div class="p-ch">
-                <div class="p-ct"><i class="fas fa-history"></i> Recent Downloads</div>
-            </div>
-            <div class="p-cb" style="padding: 0;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-                    <thead style="background: #f8f9fa;">
-                        <tr>
-                            <th style="padding: 12px; text-align: left; color: #1a4c6e;">Report Name</th>
-                            <th style="padding: 12px; text-align: left; color: #1a4c6e;">Generated</th>
-                            <th style="padding: 12px; text-align: center; color: #1a4c6e;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 12px;">Jan 2026 – Apr 2026</td>
-                            <td style="padding: 12px;">30 Apr 2026</td>
-                            <td style="padding: 12px; text-align: center;">
-                                <button class="p-btn" style="padding: 5px 10px; font-size: 0.8rem; background: #66788a;">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 12px;">Jul 2025 – Dec 2025</td>
-                            <td style="padding: 12px;">2 Jan 2026</td>
-                            <td style="padding: 12px; text-align: center;">
-                                <button class="p-btn" style="padding: 5px 10px; font-size: 0.8rem; background: #66788a;">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    @if (Model.FilteredResults != null && Model.FilteredResults.Any())
-    {
-        <div class="p-card" style="margin-top: 25px;">
-            <div class="p-ch">
-                <div class="p-ct">
-                    <i class="fas fa-list"></i> Results for Selected Period
+                <div class="rp-eyebrow">
+                    <i class="fas fa-shield-heart"></i>
+                    Patient Reporting
                 </div>
-                <span class="p-htag p-ht-c">@Model.FilteredResults.Count Entries</span>
+
+                <h1>Medical Reports</h1>
+
+                <p>
+                    Generate, review and organise reports based on
+                    your laboratory results and selected date range.
+                </p>
+
             </div>
-            <div class="p-cb" style="padding: 0; overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background: #f0f7f8;">
+
+        </div>
+
+
+        <div class="rp-hero-side">
+
+            <div class="rp-hero-stat">
+
+                <strong>@totalResults</strong>
+
+                <span>Results Available</span>
+
+            </div>
+
+            <div class="rp-hero-divider"></div>
+
+            <div class="rp-hero-stat">
+
+                <strong>@requests</strong>
+
+                <span>Test Requests</span>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================================================
+     SUMMARY
+========================================================== -->
+
+    <section class="rp-stats">
+
+        <div class="rp-stat">
+
+            <div class="rp-stat-icon rp-teal">
+                <i class="fas fa-vials"></i>
+            </div>
+
+            <div>
+
+                <span>Total Results</span>
+
+                <strong>@totalResults</strong>
+
+                <small>Selected period</small>
+
+            </div>
+
+        </div>
+
+
+        <div class="rp-stat">
+
+            <div class="rp-stat-icon rp-green">
+                <i class="fas fa-circle-check"></i>
+            </div>
+
+            <div>
+
+                <span>Normal</span>
+
+                <strong>@normalResults</strong>
+
+                <small>Within reference range</small>
+
+            </div>
+
+        </div>
+
+
+        <div class="rp-stat">
+
+            <div class="rp-stat-icon rp-red">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+
+            <div>
+
+                <span>Needs Attention</span>
+
+                <strong>@abnormalResults</strong>
+
+                <small>@abnormalPercentage.ToString("0")% of results</small>
+
+            </div>
+
+        </div>
+
+
+        <div class="rp-stat">
+
+            <div class="rp-stat-icon rp-purple">
+                <i class="fas fa-layer-group"></i>
+            </div>
+
+            <div>
+
+                <span>Categories</span>
+
+                <strong>@categories</strong>
+
+                <small>Test categories</small>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================================================
+     GENERATE REPORT
+========================================================== -->
+
+    <section class="rp-builder">
+
+        <div class="rp-builder-head">
+
+            <div>
+
+                <span class="rp-section-label">
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    Report Builder
+                </span>
+
+                <h2>Generate a New Report</h2>
+
+                <p>
+                    Select the period and information you want included
+                    in your medical report.
+                </p>
+
+            </div>
+
+            <div class="rp-builder-badge">
+
+                <i class="fas fa-file-pdf"></i>
+
+                PDF
+
+            </div>
+
+        </div>
+
+
+        <form asp-action="Reports"
+              method="post"
+              class="rp-form">
+
+            @Html.AntiForgeryToken()
+
+
+            <!-- DATE RANGE -->
+
+            <div class="rp-form-section">
+
+                <div class="rp-form-title">
+
+                    <span>01</span>
+
+                    <div>
+
+                        <strong>Select Date Range</strong>
+
+                        <small>
+                            Define which laboratory results should be included.
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="rp-date-grid">
+
+                    <div class="rp-field">
+
+                        <label asp-for="FromDate">
+                            From Date
+                        </label>
+
+                        <div class="rp-input-wrap">
+
+                            <i class="fas fa-calendar-days"></i>
+
+                            <input asp-for="FromDate"
+                                   type="date"
+                                   class="rp-input" />
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="rp-date-arrow">
+
+                        <i class="fas fa-arrow-right"></i>
+
+                    </div>
+
+
+                    <div class="rp-field">
+
+                        <label asp-for="ToDate">
+                            To Date
+                        </label>
+
+                        <div class="rp-input-wrap">
+
+                            <i class="fas fa-calendar-days"></i>
+
+                            <input asp-for="ToDate"
+                                   type="date"
+                                   class="rp-input" />
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- REPORT TYPE -->
+
+            <div class="rp-form-section">
+
+                <div class="rp-form-title">
+
+                    <span>02</span>
+
+                    <div>
+
+                        <strong>Choose Report Type</strong>
+
+                        <small>
+                            Select the format of information you want to review.
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="rp-type-grid">
+
+
+                    <label class="rp-type-card">
+
+                        <input type="radio"
+                               name="ReportType"
+                               value="AllResults"
+                               checked />
+
+                        <div class="rp-type-check">
+                            <i class="fas fa-check"></i>
+                        </div>
+
+                        <div class="rp-type-icon">
+                            <i class="fas fa-list-check"></i>
+                        </div>
+
+                        <div>
+
+                            <strong>Complete Results</strong>
+
+                            <p>
+                                All laboratory results grouped by
+                                their test category.
+                            </p>
+
+                        </div>
+
+                    </label>
+
+
+                    <label class="rp-type-card">
+
+                        <input type="radio"
+                               name="ReportType"
+                               value="HealthTrend" />
+
+                        <div class="rp-type-check">
+                            <i class="fas fa-check"></i>
+                        </div>
+
+                        <div class="rp-type-icon rp-purple-bg">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+
+                        <div>
+
+                            <strong>Health Trend</strong>
+
+                            <p>
+                                Review available results across the
+                                selected period.
+                            </p>
+
+                        </div>
+
+                    </label>
+
+
+                    <label class="rp-type-card">
+
+                        <input type="radio"
+                               name="ReportType"
+                               value="AbnormalResults" />
+
+                        <div class="rp-type-check">
+                            <i class="fas fa-check"></i>
+                        </div>
+
+                        <div class="rp-type-icon rp-red-bg">
+                            <i class="fas fa-triangle-exclamation"></i>
+                        </div>
+
+                        <div>
+
+                            <strong>Attention Report</strong>
+
+                            <p>
+                                Focus on laboratory values marked
+                                as abnormal.
+                            </p>
+
+                        </div>
+
+                    </label>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- GENERATE -->
+
+            <div class="rp-generate">
+
+                <div class="rp-generate-info">
+
+                    <div class="rp-generate-icon">
+
+                        <i class="fas fa-file-pdf"></i>
+
+                    </div>
+
+                    <div>
+
+                        <strong>Ready to generate?</strong>
+
+                        <span>
+                            Your report will use the selected
+                            date range and available patient results.
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <button type="submit"
+                        class="rp-generate-btn">
+
+                    <i class="fas fa-file-arrow-down"></i>
+
+                    Generate PDF Report
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </section>
+
+
+
+    <!-- =========================================================
+     RESULTS PREVIEW
+========================================================== -->
+    @if (Model.FilteredResults != null &&
+         Model.FilteredResults.Any())
+    {
+
+        <section class="rp-results">
+
+            <div class="rp-results-head">
+
+                <div>
+
+                    <span class="rp-section-label">
+                        <i class="fas fa-table-list"></i>
+                        Report Preview
+                    </span>
+
+                    <h2>Results for Selected Period</h2>
+
+                </div>
+
+
+                <div class="rp-result-count">
+
+                    <strong>@totalResults</strong>
+
+                    <span>Entries</span>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- RESULT SUMMARY BAR -->
+
+            <div class="rp-result-summary">
+
+                <div>
+
+                    <span class="rp-summary-dot rp-green-dot"></span>
+
+                    <span>Normal</span>
+
+                    <strong>@normalResults</strong>
+
+                </div>
+
+                <div>
+
+                    <span class="rp-summary-dot rp-red-dot"></span>
+
+                    <span>Abnormal</span>
+
+                    <strong>@abnormalResults</strong>
+
+                </div>
+
+                <div>
+
+                    <span class="rp-summary-dot rp-teal-dot"></span>
+
+                    <span>Requests</span>
+
+                    <strong>@requests</strong>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="rp-table-wrap">
+
+                <table class="rp-table">
+
+                    <thead>
+
                         <tr>
-                            <th style="padding: 15px; text-align: left;">Req #</th>
-                            <th style="padding: 15px; text-align: left;">Test</th>
-                            <th style="padding: 15px; text-align: left;">Category</th>
-                            <th style="padding: 15px; text-align: center;">Result</th>
-                            <th style="padding: 15px; text-align: left;">Date</th>
-                            <th style="padding: 15px; text-align: center;">Status</th>
+
+                            <th>Request</th>
+
+                            <th>Test</th>
+
+                            <th>Category</th>
+
+                            <th>Result</th>
+
+                            <th>Date</th>
+
+                            <th>Status</th>
+
                         </tr>
+
                     </thead>
+
                     <tbody>
+
                         @foreach (var r in Model.FilteredResults)
                         {
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 15px; font-weight: 600; color: #1a4c6e;">#@r.RequestID</td>
-                                <td style="padding: 15px;">@r.TestName</td>
-                                <td style="padding: 15px;"><span class="p-htag" style="background: #eee; color: #444;">@r.Category</span></td>
-                                <td style="padding: 15px; text-align: center;">
-                                    <strong style="color: @(r.IsAbnormal ? "#dc3545" : "#0f717e")">@r.ResultValue @r.Unit</strong>
+
+                            <tr>
+
+                                <td>
+
+                                    <span class="rp-request">
+                                        #@r.RequestID
+                                    </span>
+
                                 </td>
-                                <td style="padding: 15px;">@r.ResultDate.ToString("dd MMM yyyy")</td>
-                                <td style="padding: 15px; text-align: center;">
+
+
+                                <td>
+
+                                    <div class="rp-test">
+
+                                        <div class="rp-test-icon">
+                                            <i class="fas fa-vial"></i>
+                                        </div>
+
+                                        <div>
+
+                                            <strong>
+                                                @r.TestName
+                                            </strong>
+
+                                            <small>
+                                                Laboratory test
+                                            </small>
+
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="rp-category">
+                                        @r.Category
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <strong class="rp-result-value @(r.IsAbnormal ? "rp-abnormal" : "")">
+
+                                        @r.ResultValue
+
+                                    </strong>
+
+                                    <span class="rp-unit">
+                                        @r.Unit
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="rp-date">
+
+                                        <i class="far fa-calendar"></i>
+
+                                        @r.ResultDate.ToString("dd MMM yyyy")
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
                                     @if (r.IsAbnormal)
                                     {
-                                        <span class="p-htag p-ht-a" style="background: #f8d7da; color: #721c24;">ABNORMAL</span>
+
+                                        <span class="rp-status rp-status-abnormal">
+
+                                            <i class="fas fa-triangle-exclamation"></i>
+
+                                            Abnormal
+
+                                        </span>
+
                                     }
                                     else
                                     {
-                                        <span class="p-htag p-ht-c">NORMAL</span>
+
+                                        <span class="rp-status rp-status-normal">
+
+                                            <i class="fas fa-check"></i>
+
+                                            Normal
+
+                                        </span>
+
                                     }
+
                                 </td>
+
                             </tr>
+
                         }
+
                     </tbody>
+
                 </table>
+
             </div>
-        </div>
+
+        </section>
+
     }
+    else
+    {
+
+        <!-- =====================================================
+         EMPTY STATE
+    ====================================================== -->
+
+        <section class="rp-empty">
+
+            <div class="rp-empty-icon">
+
+                <i class="fas fa-file-circle-xmark"></i>
+
+            </div>
+
+            <div>
+
+                <span class="rp-section-label">
+                    <i class="fas fa-info-circle"></i>
+                    Nothing to Preview
+                </span>
+
+                <h2>No results found for this period</h2>
+
+                <p>
+                    Select a date range containing laboratory results
+                    and generate the report again. Once results are
+                    available, they will appear here before you
+                    generate the PDF.
+                </p>
+
+            </div>
+
+        </section>
+
+    }
+
+
+
+    <!-- =========================================================
+     REPORT INFORMATION
+========================================================== -->
+
+    <section class="rp-info-grid">
+
+        <div class="rp-info-card">
+
+            <div class="rp-info-icon">
+                <i class="fas fa-lock"></i>
+            </div>
+
+            <div>
+
+                <strong>Secure Reports</strong>
+
+                <p>
+                    Reports contain patient medical information and
+                    should be handled securely.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="rp-info-card">
+
+            <div class="rp-info-icon">
+                <i class="fas fa-filter-circle-dollar"></i>
+            </div>
+
+            <div>
+
+                <strong>Filtered Results</strong>
+
+                <p>
+                    Only laboratory results matching your selected
+                    reporting period are included.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="rp-info-card">
+
+            <div class="rp-info-icon">
+                <i class="fas fa-file-pdf"></i>
+            </div>
+
+            <div>
+
+                <strong>PDF Format</strong>
+
+                <p>
+                    Generated reports are designed for easy
+                    viewing, printing and sharing.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================================================
+     FOOTER
+========================================================== -->
+
+    <footer class="rp-footer">
+
+        <span>
+
+            <i class="fas fa-shield-halved"></i>
+
+            Laboratory Information Management System
+
+        </span>
+
+        <span>Patient Reports</span>
+
+        <span>•</span>
+
+        <span>@DateTime.Now.Year</span>
+
+    </footer>
+    ```
+
 </div>
 
 <style>
-    .p-input {
-        padding: 10px 15px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        outline: none;
-        transition: border-color 0.3s;
+
+    /* =========================================================
+           REPORTS — MEDICAL TEAL THEME
+           ========================================================= */
+
+    :root {
+        --rp-paper: #F0F7F6;
+        --rp-white: #FFFFFF;
+        --rp-ink: #102C27;
+        --rp-soft: #52716C;
+        --rp-faint: #8FA9A3;
+        --rp-line: #E1EEEC;
+        --rp-line-strong: #CCE3DF;
+        --rp-teal: #0E8C7F;
+        --rp-teal-deep: #0A5850;
+        --rp-teal-light: #E3F4F1;
+        --rp-green: #2E8B57;
+        --rp-green-light: #E3F4EA;
+        --rp-red: #B0463F;
+        --rp-red-light: #F7E8E7;
+        --rp-purple: #6D4EA8;
+        --rp-purple-light: #EEE8F9;
+        --rp-shadow: 0 8px 28px rgba(10,60,55,.08);
     }
 
-        .p-input:focus {
-            border-color: #0f717e;
+
+    .rp-wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 28px 24px 60px;
+        color: var(--rp-ink);
+        font-family: 'Inter', sans-serif;
+        animation: rpFade .45s ease;
+    }
+
+
+    @@keyframes rpFade {
+
+        from {
+            opacity: 0;
+            transform: translateY(10px);
         }
 
-    /* Ensuring table headers look professional */
-    th {
-        font-weight: 700;
-        color: #1a4c6e;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 0.5px;
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
+
+
+    /* =========================================================
+           HERO
+           ========================================================= */
+
+    .rp-hero {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 30px;
+        padding: 30px 34px;
+        margin-bottom: 18px;
+        overflow: hidden;
+        border-radius: 20px;
+        background: linear-gradient( 125deg, #12A392, #0A4F48 );
+        box-shadow: 0 18px 45px rgba(10,90,80,.20);
+    }
+
+
+    .rp-hero-bg {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient( circle at 85% 15%, rgba(255,255,255,.13), transparent 35% );
+    }
+
+
+    .rp-hero-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 17px;
+    }
+
+
+    .rp-hero-icon {
+        width: 62px;
+        height: 62px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border-radius: 17px;
+        color: #fff;
+        font-size: 23px;
+        background: rgba(255,255,255,.15);
+        border: 1px solid rgba(255,255,255,.25);
+    }
+
+
+    .rp-eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 4px;
+        color: rgba(255,255,255,.68);
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+    }
+
+
+    .rp-hero h1 {
+        margin: 0 0 4px;
+        color: #fff;
+        font-family: 'Poppins', sans-serif;
+        font-size: 25px;
+    }
+
+
+    .rp-hero p {
+        max-width: 580px;
+        margin: 0;
+        color: rgba(255,255,255,.83);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+
+    .rp-hero-side {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+    }
+
+
+    .rp-hero-stat {
+        text-align: center;
+    }
+
+
+        .rp-hero-stat strong {
+            display: block;
+            color: #fff;
+            font-family: 'Poppins', sans-serif;
+            font-size: 24px;
+            line-height: 1;
+        }
+
+
+        .rp-hero-stat span {
+            display: block;
+            margin-top: 5px;
+            color: rgba(255,255,255,.62);
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+        }
+
+
+    .rp-hero-divider {
+        width: 1px;
+        height: 42px;
+        background: rgba(255,255,255,.23);
+    }
+
+
+    /* =========================================================
+           STATISTICS
+           ========================================================= */
+
+    .rp-stats {
+        display: grid;
+        grid-template-columns: repeat(4,1fr);
+        gap: 13px;
+        margin-bottom: 20px;
+    }
+
+
+    .rp-stat {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 15px;
+        background: #fff;
+        border: 1px solid var(--rp-line);
+        border-radius: 16px;
+        box-shadow: var(--rp-shadow);
+        transition: .2s ease;
+    }
+
+
+        .rp-stat:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 32px rgba(10,60,55,.12);
+        }
+
+
+    .rp-stat-icon {
+        width: 43px;
+        height: 43px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+    }
+
+
+    .rp-teal {
+        color: var(--rp-teal);
+        background: var(--rp-teal-light);
+    }
+
+
+    .rp-green {
+        color: var(--rp-green);
+        background: var(--rp-green-light);
+    }
+
+
+    .rp-red {
+        color: var(--rp-red);
+        background: var(--rp-red-light);
+    }
+
+
+    .rp-purple {
+        color: var(--rp-purple);
+        background: var(--rp-purple-light);
+    }
+
+
+    .rp-stat span {
+        display: block;
+        color: var(--rp-soft);
+        font-size: 9.5px;
+        font-weight: 600;
+    }
+
+
+    .rp-stat strong {
+        display: block;
+        margin-top: 1px;
+        font-family: 'Poppins', sans-serif;
+        font-size: 21px;
+        line-height: 1;
+    }
+
+
+    .rp-stat small {
+        display: block;
+        margin-top: 3px;
+        color: var(--rp-faint);
+        font-size: 8px;
+    }
+
+
+    /* =========================================================
+           BUILDER
+           ========================================================= */
+
+    .rp-builder {
+        margin-bottom: 20px;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid var(--rp-line);
+        border-radius: 20px;
+        box-shadow: var(--rp-shadow);
+    }
+
+
+    .rp-builder-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 23px;
+        border-bottom: 1px solid var(--rp-line);
+    }
+
+
+    .rp-section-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--rp-teal);
+        font-size: 8.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+    }
+
+
+    .rp-builder-head h2,
+    .rp-results-head h2 {
+        margin: 4px 0 3px;
+        font-family: 'Poppins', sans-serif;
+        font-size: 17px;
+    }
+
+
+    .rp-builder-head p {
+        margin: 0;
+        color: var(--rp-soft);
+        font-size: 10.5px;
+    }
+
+
+    .rp-builder-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 11px;
+        border-radius: 999px;
+        color: var(--rp-red);
+        background: var(--rp-red-light);
+        font-size: 9px;
+        font-weight: 700;
+    }
+
+
+    .rp-form {
+        padding: 23px;
+    }
+
+
+    .rp-form-section {
+        padding-bottom: 23px;
+        margin-bottom: 23px;
+        border-bottom: 1px solid var(--rp-line);
+    }
+
+
+    .rp-form-title {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        margin-bottom: 17px;
+    }
+
+
+        .rp-form-title > span {
+            width: 29px;
+            height: 29px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            color: var(--rp-teal);
+            background: var(--rp-teal-light);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+
+        .rp-form-title strong {
+            display: block;
+            font-size: 11px;
+        }
+
+
+        .rp-form-title small {
+            display: block;
+            margin-top: 2px;
+            color: var(--rp-faint);
+            font-size: 8.5px;
+        }
+
+
+    /* DATE */
+
+    .rp-date-grid {
+        display: grid;
+        grid-template-columns: 1fr 35px 1fr;
+        align-items: end;
+        gap: 10px;
+    }
+
+
+    .rp-field label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--rp-soft);
+        font-size: 9.5px;
+        font-weight: 600;
+    }
+
+
+    .rp-input-wrap {
+        position: relative;
+    }
+
+
+        .rp-input-wrap i {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--rp-teal);
+            font-size: 11px;
+            pointer-events: none;
+        }
+
+
+    .rp-input {
+        width: 100%;
+        height: 43px;
+        padding: 0 13px 0 35px;
+        border: 1px solid var(--rp-line-strong);
+        border-radius: 11px;
+        outline: none;
+        color: var(--rp-ink);
+        background: #fff;
+        font-family: 'Inter', sans-serif;
+        font-size: 10px;
+        transition: .2s ease;
+    }
+
+
+        .rp-input:focus {
+            border-color: var(--rp-teal);
+            box-shadow: 0 0 0 3px rgba(14,140,127,.08);
+        }
+
+
+    .rp-date-arrow {
+        width: 35px;
+        height: 43px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--rp-faint);
+        font-size: 10px;
+    }
+
+
+    /* REPORT TYPES */
+
+    .rp-type-grid {
+        display: grid;
+        grid-template-columns: repeat(3,1fr);
+        gap: 12px;
+    }
+
+
+    .rp-type-card {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 11px;
+        padding: 16px;
+        cursor: pointer;
+        border: 1px solid var(--rp-line);
+        border-radius: 14px;
+        background: #fff;
+        transition: .2s ease;
+    }
+
+
+        .rp-type-card:hover {
+            border-color: var(--rp-teal);
+            background: #FAFDFC;
+            transform: translateY(-2px);
+        }
+
+
+        .rp-type-card input {
+            position: absolute;
+            opacity: 0;
+        }
+
+
+        .rp-type-card:has(input:checked) {
+            border-color: var(--rp-teal);
+            background: var(--rp-teal-light);
+            box-shadow: 0 6px 18px rgba(14,140,127,.09);
+        }
+
+
+    .rp-type-check {
+        position: absolute;
+        top: 9px;
+        right: 9px;
+        width: 19px;
+        height: 19px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        color: #fff;
+        background: var(--rp-teal);
+        font-size: 8px;
+        opacity: 0;
+        transform: scale(.7);
+        transition: .2s ease;
+    }
+
+
+    .rp-type-card:has(input:checked)
+    .rp-type-check {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+
+    .rp-type-icon {
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border-radius: 10px;
+        color: var(--rp-teal);
+        background: #fff;
+        font-size: 13px;
+    }
+
+
+    .rp-purple-bg {
+        color: var(--rp-purple);
+        background: var(--rp-purple-light);
+    }
+
+
+    .rp-red-bg {
+        color: var(--rp-red);
+        background: var(--rp-red-light);
+    }
+
+
+    .rp-type-card strong {
+        display: block;
+        padding-right: 18px;
+        font-size: 10.5px;
+    }
+
+
+    .rp-type-card p {
+        margin: 4px 0 0;
+        color: var(--rp-soft);
+        font-size: 8.5px;
+        line-height: 1.45;
+    }
+
+
+    /* GENERATE */
+
+    .rp-generate {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 15px;
+        border-radius: 13px;
+        background: var(--rp-paper);
+    }
+
+
+    .rp-generate-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+
+    .rp-generate-icon {
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        color: var(--rp-red);
+        background: var(--rp-red-light);
+    }
+
+
+    .rp-generate-info strong {
+        display: block;
+        font-size: 10px;
+    }
+
+
+    .rp-generate-info span {
+        display: block;
+        margin-top: 2px;
+        color: var(--rp-faint);
+        font-size: 8px;
+    }
+
+
+    .rp-generate-btn {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 11px 17px;
+        border: none;
+        border-radius: 10px;
+        color: #fff;
+        background: linear-gradient( 120deg, #12A392, #0A4F48 );
+        font-family: 'Inter', sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 7px 17px rgba(10,90,80,.18);
+        transition: .2s ease;
+    }
+
+
+        .rp-generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 22px rgba(10,90,80,.25);
+        }
+
+
+    /* =========================================================
+           RESULTS
+           ========================================================= */
+
+    .rp-results {
+        overflow: hidden;
+        margin-bottom: 20px;
+        background: #fff;
+        border: 1px solid var(--rp-line);
+        border-radius: 20px;
+        box-shadow: var(--rp-shadow);
+    }
+
+
+    .rp-results-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 22px 23px;
+        border-bottom: 1px solid var(--rp-line);
+    }
+
+
+    .rp-result-count {
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+        padding: 7px 11px;
+        border-radius: 999px;
+        color: var(--rp-teal-deep);
+        background: var(--rp-teal-light);
+    }
+
+
+        .rp-result-count strong {
+            font-family: 'Poppins', sans-serif;
+            font-size: 15px;
+        }
+
+
+        .rp-result-count span {
+            font-size: 8px;
+            text-transform: uppercase;
+        }
+
+
+    .rp-result-summary {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        padding: 12px 23px;
+        background: var(--rp-paper);
+        border-bottom: 1px solid var(--rp-line);
+    }
+
+
+        .rp-result-summary > div {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--rp-soft);
+            font-size: 9px;
+        }
+
+
+        .rp-result-summary strong {
+            color: var(--rp-ink);
+            font-family: 'Poppins', sans-serif;
+            font-size: 10px;
+        }
+
+
+    .rp-summary-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+    }
+
+
+    .rp-green-dot {
+        background: var(--rp-green);
+    }
+
+
+    .rp-red-dot {
+        background: var(--rp-red);
+    }
+
+
+    .rp-teal-dot {
+        background: var(--rp-teal);
+    }
+
+
+    .rp-table-wrap {
+        overflow-x: auto;
+    }
+
+
+    .rp-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 780px;
+    }
+
+
+        .rp-table thead {
+            background: #FAFCFC;
+        }
+
+
+        .rp-table th {
+            padding: 12px 18px;
+            text-align: left;
+            color: var(--rp-faint);
+            border-bottom: 1px solid var(--rp-line);
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+
+        .rp-table td {
+            padding: 13px 18px;
+            border-bottom: 1px solid var(--rp-line);
+            color: var(--rp-soft);
+            font-size: 9.5px;
+        }
+
+
+        .rp-table tbody tr {
+            transition: .15s ease;
+        }
+
+
+            .rp-table tbody tr:hover {
+                background: #FAFDFC;
+            }
+
+
+    .rp-request {
+        display: inline-flex;
+        padding: 5px 8px;
+        border-radius: 7px;
+        color: var(--rp-teal-deep);
+        background: var(--rp-teal-light);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 8.5px;
+        font-weight: 700;
+    }
+
+
+    .rp-test {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+
+    .rp-test-icon {
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        color: var(--rp-teal);
+        background: var(--rp-teal-light);
+        font-size: 10px;
+    }
+
+
+    .rp-test strong {
+        display: block;
+        color: var(--rp-ink);
+        font-size: 9.5px;
+    }
+
+
+    .rp-test small {
+        display: block;
+        margin-top: 2px;
+        color: var(--rp-faint);
+        font-size: 7.5px;
+    }
+
+
+    .rp-category {
+        display: inline-block;
+        padding: 5px 8px;
+        border-radius: 7px;
+        color: var(--rp-soft);
+        background: var(--rp-paper);
+        font-size: 8px;
+        font-weight: 600;
+    }
+
+
+    .rp-result-value {
+        color: var(--rp-teal-deep);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+    }
+
+
+    .rp-abnormal {
+        color: var(--rp-red);
+    }
+
+
+    .rp-unit {
+        margin-left: 3px;
+        color: var(--rp-faint);
+        font-size: 8px;
+    }
+
+
+    .rp-date {
+        white-space: nowrap;
+        font-size: 8.5px;
+    }
+
+
+        .rp-date i {
+            margin-right: 5px;
+            color: var(--rp-teal);
+        }
+
+
+    .rp-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 8px;
+        border-radius: 999px;
+        font-size: 7.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+
+    .rp-status-normal {
+        color: var(--rp-green);
+        background: var(--rp-green-light);
+    }
+
+
+    .rp-status-abnormal {
+        color: var(--rp-red);
+        background: var(--rp-red-light);
+    }
+
+
+    /* =========================================================
+           EMPTY
+           ========================================================= */
+
+    .rp-empty {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 30px;
+        margin-bottom: 20px;
+        border: 1px solid var(--rp-line);
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: var(--rp-shadow);
+    }
+
+
+    .rp-empty-icon {
+        width: 65px;
+        height: 65px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border-radius: 17px;
+        color: var(--rp-teal);
+        background: var(--rp-teal-light);
+        font-size: 24px;
+    }
+
+
+    .rp-empty h2 {
+        margin: 5px 0;
+        font-family: 'Poppins', sans-serif;
+        font-size: 15px;
+    }
+
+
+    .rp-empty p {
+        max-width: 680px;
+        margin: 0;
+        color: var(--rp-soft);
+        font-size: 9.5px;
+        line-height: 1.6;
+    }
+
+
+    /* =========================================================
+           INFO
+           ========================================================= */
+
+    .rp-info-grid {
+        display: grid;
+        grid-template-columns: repeat(3,1fr);
+        gap: 12px;
+    }
+
+
+    .rp-info-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 15px;
+        border: 1px solid var(--rp-line);
+        border-radius: 14px;
+        background: rgba(255,255,255,.7);
+    }
+
+
+    .rp-info-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border-radius: 9px;
+        color: var(--rp-teal);
+        background: var(--rp-teal-light);
+        font-size: 11px;
+    }
+
+
+    .rp-info-card strong {
+        display: block;
+        font-size: 9.5px;
+    }
+
+
+    .rp-info-card p {
+        margin: 3px 0 0;
+        color: var(--rp-faint);
+        font-size: 8px;
+        line-height: 1.5;
+    }
+
+
+    /* =========================================================
+           FOOTER
+           ========================================================= */
+
+    .rp-footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding-top: 22px;
+        margin-top: 28px;
+        border-top: 1px solid var(--rp-line);
+        color: var(--rp-faint);
+        font-size: 8.5px;
+    }
+
+
+        .rp-footer i {
+            margin-right: 5px;
+            color: var(--rp-teal);
+        }
+
+
+    /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+
+    @@media (max-width: 950px) {
+
+        .rp-stats {
+            grid-template-columns: repeat(2,1fr);
+        }
+
+        .rp-type-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+
+    @@media (max-width: 750px) {
+
+        .rp-hero {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .rp-hero-side {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .rp-date-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .rp-date-arrow {
+            display: none;
+        }
+
+        .rp-generate {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .rp-generate-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .rp-info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+
+    @@media (max-width: 550px) {
+
+        .rp-wrap {
+            padding: 18px 12px 40px;
+        }
+
+        .rp-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .rp-hero {
+            padding: 24px 20px;
+        }
+
+            .rp-hero h1 {
+                font-size: 20px;
+            }
+
+        .rp-builder-head,
+        .rp-results-head {
+            align-items: flex-start;
+            gap: 12px;
+            flex-direction: column;
+        }
+
+        .rp-result-summary {
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .rp-empty {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+
 </style>

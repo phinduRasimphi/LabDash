@@ -13,921 +13,856 @@
 @if (SignInManager.IsSignedIn(User))
 {
     if (User.IsInRole("Admin"))
-    {
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+{
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 
-        <div class="adm-wrap">
+    <div class="adm-wrap">
 
-            <!-- ==========================================
-                HEADER
-            =========================================== -->
-            <div class="adm-banner">
-                <div class="adm-banner-pattern"></div>
+        <!-- ==========================================
+            HEADER
+        =========================================== -->
+        <div class="adm-banner">
+            <div class="adm-banner-pattern"></div>
 
-                <div class="adm-banner-left">
-                    <div class="adm-banner-icon">
-                        <span class="adm-icon-ring"></span>
-                        <i class="fa-solid fa-shield-halved"></i>
-                    </div>
-                    <div class="adm-banner-text">
-                        <h1>Welcome, <span>@User.Identity?.Name</span></h1>
-                        <p>NMB-HLabSys Admin Control Center</p>
-                        <div class="adm-pills">
-                            <span class="adm-pill"><i class="fa-solid fa-database"></i> Reference data governance</span>
-                            <span class="adm-pill"><i class="fa-solid fa-gears"></i> System configuration</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="adm-clock">
-                    <small>Today's date</small>
-                    <div id="adminCurrentDate"></div>
-                    <div id="adminCurrentTime"></div>
-                </div>
-            </div>
-
-            <!-- ==========================================
-                SYSTEM STATUS STRIP
-            =========================================== -->
-            <div class="adm-status-strip">
-                <div class="adm-status-left">
-                    <span class="adm-status-dot"></span>
-                    <span><strong>All systems operational</strong> &middot; core reference databases secure, 0 warnings flagged</span>
-                </div>
-                <a class="adm-status-link" href="@Url.Action("SystemTables", "Admin")">
-                    Verify tables <i class="fa-solid fa-arrow-right"></i>
-                </a>
-            </div>
-
-            <!-- ==========================================
-                REFERENCE DATA OVERVIEW
-            =========================================== -->
-            <div class="adm-section-head">
-                <div>
-                    <h3>Reference data overview</h3>
-                    <p>Live counts of the medical reference records your system depends on.</p>
-                </div>
-            </div>
-
-            <div class="adm-grid adm-grid-4">
-
-                <div class="adm-stat">
-                    <div class="adm-stat-icon c-teal"><i class="fa-solid fa-heart-pulse"></i></div>
-                    <div class="adm-stat-body">
-                        <div class="num">@Model.ConditionCount</div>
-                        <h5>Conditions</h5>
-                        <small>Active classifications</small>
-                    </div>
-                </div>
-
-                <div class="adm-stat">
-                    <div class="adm-stat-icon c-purple"><i class="fa-solid fa-allergies"></i></div>
-                    <div class="adm-stat-body">
-                        <div class="num">@Model.AllergyCount</div>
-                        <h5>Allergies</h5>
-                        <small>Tracked intolerances</small>
-                    </div>
-                </div>
-
-                <div class="adm-stat">
-                    <div class="adm-stat-icon c-blue"><i class="fa-solid fa-pills"></i></div>
-                    <div class="adm-stat-body">
-                        <div class="num">@Model.MedicationCount</div>
-                        <h5>Medications</h5>
-                        <small>Verified formulary</small>
-                    </div>
-                </div>
-
-                <div class="adm-stat">
-                    <div class="adm-stat-icon c-gold"><i class="fa-solid fa-layer-group"></i></div>
-                    <div class="adm-stat-body">
-                        <div class="num">@(Model.ConditionCount + Model.AllergyCount + Model.MedicationCount)</div>
-                        <h5>Total records</h5>
-                        <small>Across all reference tables</small>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- ==========================================
-                QUICK ACTIONS
-            =========================================== -->
-            <div class="adm-section-head adm-mt-lg">
-                <div>
-                    <h3>Quick actions</h3>
-                    <p>Manage the reference data that powers the rest of the system.</p>
-                </div>
-            </div>
-
-            <div class="adm-grid adm-grid-2">
-
-                <a href="@Url.Action("Conditions", "Admin")" class="adm-action">
-                    <div class="adm-action-icon"><i class="fa-solid fa-plus"></i></div>
-                    <h5>Manage conditions</h5>
-                    <p>Add, edit, or retire condition classifications used across patient records.</p>
-                    <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-                </a>
-
-                <a href="@Url.Action("SystemTables", "Admin")" class="adm-action">
-                    <div class="adm-action-icon"><i class="fa-solid fa-database"></i></div>
-                    <h5>System tables</h5>
-                    <p>Inspect and verify the integrity of the underlying reference tables.</p>
-                    <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-                </a>
-
-            </div>
-
-            <!-- ==========================================
-                REGISTRY + ACTIVITY
-            =========================================== -->
-            <div class="adm-section-head adm-mt-lg">
-                <div>
-                    <h3>Registry &amp; activity</h3>
-                    <p>Recent reference data entries and administrative activity.</p>
-                </div>
-            </div>
-
-            <div class="adm-split">
-
-                <div class="adm-panel">
-                    <div class="adm-panel-head">
-                        <span><i class="fa-solid fa-notes-medical"></i> Live condition registry</span>
-                        <span class="adm-panel-tag">Reference data</span>
-                    </div>
-                    <div class="adm-table-wrap">
-                        <table class="adm-table">
-                            <thead>
-                                <tr>
-                                    <th>Condition profile</th>
-                                    <th>Category</th>
-                                    <th class="adm-text-right">Entry date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @* TODO: replace with a real list once AdminDashboardViewModel exposes recent conditions *@
-                                <tr>
-                                    <td><strong>COPD</strong></td>
-                                    <td><span class="adm-badge b-routine">Respiratory</span></td>
-                                    <td class="adm-text-right">20 Apr 2026</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Hypothyroidism</strong></td>
-                                    <td><span class="adm-badge b-urgent">Metabolic</span></td>
-                                    <td class="adm-text-right">25 Apr 2026</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="adm-panel">
-                    <div class="adm-panel-head">
-                        <span><i class="fa-solid fa-clock-rotate-left"></i> Audit activity</span>
-                    </div>
-                    <div class="adm-activity-body">
-
-                        @* TODO: wire to a real audit log once available *@
-                        <div class="adm-activity-row">
-                            <span class="adm-activity-dot dot-teal"></span>
-                            <span>New medical condition profile created</span>
-                        </div>
-                        <div class="adm-activity-row">
-                            <span class="adm-activity-dot dot-red"></span>
-                            <span>Reference formulary logs cleared by administrator</span>
-                        </div>
-                        <div class="adm-activity-row">
-                            <span class="adm-activity-dot dot-blue"></span>
-                            <span>System diagnostic audit completed successfully</span>
-                        </div>
-
-                        <hr class="adm-divider" />
-
-                        <div class="adm-progress-block">
-                            <div class="adm-progress-label">
-                                <span>Database integrity</span>
-                                <span class="adm-progress-value">88%</span>
-                            </div>
-                            <div class="adm-progress-track">
-                                <div class="adm-progress-fill" style="width:88%"></div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- ==========================================
-                FOOTER
-            =========================================== -->
-            <div class="adm-footer">
-                <hr />
-                <div class="adm-footer-content">
+            <div class="adm-banner-left">
+                <div class="adm-banner-icon">
+                    <span class="adm-icon-ring"></span>
                     <i class="fa-solid fa-shield-halved"></i>
-                    <span>Laboratory Information Management System</span>
-                    <span class="adm-footer-divider">|</span>
-                    <span>Admin Control Center</span>
-                    <span class="adm-footer-divider">|</span>
-                    <span>@DateTime.Now.Year</span>
+                </div>
+                <div class="adm-banner-text">
+                    <h1>Welcome, <span>@User.Identity?.Name</span></h1>
+                    <p>NMB-HLabSys Admin Control Center</p>
+                    <div class="adm-pills">
+                        <span class="adm-pill"><i class="fa-solid fa-database"></i> Reference data governance</span>
+                        <span class="adm-pill"><i class="fa-solid fa-gears"></i> System configuration</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="adm-clock">
+                <small>Today's date</small>
+                <div id="adminCurrentDate"></div>
+                <div id="adminCurrentTime"></div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+            SYSTEM STATUS STRIP
+        =========================================== -->
+        <div class="adm-status-strip">
+            <div class="adm-status-left">
+                <span class="adm-status-dot"></span>
+                <span><strong>All systems operational</strong> &middot; core reference databases secure, 0 warnings flagged</span>
+            </div>
+            <a class="adm-status-link" href="@Url.Action("SystemTables", "Admin")">
+                Verify tables <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+
+        <!-- ==========================================
+            REFERENCE DATA OVERVIEW
+        =========================================== -->
+        <div class="adm-section-head">
+            <div>
+                <h3>Reference data overview</h3>
+                <p>Live counts of the medical reference records your system depends on.</p>
+            </div>
+        </div>
+
+        <div class="adm-grid adm-grid-4">
+
+            <div class="adm-stat">
+                <div class="adm-stat-icon c-teal"><i class="fa-solid fa-heart-pulse"></i></div>
+                <div class="adm-stat-body">
+                    <div class="num">@Model.ConditionCount</div>
+                    <h5>Conditions</h5>
+                    <small>Active classifications</small>
+                </div>
+            </div>
+
+            <div class="adm-stat">
+                <div class="adm-stat-icon c-purple"><i class="fa-solid fa-allergies"></i></div>
+                <div class="adm-stat-body">
+                    <div class="num">@Model.AllergyCount</div>
+                    <h5>Allergies</h5>
+                    <small>Tracked intolerances</small>
+                </div>
+            </div>
+
+            <div class="adm-stat">
+                <div class="adm-stat-icon c-blue"><i class="fa-solid fa-pills"></i></div>
+                <div class="adm-stat-body">
+                    <div class="num">@Model.MedicationCount</div>
+                    <h5>Medications</h5>
+                    <small>Verified formulary</small>
+                </div>
+            </div>
+
+            <div class="adm-stat">
+                <div class="adm-stat-icon c-gold"><i class="fa-solid fa-layer-group"></i></div>
+                <div class="adm-stat-body">
+                    <div class="num">@(Model.ConditionCount + Model.AllergyCount + Model.MedicationCount)</div>
+                    <h5>Total records</h5>
+                    <small>Across all reference tables</small>
                 </div>
             </div>
 
         </div>
-       <script>
-            function updateAdminClock() {
-                const now = new Date();
-                document.getElementById("adminCurrentDate").innerHTML = now.toLocaleDateString("en-ZA", {
-                    weekday: "long", day: "numeric", month: "long", year: "numeric"
-                });
-                document.getElementById("adminCurrentTime").innerHTML = now.toLocaleTimeString("en-ZA", {
-                    hour: "2-digit", minute: "2-digit", second: "2-digit"
-                });
-            }
-            updateAdminClock();
-            setInterval(updateAdminClock, 1000);
-        </script>
 
-        <style>
-            :root {
-                --adm-paper: #F0F7F6;
-                --adm-raised: #FFFFFF;
-                --adm-ink: #102C27;
-                --adm-ink-soft: #52716C;
-                --adm-ink-faint: #8FA9A3;
-                --adm-line: #E1EEEC;
-                --adm-line-strong: #CCE3DF;
-                --adm-teal: #0E8C7F;
-                --adm-teal-deep: #0A5850;
-                --adm-teal-dim: #E3F4F1;
-                --adm-teal-grad-start: #12A392;
-                --adm-teal-grad-end: #0A4F48;
-                --adm-blue: #2C6E9E;
-                --adm-blue-dim: #E4F0F9;
-                --adm-purple: #6D4EA8;
-                --adm-purple-dim: #EEE8F9;
-                --adm-red: #B0463F;
-                --adm-red-dim: #F7E8E7;
-                --adm-orange: #B76A2C;
-                --adm-orange-dim: #FBEEE1;
-                --adm-gold: #B4862A;
-                --adm-gold-dim: #FBF1DA;
-                --adm-radius: 20px;
-                --adm-radius-sm: 13px;
-                --adm-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
-                --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
-            }
+        <!-- ==========================================
+            QUICK ACTIONS
+        =========================================== -->
+        <div class="adm-section-head adm-mt-lg">
+            <div>
+                <h3>Quick actions</h3>
+                <p>Manage the reference data that powers the rest of the system.</p>
+            </div>
+        </div>
 
-            .adm-wrap {
-                max-width: 1280px;
-                margin: 0 auto;
-                padding: 26px 24px 60px;
-                color: var(--adm-ink);
-                font-family: 'Inter', sans-serif;
-                animation: admFadeIn .5s ease;
-            }
+        <div class="adm-grid adm-grid-3">
 
-            @@keyframes admFadeIn {
-                from {
-                    opacity: 0;
-                    transform: translateY(12px);
-                }
+            <a href="@Url.Action("Conditions", "Admin")" class="adm-action">
+                <div class="adm-action-icon"><i class="fa-solid fa-heart-pulse"></i></div>
+                <h5>Manage conditions</h5>
+                <p>Add, edit, or retire medical condition classifications used across patient records.</p>
+                <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </a>
 
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
+            <!-- Not wired to a controller yet — shown as a disabled preview card -->
+            <div class="adm-action adm-action-disabled" aria-disabled="true">
+                <span class="adm-soon-badge">Coming soon</span>
+                <div class="adm-action-icon"><i class="fa-solid fa-allergies"></i></div>
+                <h5>Manage allergies</h5>
+                <p>Add, edit, or retire allergy reference records used across patient records.</p>
+                <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </div>
 
-            /* ============ BANNER ============ */
-            .adm-banner {
-                position: relative;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 24px;
-                background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
-                border-radius: var(--adm-radius);
-                padding: 32px 36px;
-                margin-bottom: 22px;
-                box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
-                overflow: hidden;
-            }
+            <div class="adm-action adm-action-disabled" aria-disabled="true">
+                <span class="adm-soon-badge">Coming soon</span>
+                <div class="adm-action-icon"><i class="fa-solid fa-pills"></i></div>
+                <h5>Manage medications</h5>
+                <p>Add, edit, or retire medications available in the patient medical history.</p>
+                <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </div>
 
-            .adm-banner-pattern {
-                position: absolute;
-                inset: 0;
-                background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
-                pointer-events: none;
-            }
+            <div class="adm-action adm-action-disabled" aria-disabled="true">
+                <span class="adm-soon-badge">Coming soon</span>
+                <div class="adm-action-icon"><i class="fa-solid fa-tags"></i></div>
+                <h5>Manage categories</h5>
+                <p>Maintain the category lists used to group conditions, allergies, and medications.</p>
+                <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </div>
 
-            .adm-banner-left {
-                display: flex;
-                align-items: center;
-                gap: 22px;
-                position: relative;
-                z-index: 1;
-            }
+            <a href="@Url.Action("SystemTables", "Admin")" class="adm-action">
+                <div class="adm-action-icon"><i class="fa-solid fa-database"></i></div>
+                <h5>System tables</h5>
+                <p>Inspect and verify the integrity of the underlying reference tables.</p>
+                <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </a>
 
-            .adm-banner-icon {
-                position: relative;
-                width: 76px;
-                height: 76px;
-                border-radius: 50%;
-                background: rgba(255,255,255,.16);
-                border: 2px solid rgba(255,255,255,.32);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #fff;
-                font-size: 30px;
-                flex-shrink: 0;
-            }
+            <div class="adm-action adm-action-disabled" aria-disabled="true">
+                <span class="adm-soon-badge">Coming soon</span>
+                <div class="adm-action-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+                <h5>Data quality checks</h5>
+                <p>Find duplicate names, uncategorized items, and empty categories automatically.</p>
+                <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </div>
 
-            .adm-icon-ring {
-                position: absolute;
-                inset: -6px;
-                border-radius: 50%;
-                border: 1.5px solid rgba(255,255,255,.4);
-                animation: admRingPulse 2.4s ease-out infinite;
-            }
+        </div>
 
-            @@keyframes admRingPulse {
-                0% {
-                    transform: scale(0.9);
-                    opacity: .8;
-                }
+        <!-- ==========================================
+            BREAKDOWN + RECENT DATA
+        =========================================== -->
+        <div class="adm-section-head adm-mt-lg">
+            <div>
+                <h3>Reference data insights</h3>
+                <p>How your reference records are distributed, and what's changed recently.</p>
+            </div>
+        </div>
 
-                100% {
-                    transform: scale(1.35);
-                    opacity: 0;
-                }
-            }
+        <div class="adm-split">
 
-            .adm-banner-text {
-                position: relative;
-                z-index: 1;
-            }
+            <!-- Recently added / changed reference data — honest empty state until wired to real data -->
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <span><i class="fa-solid fa-clock-rotate-left"></i> Recent reference data changes</span>
+                    <span class="adm-panel-tag">Reference data</span>
+                </div>
+                <div class="adm-empty-state">
+                    <div class="adm-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
+                    <h5>Nothing to show yet</h5>
+                    <p>Once conditions, allergies, and medications are being managed, the most recently
+                       added or edited records will appear here automatically.</p>
+                </div>
+            </div>
 
-                .adm-banner-text h1 {
-                    font-family: 'Poppins', sans-serif;
-                    font-weight: 700;
-                    font-size: 26px;
-                    margin: 0 0 4px;
-                    color: #fff;
-                    letter-spacing: -.01em;
-                }
+            <!-- Real breakdown chart built from Model counts you already have -->
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <span><i class="fa-solid fa-chart-pie"></i> Reference data breakdown</span>
+                </div>
+                <div class="adm-chart-body">
+                    <canvas id="adminBreakdownChart"></canvas>
+                    <div class="adm-chart-legend">
+                        <div class="adm-legend-row">
+                            <span class="adm-legend-dot" style="background:var(--adm-teal)"></span>
+                            <span>Conditions</span>
+                            <strong>@Model.ConditionCount</strong>
+                        </div>
+                        <div class="adm-legend-row">
+                            <span class="adm-legend-dot" style="background:var(--adm-purple)"></span>
+                            <span>Allergies</span>
+                            <strong>@Model.AllergyCount</strong>
+                        </div>
+                        <div class="adm-legend-row">
+                            <span class="adm-legend-dot" style="background:var(--adm-blue)"></span>
+                            <span>Medications</span>
+                            <strong>@Model.MedicationCount</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                    .adm-banner-text h1 span {
-                        color: #E9FFFB;
+        </div>
+
+        <!-- ==========================================
+            FOOTER
+        =========================================== -->
+        <div class="adm-footer">
+            <hr />
+            <div class="adm-footer-content">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Laboratory Information Management System</span>
+                <span class="adm-footer-divider">|</span>
+                <span>Admin Control Center</span>
+                <span class="adm-footer-divider">|</span>
+                <span>@DateTime.Now.Year</span>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function updateAdminClock() {
+            const now = new Date();
+            document.getElementById("adminCurrentDate").innerHTML = now.toLocaleDateString("en-ZA", {
+                weekday: "long", day: "numeric", month: "long", year: "numeric"
+            });
+            document.getElementById("adminCurrentTime").innerHTML = now.toLocaleTimeString("en-ZA", {
+                hour: "2-digit", minute: "2-digit", second: "2-digit"
+            });
+        }
+        updateAdminClock();
+        setInterval(updateAdminClock, 1000);
+
+        // Reference data breakdown chart — driven entirely by the counts already
+        // passed to the view via Model, no extra controller/endpoint required.
+        (function () {
+            const ctx = document.getElementById('adminBreakdownChart');
+            if (!ctx) return;
+
+            const conditionCount = @Model.ConditionCount;
+            const allergyCount = @Model.AllergyCount;
+            const medicationCount = @Model.MedicationCount;
+            const total = conditionCount + allergyCount + medicationCount;
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Conditions', 'Allergies', 'Medications'],
+                    datasets: [{
+                        data: [conditionCount, allergyCount, medicationCount],
+                        backgroundColor: ['#0E8C7F', '#6D4EA8', '#2C6E9E'],
+                        borderColor: '#FFFFFF',
+                        borderWidth: 3,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    cutout: '68%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (item) {
+                                    const value = item.raw;
+                                    const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                                    return `${item.label}: ${value} (${pct}%)`;
+                                }
+                            }
+                        }
                     }
-
-                .adm-banner-text p {
-                    margin: 0 0 14px;
-                    color: rgba(255,255,255,.85);
-                    font-size: 14.5px;
                 }
+            });
+        })();
+    </script>
 
-            .adm-pills {
-                display: flex;
-                gap: 10px;
-                flex-wrap: wrap;
-            }
+    <style>
+        :root {
+            --adm-paper: #F0F7F6;
+            --adm-raised: #FFFFFF;
+            --adm-ink: #102C27;
+            --adm-ink-soft: #52716C;
+            --adm-ink-faint: #8FA9A3;
+            --adm-line: #E1EEEC;
+            --adm-line-strong: #CCE3DF;
+            --adm-teal: #0E8C7F;
+            --adm-teal-deep: #0A5850;
+            --adm-teal-dim: #E3F4F1;
+            --adm-teal-grad-start: #12A392;
+            --adm-teal-grad-end: #0A4F48;
+            --adm-blue: #2C6E9E;
+            --adm-blue-dim: #E4F0F9;
+            --adm-purple: #6D4EA8;
+            --adm-purple-dim: #EEE8F9;
+            --adm-red: #B0463F;
+            --adm-red-dim: #F7E8E7;
+            --adm-orange: #B76A2C;
+            --adm-orange-dim: #FBEEE1;
+            --adm-gold: #B4862A;
+            --adm-gold-dim: #FBF1DA;
+            --adm-radius: 20px;
+            --adm-radius-sm: 13px;
+            --adm-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+            --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
+        }
 
-            .adm-pill {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 7px 15px;
-                border-radius: 999px;
-                background: rgba(255,255,255,.16);
-                color: #fff;
-                font-size: 12.5px;
-                font-weight: 500;
-            }
+        .adm-wrap {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 26px 24px 60px;
+            color: var(--adm-ink);
+            font-family: 'Inter', sans-serif;
+            animation: admFadeIn .5s ease;
+        }
+
+        @@keyframes admFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ============ BANNER ============ */
+        .adm-banner {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+            background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+            border-radius: var(--adm-radius);
+            padding: 32px 36px;
+            margin-bottom: 22px;
+            box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
+            overflow: hidden;
+        }
+
+        .adm-banner-pattern {
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+            pointer-events: none;
+        }
+
+        .adm-banner-left {
+            display: flex;
+            align-items: center;
+            gap: 22px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .adm-banner-icon {
+            position: relative;
+            width: 76px;
+            height: 76px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.16);
+            border: 2px solid rgba(255,255,255,.32);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 30px;
+            flex-shrink: 0;
+        }
+
+        .adm-icon-ring {
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255,255,255,.4);
+            animation: admRingPulse 2.4s ease-out infinite;
+        }
+
+        @@keyframes admRingPulse {
+            0% { transform: scale(0.9); opacity: .8; }
+            100% { transform: scale(1.35); opacity: 0; }
+        }
+
+        .adm-banner-text { position: relative; z-index: 1; }
+
+        .adm-banner-text h1 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 26px;
+            margin: 0 0 4px;
+            color: #fff;
+            letter-spacing: -.01em;
+        }
+
+        .adm-banner-text h1 span { color: #E9FFFB; }
+
+        .adm-banner-text p {
+            margin: 0 0 14px;
+            color: rgba(255,255,255,.85);
+            font-size: 14.5px;
+        }
+
+        .adm-pills { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .adm-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 15px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.16);
+            color: #fff;
+            font-size: 12.5px;
+            font-weight: 500;
+        }
+
+        .adm-clock {
+            position: relative;
+            z-index: 1;
+            min-width: 230px;
+            text-align: left;
+            border-left: 1px solid rgba(255,255,255,.28);
+            padding-left: 28px;
+            flex-shrink: 0;
+        }
+
+        .adm-clock small {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: #DFF9F8;
+            font-size: 11px;
+        }
+
+        #adminCurrentDate { margin-top: 6px; font-size: 14px; color: #fff; }
+
+        #adminCurrentTime {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 26px;
+            font-weight: 600;
+            letter-spacing: .02em;
+            color: #fff;
+            margin-top: 2px;
+        }
+
+        /* ============ STATUS STRIP ============ */
+        .adm-status-strip {
+            background: var(--adm-raised);
+            border-radius: var(--adm-radius);
+            box-shadow: var(--adm-shadow-sm);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+            border-left: 4px solid var(--adm-teal);
+        }
+
+        .adm-status-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--adm-ink);
+        }
+
+        .adm-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--adm-teal);
+            flex-shrink: 0;
+            box-shadow: 0 0 0 4px var(--adm-teal-dim);
+        }
+
+        .adm-status-link {
+            color: var(--adm-teal-deep);
+            font-weight: 600;
+            font-size: 13.5px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .adm-status-link:hover { text-decoration: underline; }
+
+        /* ============ SECTION HEADS ============ */
+        .adm-section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .adm-section-head h3 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            margin: 0 0 3px;
+        }
+
+        .adm-section-head p {
+            margin: 0;
+            color: var(--adm-ink-soft);
+            font-size: 13.5px;
+        }
+
+        .adm-mt-lg { margin-top: 44px; }
+
+        /* ============ GRIDS ============ */
+        .adm-grid { display: grid; gap: 18px; }
+        .adm-grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .adm-grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .adm-grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+        /* ============ STAT CARDS ============ */
+        .adm-stat {
+            background: var(--adm-raised);
+            border-radius: var(--adm-radius);
+            box-shadow: var(--adm-shadow-sm);
+            padding: 22px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-top: 3px solid var(--adm-teal);
+            transition: transform .2s, box-shadow .2s;
+        }
+
+        .adm-stat:hover { transform: translateY(-5px); box-shadow: var(--adm-shadow); }
+
+        .adm-stat-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 15px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 21px;
+        }
+
+        .adm-stat-icon.c-teal { background: var(--adm-teal-dim); color: var(--adm-teal); }
+        .adm-stat-icon.c-blue { background: var(--adm-blue-dim); color: var(--adm-blue); }
+        .adm-stat-icon.c-purple { background: var(--adm-purple-dim); color: var(--adm-purple); }
+        .adm-stat-icon.c-gold { background: var(--adm-gold-dim); color: var(--adm-gold); }
+
+        .adm-stat .num {
+            font-family: 'Poppins', sans-serif;
+            font-size: 27px;
+            font-weight: 700;
+            color: var(--adm-ink);
+        }
+
+        .adm-stat h5 { margin: 2px 0 0; font-size: 13.5px; font-weight: 600; }
+        .adm-stat small { color: var(--adm-ink-faint); font-size: 12px; }
+
+        /* ============ QUICK ACTION CARDS ============ */
+        .adm-action {
+            display: block;
+            text-decoration: none;
+            color: var(--adm-ink);
+            background: var(--adm-raised);
+            border-radius: var(--adm-radius);
+            padding: 28px 24px;
+            text-align: left;
+            box-shadow: var(--adm-shadow-sm);
+            position: relative;
+            overflow: hidden;
+            transition: transform .25s, box-shadow .25s;
+        }
+
+        .adm-action::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--adm-teal), var(--adm-teal-deep));
+        }
+
+        .adm-action:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--adm-shadow);
+            color: var(--adm-ink);
+            text-decoration: none;
+        }
+
+        .adm-action:hover .adm-action-go { transform: translateX(4px); opacity: 1; }
+
+        .adm-action-icon {
+            width: 54px;
+            height: 54px;
+            margin-bottom: 16px;
+            border-radius: 16px;
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 23px;
+        }
+
+        .adm-action h5 { font-weight: 700; margin: 0 0 8px; font-size: 15px; }
+
+        .adm-action p {
+            color: var(--adm-ink-soft);
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .adm-action-go {
+            display: inline-flex;
+            margin-top: 14px;
+            color: var(--adm-teal);
+            opacity: .5;
+            transition: transform .2s, opacity .2s;
+            font-size: 13px;
+        }
+
+        /* Disabled "coming soon" quick action cards — no controller required */
+        .adm-action-disabled {
+            cursor: not-allowed;
+            opacity: .68;
+            filter: grayscale(.15);
+        }
+
+        .adm-action-disabled::before {
+            background: linear-gradient(90deg, var(--adm-ink-faint), var(--adm-line-strong));
+        }
+
+        .adm-action-disabled:hover {
+            transform: none;
+            box-shadow: var(--adm-shadow-sm);
+        }
+
+        .adm-action-disabled .adm-action-icon {
+            background: var(--adm-line);
+            color: var(--adm-ink-faint);
+        }
+
+        .adm-action-disabled .adm-action-go { opacity: .3; }
+
+        .adm-soon-badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: var(--adm-gold-dim);
+            color: var(--adm-gold);
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        /* ============ SPLIT PANELS ============ */
+        .adm-split {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 18px;
+        }
+
+        .adm-panel {
+            background: var(--adm-raised);
+            border-radius: var(--adm-radius);
+            box-shadow: var(--adm-shadow);
+            overflow: hidden;
+        }
+
+        .adm-panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 26px;
+            border-bottom: 1px solid var(--adm-line);
+        }
+
+        .adm-panel-head span:first-child {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 15.5px;
+            color: var(--adm-ink);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .adm-panel-head span:first-child i { color: var(--adm-teal); }
+
+        .adm-panel-tag {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 11.5px;
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+            padding: 6px 13px;
+            border-radius: 999px;
+        }
+
+        /* ============ EMPTY STATE ============ */
+        .adm-empty-state {
+            padding: 48px 30px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .adm-empty-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: 4px;
+        }
+
+        .adm-empty-state h5 {
+            margin: 0;
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--adm-ink);
+        }
+
+        .adm-empty-state p {
+            margin: 0;
+            max-width: 340px;
+            font-size: 13px;
+            color: var(--adm-ink-soft);
+            line-height: 1.6;
+        }
+
+        /* ============ CHART PANEL ============ */
+        .adm-chart-body {
+            padding: 24px 26px 28px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .adm-chart-body canvas {
+            max-width: 210px;
+            max-height: 210px;
+        }
+
+        .adm-chart-legend {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .adm-legend-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--adm-ink-soft);
+        }
+
+        .adm-legend-row strong {
+            margin-left: auto;
+            color: var(--adm-ink);
+            font-weight: 700;
+        }
+
+        .adm-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ============ FOOTER ============ */
+        .adm-footer { margin-top: 50px; text-align: center; }
+
+        .adm-footer hr {
+            border: none;
+            border-top: 1px solid var(--adm-line);
+            margin-bottom: 22px;
+        }
+
+        .adm-footer-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            color: var(--adm-ink-faint);
+            font-size: 13px;
+        }
+
+        .adm-footer-content i { color: var(--adm-teal); }
+        .adm-footer-divider { color: var(--adm-line-strong); }
+
+        /* ============ RESPONSIVE ============ */
+        @@media (max-width: 1100px) {
+            .adm-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .adm-grid-3 { grid-template-columns: repeat(2, 1fr); }
+            .adm-split { grid-template-columns: 1fr; }
+        }
+
+        @@media (max-width: 900px) {
+            .adm-banner { flex-direction: column; align-items: flex-start; gap: 24px; }
 
             .adm-clock {
-                position: relative;
-                z-index: 1;
-                min-width: 230px;
-                text-align: left;
-                border-left: 1px solid rgba(255,255,255,.28);
-                padding-left: 28px;
-                flex-shrink: 0;
-            }
-
-                .adm-clock small {
-                    font-family: 'Inter', sans-serif;
-                    font-weight: 600;
-                    letter-spacing: .04em;
-                    text-transform: uppercase;
-                    color: #DFF9F8;
-                    font-size: 11px;
-                }
-
-            #adminCurrentDate {
-                margin-top: 6px;
-                font-size: 14px;
-                color: #fff;
-            }
-
-            #adminCurrentTime {
-                font-family: 'IBM Plex Mono', monospace;
-                font-size: 26px;
-                font-weight: 600;
-                letter-spacing: .02em;
-                color: #fff;
-                margin-top: 2px;
-            }
-
-            /* ============ STATUS STRIP ============ */
-            .adm-status-strip {
-                background: var(--adm-raised);
-                border-radius: var(--adm-radius);
-                box-shadow: var(--adm-shadow-sm);
-                padding: 16px 24px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 28px;
-                border-left: 4px solid var(--adm-teal);
-            }
-
-            .adm-status-left {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                font-size: 14px;
-                color: var(--adm-ink);
-            }
-
-            .adm-status-dot {
-                width: 10px;
-                height: 10px;
-                border-radius: 50%;
-                background: var(--adm-teal);
-                flex-shrink: 0;
-                box-shadow: 0 0 0 4px var(--adm-teal-dim);
-            }
-
-            .adm-status-link {
-                color: var(--adm-teal-deep);
-                font-weight: 600;
-                font-size: 13.5px;
-                text-decoration: none;
-                display: flex;
-                align-items: center;
-                gap: 6px;
-            }
-
-                .adm-status-link:hover {
-                    text-decoration: underline;
-                }
-
-            /* ============ SECTION HEADS ============ */
-            .adm-section-head {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 18px;
-            }
-
-                .adm-section-head h3 {
-                    font-family: 'Poppins', sans-serif;
-                    font-weight: 700;
-                    font-size: 20px;
-                    margin: 0 0 3px;
-                }
-
-                .adm-section-head p {
-                    margin: 0;
-                    color: var(--adm-ink-soft);
-                    font-size: 13.5px;
-                }
-
-            .adm-mt-lg {
-                margin-top: 44px;
-            }
-
-            /* ============ GRIDS ============ */
-            .adm-grid {
-                display: grid;
-                gap: 18px;
-            }
-
-            .adm-grid-4 {
-                grid-template-columns: repeat(4, 1fr);
-            }
-
-            .adm-grid-2 {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            /* ============ STAT CARDS ============ */
-            .adm-stat {
-                background: var(--adm-raised);
-                border-radius: var(--adm-radius);
-                box-shadow: var(--adm-shadow-sm);
-                padding: 22px;
-                display: flex;
-                align-items: center;
-                gap: 16px;
-                border-top: 3px solid var(--adm-teal);
-                transition: transform .2s, box-shadow .2s;
-            }
-
-                .adm-stat:hover {
-                    transform: translateY(-5px);
-                    box-shadow: var(--adm-shadow);
-                }
-
-            .adm-stat-icon {
-                width: 54px;
-                height: 54px;
-                border-radius: 15px;
-                flex-shrink: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 21px;
-            }
-
-                .adm-stat-icon.c-teal {
-                    background: var(--adm-teal-dim);
-                    color: var(--adm-teal);
-                }
-
-                .adm-stat-icon.c-blue {
-                    background: var(--adm-blue-dim);
-                    color: var(--adm-blue);
-                }
-
-                .adm-stat-icon.c-purple {
-                    background: var(--adm-purple-dim);
-                    color: var(--adm-purple);
-                }
-
-                .adm-stat-icon.c-gold {
-                    background: var(--adm-gold-dim);
-                    color: var(--adm-gold);
-                }
-
-            .adm-stat .num {
-                font-family: 'Poppins', sans-serif;
-                font-size: 27px;
-                font-weight: 700;
-                color: var(--adm-ink);
-            }
-
-            .adm-stat h5 {
-                margin: 2px 0 0;
-                font-size: 13.5px;
-                font-weight: 600;
-            }
-
-            .adm-stat small {
-                color: var(--adm-ink-faint);
-                font-size: 12px;
-            }
-
-            /* ============ QUICK ACTION CARDS ============ */
-            .adm-action {
-                display: block;
-                text-decoration: none;
-                color: var(--adm-ink);
-                background: var(--adm-raised);
-                border-radius: var(--adm-radius);
-                padding: 28px 24px;
-                text-align: left;
-                box-shadow: var(--adm-shadow-sm);
-                position: relative;
-                overflow: hidden;
-                transition: transform .25s, box-shadow .25s;
-            }
-
-                .adm-action::before {
-                    content: "";
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 4px;
-                    background: linear-gradient(90deg, var(--adm-teal), var(--adm-teal-deep));
-                }
-
-                .adm-action:hover {
-                    transform: translateY(-6px);
-                    box-shadow: var(--adm-shadow);
-                    color: var(--adm-ink);
-                    text-decoration: none;
-                }
-
-                    .adm-action:hover .adm-action-go {
-                        transform: translateX(4px);
-                        opacity: 1;
-                    }
-
-            .adm-action-icon {
-                width: 54px;
-                height: 54px;
-                margin-bottom: 16px;
-                border-radius: 16px;
-                background: var(--adm-teal-dim);
-                color: var(--adm-teal);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 23px;
-            }
-
-            .adm-action h5 {
-                font-weight: 700;
-                margin: 0 0 8px;
-                font-size: 15px;
-            }
-
-            .adm-action p {
-                color: var(--adm-ink-soft);
-                margin: 0;
-                font-size: 13px;
-                line-height: 1.6;
-            }
-
-            .adm-action-go {
-                display: inline-flex;
-                margin-top: 14px;
-                color: var(--adm-teal);
-                opacity: .5;
-                transition: transform .2s, opacity .2s;
-                font-size: 13px;
-            }
-
-            /* ============ SPLIT PANELS ============ */
-            .adm-split {
-                display: grid;
-                grid-template-columns: 1.2fr 0.8fr;
-                gap: 18px;
-            }
-
-            .adm-panel {
-                background: var(--adm-raised);
-                border-radius: var(--adm-radius);
-                box-shadow: var(--adm-shadow);
-                overflow: hidden;
-            }
-
-            .adm-panel-head {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 18px 26px;
-                border-bottom: 1px solid var(--adm-line);
-            }
-
-                .adm-panel-head span:first-child {
-                    font-family: 'Poppins', sans-serif;
-                    font-weight: 700;
-                    font-size: 15.5px;
-                    color: var(--adm-ink);
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                }
-
-                    .adm-panel-head span:first-child i {
-                        color: var(--adm-teal);
-                    }
-
-            .adm-panel-tag {
-                font-family: 'Inter', sans-serif;
-                font-weight: 600;
-                font-size: 11.5px;
-                background: var(--adm-teal-dim);
-                color: var(--adm-teal-deep);
-                padding: 6px 13px;
-                border-radius: 999px;
-            }
-
-            /* ============ TABLE ============ */
-            .adm-table-wrap {
-                overflow-x: auto;
-            }
-
-            .adm-table {
                 width: 100%;
-                border-collapse: collapse;
-                font-size: 14px;
+                border-left: none;
+                border-top: 1px solid rgba(255,255,255,.28);
+                padding-left: 0;
+                padding-top: 18px;
             }
 
-                .adm-table thead th {
-                    text-align: left;
-                    font-family: 'Inter', sans-serif;
-                    font-weight: 700;
-                    font-size: 11.5px;
-                    letter-spacing: .04em;
-                    text-transform: uppercase;
-                    color: var(--adm-ink-faint);
-                    padding: 15px 22px;
-                    background: var(--adm-teal-dim);
-                    white-space: nowrap;
-                }
+            .adm-banner-left { flex-direction: column; text-align: center; width: 100%; }
+        }
 
-                .adm-table tbody td {
-                    padding: 16px 22px;
-                    border-bottom: 1px solid var(--adm-line);
-                }
+        @@media (max-width: 640px) {
+            .adm-wrap { padding: 20px 16px 50px; }
+            .adm-grid-4, .adm-grid-3, .adm-grid-2 { grid-template-columns: 1fr; }
 
-                .adm-table tbody tr:hover {
-                    background: var(--adm-teal-dim);
-                }
-
-                .adm-table tbody tr:last-child td {
-                    border-bottom: none;
-                }
-
-            .adm-text-right {
-                text-align: right;
-                color: var(--adm-ink-soft);
-            }
-
-            .adm-badge {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                font-family: 'Inter', sans-serif;
-                font-weight: 600;
-                font-size: 11.5px;
-                padding: 5px 12px;
-                border-radius: 999px;
-            }
-
-                .adm-badge.b-routine {
-                    background: var(--adm-teal-dim);
-                    color: var(--adm-teal-deep);
-                }
-
-                .adm-badge.b-urgent {
-                    background: var(--adm-purple-dim);
-                    color: var(--adm-purple);
-                }
-
-            /* ============ ACTIVITY LIST ============ */
-            .adm-activity-body {
-                padding: 22px 26px;
-                display: flex;
+            .adm-status-strip {
                 flex-direction: column;
-                gap: 14px;
+                align-items: flex-start;
+                gap: 10px;
             }
+        }
+    </style>
+}
 
-            .adm-activity-row {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                font-size: 13px;
-                color: var(--adm-ink-soft);
-            }
 
-            .adm-activity-dot {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                flex-shrink: 0;
-            }
-
-                .adm-activity-dot.dot-teal {
-                    background: var(--adm-teal);
-                }
-
-                .adm-activity-dot.dot-red {
-                    background: var(--adm-red);
-                }
-
-                .adm-activity-dot.dot-blue {
-                    background: var(--adm-blue);
-                }
-
-            .adm-divider {
-                border: 0;
-                border-top: 1px solid var(--adm-line);
-                margin: 4px 0;
-            }
-
-            .adm-progress-block {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .adm-progress-label {
-                display: flex;
-                justify-content: space-between;
-                font-size: 12px;
-                color: var(--adm-ink-soft);
-                font-weight: 600;
-            }
-
-            .adm-progress-value {
-                color: var(--adm-teal-deep);
-            }
-
-            .adm-progress-track {
-                height: 8px;
-                background: var(--adm-line);
-                border-radius: 99px;
-                overflow: hidden;
-            }
-
-            .adm-progress-fill {
-                height: 100%;
-                background: linear-gradient(90deg, var(--adm-teal), var(--adm-teal-deep));
-                border-radius: 99px;
-            }
-
-            /* ============ FOOTER ============ */
-            .adm-footer {
-                margin-top: 50px;
-                text-align: center;
-            }
-
-                .adm-footer hr {
-                    border: none;
-                    border-top: 1px solid var(--adm-line);
-                    margin-bottom: 22px;
-                }
-
-            .adm-footer-content {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                flex-wrap: wrap;
-                gap: 12px;
-                color: var(--adm-ink-faint);
-                font-size: 13px;
-            }
-
-                .adm-footer-content i {
-                    color: var(--adm-teal);
-                }
-
-            .adm-footer-divider {
-                color: var(--adm-line-strong);
-            }
-
-            /* ============ RESPONSIVE ============ */
-            @@media (max-width: 1100px) {
-                .adm-grid-4 {
-                    grid-template-columns: repeat(2, 1fr);
-                }
-
-                .adm-split {
-                    grid-template-columns: 1fr;
-                }
-            }
-
-            @@media (max-width: 900px) {
-                .adm-banner {
-                    flex-direction: column;
-                    align-items: flex-start;
-                    gap: 24px;
-                }
-
-                .adm-clock {
-                    width: 100%;
-                    border-left: none;
-                    border-top: 1px solid rgba(255,255,255,.28);
-                    padding-left: 0;
-                    padding-top: 18px;
-                }
-
-                .adm-banner-left {
-                    flex-direction: column;
-                    text-align: center;
-                    width: 100%;
-                }
-            }
-
-            @@media (max-width: 640px) {
-                .adm-wrap {
-                    padding: 20px 16px 50px;
-                }
-
-                .adm-grid-4, .adm-grid-2 {
-                    grid-template-columns: 1fr;
-                }
-
-                .adm-status-strip {
-                    flex-direction: column;
-                    align-items: flex-start;
-                    gap: 10px;
-                }
-            }
-        </style>
-    }
-
-    }
+    
     else if (User.IsInRole("Patient"))
     {
-        <div class="p-content">
+       @*  <div class="p-content">
 
             <!-- HERO -->
             <div class="p-hero" style="background: linear-gradient(135deg, var(--p-sidebar-bg), var(--p-sidebar-dark));">
@@ -1091,7 +1026,351 @@
 
             </div>
 
+        </div> *@
+         <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+
+    <div class="pat-wrap">
+
+        <!-- ==========================================
+            HEADER / WELCOME BANNER
+        =========================================== -->
+        <div class="pat-banner">
+            <div class="pat-banner-pattern"></div>
+            <div class="pat-banner-left">
+                <div class="pat-banner-icon">
+                    <span class="pat-icon-ring"></span>
+                    <i class="fa-solid fa-user-heart"></i>
+                </div>
+                <div class="pat-banner-text">
+                    <h1>Welcome, <span>@Model.PatientProfile.FullName</span></h1>
+                    <p>Your Laboratory Results & Health Dashboard</p>
+                    <div class="pat-pills">
+                        <span class="pat-pill"><i class="fa-solid fa-shield-check"></i> ID: @Model.PatientProfile.IDNumber</span>
+                        <span class="pat-pill"><i class="fa-solid fa-calendar-check"></i> Updated @DateTime.Now.ToString("d MMM yyyy")</span>
+                    </div>
+                </div>
+            </div>
+            <div class="pat-clock">
+                <small>Today's Date</small>
+                <div id="patCurrentDate"></div>
+                <div id="patCurrentTime"></div>
+            </div>
         </div>
+
+        <!-- ==========================================
+            STATUS OVERVIEW CARDS
+        =========================================== -->
+        <div class="pat-section-head">
+            <div>
+                <h3>Test Request Overview</h3>
+                <p>Current status of your laboratory test requests.</p>
+            </div>
+        </div>
+
+        <div class="pat-grid pat-grid-4">
+            <div class="pat-stat">
+                <div class="pat-stat-icon c-blue"><i class="fa-solid fa-clock"></i></div>
+                <div class="pat-stat-body">
+                    <div class="num">@Model.PatientPendingRequests</div>
+                    <h5>Pending</h5>
+                    <small>Awaiting Processing</small>
+                </div>
+            </div>
+            <div class="pat-stat">
+                <div class="pat-stat-icon c-orange"><i class="fa-solid fa-flask"></i></div>
+                <div class="pat-stat-body">
+                    <div class="num">@(Model.PatientTotalRequests - Model.PatientResultsReady)</div>
+                    <h5>In Progress</h5>
+                    <small>Being Analysed</small>
+                </div>
+            </div>
+            <div class="pat-stat">
+                <div class="pat-stat-icon c-teal"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="pat-stat-body">
+                    <div class="num">@Model.PatientResultsReady</div>
+                    <h5>Results Ready</h5>
+                    <small>Verified Reports</small>
+                </div>
+            </div>
+            <div class="pat-stat">
+                <div class="pat-stat-icon c-purple"><i class="fa-solid fa-folder-open"></i></div>
+                <div class="pat-stat-body">
+                    <div class="num">@Model.PatientTotalRequests</div>
+                    <h5>Total Tests</h5>
+                    <small>All Time</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+            ALERT BANNER — ABNORMAL RESULTS
+        =========================================== -->
+        @if (Model.PatientAbnormalCount > 0)
+        {
+            <div class="pat-alert-strip warning">
+                <span class="pat-alert-dot"></span>
+                <span><strong>⚠️ @Model.PatientAbnormalCount result(s)</strong> outside normal reference range — please review with your doctor.</span>
+                <a class="pat-alert-link" href="@Url.Action("Index", "Results")">View Results <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+        }
+        else
+        {
+            <div class="pat-alert-strip ok">
+                <span class="pat-alert-dot"></span>
+                <span><strong>✅ All results within normal limits.</strong> No abnormal findings flagged.</span>
+                <a class="pat-alert-link" href="@Url.Action("Index", "Results")">View History <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+        }
+
+        <!-- ==========================================
+            RECENT REQUESTS + PROFILE SPLIT
+        =========================================== -->
+        <div class="pat-section-head pat-mt-lg">
+            <div>
+                <h3>Recent Activity</h3>
+                <p>Your latest test requests and health profile.</p>
+            </div>
+        </div>
+
+        <div class="pat-split">
+            <!-- RECENT REQUESTS TABLE -->
+            <div class="pat-panel">
+                <div class="pat-panel-head">
+                    <span><i class="fa-solid fa-list-check"></i> Recent Test Requests</span>
+                    <a class="pat-panel-link" href="@Url.Action("Index", "TestRequests")">View All <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
+                <div class="pat-table-wrap">
+                    <table class="pat-table">
+                        <thead>
+                            <tr>
+                                <th>Request #</th>
+                                <th>Date</th>
+                                <th>Urgency</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+@if (Model.PatientRecentRequests.Any())
+                            {
+                                @foreach (var req in Model.PatientRecentRequests.Take(5))
+                                {
+                                    <tr>
+                                        <td><strong>@req.RequestID</strong></td>
+                                        <td>@req.RequestDate.ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            <span class="pat-urgency @req.UrgencyCssClass">@req.Urgency</span>
+                                        </td>
+                                        <td>
+                                            <span class="pat-status @req.StatusCssClass">@req.Status</span>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="pat-table-empty">
+                                        <i class="fa-solid fa-folder-open"></i><br />
+                                        No test requests found.
+                                    </td>
+                                </tr>
+                            }
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PROFILE SUMMARY PANEL -->
+            <div class="pat-panel">
+                <div class="pat-panel-head">
+                    <span><i class="fa-solid fa-user-circle"></i> Your Profile</span>
+                    <a class="pat-panel-link" href="@Url.Action("Edit", "Patient")">Edit <i class="fa-solid fa-pen"></i></a>
+                </div>
+                <div class="pat-profile-list">
+                    <div class="pat-profile-row">
+                        <span class="pat-profile-label">Full Name</span>
+                        <span class="pat-profile-val">@Model.PatientProfile.FullName</span>
+                    </div>
+                    <div class="pat-profile-row">
+                        <span class="pat-profile-label">ID Number</span>
+                        <span class="pat-profile-val">@Model.PatientProfile.IDNumber</span>
+                    </div>
+                    <div class="pat-profile-row">
+                        <span class="pat-profile-label">Date of Birth</span>
+                        <span class="pat-profile-val">@Model.PatientProfile.DateOfBirth.ToString("dd MMM yyyy")</span>
+                    </div>
+                    <div class="pat-profile-row">
+                        <span class="pat-profile-label">Contact</span>
+                        <span class="pat-profile-val">@Model.PatientProfile.Cellphone</span>
+                    </div>
+                    <div class="pat-profile-row">
+                        <span class="pat-profile-label">Email</span>
+                        <span class="pat-profile-val">@Model.PatientProfile.Email</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+            QUICK ACTIONS
+        =========================================== -->
+        <div class="pat-section-head pat-mt-lg">
+            <div>
+                <h3>Quick Actions</h3>
+                <p>Access your records and manage your health data.</p>
+            </div>
+        </div>
+
+        <div class="pat-grid pat-grid-3">
+            <a href="@Url.Action("Index", "TestRequests")" class="pat-action">
+                <div class="pat-action-icon"><i class="fa-solid fa-file-waveform"></i></div>
+                <h5>Test Requests</h5>
+                <p>View history and status of all your laboratory requests.</p>
+                <span class="pat-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </a>
+            <a href="@Url.Action("Index", "Results")" class="pat-action">
+                <div class="pat-action-icon"><i class="fa-solid fa-vial-circle-check"></i></div>
+                <h5>Test Results</h5>
+                <p>View verified results, reference ranges, and download reports.</p>
+                <span class="pat-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </a>
+            <a href="@Url.Action("MedicalHistory", "Patient")" class="pat-action">
+                <div class="pat-action-icon"><i class="fa-solid fa-notes-medical"></i></div>
+                <h5>Medical History</h5>
+                <p>View your conditions, allergies, and current medications.</p>
+                <span class="pat-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </a>
+            <a href="@Url.Action("ManageConsent", "Patient")" class="pat-action">
+                <div class="pat-action-icon"><i class="fa-solid fa-user-check"></i></div>
+                <h5>Doctor Access</h5>
+                <p>Grant or revoke access to your laboratory records.</p>
+                <span class="pat-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </a>
+            <a href="@Url.Action("Generate", "Reports")" class="pat-action">
+                <div class="pat-action-icon"><i class="fa-solid fa-file-pdf"></i></div>
+                <h5>Download Reports</h5>
+                <p>Generate and download PDF reports for any date range.</p>
+                <span class="pat-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </a>
+            <a href="@Url.Action("Trends", "Results")" class="pat-action">
+                <div class="pat-action-icon"><i class="fa-solid fa-chart-line"></i></div>
+                <h5>Result Trends</h5>
+                <p>Track your test values over time with visual charts.</p>
+                <span class="pat-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </a>
+        </div>
+
+        <!-- ==========================================
+            FOOTER
+        =========================================== -->
+        <div class="pat-footer">
+            <hr />
+            <div class="pat-footer-content">
+                <i class="fa-solid fa-shield-heart"></i>
+                <span>Nelson Mandela Bay Haematology Laboratory</span>
+                <span class="pat-footer-divider">|</span>
+                <span>Patient Portal &copy; @DateTime.Now.Year</span>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function updatePatClock() {
+            const now = new Date();
+            document.getElementById("patCurrentDate").innerHTML = now.toLocaleDateString("en-ZA", {
+                weekday: "long", day: "numeric", month: "long", year: "numeric"
+            });
+            document.getElementById("patCurrentTime").innerHTML = now.toLocaleTimeString("en-ZA", {
+                hour: "2-digit", minute: "2-digit", second: "2-digit"
+            });
+        }
+        updatePatClock();
+        setInterval(updatePatClock, 1000);
+    </script>
+
+       <style>
+:root{--pt:#0E8C7F;--pt-deep:#0A5850;--pt-dim:#E3F4F1;--bl:#2C6E9E;--bl-dim:#E4F0F9;--pr:#6D4EA8;--pr-dim:#EEE8F9;--or:#B76A2C;--or-dim:#FBEEE1;--rd:#B0463F;--rd-dim:#F7E8E7;--gn:#2F855A;--gn-dim:#F0F9F4;--bg:#fff;--ink:#102C27;--ink-s:#52716C;--ln:#E1EEEC;--r:20px;--sh:0 6px 24px rgba(10,60,55,.08);--sh-sm:0 3px 10px rgba(10,60,55,.06)}
+.pat-wrap{max-width:1280px;margin:0 auto;padding:26px 24px 60px;color:var(--ink);font-family:'Inter',sans-serif;animation:patFadeIn .5s ease}
+@@keyframes patFadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.pat-banner{position:relative;display:flex;justify-content:space-between;align-items:center;gap:24px;background:linear-gradient(125deg,#12A392,#0A4F48);border-radius:var(--r);padding:32px 36px;margin-bottom:22px;box-shadow:0 18px 40px rgba(10,90,80,.2);overflow:hidden}
+.pat-banner-pattern{position:absolute;inset:0;background:radial-gradient(circle at 85% 20%,rgba(255,255,255,.1) 0,transparent 45%)}
+.pat-banner-left{display:flex;align-items:center;gap:22px;position:relative;z-index:1}
+.pat-banner-icon{position:relative;width:76px;height:76px;border-radius:50%;background:rgba(255,255,255,.16);border:2px solid rgba(255,255,255,.32);display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px}
+.pat-icon-ring{position:absolute;inset:-6px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4);animation:patRingPulse 2.4s ease-out infinite}
+@@keyframes patRingPulse{0%{transform:scale(.9);opacity:.8}100%{transform:scale(1.35);opacity:0}}
+.pat-banner-text h1{font-family:'Poppins',sans-serif;font-weight:700;font-size:26px;margin:0 0 4px;color:#fff}
+.pat-banner-text p{margin:0 0 14px;color:rgba(255,255,255,.85);font-size:14.5px}
+.pat-pills{display:flex;gap:10px;flex-wrap:wrap}
+.pat-pill{display:inline-flex;align-items:center;gap:8px;padding:7px 15px;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;font-size:12.5px}
+.pat-clock{min-width:230px;border-left:1px solid rgba(255,255,255,.28);padding-left:28px}
+.pat-clock small{text-transform:uppercase;color:#DFF9F8;font-size:11px}
+#patCurrentDate{margin-top:6px;font-size:14px;color:#fff}
+#patCurrentTime{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;color:#fff;margin-top:2px}
+.pat-alert-strip{background:var(--bg);border-radius:var(--r);box-shadow:var(--sh-sm);padding:16px 24px;display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;border-left:4px solid;gap:12px;flex-wrap:wrap}
+.pat-alert-strip.warning{border-left-color:var(--or);background:var(--or-dim)}
+.pat-alert-strip.ok{border-left-color:var(--gn);background:var(--gn-dim)}
+.pat-alert-dot{width:10px;height:10px;border-radius:50%}
+.pat-alert-strip.warning .pat-alert-dot{background:var(--or);box-shadow:0 0 0 4px var(--or-dim)}
+.pat-alert-strip.ok .pat-alert-dot{background:var(--gn);box-shadow:0 0 0 4px var(--gn-dim)}
+.pat-alert-link{color:var(--pt-deep);font-weight:600;font-size:13.5px;text-decoration:none}
+.pat-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.pat-section-head h3{font-family:'Poppins',sans-serif;font-weight:700;font-size:20px;margin:0}
+.pat-section-head p{margin:0;color:var(--ink-s);font-size:13.5px}
+.pat-mt-lg{margin-top:44px}
+.pat-grid{display:grid;gap:18px}
+.pat-grid-4{grid-template-columns:repeat(4,1fr)}
+.pat-grid-3{grid-template-columns:repeat(3,1fr)}
+.pat-stat{background:var(--bg);border-radius:var(--r);box-shadow:var(--sh-sm);padding:22px;display:flex;align-items:center;gap:16px;border-top:3px solid var(--pt);transition:transform .2s}
+.pat-stat:hover{transform:translateY(-5px);box-shadow:var(--sh)}
+.pat-stat-icon{width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:21px}
+.pat-stat-icon.c-teal{background:var(--pt-dim);color:var(--pt)}
+.pat-stat-icon.c-blue{background:var(--bl-dim);color:var(--bl)}
+.pat-stat-icon.c-purple{background:var(--pr-dim);color:var(--pr)}
+.pat-stat-icon.c-orange{background:var(--or-dim);color:var(--or)}
+.pat-stat .num{font-family:'Poppins',sans-serif;font-size:27px;font-weight:700}
+.pat-split{display:grid;grid-template-columns:1.2fr 0.8fr;gap:18px}
+.pat-panel{background:var(--bg);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
+.pat-panel-head{display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-bottom:1px solid var(--ln)}
+.pat-panel-head span{font-family:'Poppins',sans-serif;font-weight:700;font-size:15.5px;display:flex;align-items:center;gap:10px}
+.pat-panel-head span i{color:var(--pt)}
+.pat-table{width:100%;border-collapse:collapse}
+.pat-table th{background:#F0F7F6;text-align:left;padding:12px 26px;font-size:12px;text-transform:uppercase;color:var(--ink-s);border-bottom:1px solid var(--ln)}
+.pat-table td{padding:14px 26px;border-bottom:1px solid var(--ln);font-size:14px}
+.pat-table-empty{text-align:center;color:var(--ink-s);padding:40px 26px!important}
+.pat-urgency{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600}
+.pat-urgency.routine{background:var(--pt-dim);color:var(--pt-deep)}
+.pat-urgency.urgent{background:var(--or-dim);color:#924E18}
+.pat-urgency.stat{background:var(--rd-dim);color:#942F28}
+.pat-status{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:600}
+.pat-status.submitted{background:#F0F4F8;color:#3C5770}
+.pat-status.inprogress{background:var(--or-dim);color:#924E18}
+.pat-status.completed{background:var(--gn-dim);color:var(--gn)}
+.pat-status.released{background:var(--pt-dim);color:var(--pt-deep)}
+.pat-profile-list{padding:10px 26px 18px}
+.pat-profile-row{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--ln);font-size:13.5px}
+.pat-profile-label{font-weight:600;color:var(--ink-s)}
+.pat-action{display:block;text-decoration:none;color:inherit;background:var(--bg);border-radius:var(--r);padding:28px 24px;box-shadow:var(--sh-sm);position:relative;transition:transform .25s}
+.pat-action::before{content:"";position:absolute;top:0;left:0;width:100%;height:4px;background:linear-gradient(90deg,var(--pt),var(--pt-deep))}
+.pat-action:hover{transform:translateY(-6px);box-shadow:var(--sh);text-decoration:none}
+.pat-action-icon{width:54px;height:54px;margin-bottom:16px;border-radius:16px;background:var(--pt-dim);color:var(--pt);display:flex;align-items:center;justify-content:center;font-size:23px}
+.pat-action h5{font-weight:700;margin:0 0 8px;font-size:15px}
+.pat-action p{margin:0;color:var(--ink-s);font-size:13px;line-height:1.6}
+.pat-action-go{display:inline-flex;margin-top:14px;color:var(--pt);opacity:.5;transition:transform .2s}
+.pat-action:hover .pat-action-go{transform:translateX(4px);opacity:1}
+.pat-footer{margin-top:50px;text-align:center}
+.pat-footer hr{border:none;border-top:1px solid var(--ln);margin-bottom:22px}
+.pat-footer-content{display:flex;justify-content:center;gap:12px;color:var(--ink-s);font-size:13px}
+.pat-footer-content i{color:var(--pt)}
+@@media(max-width:1100px){.pat-grid-4,.pat-grid-3{grid-template-columns:repeat(2,1fr)}.pat-split{grid-template-columns:1fr}}
+@@media(max-width:900px){.pat-banner{flex-direction:column;gap:24px}.pat-clock{width:100%;border-left:none;border-top:1px solid rgba(255,255,255,.28);padding-top:18px}.pat-banner-left{flex-direction:column}}
+@@media(max-width:640px){.pat-wrap{padding:20px 16px}.pat-grid-4,.pat-grid-3{grid-template-columns:1fr}.pat-alert-strip{flex-direction:column}}
+</style>
+
     }
     else if (User.IsInRole("Doctor"))
     {
@@ -2562,5 +2841,5 @@
         <h1>No User Role</h1>
     }
 }
-    }
-    }
+    
+    

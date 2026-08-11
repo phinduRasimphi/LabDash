@@ -2,6 +2,8 @@
 using LabDash.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
 
 namespace LabDash.Controllers
 {
@@ -27,12 +29,17 @@ namespace LabDash.Controllers
         public IActionResult Dashboard()
         {
             SetSidebarData("Dashboard");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var vm = new AdminDashboardViewModel
             {
+                // ==============================================
+                // ✅ YOUR EXISTING ADMIN DATA — UNCHANGED
+                // ==============================================
                 ConditionCount = _context.MedicalConditions.Count(x => x.IsActive),
                 AllergyCount = _context.Allergies.Count(x => x.IsActive),
                 MedicationCount = _context.Medications.Count(x => x.IsActive),
+                UserCount = _context.Users.Count(),
 
                 RecentConditions = _context.MedicalConditions
                     .Include(x => x.Category)
@@ -47,6 +54,60 @@ namespace LabDash.Controllers
                     .Take(5)
                     .ToList()
             };
+
+            // ==============================================
+            // ✅ PATIENT DATA — NOW INSIDE THE METHOD!
+            // ==============================================
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var patient = _context.Patients.FirstOrDefault(p => p.UserId == userId);
+
+                if (patient != null)
+                {
+                    vm.PatientProfile = new PatientProfileViewModel
+                    {
+                        PatientID = patient.PatientID,
+                        Name = patient.Name ?? "",
+                        Surname = patient.Surname ?? "",
+                        IDNumber = patient.IDNumber ?? "",
+                        DateOfBirth = patient.DOB 
+,
+                        Cellphone = patient.CellphoneNumber ?? "",
+                        Email = patient.Email ?? "",
+                        HomeAddress = patient.HomeAddress ?? ""
+                    };
+
+                    var patientRequests = _context.TestRequests
+                        .Where(r => r.PatientId == patient.PatientID)
+                        .OrderByDescending(r => r.RequestDate)
+                        .ToList();
+
+                    vm.PatientTotalRequests = patientRequests.Count;
+                    vm.PatientPendingRequests = patientRequests.Count(r =>
+                        r.Status == "Submitted" || r.Status == "Samples Received");
+                    vm.PatientResultsReady = patientRequests.Count(r =>
+                        r.Status == "Completed" || r.Status == "Released");
+
+                    var patientRequestIds = patientRequests.Select(r => r.PatientId).ToList();
+                    vm.PatientAbnormalCount = _context.TestResults
+                        .Include(r => r.TestRequestItem)
+                        .Where(r => patientRequestIds.Contains(r.TestRequestItem.RequestId) && r.IsAbnormal)
+                        .Count();
+
+                    vm.PatientRecentRequests = patientRequests
+                        .Take(5)
+                        .Select(r => new TestRequestViewModel
+                        {
+                            RequestID = r.RequestId.ToString(),
+                            RequestDate = r.RequestDate,
+                            DoctorName = r.RequestingDoctorId ?? "N/A",
+                            Urgency = r.Urgency ?? "Routine",
+                            Status = r.Status ?? "Submitted",
+                            Tests = new List<string>()
+                        })
+                        .ToList();
+                }
+            }
 
             return View(vm);
         }
@@ -165,13 +226,12 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(Conditions));
         }
 
-        // ... Allergies / Medications / SystemTables / AuditLog / Logout stay as before
         private static readonly List<string> _defaultAllergyCategories = new()
-{
-    "Drug Allergies",
-    "Food Allergies",
-    "Environmental"
-};
+        {
+            "Drug Allergies",
+            "Food Allergies",
+            "Environmental"
+        };
 
         // ===========================
         // ALLERGIES
@@ -181,8 +241,6 @@ namespace LabDash.Controllers
         {
             SetSidebarData("Allergies");
 
-            // Union of default categories + any categories already in use,
-            // since Allergy.Category is a free string, not an FK to a table.
             var usedCategories = _context.Allergies
                 .Select(a => a.Category)
                 .Distinct()
@@ -249,6 +307,7 @@ namespace LabDash.Controllers
 
             return RedirectToAction(nameof(Allergies));
         }
+
         [HttpPost]
         public IActionResult ReactivateAllergy(int id)
         {
@@ -280,11 +339,11 @@ namespace LabDash.Controllers
         }
 
         private static readonly List<string> _defaultMedicationCategories = new()
-{
-    "Antibiotics",
-    "Pain Relief",
-    "Chronic Condition"
-};
+        {
+            "Antibiotics",
+            "Pain Relief",
+            "Chronic Condition"
+        };
 
         // ===========================
         // MEDICATIONS
@@ -453,6 +512,7 @@ namespace LabDash.Controllers
 
             return RedirectToAction(nameof(SystemTables));
         }
+
         [HttpPost]
         public IActionResult AddUnit(string name)
         {
@@ -481,6 +541,4 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(SystemTables));
         }
     }
-
-
 }

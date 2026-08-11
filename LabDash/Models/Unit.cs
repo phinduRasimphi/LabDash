@@ -12,5 +12,6 @@ namespace LabDash.Models
 
         [StringLength(250)]
         public string? Description { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }

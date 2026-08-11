@@ -3,285 +3,1214 @@
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
     ViewData["Title"] = "Allergies";
     ViewData["ActivePage"] = "Allergies";
+
+    var breakdown = Model.Allergies
+        .GroupBy(a => string.IsNullOrWhiteSpace(a.Category) ? "Uncategorized" : a.Category)
+        .Select(g => new { Name = g.Key, Count = g.Count() })
+        .OrderByDescending(g => g.Count)
+        .ToList();
+    var breakdownMax = breakdown.Any() ? breakdown.Max(b => b.Count) : 0;
 }
 
-@if (TempData["Success"] != null)
-{
-    <div class="a-alert">
-        <i class="fas fa-check-circle"></i> @TempData["Success"]
-    </div>
-}
+@*
+    ============================================================================
+    Same treatment as Conditions.cshtml, plus a couple of bugs I found while
+    porting this one over that would have bitten the same way the modal bug
+    did on Conditions:
 
-<div class="a-page-header">
-    <div>
-        <div class="a-page-title">
-            <i class="fas fa-allergies"></i> Manage Allergies 🌿
-        </div>
-        <div class="a-page-sub">Maintain the list of allergies used across the system</div>
-    </div>
-    <button class="a-btn" onclick="openModal('modal-add')">
-        <i class="fas fa-plus"></i> Add Allergy
-    </button>
-</div>
+      1. openModal/closeModal were missing here too (same fix — defined
+         below, with click-outside + Escape to close).
+      2. The search/filter JS referenced row.dataset.name / row.dataset.cat
+         and a tbody with id="allergy-tbody" — but the rows never had those
+         data-* attributes and the tbody never had that id. Search would
+         have thrown immediately on the first keystroke. Fixed.
+      3. "Add Category" (the chip input with the ✕ remove button) only ever
+         edited the DOM — it wasn't wired to a form or asp-action anywhere,
+         so nothing typed there was ever saved. That's because Allergy
+         categories look like a free-text field on the Allergy itself
+         (Model.Categories is a list of distinct strings, not a table with
+         IDs like Conditions has). I've kept it purely as a convenience that
+         pre-fills the dropdowns in the Add/Edit modals — worth deciding if
+         you want it removed entirely or wired to something real.
+    ============================================================================
+*@
 
-<!-- Categories Card -->
-<div class="a-card">
-    <div class="a-ch">
-        <div class="a-ct">
-            <i class="fas fa-folder"></i> Allergy Categories
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="adm-page">
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="adm-alert">
+            <i class="fas fa-circle-check"></i> @TempData["Success"]
         </div>
-        <span class="a-cc">@Model.Categories.Count categories</span>
-    </div>
-    <div class="a-cb">
-        <div class="a-chips-row" id="cat-chips">
-            @foreach (var cat in Model.Categories)
-            {
-                <span class="a-chip a-chip-allergy">
-                    @cat
-                    <span class="a-chip-rm" onclick="removeChip(this)">✕</span>
-                </span>
-            }
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="adm-alert adm-alert-error">
+            <i class="fas fa-circle-exclamation"></i> @TempData["Error"]
         </div>
-        <div class="a-tag-input">
-            <input id="new-cat" placeholder="New category name…" />
-            <button class="a-btn" type="button" onclick="addChip('cat-chips','new-cat','a-chip a-chip-allergy')">
-                <i class="fas fa-plus"></i> Add Category
+    }
+
+    <!-- ==========================================
+        PAGE BANNER
+    =========================================== -->
+    <div class="adm-page-banner">
+        <div class="adm-page-banner-pattern"></div>
+
+        <div class="adm-page-banner-left">
+            <div class="adm-page-banner-icon"><i class="fas fa-allergies"></i></div>
+            <div>
+                <h1>Manage Allergies</h1>
+                <p>Maintain the list of allergies used across the system</p>
+            </div>
+        </div>
+
+        <div class="adm-page-banner-right">
+            <div class="adm-mini-stats">
+                <div class="adm-mini-stat">
+                    <span class="num">@Model.Allergies.Count</span>
+                    <span class="label">Active</span>
+                </div>
+                <div class="adm-mini-stat">
+                    <span class="num">@Model.InactiveAllergies.Count</span>
+                    <span class="label">Archived</span>
+                </div>
+                <div class="adm-mini-stat">
+                    <span class="num">@Model.Categories.Count</span>
+                    <span class="label">Categories</span>
+                </div>
+            </div>
+            <button class="adm-btn adm-btn-light" onclick="openModal('modal-add')">
+                <i class="fas fa-plus"></i> Add Allergy
             </button>
         </div>
     </div>
-</div>
 
-<!-- All Allergies Card -->
-<div class="a-card">
-    <div class="a-ch">
-        <div class="a-ct">
-            <i class="fas fa-allergies"></i> All Allergies
+    <!-- ==========================================
+        CATEGORIES PANEL
+    =========================================== -->
+    <div class="adm-panel">
+        <div class="adm-panel-head">
+            <span><i class="fas fa-folder"></i> Allergy Categories</span>
+            <span class="adm-panel-tag">@Model.Categories.Count categories</span>
         </div>
-        <span class="a-cc">@Model.Allergies.Count items</span>
-    </div>
-
-    <div style="padding: 16px 20px 0;">
-        <div class="a-search">
-            <input id="allergy-search" placeholder="🔍  Search allergies…" oninput="filterTable('allergy-search','allergy-cat-filter','allergy-tbody')" />
-            <select id="allergy-cat-filter" onchange="filterTable('allergy-search','allergy-cat-filter','allergy-tbody')">
-                <option value="">All Categories</option>
+        <div class="adm-panel-body">
+            <div class="adm-chips-row" id="cat-chips">
                 @foreach (var cat in Model.Categories)
                 {
-                    <option value="@cat">@cat</option>
+                    <span class="adm-chip">
+                        @cat
+                        <span class="adm-chip-rm" onclick="removeChip(this)"><i class="fas fa-xmark"></i></span>
+                    </span>
                 }
-            </select>
-        </div>
-    </div>
-
-    <table class="a-table">
-        <thead>
-            <tr>
-                <th>Allergy Name</th>
-                <th>Category</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th style="width:180px;">Actions</th>
-            </tr>
-        </thead>
-
-        <tbody>
-            @foreach (var item in Model.Allergies)
-            {
-                <tr>
-                    <td>@item.AllergyName</td>
-
-                    <td>
-                        <span class="a-badge a-badge-allergy">
-                            @item.Category
-                        </span>
-                    </td>
-
-                    <td>@item.Description</td>
-
-                    <td>
-                        @if (item.IsActive)
-                        {
-                            <span class="badge bg-success">Active</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-danger">Inactive</span>
-                        }
-                    </td>
-
-                    <td>
-                        <button class="a-btn-edit"
-                                onclick="openEditModal('@item.AllergyId','@item.AllergyName','@item.Category')">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-
-                        <form asp-action="DeleteAllergy"
-                              method="post"
-                              style="display:inline;">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden"
-                                   name="id"
-                                   value="@item.AllergyId" />
-
-                            <button class="a-btn-danger">
-                                <i class="fas fa-trash"></i> Deactivate
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-
-    @if (!Model.Allergies.Any())
-    {
-        <div style="padding:40px;text-align:center;">
-            No allergies found.
-        </div>
-    }
-
-</div>
-<!-- Deactivated Allergies Card -->
-<div class="a-card">
-    <div class="a-ch">
-        <div class="a-ct">
-            <i class="fas fa-ban"></i> Deactivated Allergies
-        </div>
-        <span class="a-cc">@Model.InactiveAllergies.Count items</span>
-    </div>
-
-    <table class="a-table">
-        <thead>
-            <tr>
-                <th>Allergy Name</th>
-                <th>Category</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th style="width:120px;">Actions</th>
-            </tr>
-        </thead>
-
-        <tbody>
-            @foreach (var item in Model.InactiveAllergies)
-            {
-                <tr>
-                    <td>@item.AllergyName</td>
-                    <td>
-                        <span class="a-badge a-badge-allergy">
-                            @item.Category
-                        </span>
-                    </td>
-                    <td>@item.Description</td>
-                    <td>
-                        <span class="badge bg-danger">Inactive</span>
-                    </td>
-                    <td>
-                        <form asp-action="ReactivateAllergy" method="post" style="display:inline;">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="id" value="@item.AllergyId" />
-                            <button class="a-btn-edit">
-                                <i class="fas fa-undo"></i> Reactivate
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-
-    @if (!Model.InactiveAllergies.Any())
-    {
-        <div style="padding:40px;text-align:center;">
-            No deactivated allergies.
-        </div>
-    }
-</div>
-<!-- ADD MODAL -->
-<div class="a-modal-overlay" id="modal-add">
-    <div class="a-modal">
-        <div class="a-modal-title">
-            <span><i class="fas fa-plus-circle" style="color:var(--a-sidebar-bg);margin-right:8px;"></i>Add New Allergy</span>
-            <span class="a-modal-close" onclick="closeModal('modal-add')">✕</span>
-        </div>
-        <form asp-action="AddAllergy" method="post">
-            @Html.AntiForgeryToken()
-            <div class="a-form-group" style="margin-bottom:16px;">
-                <label>Allergy Name</label>
-                <input name="name" placeholder="e.g. Penicillin" required />
             </div>
-            <div class="a-form-group" style="margin-bottom:16px;">
-                <label>Category</label>
-                <select name="category">
+            <div class="adm-inline-form">
+                <input id="new-cat" placeholder="New category name" />
+                <button class="adm-btn adm-btn-sm" type="button" onclick="addChip('cat-chips','new-cat')">
+                    <i class="fas fa-plus"></i> Add Category
+                </button>
+            </div>
+            <p class="adm-hint">Categories added here only pre-fill the dropdowns below — they aren't saved on their own.</p>
+        </div>
+    </div>
+
+    <!-- ==========================================
+        ALLERGIES TABLE + CATEGORY BREAKDOWN
+    =========================================== -->
+    <div class="adm-split">
+
+        <!-- Allergies table (tabbed: Active / Archived) -->
+        <div class="adm-panel">
+            <div class="adm-panel-head">
+                <span><i class="fas fa-allergies"></i> All Allergies</span>
+                <span class="adm-panel-tag">@Model.Allergies.Count items</span>
+            </div>
+
+            <div class="adm-tabs">
+                <button type="button" class="adm-tab is-active" data-tbody="allergy-tbody" onclick="switchTab(this)">
+                    Active <span class="adm-tab-count">@Model.Allergies.Count</span>
+                </button>
+                <button type="button" class="adm-tab" data-tbody="allergy-tbody-archived" onclick="switchTab(this)">
+                    Archived <span class="adm-tab-count">@Model.InactiveAllergies.Count</span>
+                </button>
+            </div>
+
+            <div class="adm-toolbar">
+                <div class="adm-search-box">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <input id="allergy-search" placeholder="Search allergies…" oninput="filterActiveTable()" />
+                </div>
+                <select id="allergy-cat-filter" onchange="filterActiveTable()">
+                    <option value="">All Categories</option>
                     @foreach (var cat in Model.Categories)
                     {
                         <option value="@cat">@cat</option>
                     }
                 </select>
             </div>
-            <div class="a-modal-actions">
-                <button type="button" class="a-btn-cancel" onclick="closeModal('modal-add')">Cancel</button>
-                <button type="submit" class="a-btn">
-                    <i class="fas fa-save"></i> Save Allergy
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 
-<!-- EDIT MODAL -->
-<div class="a-modal-overlay" id="modal-edit">
-    <div class="a-modal">
-        <div class="a-modal-title">
-            <span><i class="fas fa-edit" style="color:var(--a-blue);margin-right:8px;"></i>Edit Allergy</span>
-            <span class="a-modal-close" onclick="closeModal('modal-edit')">✕</span>
+            <div class="adm-table-wrap">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th>Allergy Name</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th class="adm-th-actions">Actions</th>
+                        </tr>
+                    </thead>
+
+                    <!-- ACTIVE ROWS -->
+                    <tbody id="allergy-tbody">
+                        @foreach (var item in Model.Allergies)
+                        {
+                            <tr data-name="@item.AllergyName.ToLower()" data-cat="@(item.Category ?? "")">
+                                <td class="adm-td-strong">@item.AllergyName</td>
+                                <td><span class="adm-badge">@item.Category</span></td>
+                                <td class="adm-td-muted">@item.Description</td>
+                                <td>
+                                    <span class="adm-status-pill adm-status-active">
+                                        <span class="adm-status-dot"></span> Active
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="adm-row-actions">
+                                        <button type="button" class="adm-icon-btn adm-icon-btn-edit"
+                                                data-id="@item.AllergyId"
+                                                data-name="@item.AllergyName"
+                                                data-category="@item.Category"
+                                                onclick="openEditModalFromButton(this)">
+                                            <i class="fas fa-pen"></i> Edit
+                                        </button>
+
+                                        <form asp-action="DeleteAllergy" method="post" class="adm-inline-form-tight">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@item.AllergyId" />
+                                            <button type="submit" class="adm-icon-btn adm-icon-btn-danger">
+                                                <i class="fas fa-box-archive"></i> Deactivate
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+
+                    <!-- ARCHIVED ROWS -->
+                    <tbody id="allergy-tbody-archived" style="display:none;">
+                        @foreach (var item in Model.InactiveAllergies)
+                        {
+                            <tr data-name="@item.AllergyName.ToLower()" data-cat="@(item.Category ?? "")">
+                                <td class="adm-td-strong">@item.AllergyName</td>
+                                <td><span class="adm-badge adm-badge-muted">@item.Category</span></td>
+                                <td class="adm-td-muted">@item.Description</td>
+                                <td>
+                                    <span class="adm-status-pill adm-status-inactive">
+                                        <span class="adm-status-dot"></span> Archived
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="adm-row-actions">
+                                        <form asp-action="ReactivateAllergy" method="post" class="adm-inline-form-tight">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@item.AllergyId" />
+                                            <button type="submit" class="adm-icon-btn adm-icon-btn-restore">
+                                                <i class="fas fa-rotate-left"></i> Reactivate
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                @if (!Model.Allergies.Any())
+                {
+                    <div class="adm-empty-state" id="allergy-empty-active">
+                        <div class="adm-empty-icon"><i class="fas fa-allergies"></i></div>
+                        <h5>No allergies found</h5>
+                        <p>Add your first allergy using the button above.</p>
+                    </div>
+                }
+
+                @if (!Model.InactiveAllergies.Any())
+                {
+                    <div class="adm-empty-state" id="allergy-empty-archived" style="display:none;">
+                        <div class="adm-empty-icon"><i class="fas fa-box-archive"></i></div>
+                        <h5>Nothing archived</h5>
+                        <p>Allergies you deactivate will appear here and can be reactivated any time.</p>
+                    </div>
+                }
+            </div>
         </div>
-        <form asp-action="EditAllergy" method="post">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="id" id="edit-id" />
-            <div class="a-form-group" style="margin-bottom:16px;">
-                <label>Allergy Name</label>
-                <input name="name" id="edit-name" placeholder="e.g. Penicillin" required />
+
+        <!-- Category breakdown -->
+        <div class="adm-panel">
+            <div class="adm-panel-head">
+                <span><i class="fas fa-chart-simple"></i> By category</span>
             </div>
-            <div class="a-form-group" style="margin-bottom:16px;">
-                <label>Category</label>
-                <select name="category" id="edit-category">
-                    @foreach (var cat in Model.Categories)
+            <div class="adm-breakdown">
+                @if (breakdown.Any())
+                {
+                    @foreach (var b in breakdown)
                     {
-                        <option value="@cat">@cat</option>
+                        var pct = breakdownMax > 0 ? (int)Math.Round((double)b.Count / breakdownMax * 100) : 0;
+                        <div class="adm-breakdown-row">
+                            <div class="adm-breakdown-label">
+                                <span>@b.Name</span>
+                                <strong>@b.Count</strong>
+                            </div>
+                            <div class="adm-breakdown-track">
+                                <div class="adm-breakdown-fill" style="width:@(pct)%;"></div>
+                            </div>
+                        </div>
                     }
-                </select>
+                }
+                else
+                {
+                    <div class="adm-empty-state">
+                        <div class="adm-empty-icon"><i class="fas fa-chart-simple"></i></div>
+                        <h5>No data yet</h5>
+                        <p>Once allergies are added, their spread across categories will show up here.</p>
+                    </div>
+                }
             </div>
-            <div class="a-modal-actions">
-                <button type="button" class="a-btn-cancel" onclick="closeModal('modal-edit')">Cancel</button>
-                <button type="submit" class="a-btn">
-                    <i class="fas fa-save"></i> Save Changes
-                </button>
-            </div>
-        </form>
+        </div>
+
     </div>
+
+    <!-- ==========================================
+        ADD MODAL
+    =========================================== -->
+    <div class="adm-modal-overlay" id="modal-add">
+        <div class="adm-modal">
+            <div class="adm-modal-title">
+                <span><i class="fas fa-circle-plus adm-modal-icon"></i>Add New Allergy</span>
+                <span class="adm-modal-close" onclick="closeModal('modal-add')"><i class="fas fa-xmark"></i></span>
+            </div>
+            <form asp-action="AddAllergy" method="post">
+                @Html.AntiForgeryToken()
+                <div class="adm-form-group">
+                    <label>Allergy Name</label>
+                    <input name="name" placeholder="e.g. Penicillin" required />
+                </div>
+                <div class="adm-form-group">
+                    <label>Category</label>
+                    <select name="category" required>
+                        <option value="">-- Select Category --</option>
+                        @foreach (var cat in Model.Categories)
+                        {
+                            <option value="@cat">@cat</option>
+                        }
+                    </select>
+                </div>
+                <div class="adm-form-group">
+                    <label>Description (optional)</label>
+                    <input name="description" placeholder="Short description" />
+                </div>
+                <div class="adm-modal-actions">
+                    <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-add')">Cancel</button>
+                    <button type="submit" class="adm-btn">
+                        <i class="fas fa-floppy-disk"></i> Save Allergy
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================
+        EDIT MODAL
+    =========================================== -->
+    <div class="adm-modal-overlay" id="modal-edit">
+        <div class="adm-modal">
+            <div class="adm-modal-title">
+                <span><i class="fas fa-pen adm-modal-icon"></i>Edit Allergy</span>
+                <span class="adm-modal-close" onclick="closeModal('modal-edit')"><i class="fas fa-xmark"></i></span>
+            </div>
+            <form asp-action="EditAllergy" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" id="edit-id" />
+                <div class="adm-form-group">
+                    <label>Allergy Name</label>
+                    <input name="name" id="edit-name" placeholder="e.g. Penicillin" required />
+                </div>
+                <div class="adm-form-group">
+                    <label>Category</label>
+                    <select name="category" id="edit-category" required>
+                        <option value="">-- Select Category --</option>
+                        @foreach (var cat in Model.Categories)
+                        {
+                            <option value="@cat">@cat</option>
+                        }
+                    </select>
+                </div>
+                <div class="adm-form-group">
+                    <label>Description (optional)</label>
+                    <input name="description" id="edit-description" placeholder="Short description" />
+                </div>
+                <div class="adm-modal-actions">
+                    <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-edit')">Cancel</button>
+                    <button type="submit" class="adm-btn">
+                        <i class="fas fa-floppy-disk"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 
 @section Scripts {
     <script>
-        function openEditModal(id, name, category) {
-            document.getElementById('edit-id').value = id;
-            document.getElementById('edit-name').value = name;
+        function openModal(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('is-open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('is-open');
+            document.body.style.overflow = '';
+        }
+
+        document.querySelectorAll('.adm-modal-overlay').forEach(function(overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeModal(overlay.id);
+            });
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.adm-modal-overlay.is-open').forEach(function(o) {
+                    closeModal(o.id);
+                });
+            }
+        });
+
+        function openEditModalFromButton(btn) {
+            document.getElementById('edit-id').value = btn.dataset.id;
+            document.getElementById('edit-name').value = btn.dataset.name;
+
             var sel = document.getElementById('edit-category');
             for (var i = 0; i < sel.options.length; i++) {
-                if (sel.options[i].value === category) { sel.selectedIndex = i; break; }
+                if (sel.options[i].value === btn.dataset.category) { sel.selectedIndex = i; break; }
             }
             openModal('modal-edit');
         }
 
-        function filterTable(searchId, filterId, tbodyId) {
-            var q = document.getElementById(searchId).value.toLowerCase();
-            var cat = document.getElementById(filterId).value;
-            var rows = document.getElementById(tbodyId).querySelectorAll('tr');
-            rows.forEach(function(row) {
+        function switchTab(tabBtn) {
+            document.querySelectorAll('.adm-tab').forEach(t => t.classList.remove('is-active'));
+            tabBtn.classList.add('is-active');
+
+            document.getElementById('allergy-tbody').style.display = 'none';
+            document.getElementById('allergy-tbody-archived').style.display = 'none';
+            document.getElementById(tabBtn.dataset.tbody).style.display = '';
+
+            var activeEmpty = document.getElementById('allergy-empty-active');
+            var archivedEmpty = document.getElementById('allergy-empty-archived');
+            if (activeEmpty) activeEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody' ? '' : 'none';
+            if (archivedEmpty) archivedEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody-archived' ? '' : 'none';
+
+            document.getElementById('allergy-search').value = '';
+            document.getElementById('allergy-cat-filter').value = '';
+            filterActiveTable();
+        }
+
+        function filterActiveTable() {
+            var activeTab = document.querySelector('.adm-tab.is-active');
+            var tbody = document.getElementById(activeTab.dataset.tbody);
+            var q = document.getElementById('allergy-search').value.toLowerCase();
+            var cat = document.getElementById('allergy-cat-filter').value;
+
+            tbody.querySelectorAll('tr').forEach(function(row) {
                 var nameMatch = row.dataset.name.includes(q);
                 var catMatch = !cat || row.dataset.cat === cat;
                 row.style.display = (nameMatch && catMatch) ? '' : 'none';
             });
         }
+
+        // Cosmetic only — see note at the top of the file. Pre-fills the
+        // dropdowns in this session; does not persist a new category.
+        function addChip(rowId, inputId) {
+            var input = document.getElementById(inputId);
+            var value = input.value.trim();
+            if (!value) return;
+
+            var row = document.getElementById(rowId);
+            var chip = document.createElement('span');
+            chip.className = 'adm-chip';
+            chip.innerHTML = value + ' <span class="adm-chip-rm" onclick="removeChip(this)"><i class="fas fa-xmark"></i></span>';
+            row.appendChild(chip);
+
+            document.querySelectorAll('#allergy-cat-filter, select[name="category"]').forEach(function(sel) {
+                var opt = document.createElement('option');
+                opt.value = value;
+                opt.textContent = value;
+                sel.appendChild(opt);
+            });
+
+            input.value = '';
+        }
+
+        function removeChip(el) {
+            el.closest('.adm-chip').remove();
+        }
     </script>
 }
+
+<style>
+    :root {
+        --adm-paper: #F0F7F6;
+        --adm-raised: #FFFFFF;
+        --adm-ink: #102C27;
+        --adm-ink-soft: #52716C;
+        --adm-ink-faint: #8FA9A3;
+        --adm-line: #E1EEEC;
+        --adm-line-strong: #CCE3DF;
+        --adm-teal: #0E8C7F;
+        --adm-teal-deep: #0A5850;
+        --adm-teal-dim: #E3F4F1;
+        --adm-teal-grad-start: #12A392;
+        --adm-teal-grad-end: #0A4F48;
+        --adm-red: #B0463F;
+        --adm-red-dim: #F7E8E7;
+        --adm-purple: #6D4EA8;
+        --adm-purple-dim: #EEE8F9;
+        --adm-radius: 20px;
+        --adm-radius-sm: 13px;
+        --adm-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+        --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
+        /* Category accent for THIS page — allergies get purple, matching
+               the purple used for Allergies on the main dashboard. */
+        --adm-allergy-accent: var(--adm-purple);
+        --adm-allergy-accent-dim: var(--adm-purple-dim);
+    }
+
+    .adm-page {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 26px 24px 60px;
+        color: var(--adm-ink);
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* ============ ALERTS ============ */
+    .adm-alert {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-left: 4px solid var(--adm-teal);
+        border-radius: var(--adm-radius-sm);
+        padding: 14px 18px;
+        font-size: 13.5px;
+        font-weight: 600;
+        margin-bottom: 18px;
+    }
+
+    .adm-alert-error {
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-left-color: var(--adm-red);
+    }
+
+    /* ============ PAGE BANNER ============ */
+    .adm-page-banner {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        border-radius: var(--adm-radius);
+        padding: 26px 32px;
+        margin-bottom: 22px;
+        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
+        overflow: hidden;
+        flex-wrap: wrap;
+    }
+
+    .adm-page-banner-pattern {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        pointer-events: none;
+    }
+
+    .adm-page-banner-left {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .adm-page-banner-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 16px;
+        background: rgba(255,255,255,.16);
+        border: 2px solid rgba(255,255,255,.32);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    .adm-page-banner-left h1 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 21px;
+        margin: 0 0 3px;
+        color: #fff;
+    }
+
+    .adm-page-banner-left p {
+        margin: 0;
+        color: rgba(255,255,255,.85);
+        font-size: 13px;
+    }
+
+    .adm-page-banner-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        position: relative;
+        z-index: 1;
+        flex-wrap: wrap;
+    }
+
+    .adm-mini-stats {
+        display: flex;
+        gap: 18px;
+    }
+
+    .adm-mini-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 58px;
+    }
+
+        .adm-mini-stat .num {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            color: #fff;
+        }
+
+        .adm-mini-stat .label {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: rgba(255,255,255,.75);
+            margin-top: 2px;
+        }
+
+    /* ============ BUTTONS ============ */
+    .adm-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        color: #fff;
+        border: none;
+        border-radius: var(--adm-radius-sm);
+        padding: 11px 20px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 13.5px;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(10, 90, 80, 0.22);
+        transition: transform .15s, box-shadow .15s;
+    }
+
+        .adm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 26px rgba(10, 90, 80, 0.28);
+        }
+
+    .adm-btn-sm {
+        padding: 9px 16px;
+        font-size: 12.5px;
+        flex-shrink: 0;
+    }
+
+    .adm-btn-light {
+        background: #fff;
+        color: var(--adm-teal-deep);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+
+        .adm-btn-light:hover {
+            box-shadow: 0 12px 24px rgba(0,0,0,0.16);
+        }
+
+    .adm-btn-cancel {
+        background: var(--adm-paper);
+        color: var(--adm-ink-soft);
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 11px 20px;
+        font-weight: 600;
+        font-size: 13.5px;
+        cursor: pointer;
+    }
+
+    /* ============ PANELS ============ */
+    .adm-panel {
+        background: var(--adm-raised);
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        overflow: hidden;
+        margin-bottom: 22px;
+    }
+
+    .adm-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 26px;
+        border-bottom: 1px solid var(--adm-line);
+    }
+
+        .adm-panel-head span:first-child {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 15.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .adm-panel-head span:first-child i {
+                color: var(--adm-teal);
+            }
+
+    .adm-panel-tag {
+        font-weight: 600;
+        font-size: 11.5px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        padding: 6px 13px;
+        border-radius: 999px;
+    }
+
+    .adm-panel-body {
+        padding: 20px 26px 24px;
+    }
+
+    .adm-hint {
+        margin: 12px 0 0;
+        font-size: 12px;
+        color: var(--adm-ink-faint);
+    }
+
+    /* ============ SPLIT LAYOUT ============ */
+    .adm-split {
+        display: grid;
+        grid-template-columns: 1.7fr 1fr;
+        gap: 18px;
+        align-items: start;
+    }
+
+    /* ============ CHIPS (category accent = purple, glowing) ============ */
+    .adm-chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .adm-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 600;
+        animation: admGlowPulsePurple 2.6s ease-in-out infinite;
+    }
+
+    .adm-chip-rm {
+        display: inline-flex;
+        cursor: pointer;
+        opacity: .6;
+        font-size: 10px;
+    }
+
+        .adm-chip-rm:hover {
+            opacity: 1;
+        }
+
+    .adm-inline-form {
+        display: flex;
+        gap: 10px;
+    }
+
+        .adm-inline-form input {
+            flex: 1;
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+        }
+
+    .adm-inline-form-tight {
+        display: inline-flex;
+    }
+
+    /* ============ TABS ============ */
+    .adm-tabs {
+        display: flex;
+        gap: 6px;
+        padding: 16px 26px 0;
+    }
+
+    .adm-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--adm-ink-soft);
+        font-weight: 600;
+        font-size: 13.5px;
+        padding: 10px 6px;
+        cursor: pointer;
+        margin-right: 18px;
+    }
+
+        .adm-tab.is-active {
+            color: var(--adm-teal-deep);
+            border-bottom-color: var(--adm-teal);
+        }
+
+    .adm-tab-count {
+        background: var(--adm-paper);
+        color: var(--adm-ink-faint);
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+    }
+
+    .adm-tab.is-active .adm-tab-count {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
+
+    /* ============ TOOLBAR ============ */
+    .adm-toolbar {
+        display: flex;
+        gap: 12px;
+        padding: 16px 26px 0;
+        flex-wrap: wrap;
+    }
+
+    .adm-search-box {
+        flex: 1;
+        min-width: 200px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--adm-paper);
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 10px 14px;
+    }
+
+        .adm-search-box i {
+            color: var(--adm-ink-faint);
+            font-size: 13px;
+        }
+
+        .adm-search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+        }
+
+    .adm-toolbar select {
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 10px 14px;
+        font-size: 13px;
+        font-family: 'Inter', sans-serif;
+        color: var(--adm-ink);
+        background: var(--adm-raised);
+    }
+
+    /* ============ TABLE ============ */
+    .adm-table-wrap {
+        padding: 16px 0 6px;
+        overflow-x: auto;
+    }
+
+    .adm-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+    }
+
+        .adm-table th {
+            text-align: left;
+            padding: 12px 26px;
+            font-weight: 600;
+            font-size: 11.5px;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            color: var(--adm-ink-faint);
+            background: var(--adm-paper);
+            border-bottom: 1px solid var(--adm-line);
+        }
+
+    .adm-th-actions {
+        width: 210px;
+    }
+
+    .adm-table td {
+        padding: 14px 26px;
+        border-bottom: 1px solid var(--adm-line);
+        vertical-align: middle;
+    }
+
+    .adm-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .adm-table tbody tr:hover {
+        background: var(--adm-paper);
+    }
+
+    .adm-td-strong {
+        font-weight: 600;
+    }
+
+    .adm-td-muted {
+        color: var(--adm-ink-soft);
+    }
+
+    .adm-badge {
+        display: inline-flex;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+        animation: admGlowPulsePurple 2.6s ease-in-out infinite;
+    }
+
+    /* Archived rows stay muted/flat on purpose — glow means "active" */
+    .adm-badge-muted {
+        background: var(--adm-line);
+        color: var(--adm-ink-faint);
+        animation: none;
+    }
+
+    /* ============ STATUS PILLS (glowing) ============ */
+    .adm-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .adm-status-active {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
+
+    .adm-status-inactive {
+        background: var(--adm-line);
+        color: var(--adm-ink-faint);
+    }
+
+    .adm-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .adm-status-active .adm-status-dot {
+        background: var(--adm-teal);
+        animation: admGlowPulse 2s ease-in-out infinite;
+    }
+
+    .adm-status-inactive .adm-status-dot {
+        background: var(--adm-ink-faint);
+        box-shadow: 0 0 0 3px var(--adm-line);
+    }
+
+    @@keyframes admGlowPulse {
+        0%, 100% {
+            box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 6px 1px rgba(14, 140, 127, .45);
+        }
+
+        50% {
+            box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 14px 4px rgba(14, 140, 127, .75);
+        }
+    }
+
+    @@keyframes admGlowPulsePurple {
+        0%, 100% {
+            box-shadow: 0 0 6px 0px rgba(109, 78, 168, .25);
+        }
+
+        50% {
+            box-shadow: 0 0 10px 2px rgba(109, 78, 168, .45);
+        }
+    }
+
+    /* ============ ROW ACTIONS ============ */
+    .adm-row-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .adm-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--adm-line-strong);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border-radius: var(--adm-radius-sm);
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+
+    .adm-icon-btn-edit:hover {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-color: var(--adm-teal-dim);
+    }
+
+    .adm-icon-btn-danger:hover {
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-color: var(--adm-red-dim);
+    }
+
+    .adm-icon-btn-restore:hover {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-color: var(--adm-teal-dim);
+    }
+
+    /* ============ CATEGORY BREAKDOWN ============ */
+    .adm-breakdown {
+        padding: 20px 26px 26px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .adm-breakdown-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .adm-breakdown-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: var(--adm-ink);
+    }
+
+        .adm-breakdown-label strong {
+            color: var(--adm-ink-faint);
+            font-weight: 700;
+        }
+
+    .adm-breakdown-track {
+        height: 8px;
+        border-radius: 999px;
+        background: var(--adm-paper);
+        overflow: hidden;
+    }
+
+    .adm-breakdown-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--adm-allergy-accent), var(--adm-allergy-accent));
+        opacity: .85;
+    }
+
+    /* ============ EMPTY STATE ============ */
+    .adm-empty-state {
+        padding: 48px 30px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .adm-empty-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .adm-empty-state h5 {
+        margin: 0;
+        font-size: 14.5px;
+        font-weight: 700;
+    }
+
+    .adm-empty-state p {
+        margin: 0;
+        max-width: 340px;
+        font-size: 13px;
+        color: var(--adm-ink-soft);
+        line-height: 1.6;
+    }
+
+    /* ============ MODALS ============ */
+    .adm-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 44, 39, 0.45);
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+        .adm-modal-overlay.is-open {
+            display: flex;
+        }
+
+    .adm-modal {
+        background: var(--adm-raised);
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        width: 100%;
+        max-width: 440px;
+        padding: 26px;
+    }
+
+    .adm-modal-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 16px;
+        margin-bottom: 20px;
+    }
+
+    .adm-modal-icon {
+        margin-right: 8px;
+        color: var(--adm-teal);
+    }
+
+    .adm-modal-close {
+        cursor: pointer;
+        color: var(--adm-ink-faint);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .adm-modal-close:hover {
+            background: var(--adm-paper);
+            color: var(--adm-ink);
+        }
+
+    .adm-form-group {
+        margin-bottom: 16px;
+    }
+
+        .adm-form-group label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--adm-ink-soft);
+            margin-bottom: 6px;
+        }
+
+        .adm-form-group input,
+        .adm-form-group select {
+            width: 100%;
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            color: var(--adm-ink);
+            box-sizing: border-box;
+        }
+
+    .adm-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 6px;
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @@media (max-width: 1000px) {
+        .adm-split {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .adm-page {
+            padding: 20px 16px 50px;
+        }
+
+        .adm-page-banner {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .adm-page-banner-right {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .adm-row-actions {
+            flex-wrap: wrap;
+        }
+    }
+</style>

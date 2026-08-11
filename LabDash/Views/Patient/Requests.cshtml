@@ -1,241 +1,720 @@
-﻿
-@model List<LabDash.Models.TestRequestViewModel>
+﻿@model List<LabDash.Models.TestRequestViewModel>
 
 @{
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
     ViewData["Title"] = "My Test Requests";
     ViewData["ActivePage"] = "Requests";
+
+    var stages = new[] { "Requested", "Collected", "Processing", "Released" };
 }
 
-<div class="p-content">
-    <div class="p-hero">
-        <div class="p-hero-inner">
-            <div>
-                <h1 class="p-hero-title">My Test Requests 📋</h1>
-                <p class="p-hero-subtitle">
-                    Track the progress of your laboratory and diagnostic orders.
-                </p>
-            </div>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+<div class="rq-wrap">
+
+    <!-- ==========================================
+        CONSOLE HEADER
+    =========================================== -->
+    <div class="rq-console">
+        <div class="rq-console-scan"></div>
+        <div class="rq-console-left">
+            <div class="rq-console-eyebrow">Patient Portal &middot; Specimen Tracking</div>
+            <h1>My Test Requests</h1>
+            <p>Every order, from draw to result — tracked the way the lab tracks it.</p>
+        </div>
+        <div class="rq-console-readout">
+            <span class="rq-readout-label">Total on file</span>
+            <span class="rq-readout-num">@Model.Count.ToString("D3")</span>
         </div>
     </div>
 
-    <div class="p-card">
-        <div class="p-ch">
-            <div class="p-ct">
-                <i class="fas fa-file-medical"></i> All Test Requests
+    <!-- ==========================================
+        SUMMARY TICKER
+    =========================================== -->
+    @{
+        var total = Model?.Count ?? 0;
+        var completed = Model?.Count(x => x.Status?.ToLower() == "completed") ?? 0;
+        var pending = Model?.Count(x => x.Status?.ToLower() == "pending") ?? 0;
+        var urgent = Model?.Count(x => !string.IsNullOrEmpty(x.Urgency) &&
+            (x.Urgency.ToLower() == "high" || x.Urgency.ToLower() == "urgent")) ?? 0;
+    }
+
+    @if (total > 0)
+    {
+        <div class="rq-ticker">
+            <div class="rq-tick">
+                <span class="rq-tick-bar rq-bar-ink"></span>
+                <span class="rq-tick-num">@total.ToString("D2")</span>
+                <span class="rq-tick-label">Total</span>
             </div>
-
-            <span class="p-htag p-ht-c">
-                @Model.Count Total Requests
-            </span>
+            <div class="rq-tick">
+                <span class="rq-tick-bar rq-bar-green"></span>
+                <span class="rq-tick-num">@completed.ToString("D2")</span>
+                <span class="rq-tick-label">Released</span>
+            </div>
+            <div class="rq-tick">
+                <span class="rq-tick-bar rq-bar-amber"></span>
+                <span class="rq-tick-num">@pending.ToString("D2")</span>
+                <span class="rq-tick-label">In progress</span>
+            </div>
+            <div class="rq-tick">
+                <span class="rq-tick-bar rq-bar-red"></span>
+                <span class="rq-tick-num">@urgent.ToString("D2")</span>
+                <span class="rq-tick-label">Urgent</span>
+            </div>
         </div>
+    }
 
-        <div class="p-cb" style="padding: 0; overflow-x: auto;">
-
-            @if (Model != null && Model.Any())
+    <!-- ==========================================
+        REQUISITION TICKETS
+    =========================================== -->
+    @if (Model != null && Model.Any())
+    {
+        <div class="rq-list">
+            @foreach (var r in Model.OrderByDescending(x => x.RequestDate))
             {
-                <table style="width: 100%; border-collapse: collapse;">
+                var statusLower = r.Status?.ToLower();
+                var isCancelled = statusLower == "cancelled";
+                var stageIndex = statusLower switch
+                {
+                    "completed" => 3,
+                    "pending" => 2,
+                    _ => 1
+                };
+                var isUrgent = !string.IsNullOrEmpty(r.Urgency) &&
+                    (r.Urgency.ToLower() == "high" || r.Urgency.ToLower() == "urgent");
 
-                    <thead style="background: #f0f7f8;">
-                        <tr>
-                            <th style="padding: 15px; text-align: left;">
-                                Request #
-                            </th>
+                <div class="rq-card @(isCancelled ? "rq-card-cancelled" : "")">
 
-                            <th style="padding: 15px; text-align: left;">
-                                Date
-                            </th>
+                    @if (isUrgent && !isCancelled)
+                    {
+                        <div class="rq-flag">Urgent</div>
+                    }
 
-                            <th style="padding: 15px; text-align: left;">
-                                Doctor
-                            </th>
+                    <div class="rq-stub">
+                        <div class="rq-barcode" aria-hidden="true"></div>
+                        <div class="rq-stub-id">#@r.RequestID</div>
+                    </div>
 
-                            <th style="padding: 15px; text-align: left;">
-                                Tests Requested
-                            </th>
+                    <div class="rq-perf"></div>
 
-                            <th style="padding: 15px; text-align: center;">
-                                Urgency
-                            </th>
+                    <div class="rq-body">
+                        <div class="rq-row-top">
+                            <div>
+                                <div class="rq-doctor"><i class="fa-solid fa-user-doctor"></i> Dr. @r.DoctorName</div>
+                                <div class="rq-date">@r.RequestDate.ToString("dd MMM yyyy")</div>
+                            </div>
+                            <a href="@Url.Action("Results", "Patient")" class="rq-view">
+                                View <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                        </div>
 
-                            <th style="padding: 15px; text-align: center;">
-                                Status
-                            </th>
+                        <div class="rq-tests" title="@string.Join(", ", r.Tests)">
+                            @string.Join(" &middot; ", r.Tests)
+                        </div>
 
-                            <th style="padding: 15px; text-align: center;">
-                                Action
-                            </th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-
-                        @foreach (var r in Model.OrderByDescending(x => x.RequestDate))
+                        @if (isCancelled)
                         {
-                            <tr style="border-bottom: 1px solid #eee;">
-
-                                <td style="padding: 15px; font-weight: 600; color: #1a4c6e;">
-                                    #@r.RequestID
-                                </td>
-
-                                <td style="padding: 15px;">
-                                    @r.RequestDate.ToString("dd MMM yyyy")
-                                </td>
-
-                                <td style="padding: 15px;">
-                                    <div style="font-weight: 600; color: #333;">
-                                        Dr. @r.DoctorName
-                                    </div>
-                                </td>
-
-                                <td style="padding: 15px; max-width: 250px;">
-                                    <div style="
-                                        font-size: 0.85rem;
-                                        color: #555;
-                                        white-space: nowrap;
-                                        overflow: hidden;
-                                        text-overflow: ellipsis;"
-                                         title="@string.Join(", ", r.Tests)">
-
-                                        @string.Join(", ", r.Tests)
-
-                                    </div>
-                                </td>
-
-                                <td style="padding: 15px; text-align: center;">
-
-                                    @if (!string.IsNullOrEmpty(r.Urgency) &&
-                                        (r.Urgency.ToLower() == "high" ||
-                                         r.Urgency.ToLower() == "urgent"))
-                                    {
-                                        <span class="p-htag p-ht-a"
-                                              style="
-                                            background: #fff3e0;
-                                            color: #e65100;
-                                            border: 1px solid #ffcc80;">
-
-                                            <i class="fas fa-exclamation-triangle"></i>
-                                            @r.Urgency.ToUpper()
-
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="p-htag"
-                                              style="
-                                            background: #f5f5f5;
-                                            color: #757575;">
-
-                                            @r.Urgency?.ToUpper()
-
-                                        </span>
-                                    }
-
-                                </td>
-
-                                <td style="padding: 15px; text-align: center;">
-
-                                    @{
-                                        var status = r.Status?.ToLower();
-
-                                        var statusColor = status switch
-                                        {
-                                            "completed" => "#d4edda",
-                                            "pending" => "#fff3cd",
-                                            "cancelled" => "#f8d7da",
-                                            _ => "#e2e3e5"
-                                        };
-
-                                        var textStatus = status switch
-                                        {
-                                            "completed" => "#155724",
-                                            "pending" => "#856404",
-                                            "cancelled" => "#721c24",
-                                            _ => "#383d41"
-                                        };
-                                    }
-
-                                    <span class="p-htag"
-                                          style="
-                                        background: @statusColor;
-                                        color: @textStatus;
-                                        font-weight: 700;">
-
-                                        @r.Status
-
-                                    </span>
-
-                                </td>
-
-                                <td style="padding: 15px; text-align: center;">
-
-                                    <a href="@Url.Action("Results", "Patient")"
-                                       class="p-btn"
-                                       style="
-                                        padding: 6px 12px;
-                                        font-size: 0.8rem;
-                                        text-decoration: none;
-                                        display: inline-block;">
-
-                                        <i class="fas fa-eye"></i> View
-
-                                    </a>
-
-                                </td>
-
-                            </tr>
+                            <div class="rq-cancelled-rail">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                                <span>Request cancelled — no further processing</span>
+                            </div>
                         }
-
-                    </tbody>
-
-                </table>
-            }
-            else
-            {
-                <div style="
-                    text-align: center;
-                    padding: 50px 20px;
-                    color: #66788a;">
-
-                    <i class="fas fa-file-medical"
-                       style="
-                        font-size: 3rem;
-                        margin-bottom: 15px;
-                        color: #0f717e;">
-                    </i>
-
-                    <h3 style="color: #1a4c6e;">
-                        No Test Requests
-                    </h3>
-
-                    <p>
-                        You currently have no laboratory or diagnostic test requests.
-                    </p>
-
+                        else
+                        {
+                            <div class="rq-rail">
+                                @for (int i = 0; i < stages.Length; i++)
+                                {
+                                    var filled = i <= stageIndex;
+                                    var active = i == stageIndex && stageIndex < 3;
+                                    <div class="rq-step @(filled ? "rq-filled" : "") @(active ? "rq-active" : "") @(i == 3 && filled ? "rq-done" : "")">
+                                        @if (i > 0)
+                                        {
+                                            <span class="rq-step-line @(filled ? "rq-filled" : "")"></span>
+                                        }
+                                        <span class="rq-step-dot"></span>
+                                        <span class="rq-step-label">@stages[i]</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
                 </div>
             }
+        </div>
+    }
+    else
+    {
+        <div class="rq-empty">
+            <div class="rq-empty-barcode"></div>
+            <h5>No specimens on file</h5>
+            <p>You currently have no laboratory or diagnostic test requests. New orders from your doctor will appear here.</p>
+        </div>
+    }
 
+    <!-- ==========================================
+        FOOTER
+    =========================================== -->
+    <div class="rq-footer">
+        <hr />
+        <div class="rq-footer-content">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Laboratory Information Management System</span>
+            <span class="rq-footer-divider">|</span>
+            <span>Patient Portal</span>
+            <span class="rq-footer-divider">|</span>
+            <span>@DateTime.Now.Year</span>
         </div>
     </div>
+
 </div>
 
 <style>
+    :root {
+        --rq-paper: #F5F3ED;
+        --rq-raised: #FFFFFF;
+        --rq-ink: #191D1B;
+        --rq-ink-soft: #5C6560;
+        --rq-ink-faint: #98A19B;
+        --rq-line: #E4E0D3;
+        --rq-line-strong: #D3CDBB;
+        --rq-console-a: #14201C;
+        --rq-console-b: #0A1210;
+        --rq-teal: #0EA39A;
+        --rq-teal-dim: #E0F3F1;
+        --rq-green: #3F8F5F;
+        --rq-green-dim: #E5F3EA;
+        --rq-amber: #C98A2A;
+        --rq-amber-dim: #FBF0DC;
+        --rq-red: #B0463F;
+        --rq-red-dim: #F7E8E6;
+        --rq-radius: 16px;
+        --rq-shadow: 0 8px 26px rgba(20, 25, 22, 0.07);
+        --rq-shadow-sm: 0 3px 10px rgba(20, 25, 22, 0.05);
+    }
 
-    th {
-        font-weight: 700;
-        color: #1a4c6e;
+    .rq-wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 26px 24px 60px;
+        color: var(--rq-ink);
+        font-family: 'Inter', sans-serif;
+        background: var(--rq-paper);
+    }
+
+    /* ============ CONSOLE HEADER ============ */
+    .rq-console {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        background: linear-gradient(155deg, var(--rq-console-a), var(--rq-console-b));
+        border-radius: var(--rq-radius);
+        padding: 30px 34px;
+        margin-bottom: 20px;
+        overflow: hidden;
+        box-shadow: 0 16px 34px rgba(10, 18, 16, 0.28);
+    }
+
+    .rq-console-scan {
+        position: absolute;
+        inset: 0;
+        background-image: repeating-linear-gradient(90deg, rgba(14,163,154,.05) 0 2px, transparent 2px 14px);
+        pointer-events: none;
+    }
+
+    .rq-console-left {
+        position: relative;
+        z-index: 1;
+    }
+
+    .rq-console-eyebrow {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .1em;
         text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 0.5px;
+        color: var(--rq-teal);
+        margin-bottom: 10px;
     }
 
-    tbody tr:hover {
-        background-color: #fcfdfe;
+    .rq-console-left h1 {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 27px;
+        color: #F5F7F6;
+        margin: 0 0 6px;
+        letter-spacing: -.01em;
     }
 
-    [title] {
+    .rq-console-left p {
+        margin: 0;
+        color: rgba(245,247,246,.62);
+        font-size: 13.5px;
+        max-width: 380px;
+    }
+
+    .rq-console-readout {
+        position: relative;
+        z-index: 1;
+        text-align: right;
+        border-left: 1px solid rgba(255,255,255,.14);
+        padding-left: 26px;
+        flex-shrink: 0;
+    }
+
+    .rq-readout-label {
+        display: block;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: rgba(245,247,246,.5);
+        margin-bottom: 6px;
+    }
+
+    .rq-readout-num {
+        display: block;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 34px;
+        font-weight: 700;
+        color: var(--rq-teal);
+        letter-spacing: .04em;
+        text-shadow: 0 0 18px rgba(14, 163, 154, 0.55);
+    }
+
+    /* ============ TICKER ============ */
+    .rq-ticker {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+
+    .rq-tick {
+        background: var(--rq-raised);
+        border-radius: 12px;
+        box-shadow: var(--rq-shadow-sm);
+        padding: 14px 16px 12px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .rq-tick-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+    }
+
+    .rq-bar-ink {
+        background: var(--rq-ink);
+    }
+
+    .rq-bar-green {
+        background: var(--rq-green);
+    }
+
+    .rq-bar-amber {
+        background: var(--rq-amber);
+    }
+
+    .rq-bar-red {
+        background: var(--rq-red);
+    }
+
+    .rq-tick-num {
+        display: block;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--rq-ink);
+        margin-top: 4px;
+    }
+
+    .rq-tick-label {
+        display: block;
+        font-size: 11px;
+        color: var(--rq-ink-soft);
+        margin-top: 2px;
+        font-weight: 500;
+    }
+
+    /* ============ TICKET LIST ============ */
+    .rq-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .rq-card {
+        position: relative;
+        display: flex;
+        background: var(--rq-raised);
+        border-radius: var(--rq-radius);
+        box-shadow: var(--rq-shadow-sm);
+        overflow: hidden;
+        transition: box-shadow .2s, transform .2s;
+    }
+
+        .rq-card:hover {
+            box-shadow: var(--rq-shadow);
+            transform: translateY(-2px);
+        }
+
+    .rq-card-cancelled {
+        opacity: .72;
+    }
+
+    .rq-flag {
+        position: absolute;
+        top: 14px;
+        right: -1px;
+        background: var(--rq-amber);
+        color: #fff;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        padding: 5px 14px 5px 18px;
+        clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 50%);
+        z-index: 2;
+    }
+
+    .rq-stub {
+        width: 88px;
+        flex-shrink: 0;
+        background: var(--rq-paper);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 18px 8px;
+    }
+
+    .rq-barcode {
+        width: 20px;
+        height: 46px;
+        background-image: repeating-linear-gradient(90deg, var(--rq-ink) 0px, var(--rq-ink) 2px, transparent 2px, transparent 3px, var(--rq-ink) 3px, var(--rq-ink) 4px, transparent 4px, transparent 6px, var(--rq-ink) 6px, var(--rq-ink) 7px, transparent 7px, transparent 10px);
+        opacity: .78;
+    }
+
+    .rq-stub-id {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: .06em;
+        color: var(--rq-ink-soft);
+    }
+
+    .rq-perf {
+        position: relative;
+        width: 0;
+        border-left: 2px dashed var(--rq-line-strong);
+        flex-shrink: 0;
+    }
+
+        .rq-perf::before, .rq-perf::after {
+            content: "";
+            position: absolute;
+            left: -8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--rq-paper);
+        }
+
+        .rq-perf::before {
+            top: -8px;
+        }
+
+        .rq-perf::after {
+            bottom: -8px;
+        }
+
+    .rq-body {
+        flex: 1;
+        padding: 18px 22px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-width: 0;
+    }
+
+    .rq-row-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+
+    .rq-doctor {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--rq-ink);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .rq-doctor i {
+            color: var(--rq-teal);
+            font-size: 13px;
+        }
+
+    .rq-date {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11.5px;
+        color: var(--rq-ink-faint);
+        margin-top: 3px;
+    }
+
+    .rq-view {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: .03em;
+        text-transform: uppercase;
+        color: var(--rq-teal);
+        text-decoration: none;
+        padding: 7px 3px;
+        border-bottom: 1.5px solid transparent;
+        transition: border-color .2s, gap .2s;
+    }
+
+        .rq-view:hover {
+            color: var(--rq-teal);
+            text-decoration: none;
+            border-color: var(--rq-teal);
+            gap: 10px;
+        }
+
+    .rq-tests {
+        font-size: 13px;
+        color: var(--rq-ink-soft);
+        line-height: 1.6;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
         cursor: help;
     }
 
+    /* ============ LIFECYCLE RAIL ============ */
+    .rq-rail {
+        display: flex;
+        margin-top: 2px;
+        padding-top: 6px;
+    }
+
+    .rq-step {
+        position: relative;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .rq-step-line {
+        position: absolute;
+        top: 5px;
+        right: 50%;
+        width: 100%;
+        height: 2px;
+        background: var(--rq-line-strong);
+        z-index: 0;
+    }
+
+        .rq-step-line.rq-filled {
+            background: var(--rq-teal);
+        }
+
+    .rq-step-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--rq-line-strong);
+        border: 2px solid var(--rq-raised);
+        z-index: 1;
+        margin-bottom: 6px;
+    }
+
+    .rq-step.rq-filled .rq-step-dot {
+        background: var(--rq-teal);
+    }
+
+    .rq-step.rq-done .rq-step-dot {
+        background: var(--rq-green);
+    }
+
+    .rq-step.rq-active .rq-step-dot {
+        background: var(--rq-teal);
+        box-shadow: 0 0 0 4px var(--rq-teal-dim);
+        animation: rqPulse 1.8s ease-in-out infinite;
+    }
+
+    @@keyframes rqPulse {
+        0%, 100% {
+            box-shadow: 0 0 0 4px var(--rq-teal-dim);
+        }
+
+        50% {
+            box-shadow: 0 0 0 7px var(--rq-teal-dim);
+        }
+    }
+
+    .rq-step-label {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 9.5px;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--rq-ink-faint);
+    }
+
+    .rq-step.rq-filled .rq-step-label {
+        color: var(--rq-ink-soft);
+    }
+
+    .rq-step.rq-active .rq-step-label {
+        color: var(--rq-teal);
+        font-weight: 600;
+    }
+
+    .rq-step.rq-done .rq-step-label {
+        color: var(--rq-green);
+        font-weight: 600;
+    }
+
+    .rq-cancelled-rail {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 12px;
+        color: var(--rq-red);
+        padding-top: 4px;
+        border-top: 1px dashed var(--rq-line);
+    }
+
+    /* ============ EMPTY STATE ============ */
+    .rq-empty {
+        background: var(--rq-raised);
+        border-radius: var(--rq-radius);
+        box-shadow: var(--rq-shadow-sm);
+        text-align: center;
+        padding: 60px 30px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .rq-empty-barcode {
+        width: 90px;
+        height: 40px;
+        margin-bottom: 10px;
+        background-image: repeating-linear-gradient(90deg, var(--rq-ink-faint) 0px, var(--rq-ink-faint) 2px, transparent 2px, transparent 4px, var(--rq-ink-faint) 4px, var(--rq-ink-faint) 5px, transparent 5px, transparent 9px, var(--rq-ink-faint) 9px, var(--rq-ink-faint) 10px, transparent 10px, transparent 13px);
+        opacity: .5;
+    }
+
+    .rq-empty h5 {
+        margin: 0;
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--rq-ink);
+    }
+
+    .rq-empty p {
+        margin: 0;
+        max-width: 340px;
+        font-size: 13.5px;
+        color: var(--rq-ink-soft);
+        line-height: 1.6;
+    }
+
+    /* ============ FOOTER ============ */
+    .rq-footer {
+        margin-top: 36px;
+        text-align: center;
+    }
+
+        .rq-footer hr {
+            border: none;
+            border-top: 1px solid var(--rq-line);
+            margin-bottom: 20px;
+        }
+
+    .rq-footer-content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        color: var(--rq-ink-faint);
+        font-size: 12.5px;
+        font-family: 'IBM Plex Mono', monospace;
+    }
+
+        .rq-footer-content i {
+            color: var(--rq-teal);
+        }
+
+    .rq-footer-divider {
+        color: var(--rq-line-strong);
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @@media (max-width: 700px) {
+        .rq-ticker {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .rq-console {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 18px;
+        }
+
+        .rq-console-readout {
+            border-left: none;
+            border-top: 1px solid rgba(255,255,255,.14);
+            padding-left: 0;
+            padding-top: 16px;
+            text-align: left;
+            width: 100%;
+        }
+    }
+
+    @@media (max-width: 560px) {
+        .rq-wrap {
+            padding: 20px 14px 50px;
+        }
+
+        .rq-stub {
+            width: 60px;
+        }
+
+        .rq-stub-id {
+            font-size: 10px;
+        }
+
+        .rq-step-label {
+            display: none;
+        }
+    }
 </style>
-```

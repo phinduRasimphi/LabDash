@@ -5,96 +5,755 @@
     ViewData["ActivePage"] = "SystemTables";
 }
 
-<div class="a-page-title" style="margin-bottom:4px">System Tables 🗃️</div>
-<div class="a-page-sub" style="margin-bottom:18px">Manage small reference lookups shared across subsystems</div>
+@*
+    ============================================================================
+    Same "adm-" treatment as Conditions.cshtml / Allergies.cshtml / Medications.cshtml.
 
-@if (TempData["Error"] != null)
-{
-    <div class="a-alert a-alert-danger" style="margin-bottom:14px">
-        <i class="fas fa-exclamation-triangle"></i> @TempData["Error"]
-    </div>
-}
-@if (TempData["Success"] != null)
-{
-    <div class="a-alert a-alert-success" style="margin-bottom:14px">
-        <i class="fas fa-check-circle"></i> @TempData["Success"]
-    </div>
-}
-<div class="a-alert" style="margin-bottom:14px">
-    <i class="fas fa-info-circle"></i>
-    Condition, Allergy, and Medication categories are managed on their own pages
-    (<a asp-action="Conditions">Conditions</a>, <a asp-action="Allergies">Allergies</a>,
-    <a asp-action="Medications">Medications</a>) — this page only covers Sample Types and Units.
-</div>
+    UPDATED: Sample Types and Units now soft-delete instead of hard-delete, to
+    match the archive/reactivate pattern used on the other three pages (test
+    types and other records may still reference an old sample type/unit even
+    after it's retired, same reasoning as Conditions/Allergies/Medications).
+    Each panel now has an Active/Archived tab pair, same as those pages.
 
-<div class="a-r2">
+    ASSUMES (add these if they don't already exist):
+      - SampleTypeLookup and Unit gain an IsActive bool column.
+      - SystemTablesViewModel gains InactiveSampleTypes and InactiveUnits
+        collections alongside the existing SampleTypes / Units.
+      - Controller actions: DeactivateSampleType (replaces DeleteSampleType),
+        ReactivateSampleType, DeactivateUnit (replaces DeleteUnit),
+        ReactivateUnit — each doing an UPDATE, not a DELETE FROM.
 
-    @* ================= SAMPLE TYPES ================= *@
-    <div class="a-card">
-        <div class="a-ch">
-            <div class="a-ct"><i class="fas fa-vial"></i> Sample Types</div>
-            <span class="a-cc">@Model.SampleTypes.Count items</span>
+    Still kept: the info banner pointing at Conditions/Allergies/Medications
+    for their own category management, and the add-inline-at-bottom-of-table
+    pattern (no modal — these lookups are a single required text field).
+    ============================================================================
+*@
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="adm-page">
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="adm-alert">
+            <i class="fas fa-circle-check"></i> @TempData["Success"]
         </div>
-        <div class="a-cb" style="padding:0">
-            <table class="a-table">
-                <thead><tr><th>Sample Type</th><th style="width:100px">Actions</th></tr></thead>
-                <tbody>
-                    @foreach (var s in Model.SampleTypes)
-                    {
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="adm-alert adm-alert-error">
+            <i class="fas fa-circle-exclamation"></i> @TempData["Error"]
+        </div>
+    }
+
+    <!-- ==========================================
+        PAGE BANNER
+    =========================================== -->
+    <div class="adm-page-banner">
+        <div class="adm-page-banner-pattern"></div>
+
+        <div class="adm-page-banner-left">
+            <div class="adm-page-banner-icon"><i class="fas fa-table-cells"></i></div>
+            <div>
+                <h1>System Tables</h1>
+                <p>Manage small reference lookups shared across subsystems</p>
+            </div>
+        </div>
+
+        <div class="adm-page-banner-right">
+            <div class="adm-mini-stats">
+                <div class="adm-mini-stat">
+                    <span class="num">@Model.SampleTypes.Count</span>
+                    <span class="label">Sample Types</span>
+                </div>
+                <div class="adm-mini-stat">
+                    <span class="num">@Model.Units.Count</span>
+                    <span class="label">Units</span>
+                </div>
+                <div class="adm-mini-stat">
+                    <span class="num">@(Model.InactiveSampleTypes.Count + Model.InactiveUnits.Count)</span>
+                    <span class="label">Archived</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+        INFO NOTE
+    =========================================== -->
+    <div class="adm-alert adm-alert-info">
+        <i class="fas fa-circle-info"></i>
+        Condition, Allergy, and Medication categories are managed on their own pages
+        (<a asp-action="Conditions">Conditions</a>, <a asp-action="Allergies">Allergies</a>,
+        <a asp-action="Medications">Medications</a>) — this page only covers Sample Types and Units.
+    </div>
+
+    <!-- ==========================================
+        SAMPLE TYPES + UNITS
+    =========================================== -->
+    <div class="adm-split adm-split-even">
+
+        <!-- Sample Types -->
+        <div class="adm-panel">
+            <div class="adm-panel-head">
+                <span><i class="fas fa-vial"></i> Sample Types</span>
+                <span class="adm-panel-tag">@Model.SampleTypes.Count items</span>
+            </div>
+
+            <div class="adm-tabs">
+                <button type="button" class="adm-tab is-active" data-tbody="sampletype-tbody" onclick="switchTab(this, 'sampletype')">
+                    Active <span class="adm-tab-count">@Model.SampleTypes.Count</span>
+                </button>
+                <button type="button" class="adm-tab" data-tbody="sampletype-tbody-archived" onclick="switchTab(this, 'sampletype')">
+                    Archived <span class="adm-tab-count">@Model.InactiveSampleTypes.Count</span>
+                </button>
+            </div>
+
+            <div class="adm-table-wrap adm-table-wrap-flush">
+                <table class="adm-table">
+                    <thead>
                         <tr>
-                            <td>@s.Name</td>
-                            <td>
-                                <form asp-action="DeleteSampleType" method="post"
-                                      onsubmit="return confirm('Delete this sample type? This cannot be undone.');">
-                                    <input type="hidden" name="id" value="@s.SampleTypeLookupId" />
-                                    <button type="submit" class="a-btn-danger"><i class="fas fa-trash"></i> Delete</button>
-                                </form>
-                            </td>
+                            <th>Sample Type</th>
+                            <th class="adm-th-actions-sm">Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-            <form asp-action="AddSampleType" method="post"
-                  style="padding:12px 16px;border-top:0.5px solid var(--a-border);display:flex;gap:8px;">
-                <input name="name" required placeholder="Add sample type…"
-                       style="flex:1;border:0.5px solid var(--a-border);border-radius:var(--a-rad-sm);padding:7px 10px;font-size:11px;background:var(--a-bg);" />
-                <button type="submit" class="a-btn"><i class="fas fa-plus"></i> Add</button>
+                    </thead>
+
+                    <!-- ACTIVE ROWS -->
+                    <tbody id="sampletype-tbody">
+                        @foreach (var s in Model.SampleTypes)
+                        {
+                            <tr>
+                                <td class="adm-td-strong">@s.Name</td>
+                                <td>
+                                    <form asp-action="DeactivateSampleType" method="post" class="adm-inline-form-tight">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@s.SampleTypeLookupId" />
+                                        <button type="submit" class="adm-icon-btn adm-icon-btn-danger">
+                                            <i class="fas fa-box-archive"></i> Deactivate
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+
+                    <!-- ARCHIVED ROWS -->
+                    <tbody id="sampletype-tbody-archived" style="display:none;">
+                        @foreach (var s in Model.InactiveSampleTypes)
+                        {
+                            <tr>
+                                <td class="adm-td-strong adm-td-muted">@s.Name</td>
+                                <td>
+                                    <form asp-action="ReactivateSampleType" method="post" class="adm-inline-form-tight">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@s.SampleTypeLookupId" />
+                                        <button type="submit" class="adm-icon-btn adm-icon-btn-restore">
+                                            <i class="fas fa-rotate-left"></i> Reactivate
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                @if (!Model.SampleTypes.Any())
+                {
+                    <div class="adm-empty-state" id="sampletype-empty-active">
+                        <div class="adm-empty-icon"><i class="fas fa-vial"></i></div>
+                        <h5>No sample types yet</h5>
+                        <p>Add your first sample type using the form below.</p>
+                    </div>
+                }
+
+                @if (!Model.InactiveSampleTypes.Any())
+                {
+                    <div class="adm-empty-state" id="sampletype-empty-archived" style="display:none;">
+                        <div class="adm-empty-icon"><i class="fas fa-box-archive"></i></div>
+                        <h5>Nothing archived</h5>
+                        <p>Sample types you deactivate will appear here and can be reactivated any time.</p>
+                    </div>
+                }
+            </div>
+
+            <form asp-action="AddSampleType" method="post" class="adm-add-bar">
+                @Html.AntiForgeryToken()
+                <input name="name" required placeholder="Add sample type…" />
+                <button type="submit" class="adm-btn adm-btn-sm">
+                    <i class="fas fa-plus"></i> Add
+                </button>
             </form>
         </div>
-    </div>
 
-    @* ================= UNITS ================= *@
-    <div class="a-card">
-        <div class="a-ch">
-            <div class="a-ct"><i class="fas fa-ruler"></i> Units</div>
-            <span class="a-cc">@Model.Units.Count items</span>
-        </div>
-        <div class="a-cb" style="padding:0">
-            <table class="a-table">
-                <thead><tr><th>Unit</th><th style="width:100px">Actions</th></tr></thead>
-                <tbody>
-                    @foreach (var u in Model.Units)
-                    {
+        <!-- Units -->
+        <div class="adm-panel">
+            <div class="adm-panel-head">
+                <span><i class="fas fa-ruler"></i> Units</span>
+                <span class="adm-panel-tag">@Model.Units.Count items</span>
+            </div>
+
+            <div class="adm-tabs">
+                <button type="button" class="adm-tab is-active" data-tbody="unit-tbody" onclick="switchTab(this, 'unit')">
+                    Active <span class="adm-tab-count">@Model.Units.Count</span>
+                </button>
+                <button type="button" class="adm-tab" data-tbody="unit-tbody-archived" onclick="switchTab(this, 'unit')">
+                    Archived <span class="adm-tab-count">@Model.InactiveUnits.Count</span>
+                </button>
+            </div>
+
+            <div class="adm-table-wrap adm-table-wrap-flush">
+                <table class="adm-table">
+                    <thead>
                         <tr>
-                            <td>@u.Name</td>
-                            <td>
-                                <form asp-action="DeleteUnit" method="post"
-                                      onsubmit="return confirm('Delete this unit? This cannot be undone.');">
-                                    <input type="hidden" name="id" value="@u.UnitId" />
-                                    <button type="submit" class="a-btn-danger"><i class="fas fa-trash"></i> Delete</button>
-                                </form>
-                            </td>
+                            <th>Unit</th>
+                            <th class="adm-th-actions-sm">Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-            <form asp-action="AddUnit" method="post"
-                  style="padding:12px 16px;border-top:0.5px solid var(--a-border);display:flex;gap:8px;">
-                <input name="name" required placeholder="Add unit (e.g. mg/dL, mmol/L)…"
-                       style="flex:1;border:0.5px solid var(--a-border);border-radius:var(--a-rad-sm);padding:7px 10px;font-size:11px;background:var(--a-bg);" />
-                <button type="submit" class="a-btn"><i class="fas fa-plus"></i> Add</button>
+                    </thead>
+
+                    <!-- ACTIVE ROWS -->
+                    <tbody id="unit-tbody">
+                        @foreach (var u in Model.Units)
+                        {
+                            <tr>
+                                <td class="adm-td-strong">@u.Name</td>
+                                <td>
+                                    <form asp-action="DeactivateUnit" method="post" class="adm-inline-form-tight">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@u.UnitId" />
+                                        <button type="submit" class="adm-icon-btn adm-icon-btn-danger">
+                                            <i class="fas fa-box-archive"></i> Deactivate
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+
+                    <!-- ARCHIVED ROWS -->
+                    <tbody id="unit-tbody-archived" style="display:none;">
+                        @foreach (var u in Model.InactiveUnits)
+                        {
+                            <tr>
+                                <td class="adm-td-strong adm-td-muted">@u.Name</td>
+                                <td>
+                                    <form asp-action="ReactivateUnit" method="post" class="adm-inline-form-tight">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@u.UnitId" />
+                                        <button type="submit" class="adm-icon-btn adm-icon-btn-restore">
+                                            <i class="fas fa-rotate-left"></i> Reactivate
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                @if (!Model.Units.Any())
+                {
+                    <div class="adm-empty-state" id="unit-empty-active">
+                        <div class="adm-empty-icon"><i class="fas fa-ruler"></i></div>
+                        <h5>No units yet</h5>
+                        <p>Add your first unit using the form below.</p>
+                    </div>
+                }
+
+                @if (!Model.InactiveUnits.Any())
+                {
+                    <div class="adm-empty-state" id="unit-empty-archived" style="display:none;">
+                        <div class="adm-empty-icon"><i class="fas fa-box-archive"></i></div>
+                        <h5>Nothing archived</h5>
+                        <p>Units you deactivate will appear here and can be reactivated any time.</p>
+                    </div>
+                }
+            </div>
+
+            <form asp-action="AddUnit" method="post" class="adm-add-bar">
+                @Html.AntiForgeryToken()
+                <input name="name" required placeholder="Add unit (e.g. mg/dL, mmol/L)…" />
+                <button type="submit" class="adm-btn adm-btn-sm">
+                    <i class="fas fa-plus"></i> Add
+                </button>
             </form>
         </div>
+
     </div>
 
 </div>
+
+@section Scripts {
+    <script>
+        // Generic tab switcher — works for both the Sample Types and Units
+        // panels independently, keyed by a prefix ('sampletype' or 'unit')
+        // so switching one panel's tab never touches the other.
+        function switchTab(tabBtn, prefix) {
+            var panel = tabBtn.closest('.adm-panel');
+            panel.querySelectorAll('.adm-tab').forEach(function(t) { t.classList.remove('is-active'); });
+            tabBtn.classList.add('is-active');
+
+            document.getElementById(prefix + '-tbody').style.display = 'none';
+            document.getElementById(prefix + '-tbody-archived').style.display = 'none';
+            document.getElementById(tabBtn.dataset.tbody).style.display = '';
+
+            var activeEmpty = document.getElementById(prefix + '-empty-active');
+            var archivedEmpty = document.getElementById(prefix + '-empty-archived');
+            if (activeEmpty) activeEmpty.style.display = tabBtn.dataset.tbody === (prefix + '-tbody') ? '' : 'none';
+            if (archivedEmpty) archivedEmpty.style.display = tabBtn.dataset.tbody === (prefix + '-tbody-archived') ? '' : 'none';
+        }
+    </script>
+}
+
+<style>
+    :root {
+        --adm-paper: #F0F7F6;
+        --adm-raised: #FFFFFF;
+        --adm-ink: #102C27;
+        --adm-ink-soft: #52716C;
+        --adm-ink-faint: #8FA9A3;
+        --adm-line: #E1EEEC;
+        --adm-line-strong: #CCE3DF;
+        --adm-teal: #0E8C7F;
+        --adm-teal-deep: #0A5850;
+        --adm-teal-dim: #E3F4F1;
+        --adm-teal-grad-start: #12A392;
+        --adm-teal-grad-end: #0A4F48;
+        --adm-red: #B0463F;
+        --adm-red-dim: #F7E8E7;
+        --adm-blue: #2E6FA7;
+        --adm-blue-dim: #E4EEF7;
+        --adm-radius: 20px;
+        --adm-radius-sm: 13px;
+        --adm-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+        --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
+    }
+
+    .adm-page {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 26px 24px 60px;
+        color: var(--adm-ink);
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* ============ ALERTS ============ */
+    .adm-alert {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-left: 4px solid var(--adm-teal);
+        border-radius: var(--adm-radius-sm);
+        padding: 14px 18px;
+        font-size: 13.5px;
+        font-weight: 600;
+        margin-bottom: 18px;
+    }
+
+    .adm-alert-error {
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-left-color: var(--adm-red);
+    }
+
+    .adm-alert-info {
+        background: var(--adm-blue-dim);
+        color: var(--adm-blue);
+        border-left-color: var(--adm-blue);
+        font-weight: 500;
+    }
+
+        .adm-alert-info a {
+            color: var(--adm-blue);
+            font-weight: 700;
+            text-decoration: underline;
+        }
+
+    /* ============ PAGE BANNER ============ */
+    .adm-page-banner {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        border-radius: var(--adm-radius);
+        padding: 26px 32px;
+        margin-bottom: 22px;
+        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
+        overflow: hidden;
+        flex-wrap: wrap;
+    }
+
+    .adm-page-banner-pattern {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        pointer-events: none;
+    }
+
+    .adm-page-banner-left {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .adm-page-banner-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 16px;
+        background: rgba(255,255,255,.16);
+        border: 2px solid rgba(255,255,255,.32);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    .adm-page-banner-left h1 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 21px;
+        margin: 0 0 3px;
+        color: #fff;
+    }
+
+    .adm-page-banner-left p {
+        margin: 0;
+        color: rgba(255,255,255,.85);
+        font-size: 13px;
+    }
+
+    .adm-page-banner-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        position: relative;
+        z-index: 1;
+        flex-wrap: wrap;
+    }
+
+    .adm-mini-stats {
+        display: flex;
+        gap: 18px;
+    }
+
+    .adm-mini-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 58px;
+    }
+
+        .adm-mini-stat .num {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            color: #fff;
+        }
+
+        .adm-mini-stat .label {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: rgba(255,255,255,.75);
+            margin-top: 2px;
+        }
+
+    /* ============ BUTTONS ============ */
+    .adm-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        color: #fff;
+        border: none;
+        border-radius: var(--adm-radius-sm);
+        padding: 11px 20px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 13.5px;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(10, 90, 80, 0.22);
+        transition: transform .15s, box-shadow .15s;
+    }
+
+        .adm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 26px rgba(10, 90, 80, 0.28);
+        }
+
+    .adm-btn-sm {
+        padding: 9px 16px;
+        font-size: 12.5px;
+        flex-shrink: 0;
+    }
+
+    /* ============ PANELS ============ */
+    .adm-panel {
+        background: var(--adm-raised);
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        overflow: hidden;
+        margin-bottom: 22px;
+    }
+
+    .adm-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 26px;
+        border-bottom: 1px solid var(--adm-line);
+    }
+
+        .adm-panel-head span:first-child {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 15.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .adm-panel-head span:first-child i {
+                color: var(--adm-teal);
+            }
+
+    .adm-panel-tag {
+        font-weight: 600;
+        font-size: 11.5px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        padding: 6px 13px;
+        border-radius: 999px;
+    }
+
+    /* ============ SPLIT LAYOUT ============ */
+    .adm-split {
+        display: grid;
+        grid-template-columns: 1.7fr 1fr;
+        gap: 18px;
+        align-items: start;
+    }
+
+    .adm-split-even {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .adm-inline-form-tight {
+        display: inline-flex;
+    }
+
+    /* ============ TABS ============ */
+    .adm-tabs {
+        display: flex;
+        gap: 6px;
+        padding: 16px 26px 0;
+    }
+
+    .adm-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--adm-ink-soft);
+        font-weight: 600;
+        font-size: 13.5px;
+        padding: 10px 6px;
+        cursor: pointer;
+        margin-right: 18px;
+    }
+
+        .adm-tab.is-active {
+            color: var(--adm-teal-deep);
+            border-bottom-color: var(--adm-teal);
+        }
+
+    .adm-tab-count {
+        background: var(--adm-paper);
+        color: var(--adm-ink-faint);
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+    }
+
+    .adm-tab.is-active .adm-tab-count {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
+
+    /* ============ TABLE ============ */
+    .adm-table-wrap {
+        padding: 16px 0 6px;
+        overflow-x: auto;
+    }
+
+    .adm-table-wrap-flush {
+        padding-bottom: 0;
+    }
+
+    .adm-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+    }
+
+        .adm-table th {
+            text-align: left;
+            padding: 12px 26px;
+            font-weight: 600;
+            font-size: 11.5px;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            color: var(--adm-ink-faint);
+            background: var(--adm-paper);
+            border-bottom: 1px solid var(--adm-line);
+        }
+
+    .adm-th-actions-sm {
+        width: 130px;
+    }
+
+    .adm-table td {
+        padding: 14px 26px;
+        border-bottom: 1px solid var(--adm-line);
+        vertical-align: middle;
+    }
+
+    .adm-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .adm-table tbody tr:hover {
+        background: var(--adm-paper);
+    }
+
+    .adm-td-strong {
+        font-weight: 600;
+    }
+
+    .adm-td-muted {
+        color: var(--adm-ink-faint);
+        font-weight: 500;
+    }
+
+    /* ============ ROW ACTIONS ============ */
+    .adm-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--adm-line-strong);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border-radius: var(--adm-radius-sm);
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+
+    .adm-icon-btn-danger:hover {
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-color: var(--adm-red-dim);
+    }
+
+    .adm-icon-btn-restore:hover {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-color: var(--adm-teal-dim);
+    }
+
+    /* ============ ADD BAR (bottom-of-panel inline add) ============ */
+    .adm-add-bar {
+        display: flex;
+        gap: 10px;
+        padding: 16px 26px;
+        border-top: 1px solid var(--adm-line);
+        background: var(--adm-paper);
+    }
+
+        .adm-add-bar input {
+            flex: 1;
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            background: var(--adm-raised);
+        }
+
+    /* ============ EMPTY STATE ============ */
+    .adm-empty-state {
+        padding: 48px 30px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .adm-empty-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .adm-empty-state h5 {
+        margin: 0;
+        font-size: 14.5px;
+        font-weight: 700;
+    }
+
+    .adm-empty-state p {
+        margin: 0;
+        max-width: 340px;
+        font-size: 13px;
+        color: var(--adm-ink-soft);
+        line-height: 1.6;
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @@media (max-width: 900px) {
+        .adm-split,
+        .adm-split-even {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .adm-page {
+            padding: 20px 16px 50px;
+        }
+
+        .adm-page-banner {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .adm-page-banner-right {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .adm-add-bar {
+            flex-direction: column;
+        }
+    }
+</style>
