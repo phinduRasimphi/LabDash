@@ -33,6 +33,7 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<Category> Categories { get; set; }
     public DbSet<SampleTypeLookup> SampleTypeLookups { get; set; }
     public DbSet<Unit> Units { get; set; }
+    public DbSet<TestCategory> TestCategories { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
