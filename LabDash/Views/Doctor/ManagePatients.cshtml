@@ -1,0 +1,263 @@
+﻿@model LabDash.ViewModels.ManagePatientsViewModel
+@{
+    ViewData["Title"] = "Manage Patients";
+    ViewData["ActivePage"] = "ManagePatients";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<style>
+    .mp-search-bar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+        .mp-search-bar input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+        }
+
+    .mp-search-btn {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .mp-folder {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(13, 107, 99, 0.1);
+        overflow: hidden;
+    }
+
+    .mp-folder-header {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        padding: 18px 22px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .mp-folder-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 16px;
+    }
+
+    .mp-folder-name {
+        font-size: 17px;
+        font-weight: 700;
+    }
+
+    .mp-folder-sub {
+        font-size: 12px;
+        opacity: 0.85;
+    }
+
+    .mp-folder-body {
+        padding: 20px 22px;
+    }
+
+    .mp-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .mp-info-item label {
+        display: block;
+        font-size: 10px;
+        font-weight: 600;
+        color: #7a8da8;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 3px;
+    }
+
+    .mp-info-item span {
+        font-size: 13px;
+        color: #1a2f4e;
+        font-weight: 500;
+    }
+
+    .mp-section-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #1a2f4e;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin: 18px 0 10px;
+        padding-top: 14px;
+        border-top: 1px solid #f0f2f5;
+    }
+
+    .mp-form-group label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #4a5c7c;
+        margin-bottom: 4px;
+    }
+
+    .mp-form-group textarea {
+        width: 100%;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        padding: 8px 10px;
+        font-size: 13px;
+        font-family: 'Inter', sans-serif;
+        min-height: 60px;
+        resize: vertical;
+        margin-bottom: 12px;
+    }
+
+    .mp-btn-save {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        border: none;
+        border-radius: 7px;
+        padding: 10px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .mp-not-found {
+        background: white;
+        border-radius: 12px;
+        padding: 40px 24px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+        .mp-not-found i {
+            font-size: 32px;
+            color: #dc3545;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .mp-not-found h3 {
+            font-size: 15px;
+            color: #1a2f4e;
+            margin-bottom: 6px;
+        }
+
+        .mp-not-found p {
+            font-size: 13px;
+            color: #7a8da8;
+            margin-bottom: 16px;
+        }
+
+    .mp-register-btn {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+    }
+</style>
+
+<h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:4px;">Manage Patients</h1>
+<p style="font-size:12px;color:#7a8da8;margin-bottom:20px;">Search for a patient by South African ID number</p>
+
+<form method="get" asp-action="ManagePatients" class="mp-search-bar">
+    <input type="text"
+           name="searchIDNumber"
+           value="@Model.SearchIDNumber"
+           placeholder="Enter 13-digit SA ID number..."
+           maxlength="13" />
+    <button type="submit" class="mp-search-btn"><i class="fas fa-search"></i> Search</button>
+</form>
+
+@if (Model.HasSearched)
+{
+    if (Model.SearchResult != null)
+    {
+        var p = Model.SearchResult;
+        <div class="mp-folder">
+            <div class="mp-folder-header">
+                <div class="mp-folder-avatar">@p.Name[0]@p.Surname[0]</div>
+                <div>
+                    <div class="mp-folder-name">@p.Name @p.Surname</div>
+                    <div class="mp-folder-sub">ID: @p.IDNumber</div>
+                </div>
+            </div>
+            <div class="mp-folder-body">
+                <div class="mp-info-grid">
+                    <div class="mp-info-item">
+                        <label>Date of Birth</label>
+                        <span>@p.DOB.ToString("dd MMM yyyy")</span>
+                    </div>
+                    <div class="mp-info-item">
+                        <label>Cellphone</label>
+                        <span>@p.CellphoneNumber</span>
+                    </div>
+                    <div class="mp-info-item">
+                        <label>Email</label>
+                        <span>@p.Email</span>
+                    </div>
+                    <div class="mp-info-item">
+                        <label>Home Address</label>
+                        <span>@p.HomeAddress</span>
+                    </div>
+                </div>
+
+                <form asp-action="UpdatePatient" method="post">
+                    <input type="hidden" asp-for="SearchResult!.PatientID" />
+
+                    <div class="mp-section-title">Medical Information</div>
+
+                    <div class="mp-form-group">
+                        <label>Known Medical Conditions</label>
+                        <textarea asp-for="SearchResult!.MedicalConditions"></textarea>
+                    </div>
+                    <div class="mp-form-group">
+                        <label>Allergies</label>
+                        <textarea asp-for="SearchResult!.Allergies"></textarea>
+                    </div>
+                    <div class="mp-form-group">
+                        <label>Current Medication</label>
+                        <textarea asp-for="SearchResult!.Medication"></textarea>
+                    </div>
+
+                    <button type="submit" class="mp-btn-save">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="mp-not-found">
+            <i class="fas fa-user-slash"></i>
+            <h3>Patient doesn't exist</h3>
+            <p>No patient found with ID number "@Model.SearchIDNumber"</p>
+            <a href="@Url.Action("CreatePatient")" class="mp-register-btn">
+                <i class="fas fa-user-plus"></i> Register New Patient
+            </a>
+        </div>
+    }
+}

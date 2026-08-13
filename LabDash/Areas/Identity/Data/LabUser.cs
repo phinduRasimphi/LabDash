@@ -45,6 +45,8 @@ public class LabUser : IdentityUser
     [Display(Name = "Creation Date of Account")]
     [DataType(DataType.DateTime)]
     public DateTime Timestamp_AccountCreated { get; set; } = DateTime.Now;
-
+    // Add to LabUser.cs
+    [Display(Name = "Must Change Password")]
+    public bool MustChangePassword { get; set; } = true;
 }
 
