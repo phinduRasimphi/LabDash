@@ -5,10 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using LabDash.ViewModels;   // ← this one
-
-
-// ...etc
+using LabDash.ViewModels;
 using System.Security.Cryptography;
 
 namespace LabDash.Controllers
@@ -64,6 +61,19 @@ namespace LabDash.Controllers
                         Medication = patient.Medication
                     };
                 }
+            }
+
+            return View(vm);
+        }
+
+        // GET: /Doctor/CreatePatient          ← ADD THIS
+        public IActionResult CreatePatient(string? idNumber)
+        {
+            var vm = new PatientCreateViewModel();
+
+            if (!string.IsNullOrWhiteSpace(idNumber))
+            {
+                vm.IDNumber = idNumber;
             }
 
             return View(vm);

@@ -179,6 +179,52 @@
         text-decoration: none;
         display: inline-block;
     }
+
+    .mp-folder-header {
+        cursor: pointer;
+    }
+
+    .mp-open-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 7px;
+        padding: 7px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .mp-folder-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .mp-btn-newtest {
+        background: white;
+        color: #0d6b63;
+        border: 1px solid #0d6b63;
+        border-radius: 7px;
+        padding: 10px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .mp-btn-newtest:hover {
+            background: #f0f7f6;
+        }
+
+        .mp-open-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
 </style>
 
 <h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:4px;">Manage Patients</h1>
@@ -198,15 +244,19 @@
     if (Model.SearchResult != null)
     {
         var p = Model.SearchResult;
-        <div class="mp-folder">
-            <div class="mp-folder-header">
+        <div class="mp-folder" id="patientFolder">
+            <div class="mp-folder-header" onclick="toggleFolder()">
                 <div class="mp-folder-avatar">@p.Name[0]@p.Surname[0]</div>
-                <div>
+                <div style="flex:1;">
                     <div class="mp-folder-name">@p.Name @p.Surname</div>
                     <div class="mp-folder-sub">ID: @p.IDNumber</div>
                 </div>
+                <button type="button" class="mp-open-btn" id="folderToggleBtn">
+                    <i class="fas fa-folder-open"></i> Open Folder
+                </button>
             </div>
-            <div class="mp-folder-body">
+
+            <div class="mp-folder-body" id="folderBody" style="display:none;">
                 <div class="mp-info-grid">
                     <div class="mp-info-item">
                         <label>Date of Birth</label>
@@ -245,6 +295,9 @@
                     </div>
 
                     <button type="submit" class="mp-btn-save">Save Changes</button>
+                    <a href="@Url.Action("Create", "TestRequest", new { patientId = p.PatientID })" class="mp-btn-newtest">
+                        <i class="fas fa-flask"></i> Create Test Request
+                    </a>
                 </form>
             </div>
         </div>
@@ -260,4 +313,18 @@
             </a>
         </div>
     }
+ }
+    @section Scripts {
+        <script>
+            function toggleFolder() {
+                const body = document.getElementById('folderBody');
+                const btn = document.getElementById('folderToggleBtn');
+                const isOpen = body.style.display === 'block';
+
+                body.style.display = isOpen ? 'none' : 'block';
+                btn.innerHTML = isOpen
+                    ? '<i class="fas fa-folder-open"></i> Open Folder'
+                    : '<i class="fas fa-folder"></i> Close Folder';
+            }
+        </script>
 }
