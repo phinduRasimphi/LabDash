@@ -1,150 +1,170 @@
-
+using LabDash.Areas.Identity.Data;
+using LabDash.Models;
+using LabDash.ViewModels;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using LabDash.Models;
-using LabDash.Areas.Identity.Data;
 
-public class TestRequestsController : Controller
+namespace LabDash.Controllers
 {
-    private readonly LabDbContext _context;
-
-    public TestRequestsController(LabDbContext context)
+    [Authorize(Roles = "Doctor")]
+    public class TestRequestController : Controller
     {
-        _context = context;
-    }
+        private readonly LabDbContext _context;
+        private readonly UserManager<LabUser> _userManager;
+        private readonly IEmailSender _emailSender;
 
-    // GET: TESTREQUESTS
-    public async Task<IActionResult> Index()    
-    {
-        return View(await _context.TestRequests.ToListAsync());
-    }
-
-    // GET: TESTREQUESTS/Details/5
-    public async Task<IActionResult> Details(int? requestid)
-    {
-        if (requestid == null)
+        public TestRequestController(
+            LabDbContext context,
+            UserManager<LabUser> userManager,
+            IEmailSender emailSender)
         {
-            return NotFound();
+            _context = context;
+            _userManager = userManager;
+            _emailSender = emailSender;
         }
 
-        var testrequest = await _context.TestRequests
-            .FirstOrDefaultAsync(m => m.RequestId == requestid);
-        if (testrequest == null)
+        // GET: /TestRequest/Create?patientId=5
+        public async Task<IActionResult> Create(int? patientId)
         {
-            return NotFound();
+            if (patientId == null)
+            {
+                TempData["Error"] = "No patient selected. Please search for a patient first.";
+                return RedirectToAction("ManagePatients", "Doctor");
+            }
+
+            var patient = await _context.Patients.FindAsync(patientId.Value);
+            if (patient == null)
+            {
+                TempData["Error"] = "Patient not found.";
+                return RedirectToAction("ManagePatients", "Doctor");
+            }
+
+            var testTypes = await _context.TestTypes
+                .OrderBy(t => t.Category).ThenBy(t => t.Name)
+                .Select(t => new TestTypeOptionViewModel
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                    Category = t.Category,
+                    RequiredSampleType = t.RequiredSampleType,
+                    TurnaroundTimeHours = t.TurnaroundTimeHours
+                })
+                .ToListAsync();
+
+            var vm = new TestRequestCreateViewModel
+            {
+                PatientId = patient.PatientID,
+                PatientName = $"{patient.Name} {patient.Surname}",
+                PatientIDNumber = patient.IDNumber,
+                AvailableTestTypes = testTypes
+            };
+
+            return View(vm);
         }
 
-        return View(testrequest);
-    }
-
-    // GET: TESTREQUESTS/Create
-    public IActionResult Create()
-    {
-        return View();
-    }
-
-    // POST: TESTREQUESTS/Create
-    // To protect from overposting attacks, enable the specific properties you want to bind to.
-    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("RequestId,PatientId,Patient,RequestingDoctorId,RequestingDoctor,RequestDate,Urgency,ClinicalNotes,Status,DateTimeReceived,SubmittedDate,CancellationReason,Samples,SampleReceives,TestRequestItems")] TestRequest testrequest)
-    {
-        if (ModelState.IsValid)
+        // POST: /TestRequest/Create
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(TestRequestCreateViewModel model)
         {
-            _context.Add(testrequest);
+            if (model.SelectedTestTypeIds == null || !model.SelectedTestTypeIds.Any())
+            {
+                ModelState.AddModelError(nameof(model.SelectedTestTypeIds), "Select at least one test type");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                // Reload dropdown data before returning the view with errors
+                model.AvailableTestTypes = await _context.TestTypes
+                    .OrderBy(t => t.Category).ThenBy(t => t.Name)
+                    .Select(t => new TestTypeOptionViewModel
+                    {
+                        Id = t.Id,
+                        Name = t.Name,
+                        Category = t.Category,
+                        RequiredSampleType = t.RequiredSampleType,
+                        TurnaroundTimeHours = t.TurnaroundTimeHours
+                    })
+                    .ToListAsync();
+
+                var patientForReload = await _context.Patients.FindAsync(model.PatientId);
+                if (patientForReload != null)
+                {
+                    model.PatientName = $"{patientForReload.Name} {patientForReload.Surname}";
+                    model.PatientIDNumber = patientForReload.IDNumber;
+                }
+
+                return View(model);
+            }
+
+            var doctor = await _userManager.GetUserAsync(User);
+            var patient = await _context.Patients.FindAsync(model.PatientId);
+            if (patient == null) return NotFound();
+
+            // 1. Create the TestRequest header
+            var testRequest = new TestRequest
+            {
+                PatientId = model.PatientId,
+                RequestingDoctorId = doctor.Id,
+                RequestDate = model.RequestDate,
+                Urgency = model.Urgency,
+                ClinicalNotes = model.ClinicalNotes,
+                Status = "Submitted",
+                SubmittedDate = DateTime.Now
+            };
+
+            _context.TestRequests.Add(testRequest);
+            await _context.SaveChangesAsync(); // save now so testRequest.RequestId is populated
+
+            // 2. Create one TestRequestItem per selected test type
+            var selectedTypes = await _context.TestTypes
+                .Where(t => model.SelectedTestTypeIds.Contains(t.Id))
+                .ToListAsync();
+
+            foreach (var type in selectedTypes)
+            {
+                _context.TestRequestItems.Add(new TestRequestItem
+                {
+                    RequestId = testRequest.RequestId,
+                    TestTypeId = type.Id,
+                    Status = "Submitted"
+                });
+            }
+
+            // 3. Create placeholder Sample rows, one per distinct required sample type
+            var distinctSampleTypes = selectedTypes
+                .Select(t => t.RequiredSampleType)
+                .Distinct();
+
+            foreach (var sampleType in distinctSampleTypes)
+            {
+                _context.Samples.Add(new Sample
+                {
+                    TestRequestId = testRequest.RequestId,
+                    SampleType = sampleType,
+                    Barcode = string.Empty,      // filled in later by technician
+                    IsReceived = false
+                });
+            }
+
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+
+            // 4. Notify the patient by email
+            string testListHtml = string.Join(", ", selectedTypes.Select(t => t.Name));
+            string emailBody = $@"
+                <p>Dear {patient.Name},</p>
+                <p>Dr. {doctor.LastName} has submitted a test request for you at NMB LAB.</p>
+                <p><strong>Tests requested:</strong> {testListHtml}<br/>
+                <strong>Date:</strong> {testRequest.RequestDate:dd MMM yyyy}</p>
+                <p>Please visit the lab at your earliest convenience to provide the required samples.</p>";
+
+            await _emailSender.SendEmailAsync(patient.Email, "New Test Request Submitted", emailBody);
+
+            TempData["Success"] = "Test request submitted successfully. The patient has been notified.";
+            return RedirectToAction("ManagePatients", "Doctor");
         }
-        return View(testrequest);
-    }
-
-    // GET: TESTREQUESTS/Edit/5
-    public async Task<IActionResult> Edit(int? requestid)
-    {
-        if (requestid == null)
-        {
-            return NotFound();
-        }
-
-        var testrequest = await _context.TestRequests.FindAsync(requestid);
-        if (testrequest == null)
-        {
-            return NotFound();
-        }
-        return View(testrequest);
-    }
-
-    // POST: TESTREQUESTS/Edit/5
-    // To protect from overposting attacks, enable the specific properties you want to bind to.
-    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int? requestid, [Bind("RequestId,PatientId,Patient,RequestingDoctorId,RequestingDoctor,RequestDate,Urgency,ClinicalNotes,Status,DateTimeReceived,SubmittedDate,CancellationReason,Samples,SampleReceives,TestRequestItems")] TestRequest testrequest)
-    {
-        if (requestid != testrequest.RequestId)
-        {
-            return NotFound();
-        }
-
-        if (ModelState.IsValid)
-        {
-            try
-            {
-                _context.Update(testrequest);
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!TestRequestExists(testrequest.RequestId))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-            return RedirectToAction(nameof(Index));
-        }
-        return View(testrequest);
-    }
-
-    // GET: TESTREQUESTS/Delete/5
-    public async Task<IActionResult> Delete(int? requestid)
-    {
-        if (requestid == null)
-        {
-            return NotFound();
-        }
-
-        var testrequest = await _context.TestRequests
-            .FirstOrDefaultAsync(m => m.RequestId == requestid);
-        if (testrequest == null)
-        {
-            return NotFound();
-        }
-
-        return View(testrequest);
-    }
-
-    // POST: TESTREQUESTS/Delete/5
-    [HttpPost, ActionName("Delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteConfirmed(int? requestid)
-    {
-        var testrequest = await _context.TestRequests.FindAsync(requestid);
-        if (testrequest != null)
-        {
-            _context.TestRequests.Remove(testrequest);
-        }
-
-        await _context.SaveChangesAsync();
-        return RedirectToAction(nameof(Index));
-    }
-
-    private bool TestRequestExists(int? requestid)
-    {
-        return _context.TestRequests.Any(e => e.RequestId == requestid);
     }
 }

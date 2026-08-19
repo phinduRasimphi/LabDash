@@ -1,108 +1,302 @@
-@model LabDash.Models.TestRequest
-
+@model LabDash.ViewModels.TestRequestCreateViewModel
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "Create Test Request";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
-<h1>Create</h1>
+<style>
+    .tr-patient-banner {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        border-radius: 12px;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 20px;
+    }
 
-<h4>TestRequest</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    .tr-patient-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+    }
 
-            <div class="form-group">
-                <label asp-for="PatientId" class="control-label"></label>
-                <input asp-for="PatientId" class="form-control" />
-                <span asp-validation-for="PatientId" class="text-danger"></span>
-            </div>
+    .tr-patient-name {
+        font-size: 15px;
+        font-weight: 700;
+    }
 
-            <div class="form-group">
-                <label asp-for="Patient" class="control-label"></label>
-                <input asp-for="Patient" class="form-control" />
-                <span asp-validation-for="Patient" class="text-danger"></span>
-            </div>
+    .tr-patient-sub {
+        font-size: 12px;
+        opacity: 0.85;
+    }
 
-            <div class="form-group">
-                <label asp-for="RequestingDoctorId" class="control-label"></label>
-                <input asp-for="RequestingDoctorId" class="form-control" />
-                <span asp-validation-for="RequestingDoctorId" class="text-danger"></span>
-            </div>
+    .tr-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid rgba(0,0,0,0.05);
+        padding: 22px 26px;
+        max-width: 780px;
+    }
 
-            <div class="form-group">
-                <label asp-for="RequestingDoctor" class="control-label"></label>
-                <input asp-for="RequestingDoctor" class="form-control" />
-                <span asp-validation-for="RequestingDoctor" class="text-danger"></span>
-            </div>
+    .tr-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
 
-            <div class="form-group">
-                <label asp-for="RequestDate" class="control-label"></label>
-                <input asp-for="RequestDate" class="form-control" />
-                <span asp-validation-for="RequestDate" class="text-danger"></span>
-            </div>
+    .tr-form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
 
-            <div class="form-group">
-                <label asp-for="Urgency" class="control-label"></label>
-                <input asp-for="Urgency" class="form-control" />
-                <span asp-validation-for="Urgency" class="text-danger"></span>
-            </div>
+        .tr-form-group.full {
+            grid-column: 1 / -1;
+        }
 
-            <div class="form-group">
-                <label asp-for="ClinicalNotes" class="control-label"></label>
-                <input asp-for="ClinicalNotes" class="form-control" />
-                <span asp-validation-for="ClinicalNotes" class="text-danger"></span>
-            </div>
+        .tr-form-group label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #4a5c7c;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
 
-            <div class="form-group">
-                <label asp-for="Status" class="control-label"></label>
-                <input asp-for="Status" class="form-control" />
-                <span asp-validation-for="Status" class="text-danger"></span>
-            </div>
+        .tr-form-group input,
+        .tr-form-group select,
+        .tr-form-group textarea {
+            border: 1px solid #e2e8f0;
+            border-radius: 7px;
+            padding: 9px 11px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+        }
 
-            <div class="form-group">
-                <label asp-for="DateTimeReceived" class="control-label"></label>
-                <input asp-for="DateTimeReceived" class="form-control" />
-                <span asp-validation-for="DateTimeReceived" class="text-danger"></span>
-            </div>
+        .tr-form-group textarea {
+            resize: vertical;
+            min-height: 70px;
+        }
 
-            <div class="form-group">
-                <label asp-for="SubmittedDate" class="control-label"></label>
-                <input asp-for="SubmittedDate" class="form-control" />
-                <span asp-validation-for="SubmittedDate" class="text-danger"></span>
-            </div>
+    .tr-section-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #1a2f4e;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin: 20px 0 12px;
+        padding-top: 16px;
+        border-top: 1px solid #f0f2f5;
+    }
 
-            <div class="form-group">
-                <label asp-for="CancellationReason" class="control-label"></label>
-                <input asp-for="CancellationReason" class="form-control" />
-                <span asp-validation-for="CancellationReason" class="text-danger"></span>
-            </div>
+    .tr-testtype-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 260px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
 
-            <div class="form-group">
-                <label asp-for="Samples" class="control-label"></label>
-                <input asp-for="Samples" class="form-control" />
-                <span asp-validation-for="Samples" class="text-danger"></span>
-            </div>
+    .tr-testtype-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px 12px;
+    }
 
-            <div class="form-group">
-                <label asp-for="SampleReceives" class="control-label"></label>
-                <input asp-for="SampleReceives" class="form-control" />
-                <span asp-validation-for="SampleReceives" class="text-danger"></span>
-            </div>
+        .tr-testtype-item.checked {
+            border-color: #0d6b63;
+            background: #f0f7f6;
+        }
 
-            <div class="form-group">
-                <label asp-for="TestRequestItems" class="control-label"></label>
-                <input asp-for="TestRequestItems" class="form-control" />
-                <span asp-validation-for="TestRequestItems" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Create" class="btn btn-primary" />
-            </div>
-        </form>
+    .tr-testtype-info {
+        flex: 1;
+    }
+
+    .tr-testtype-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a2f4e;
+    }
+
+    .tr-testtype-meta {
+        font-size: 11px;
+        color: #7a8da8;
+        margin-top: 2px;
+    }
+
+    .tr-sample-pill {
+        background: #e3f2fd;
+        color: #1565c0;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 10px;
+        white-space: nowrap;
+    }
+
+    .tr-samples-needed {
+        margin-top: 16px;
+        background: #fff8e1;
+        border: 1px solid #ffe082;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 12.5px;
+        color: #7a5c00;
+    }
+
+        .tr-samples-needed strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+    .tr-actions {
+        margin-top: 22px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .tr-btn-cancel {
+        background: #f0f2f5;
+        color: #4a5c7c;
+        border: none;
+        border-radius: 7px;
+        padding: 10px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .tr-btn-submit {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        border: none;
+        border-radius: 7px;
+        padding: 10px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .validation-summary-errors ul {
+        list-style: none;
+        color: #dc3545;
+        font-size: 12px;
+        margin-bottom: 14px;
+    }
+</style>
+
+<h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:16px;">Create Test Request</h1>
+
+<div class="tr-patient-banner">
+    <div class="tr-patient-avatar">@Model.PatientName.Substring(0, 1)</div>
+    <div>
+        <div class="tr-patient-name">@Model.PatientName</div>
+        <div class="tr-patient-sub">ID: @Model.PatientIDNumber</div>
     </div>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
+<div class="tr-card">
+    <form asp-action="Create" method="post">
+        <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+        <input type="hidden" asp-for="PatientId" />
+        <input type="hidden" asp-for="PatientName" />
+        <input type="hidden" asp-for="PatientIDNumber" />
+
+        <div class="tr-form-grid">
+            <div class="tr-form-group">
+                <label>Request Date</label>
+                <input asp-for="RequestDate" type="date" />
+                <span asp-validation-for="RequestDate" class="text-danger"></span>
+            </div>
+            <div class="tr-form-group">
+                <label>Urgency</label>
+                <select asp-for="Urgency">
+                    <option value="">-- Select --</option>
+                    <option value="Routine">Routine</option>
+                    <option value="Urgent">Urgent</option>
+                    <option value="STAT">STAT</option>
+                </select>
+                <span asp-validation-for="Urgency" class="text-danger"></span>
+            </div>
+            <div class="tr-form-group full">
+                <label>Clinical Notes</label>
+                <textarea asp-for="ClinicalNotes" placeholder="Reason for the test request..."></textarea>
+            </div>
+        </div>
+
+        <div class="tr-section-title">Select Test Types</div>
+        <div class="tr-testtype-list" id="testTypeList">
+            @foreach (var t in Model.AvailableTestTypes)
+            {
+                <label class="tr-testtype-item" data-sample="@t.RequiredSampleType">
+                    <input type="checkbox"
+                           name="SelectedTestTypeIds"
+                           value="@t.Id"
+                           class="tt-checkbox" />
+                    <div class="tr-testtype-info">
+                        <div class="tr-testtype-name">@t.Name</div>
+                        <div class="tr-testtype-meta">@t.Category &middot; ~@t.TurnaroundTimeHours hrs turnaround</div>
+                    </div>
+                    <span class="tr-sample-pill">@t.RequiredSampleType</span>
+                </label>
+            }
+        </div>
+        <span asp-validation-for="SelectedTestTypeIds" class="text-danger"></span>
+
+        <div class="tr-samples-needed" id="samplesNeededBox" style="display:none;">
+            <strong>Samples to collect:</strong>
+            <span id="samplesNeededText"></span>
+        </div>
+
+        <div class="tr-actions">
+            <a href="@Url.Action("ManagePatients", "Doctor")" class="tr-btn-cancel">Cancel</a>
+            <button type="submit" class="tr-btn-submit">Submit Test Request</button>
+        </div>
+    </form>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const checkboxes = document.querySelectorAll('.tt-checkbox');
+            const samplesBox = document.getElementById('samplesNeededBox');
+            const samplesText = document.getElementById('samplesNeededText');
+
+            function updateSamplesNeeded() {
+                const selected = Array.from(checkboxes).filter(cb => cb.checked);
+                const sampleTypes = [...new Set(selected.map(cb => cb.closest('.tr-testtype-item').dataset.sample))];
+
+                selected.forEach(cb => cb.closest('.tr-testtype-item').classList.add('checked'));
+                Array.from(checkboxes)
+                    .filter(cb => !cb.checked)
+                    .forEach(cb => cb.closest('.tr-testtype-item').classList.remove('checked'));
+
+                if (sampleTypes.length > 0) {
+                    samplesBox.style.display = 'block';
+                    samplesText.textContent = sampleTypes.join(', ');
+                } else {
+                    samplesBox.style.display = 'none';
+                }
+            }
+
+            checkboxes.forEach(cb => cb.addEventListener('change', updateSamplesNeeded));
+        });
+    </script>
+}

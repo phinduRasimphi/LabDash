@@ -22,6 +22,7 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<TechnicianTestType> TechnicianTestTypes { get; set; }
     public DbSet<TestResult> TestResults { get; set; }
     public DbSet<Patient> Patients { get; set; }
+    public DbSet<TestType> TestTypes { get; set; }
     public DbSet<TestTypeConsumable> TestTypeConsumables { get; set; }
     public DbSet<TestVerification> TestVerifications { get; set; }
     public DbSet<TechnicianAssignment> TechnicianAssignments { get; set; }

@@ -103,7 +103,7 @@ namespace LabDash.Controllers
 
                         }
 
-                        if (await _userManager.IsInRoleAsync(user, "Doctor"))
+                        if (await _userManager.IsInRoleAsync(user, "Patient"))
                         {
                             string applicationName = "LabDash";
 
@@ -151,7 +151,7 @@ namespace LabDash.Controllers
                         if (await _userManager.IsInRoleAsync(user, "Lab_Manager"))
                             return RedirectToAction("Index", "Dashboard");
 
-                        if (await _userManager.IsInRoleAsync(user, "Patient"))
+                        if (await _userManager.IsInRoleAsync(user, "Doctor"))
                             return RedirectToAction("Index", "Dashboard");
 
                         return RedirectToAction("Index", "Home");
