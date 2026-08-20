@@ -1,0 +1,365 @@
+﻿@model LabDash.Models.TestType
+
+@{
+    ViewData["Title"] = "Test Type Details";
+}
+
+<div class="container-fluid py-4">
+
+    <!-- HEADER -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+
+            <a asp-action="Index"
+               class="text-decoration-none">
+
+                <i class="fa-solid fa-arrow-left me-2"></i>
+                Back to Test Types
+
+            </a>
+
+            <h2 class="fw-bold mt-3 mb-1">
+                @Model.Name
+            </h2>
+
+            <p class="text-muted mb-0">
+                Laboratory test type details
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <a asp-action="Edit"
+               asp-route-id="@Model.Id"
+               class="btn btn-primary">
+
+                <i class="fa-solid fa-pen me-2"></i>
+                Edit
+
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <div class="row g-4">
+
+
+        <!-- TEST INFORMATION -->
+
+        <div class="col-lg-7">
+
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-white py-3">
+
+                    <h5 class="fw-bold mb-0">
+
+                        <i class="fa-solid fa-flask me-2 text-primary"></i>
+
+                        Test Information
+
+                    </h5>
+
+                </div>
+
+
+                <div class="card-body">
+
+                    <div class="row g-4">
+
+                        <div class="col-md-6">
+
+                            <small class="text-muted">
+                                Test Name
+                            </small>
+
+                            <div class="fw-bold fs-5">
+                                @Model.Name
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <small class="text-muted">
+                                Category
+                            </small>
+
+                            <div>
+
+                                <span class="badge bg-primary">
+
+                                    @(Model.TestCategory?.CategoryName
+                                        ?? "Not assigned")
+
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <small class="text-muted">
+                                Required Sample
+                            </small>
+
+                            <div class="fw-semibold">
+                                @Model.RequiredSampleType
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <small class="text-muted">
+                                Unit of Measurement
+                            </small>
+
+                            <div class="fw-semibold">
+
+                                @(string.IsNullOrWhiteSpace(Model.UnitOfMeasurement)
+                                    ? "Not specified"
+                                    : Model.UnitOfMeasurement)
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <small class="text-muted">
+                                Reference Range
+                            </small>
+
+                            <div class="fw-semibold">
+
+                                @Model.ReferenceRangeLow
+                                -
+                                @Model.ReferenceRangeHigh
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <small class="text-muted">
+                                Turnaround Time
+                            </small>
+
+                            <div class="fw-semibold">
+
+                                @Model.TurnaroundTimeHours hours
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- CONSUMABLES -->
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-header bg-white py-3">
+
+                    <h5 class="fw-bold mb-0">
+
+                        <i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>
+
+                        Consumables Used
+
+                    </h5>
+
+                </div>
+
+
+                <div class="card-body p-0">
+
+                    @if (Model.TestTypeConsumables != null &&
+                         Model.TestTypeConsumables.Any())
+                    {
+                        <div class="table-responsive">
+
+                            <table class="table table-hover mb-0">
+
+                                <thead class="table-light">
+
+                                    <tr>
+
+                                        <th class="px-4">
+                                            Consumable
+                                        </th>
+
+                                        <th>
+                                            Quantity Per Test
+                                        </th>
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody>
+
+                                    @foreach (var item in Model.TestTypeConsumables)
+                                    {
+                                        <tr>
+
+                                            <td class="px-4 fw-semibold">
+
+                                                @item.Consumable?.Name
+
+                                            </td>
+
+                                            <td>
+
+                                                <span class="badge bg-info">
+
+                                                    @item.QuantityRequired
+
+                                                </span>
+
+                                            </td>
+
+                                        </tr>
+                                    }
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="p-4 text-center text-muted">
+
+                            <i class="fa-solid fa-box-open fs-2 mb-2"></i>
+
+                            <p class="mb-0">
+                                No consumables assigned to this test.
+                            </p>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- TECHNICIANS -->
+
+        <div class="col-lg-5">
+
+            <div class="card border-0 shadow-sm">
+
+                <div class="card-header bg-white py-3">
+
+                    <h5 class="fw-bold mb-1">
+
+                        <i class="fa-solid fa-user-doctor me-2 text-success"></i>
+
+                        Assigned Technicians
+
+                    </h5>
+
+                    <small class="text-muted">
+                        Technicians who can perform this test.
+                    </small>
+
+                </div>
+
+
+                <div class="card-body">
+
+                    @if (Model.TechnicianTestTypes != null &&
+                         Model.TechnicianTestTypes.Any())
+                    {
+                        foreach (var assignment in Model.TechnicianTestTypes)
+                        {
+                            <div class="d-flex align-items-center
+                                border rounded-3 p-3 mb-3">
+
+                                <div class="rounded-circle bg-success-subtle
+                                    text-success d-flex
+                                    align-items-center
+                                    justify-content-center"
+                                     style="width:45px;height:45px;">
+
+                                    <i class="fa-solid fa-user"></i>
+
+                                </div>
+
+
+                                <div class="ms-3">
+
+                                    <div class="fw-bold">
+
+                                        @(assignment.Technician?.UserName
+                                            ?? "Unknown Technician")
+
+                                    </div>
+
+                                    <small class="text-muted">
+
+                                        @(
+                                            assignment.Technician?.Email
+                                            ?? "No email available"
+                                        )
+
+                                    </small>
+
+                                </div>
+
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+
+                            <i class="fa-solid fa-user-slash
+                                fs-1 text-muted mb-3">
+                            </i>
+
+                            <h6 class="fw-bold">
+                                No Technicians Assigned
+                            </h6>
+
+                            <p class="text-muted small mb-0">
+                                No laboratory technicians are currently
+                                assigned to this test type.
+                            </p>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

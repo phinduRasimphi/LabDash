@@ -1,0 +1,259 @@
+﻿```cshtml
+@model LabDash.Models.TestCategory
+
+@{
+    ViewData["Title"] = "Category Details";
+    Layout = "~/Views/Shared/_ManagerLayout.cshtml";
+}
+
+<style>
+    .page-container {
+        padding: 30px;
+        background: #f5f7fa;
+        min-height: calc(100vh - 70px);
+    }
+
+    .details-card {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 14px;
+        padding: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,.06);
+    }
+
+    .details-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #edf1f5;
+        margin-bottom: 25px;
+    }
+
+        .details-header h1 {
+            margin: 0;
+            color: #172b4d;
+            font-size: 25px;
+        }
+
+    .category-icon {
+        width: 55px;
+        height: 55px;
+        background: #e8f1ff;
+        color: #2563eb;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 23px;
+    }
+
+    .detail-row {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        padding: 18px 0;
+        border-bottom: 1px solid #edf1f5;
+    }
+
+    .detail-label {
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .detail-value {
+        color: #334155;
+        font-size: 14px;
+    }
+
+    .description {
+        line-height: 1.6;
+    }
+
+    .test-list {
+        margin-top: 30px;
+    }
+
+        .test-list h2 {
+            font-size: 17px;
+            color: #172b4d;
+            margin-bottom: 15px;
+        }
+
+    .test-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+
+        .test-item i {
+            color: #2563eb;
+        }
+
+        .test-item span {
+            color: #475569;
+            font-size: 13px;
+        }
+
+    .empty-tests {
+        color: #94a3b8;
+        font-size: 13px;
+        padding: 15px;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+
+    .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 30px;
+    }
+
+    .btn {
+        padding: 11px 18px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .btn-primary {
+        background: #0f766e;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #e2e8f0;
+        color: #475569;
+    }
+</style>
+
+
+<div class="page-container">
+
+    <div class="details-card">
+
+        <div class="details-header">
+
+            <h1>
+                Test Category Details
+            </h1>
+
+            <div class="category-icon">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Category Name
+            </div>
+
+            <div class="detail-value">
+                <strong>@Model.CategoryName</strong>
+            </div>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Description
+            </div>
+
+            <div class="detail-value description">
+
+                @(string.IsNullOrWhiteSpace(Model.Description)
+                    ? "No description provided."
+                    : Model.Description)
+
+            </div>
+
+        </div>
+
+
+        <div class="detail-row">
+
+            <div class="detail-label">
+                Test Types
+            </div>
+
+            <div class="detail-value">
+
+                @(Model.TestTypes?.Count ?? 0)
+
+                test type(s)
+
+            </div>
+
+        </div>
+
+
+        <div class="test-list">
+
+            <h2>
+                <i class="fa-solid fa-vial"></i>
+                Test Types in this Category
+            </h2>
+
+
+            @if (Model.TestTypes != null &&
+                 Model.TestTypes.Any())
+            {
+                foreach (var test in Model.TestTypes)
+                {
+                    <div class="test-item">
+
+                        <i class="fa-solid fa-vial"></i>
+
+                        <span>
+                            @test.Name
+                        </span>
+
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-tests">
+                    No test types have been assigned to this category yet.
+                </div>
+            }
+
+        </div>
+
+
+        <div class="actions">
+
+            <a asp-action="Index"
+               class="btn btn-secondary">
+
+                <i class="fa-solid fa-arrow-left"></i>
+                Back
+
+            </a>
+
+            <a asp-action="Edit"
+               asp-route-id="@Model.TestCategoryId"
+               class="btn btn-primary">
+
+                <i class="fa-solid fa-pen"></i>
+                Edit Category
+
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
