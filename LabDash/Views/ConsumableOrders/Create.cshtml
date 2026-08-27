@@ -1,0 +1,234 @@
+﻿@model LabDash.Models.ConsumableOrder
+
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<div class="container-fluid p-4">
+
+    <div class="mb-4">
+
+        <h2 class="fw-bold">
+            Create Consumable Order
+        </h2>
+
+        <p class="text-muted">
+            Create a stock order for a supplier.
+        </p>
+
+    </div>
+
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <form asp-action="Create" method="post">
+
+                <div asp-validation-summary="ModelOnly"
+                     class="alert alert-danger">
+                </div>
+
+
+                <div class="row">
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="OrderNumber"
+                               class="form-label">
+                            Order Number
+                        </label>
+
+                        <input asp-for="OrderNumber"
+                               class="form-control"
+                               placeholder="Example: ORD-2026-001" />
+
+                        <span asp-validation-for="OrderNumber"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+
+                    <div class="col-md-6 mb-3">
+
+                        <label class="form-label">
+                            Supplier
+                        </label>
+
+                        <select asp-for="SupplierId"
+                                asp-items="ViewBag.Suppliers"
+                                class="form-select">
+
+                            <option value="">
+                                -- Select Supplier --
+                            </option>
+
+                        </select>
+
+                        <span asp-validation-for="SupplierId"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="mb-4">
+
+                    <label asp-for="DateOrdered"
+                           class="form-label">
+                        Date Ordered
+                    </label>
+
+                    <input asp-for="DateOrdered"
+                           type="datetime-local"
+                           class="form-control" />
+
+                </div>
+
+
+                <hr />
+
+                <h5 class="fw-bold mb-3">
+                    Consumables to Order
+                </h5>
+
+
+                <div id="items">
+
+                    <div class="row item-row mb-3">
+
+                        <div class="col-md-7">
+
+                            <select name="consumableIds"
+                                    class="form-select">
+
+                                <option value="">
+                                    -- Select Consumable --
+                                </option>
+
+                                @foreach (var consumable in ViewBag.Consumables)
+                                {
+                                    <option value="@consumable.ConsumableID">
+
+                                        @consumable.Name
+                                        (Stock: @consumable.StockLevel)
+
+                                    </option>
+                                }
+
+                            </select>
+
+                        </div>
+
+
+                        <div class="col-md-3">
+
+                            <input name="quantities"
+                                   type="number"
+                                   min="1"
+                                   class="form-control"
+                                   placeholder="Quantity" />
+
+                        </div>
+
+
+                        <div class="col-md-2">
+
+                            <button type="button"
+                                    class="btn btn-danger remove-item">
+
+                                <i class="bi bi-trash"></i>
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <button type="button"
+                        id="addItem"
+                        class="btn btn-outline-primary mb-4">
+
+                    <i class="bi bi-plus"></i>
+                    Add Consumable
+
+                </button>
+
+
+                <div class="d-flex gap-2">
+
+                    <button type="submit"
+                            class="btn btn-primary">
+
+                        <i class="bi bi-check-circle"></i>
+                        Create Order
+
+                    </button>
+
+                    <a asp-action="Index"
+                       class="btn btn-secondary">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    document.getElementById("addItem")
+        .addEventListener("click", function () {
+
+            const container =
+                document.getElementById("items");
+
+            const first =
+                document.querySelector(".item-row");
+
+            const newRow =
+                first.cloneNode(true);
+
+            newRow.querySelector("select").value = "";
+
+            newRow.querySelector("input").value = "";
+
+            container.appendChild(newRow);
+
+        });
+
+
+    document.addEventListener("click", function (e) {
+
+        if (e.target.closest(".remove-item")) {
+
+            const rows =
+                document.querySelectorAll(".item-row");
+
+            if (rows.length > 1) {
+
+                e.target
+                    .closest(".item-row")
+                    .remove();
+
+            }
+
+        }
+
+    });
+
+</script>
