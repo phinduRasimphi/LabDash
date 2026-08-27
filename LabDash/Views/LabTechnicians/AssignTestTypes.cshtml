@@ -1,0 +1,216 @@
+﻿@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "Assign Test Types";
+
+    var technician =
+        ViewBag.Technician as LabDash.Areas.Identity.Data.LabUser;
+
+    var testTypes =
+        ViewBag.TestTypes as List<LabDash.Models.TestType>
+        ?? new List<LabDash.Models.TestType>();
+
+    var selectedTestTypes =
+        ViewBag.SelectedTestTypes as List<int>
+        ?? new List<int>();
+}
+
+<style>
+    .assignment-page {
+        padding: 30px;
+        background: #f4fafa;
+        min-height: 100vh;
+    }
+
+    .assignment-card {
+        max-width: 800px;
+        margin: auto;
+        background: white;
+        padding: 30px;
+        border-radius: 14px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    }
+
+    .assignment-title {
+        color: #134e4a;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .technician-name {
+        color: #64748b;
+        margin-bottom: 25px;
+    }
+
+    .test-box {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .test-option {
+        display: block;
+        padding: 13px 15px;
+        border-bottom: 1px solid #e5e7eb;
+        cursor: pointer;
+    }
+
+        .test-option:hover {
+            background: #f0fdfa;
+        }
+
+        .test-option input {
+            margin-right: 10px;
+        }
+
+    .btn-save {
+        margin-top: 25px;
+        background: #0f766e;
+        color: white;
+        border: none;
+        padding: 11px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+    .btn-back {
+        display: inline-block;
+        margin-top: 25px;
+        margin-left: 8px;
+        background: #e2e8f0;
+        color: #334155;
+        padding: 11px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .empty {
+        padding: 20px;
+        color: #dc2626;
+    }
+</style>
+
+<div class="assignment-page">
+
+    <div class="assignment-card">
+
+        <h1 class="assignment-title">
+
+            <i class="bi bi-clipboard-check"></i>
+
+            Assign Test Types
+
+        </h1>
+
+
+        @if (technician != null)
+        {
+            <div class="technician-name">
+
+                Technician:
+
+                <strong>
+                    @technician.FirstName @technician.LastName
+                </strong>
+
+                <br />
+
+                Employee Number:
+
+                <strong>
+                    @technician.EmployeeNumber
+                </strong>
+
+            </div>
+        }
+
+
+        <p>
+            Select the test types that this technician is qualified
+            to perform.
+        </p>
+
+        <p class="text-muted">
+            At least one test type must be selected.
+        </p>
+
+
+        <form asp-action="AssignTestTypes"
+              method="post">
+
+            @Html.AntiForgeryToken()
+
+            <input type="hidden"
+                   name="id"
+                   value="@technician?.Id" />
+
+
+            <div class="test-box">
+
+                @if (testTypes.Any())
+                {
+                    @foreach (var test in testTypes)
+                    {
+                        <label class="test-option">
+
+                            <input type="checkbox"
+                                   name="selectedTestTypes"
+                                   value="@test.Id"
+                            @(selectedTestTypes.Contains(test.Id)
+                                ? "checked"
+                                : "") />
+
+                            <strong>
+                                @test.Name
+                            </strong>
+
+                        </label>
+                    }
+                }
+                else
+                {
+                    <div class="empty">
+
+                        No test types are available.
+
+                        <br />
+
+                        Please create test types first.
+
+                    </div>
+                }
+
+            </div>
+
+
+            @if (TempData["Error"] != null)
+            {
+                <div style="color:#dc2626;margin-top:10px;">
+                    @TempData["Error"]
+                </div>
+            }
+
+
+            <button type="submit"
+                    class="btn-save">
+
+                <i class="bi bi-save"></i>
+                Save Test Assignments
+
+            </button>
+
+
+            <a asp-action="Details"
+               asp-route-id="@technician?.Id"
+               class="btn-back">
+
+                <i class="bi bi-arrow-left"></i>
+                Back
+
+            </a>
+
+        </form>
+
+    </div>
+
+</div>

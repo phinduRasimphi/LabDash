@@ -2,38 +2,144 @@
 
 @{
     ViewData["Title"] = "Create Test Type";
-    var consumables = ViewBag.Consumables as IEnumerable<LabDash.Models.Consumable>;
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    var consumables =
+        ViewBag.Consumables as IEnumerable<LabDash.Models.Consumable>;
 }
 
-<div class="container-fluid py-4">
+<style>
 
+    .test-page {
+        padding: 30px;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #134e4a;
+    }
+
+    .page-subtitle {
+        color: #64748b;
+    }
+
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+    }
+
+    .card-header {
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        border-radius: 12px 12px 0 0 !important;
+    }
+
+    .section-icon {
+        color: #0f766e;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 8px;
+        padding: 11px 13px;
+        border: 1px solid #cbd5e1;
+    }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #0f766e;
+            box-shadow: 0 0 0 0.2rem rgba(15,118,110,.15);
+        }
+
+    .btn-teal {
+        background: #0f766e;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px;
+        font-weight: 600;
+    }
+
+        .btn-teal:hover {
+            background: #115e59;
+            color: white;
+        }
+
+    .consumable-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+        transition: 0.2s ease;
+    }
+
+        .consumable-item:hover {
+            background: #f0fdfa;
+            border-color: #99f6e4;
+        }
+
+        .consumable-item.selected {
+            background: #f0fdfa;
+            border-color: #0f766e;
+        }
+
+    .quantity-input:disabled {
+        background-color: #f1f5f9;
+        cursor: not-allowed;
+    }
+
+    .consumable-help {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 5px;
+    }
+
+</style>
+
+
+<div class="test-page">
+
+    <!-- ========================================================= -->
     <!-- HEADER -->
+    <!-- ========================================================= -->
 
     <div class="mb-4">
 
         <a asp-action="Index"
-           class="text-decoration-none">
+           class="text-decoration-none"
+           style="color:#0f766e;">
 
             <i class="fa-solid fa-arrow-left me-2"></i>
+
             Back to Test Types
 
         </a>
 
-        <h2 class="fw-bold mt-3 mb-1">
+        <h1 class="page-title mt-3 mb-1">
             Create Test Type
-        </h2>
+        </h1>
 
-        <p class="text-muted">
+        <p class="page-subtitle">
             Add a new laboratory test to the test catalogue.
         </p>
 
     </div>
 
 
+    <!-- ========================================================= -->
+    <!-- FORM -->
+    <!-- ========================================================= -->
+
     <form asp-action="Create"
-          method="post">
+          method="post"
+          id="createTestTypeForm">
 
         @Html.AntiForgeryToken()
+
+
+        <!-- VALIDATION SUMMARY -->
 
         <div asp-validation-summary="ModelOnly"
              class="alert alert-danger">
@@ -43,19 +149,19 @@
         <div class="row g-4">
 
 
-            <!-- LEFT SIDE -->
+            <!-- ================================================= -->
+            <!-- TEST INFORMATION -->
+            <!-- ================================================= -->
 
             <div class="col-lg-8">
 
-                <!-- BASIC INFORMATION -->
+                <div class="card">
 
-                <div class="card border-0 shadow-sm mb-4">
-
-                    <div class="card-header bg-white py-3">
+                    <div class="card-header py-3">
 
                         <h5 class="fw-bold mb-0">
 
-                            <i class="fa-solid fa-flask me-2 text-primary"></i>
+                            <i class="fa-solid fa-flask section-icon me-2"></i>
 
                             Test Information
 
@@ -64,19 +170,25 @@
                     </div>
 
 
-                    <div class="card-body">
+                    <div class="card-body p-4">
 
+
+                        <!-- ===================================== -->
                         <!-- TEST NAME -->
+                        <!-- ===================================== -->
 
                         <div class="mb-4">
 
                             <label asp-for="Name"
                                    class="form-label fw-semibold">
+
+                                Test Name
+
                             </label>
 
                             <input asp-for="Name"
-                                   class="form-control form-control-lg"
-                                   placeholder="e.g. Haemoglobin" />
+                                   class="form-control"
+                                   placeholder="Enter test name" />
 
                             <span asp-validation-for="Name"
                                   class="text-danger">
@@ -85,7 +197,9 @@
                         </div>
 
 
-                        <!-- CATEGORY -->
+                        <!-- ===================================== -->
+                        <!-- TEST CATEGORY -->
+                        <!-- ===================================== -->
 
                         <div class="mb-4">
 
@@ -113,7 +227,9 @@
                         </div>
 
 
+                        <!-- ===================================== -->
                         <!-- SAMPLE TYPE -->
+                        <!-- ===================================== -->
 
                         <div class="mb-4">
 
@@ -125,34 +241,11 @@
                             </label>
 
                             <select asp-for="RequiredSampleType"
+                                    asp-items="ViewBag.SampleTypes"
                                     class="form-select">
 
                                 <option value="">
                                     -- Select Sample Type --
-                                </option>
-
-                                <option value="Whole Blood">
-                                    Whole Blood
-                                </option>
-
-                                <option value="Bone Marrow">
-                                    Bone Marrow
-                                </option>
-
-                                <option value="Plasma">
-                                    Plasma
-                                </option>
-
-                                <option value="Serum">
-                                    Serum
-                                </option>
-
-                                <option value="Urine">
-                                    Urine
-                                </option>
-
-                                <option value="CSF">
-                                    Cerebrospinal Fluid
                                 </option>
 
                             </select>
@@ -161,10 +254,20 @@
                                   class="text-danger">
                             </span>
 
+                            <small class="text-muted">
+
+                                <i class="fa-solid fa-circle-info me-1"></i>
+
+                                Sample types are managed through the Sample Type Lookup.
+
+                            </small>
+
                         </div>
 
 
-                        <!-- UNIT -->
+                        <!-- ===================================== -->
+                        <!-- UNIT OF MEASUREMENT -->
+                        <!-- ===================================== -->
 
                         <div class="mb-4">
 
@@ -195,33 +298,44 @@
 
                             </select>
 
+                            <span asp-validation-for="UnitOfMeasurement"
+                                  class="text-danger">
+                            </span>
+
                         </div>
 
 
+                        <!-- ===================================== -->
                         <!-- REFERENCE RANGE -->
+                        <!-- ===================================== -->
 
                         <div class="mb-4">
 
                             <label class="form-label fw-semibold">
+
                                 Normal / Reference Range
+
                             </label>
 
                             <div class="row g-3">
 
+
+                                <!-- MINIMUM -->
+
                                 <div class="col-md-6">
 
-                                    <div class="input-group">
+                                    <label asp-for="ReferenceRangeLow"
+                                           class="form-label">
 
-                                        <span class="input-group-text">
-                                            Min
-                                        </span>
+                                        Minimum
 
-                                        <input asp-for="ReferenceRangeLow"
-                                               class="form-control"
-                                               type="number"
-                                               step="0.01" />
+                                    </label>
 
-                                    </div>
+                                    <input asp-for="ReferenceRangeLow"
+                                           type="number"
+                                           step="0.01"
+                                           class="form-control"
+                                           placeholder="Minimum value" />
 
                                     <span asp-validation-for="ReferenceRangeLow"
                                           class="text-danger">
@@ -230,20 +344,22 @@
                                 </div>
 
 
+                                <!-- MAXIMUM -->
+
                                 <div class="col-md-6">
 
-                                    <div class="input-group">
+                                    <label asp-for="ReferenceRangeHigh"
+                                           class="form-label">
 
-                                        <span class="input-group-text">
-                                            Max
-                                        </span>
+                                        Maximum
 
-                                        <input asp-for="ReferenceRangeHigh"
-                                               class="form-control"
-                                               type="number"
-                                               step="0.01" />
+                                    </label>
 
-                                    </div>
+                                    <input asp-for="ReferenceRangeHigh"
+                                           type="number"
+                                           step="0.01"
+                                           class="form-control"
+                                           placeholder="Maximum value" />
 
                                     <span asp-validation-for="ReferenceRangeHigh"
                                           class="text-danger">
@@ -256,9 +372,11 @@
                         </div>
 
 
-                        <!-- TURNAROUND -->
+                        <!-- ===================================== -->
+                        <!-- TURNAROUND TIME -->
+                        <!-- ===================================== -->
 
-                        <div>
+                        <div class="mb-2">
 
                             <label asp-for="TurnaroundTimeHours"
                                    class="form-label fw-semibold">
@@ -270,12 +388,15 @@
                             <div class="input-group">
 
                                 <input asp-for="TurnaroundTimeHours"
-                                       class="form-control"
                                        type="number"
-                                       min="1" />
+                                       min="1"
+                                       class="form-control"
+                                       placeholder="Enter time" />
 
                                 <span class="input-group-text">
+
                                     Hours
+
                                 </span>
 
                             </div>
@@ -293,42 +414,48 @@
             </div>
 
 
-            <!-- RIGHT SIDE -->
+            <!-- ================================================= -->
+            <!-- CONSUMABLES -->
+            <!-- ================================================= -->
 
             <div class="col-lg-4">
 
-                <!-- CONSUMABLES -->
+                <div class="card">
 
-                <div class="card border-0 shadow-sm">
-
-                    <div class="card-header bg-white py-3">
+                    <div class="card-header py-3">
 
                         <h5 class="fw-bold mb-1">
 
-                            <i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>
+                            <i class="fa-solid fa-boxes-stacked section-icon me-2"></i>
 
                             Consumables
 
                         </h5>
 
                         <small class="text-muted">
-                            Select the consumables required to perform one test.
+
+                            Select the consumables used for this test.
+
                         </small>
 
                     </div>
 
 
-                    <div class="card-body">
+                    <div class="card-body p-4">
+
 
                         @if (consumables != null && consumables.Any())
                         {
                             foreach (var consumable in consumables)
                             {
-                                <div class="border rounded-3 p-3 mb-3">
+                                <div class="consumable-item"
+                                     data-consumable-container>
+
+                                    <!-- CHECKBOX -->
 
                                     <div class="form-check">
 
-                                        <input class="form-check-input"
+                                        <input class="form-check-input consumable-checkbox"
                                                type="checkbox"
                                                name="SelectedConsumableIds"
                                                value="@consumable.ConsumableID"
@@ -344,17 +471,28 @@
                                     </div>
 
 
+                                    <!-- QUANTITY -->
+
                                     <div class="mt-2">
 
                                         <label class="form-label small text-muted">
+
                                             Quantity per test
+
                                         </label>
 
                                         <input type="number"
                                                name="ConsumableQuantities"
                                                value="1"
                                                min="1"
-                                               class="form-control" />
+                                               class="form-control quantity-input"
+                                               disabled />
+
+                                        <div class="consumable-help">
+
+                                            Select the consumable first.
+
+                                        </div>
 
                                     </div>
 
@@ -367,7 +505,7 @@
 
                                 <i class="fa-solid fa-triangle-exclamation me-2"></i>
 
-                                No consumables are currently available.
+                                No consumables have been added yet.
 
                             </div>
                         }
@@ -377,21 +515,24 @@
                 </div>
 
 
+                <!-- ================================================= -->
                 <!-- BUTTONS -->
+                <!-- ================================================= -->
 
                 <div class="d-grid gap-2 mt-4">
 
                     <button type="submit"
-                            class="btn btn-primary btn-lg">
+                            class="btn btn-teal">
 
-                        <i class="fa-solid fa-check me-2"></i>
+                        <i class="fa-solid fa-save me-2"></i>
 
                         Create Test Type
 
                     </button>
 
+
                     <a asp-action="Index"
-                       class="btn btn-light btn-lg">
+                       class="btn btn-light">
 
                         Cancel
 
@@ -407,10 +548,144 @@
 
 </div>
 
+
+<!-- ============================================================= -->
+<!-- JAVASCRIPT -->
+<!-- ============================================================= -->
 @section Scripts {
 
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+
+
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function() {
+
+            const checkboxes =
+                document.querySelectorAll(".consumable-checkbox");
+
+
+            checkboxes.forEach(function(checkbox) {
+
+                checkbox.addEventListener("change", function() {
+
+                    const container =
+                        checkbox.closest("[data-consumable-container]");
+
+                    const quantityInput =
+                        container.querySelector(".quantity-input");
+
+                    const helpText =
+                        container.querySelector(".consumable-help");
+
+
+                    if (checkbox.checked) {
+
+                        // Enable quantity input
+                        quantityInput.disabled = false;
+
+                        // Highlight selected consumable
+                        container.classList.add("selected");
+
+                        // Update help text
+                        helpText.textContent =
+                            "Enter the quantity required for one test.";
+
+                    }
+                    else {
+
+                        // Disable quantity input
+                        quantityInput.disabled = true;
+
+                        // Reset quantity
+                        quantityInput.value = 1;
+
+                        // Remove highlight
+                        container.classList.remove("selected");
+
+                        // Update help text
+                        helpText.textContent =
+                            "Select the consumable first.";
+
+                    }
+
+                });
+
+            });
+
+
+            // =====================================================
+            // FORM VALIDATION
+            // =====================================================
+
+            const form =
+                document.getElementById("createTestTypeForm");
+
+
+            form.addEventListener("submit", function(event) {
+
+                const selectedConsumables =
+                    document.querySelectorAll(
+                        ".consumable-checkbox:checked"
+                    );
+
+
+                let valid = true;
+
+
+                selectedConsumables.forEach(function(checkbox) {
+
+                    const container =
+                        checkbox.closest(
+                            "[data-consumable-container]"
+                        );
+
+                    const quantityInput =
+                        container.querySelector(
+                            ".quantity-input"
+                        );
+
+
+                    const quantity =
+                        parseInt(quantityInput.value);
+
+
+                    if (isNaN(quantity) || quantity <= 0) {
+
+                        valid = false;
+
+                        quantityInput.classList.add(
+                            "is-invalid"
+                        );
+
+                    }
+                    else {
+
+                        quantityInput.classList.remove(
+                            "is-invalid"
+                        );
+
+                    }
+
+                });
+
+
+                if (!valid) {
+
+                    event.preventDefault();
+
+                    alert(
+                        "Please enter a quantity greater than zero for every selected consumable."
+                    );
+
+                }
+
+            });
+
+        });
+
+    </script>
 
 }

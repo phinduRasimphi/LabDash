@@ -29,12 +29,12 @@ namespace LabDash.Controllers
                     .ThenInclude(tt => tt.Technician)
                 .AsQueryable();
 
-            // Search by test name or sample type
             if (!string.IsNullOrWhiteSpace(searchString))
             {
                 query = query.Where(t =>
                     t.Name.Contains(searchString) ||
-                    t.RequiredSampleType.Contains(searchString));
+                    (t.RequiredSampleType != null &&
+                     t.RequiredSampleType.Contains(searchString)));
             }
 
             ViewBag.SearchString = searchString;
@@ -79,10 +79,12 @@ namespace LabDash.Controllers
         // CREATE - GET
         // ============================================================
 
+        [HttpGet]
         public IActionResult Create()
         {
             LoadCategories();
             LoadConsumables();
+            LoadSampleTypes();
 
             return View();
         }
@@ -99,12 +101,27 @@ namespace LabDash.Controllers
             int[]? SelectedConsumableIds,
             int[]? ConsumableQuantities)
         {
-            // Navigation properties are loaded by EF
-            // so they should not be validated from the form.
+            // --------------------------------------------------------
+            // REMOVE NAVIGATION PROPERTY VALIDATION
+            // --------------------------------------------------------
+
             ModelState.Remove("TestCategory");
             ModelState.Remove("TestRequestItems");
             ModelState.Remove("TechnicianTestTypes");
             ModelState.Remove("TestTypeConsumables");
+
+
+            // --------------------------------------------------------
+            // TEST NAME REQUIRED
+            // --------------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(testType.Name))
+            {
+                ModelState.AddModelError(
+                    "Name",
+                    "Please enter a test name.");
+            }
+
 
             // --------------------------------------------------------
             // CHECK DUPLICATE TEST NAME
@@ -112,10 +129,11 @@ namespace LabDash.Controllers
 
             if (!string.IsNullOrWhiteSpace(testType.Name))
             {
+                string testName = testType.Name.Trim();
+
                 bool nameExists = await _context.TestTypes
                     .AnyAsync(t =>
-                        t.Name.ToLower() ==
-                        testType.Name.ToLower());
+                        t.Name.ToLower() == testName.ToLower());
 
                 if (nameExists)
                 {
@@ -133,8 +151,8 @@ namespace LabDash.Controllers
             if (testType.ReferenceRangeLow.HasValue &&
                 testType.ReferenceRangeHigh.HasValue)
             {
-                if (testType.ReferenceRangeLow >
-                    testType.ReferenceRangeHigh)
+                if (testType.ReferenceRangeLow.Value >
+                    testType.ReferenceRangeHigh.Value)
                 {
                     ModelState.AddModelError(
                         "ReferenceRangeHigh",
@@ -147,9 +165,16 @@ namespace LabDash.Controllers
             // CHECK CONSUMABLES
             // --------------------------------------------------------
 
-            if (SelectedConsumableIds != null)
+            if (SelectedConsumableIds != null &&
+                SelectedConsumableIds.Length > 0)
             {
-                if (ConsumableQuantities == null ||
+                if (ConsumableQuantities == null)
+                {
+                    ModelState.AddModelError(
+                        "",
+                        "Please provide a quantity for every selected consumable.");
+                }
+                else if (
                     SelectedConsumableIds.Length !=
                     ConsumableQuantities.Length)
                 {
@@ -159,7 +184,7 @@ namespace LabDash.Controllers
                 }
                 else
                 {
-                    foreach (var quantity in ConsumableQuantities)
+                    foreach (int quantity in ConsumableQuantities)
                     {
                         if (quantity <= 0)
                         {
@@ -174,37 +199,66 @@ namespace LabDash.Controllers
             }
 
 
-            // --------------------------------------------------------
+            // ========================================================
             // SAVE
-            // --------------------------------------------------------
+            // ========================================================
 
             if (ModelState.IsValid)
             {
-                testType.TestTypeConsumables =
-                    new List<TestTypeConsumable>();
+                // ----------------------------------------------------
+                // Clean the test name
+                // ----------------------------------------------------
+
+                testType.Name = testType.Name.Trim();
+
+
+                // ----------------------------------------------------
+                // Save TestType FIRST
+                //
+                // This allows EF/database to generate testType.Id
+                // before we create TestTypeConsumable records.
+                // ----------------------------------------------------
+
+                _context.TestTypes.Add(testType);
+
+                await _context.SaveChangesAsync();
+
+
+                // ----------------------------------------------------
+                // Save selected consumables
+                // ----------------------------------------------------
 
                 if (SelectedConsumableIds != null &&
-                    ConsumableQuantities != null)
+                    ConsumableQuantities != null &&
+                    SelectedConsumableIds.Length > 0)
                 {
                     for (int i = 0;
                          i < SelectedConsumableIds.Length;
                          i++)
                     {
-                        testType.TestTypeConsumables.Add(
+                        var testTypeConsumable =
                             new TestTypeConsumable
                             {
+                                TestTypeId = testType.Id,
+
                                 ConsumableId =
                                     SelectedConsumableIds[i],
 
                                 QuantityRequired =
                                     ConsumableQuantities[i]
-                            });
+                            };
+
+                        _context.TestTypeConsumables.Add(
+                            testTypeConsumable);
                     }
+
+                    await _context.SaveChangesAsync();
                 }
 
-                _context.TestTypes.Add(testType);
 
-                await _context.SaveChangesAsync();
+                // ----------------------------------------------------
+                // Success
+                // ----------------------------------------------------
 
                 TempData["SuccessMessage"] =
                     "Test type created successfully.";
@@ -213,9 +267,15 @@ namespace LabDash.Controllers
             }
 
 
-            // If validation fails, reload dropdowns
+            // ========================================================
+            // VALIDATION FAILED
+            // ========================================================
+
             LoadCategories(testType.TestCategoryId);
+
             LoadConsumables();
+
+            LoadSampleTypes(testType.RequiredSampleType);
 
             return View(testType);
         }
@@ -225,6 +285,7 @@ namespace LabDash.Controllers
         // EDIT - GET
         // ============================================================
 
+        [HttpGet]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -241,8 +302,17 @@ namespace LabDash.Controllers
                 return NotFound();
             }
 
+
+            // --------------------------------------------------------
+            // Load dropdowns
+            // --------------------------------------------------------
+
             LoadCategories(testType.TestCategoryId);
+
             LoadConsumables();
+
+            LoadSampleTypes(testType.RequiredSampleType);
+
 
             return View(testType);
         }
@@ -260,16 +330,36 @@ namespace LabDash.Controllers
             int[]? SelectedConsumableIds,
             int[]? ConsumableQuantities)
         {
+            // --------------------------------------------------------
+            // Check ID
+            // --------------------------------------------------------
+
             if (id != testType.Id)
             {
                 return NotFound();
             }
 
-            // Remove navigation properties from validation
+
+            // --------------------------------------------------------
+            // REMOVE NAVIGATION PROPERTY VALIDATION
+            // --------------------------------------------------------
+
             ModelState.Remove("TestCategory");
             ModelState.Remove("TestRequestItems");
             ModelState.Remove("TechnicianTestTypes");
             ModelState.Remove("TestTypeConsumables");
+
+
+            // --------------------------------------------------------
+            // TEST NAME REQUIRED
+            // --------------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(testType.Name))
+            {
+                ModelState.AddModelError(
+                    "Name",
+                    "Please enter a test name.");
+            }
 
 
             // --------------------------------------------------------
@@ -278,11 +368,12 @@ namespace LabDash.Controllers
 
             if (!string.IsNullOrWhiteSpace(testType.Name))
             {
+                string testName = testType.Name.Trim();
+
                 bool nameExists = await _context.TestTypes
                     .AnyAsync(t =>
                         t.Id != id &&
-                        t.Name.ToLower() ==
-                        testType.Name.ToLower());
+                        t.Name.ToLower() == testName.ToLower());
 
                 if (nameExists)
                 {
@@ -300,8 +391,8 @@ namespace LabDash.Controllers
             if (testType.ReferenceRangeLow.HasValue &&
                 testType.ReferenceRangeHigh.HasValue)
             {
-                if (testType.ReferenceRangeLow >
-                    testType.ReferenceRangeHigh)
+                if (testType.ReferenceRangeLow.Value >
+                    testType.ReferenceRangeHigh.Value)
                 {
                     ModelState.AddModelError(
                         "ReferenceRangeHigh",
@@ -314,9 +405,16 @@ namespace LabDash.Controllers
             // CHECK CONSUMABLES
             // --------------------------------------------------------
 
-            if (SelectedConsumableIds != null)
+            if (SelectedConsumableIds != null &&
+                SelectedConsumableIds.Length > 0)
             {
-                if (ConsumableQuantities == null ||
+                if (ConsumableQuantities == null)
+                {
+                    ModelState.AddModelError(
+                        "",
+                        "Please provide a quantity for every selected consumable.");
+                }
+                else if (
                     SelectedConsumableIds.Length !=
                     ConsumableQuantities.Length)
                 {
@@ -326,7 +424,7 @@ namespace LabDash.Controllers
                 }
                 else
                 {
-                    foreach (var quantity in ConsumableQuantities)
+                    foreach (int quantity in ConsumableQuantities)
                     {
                         if (quantity <= 0)
                         {
@@ -341,9 +439,9 @@ namespace LabDash.Controllers
             }
 
 
-            // --------------------------------------------------------
+            // ========================================================
             // UPDATE
-            // --------------------------------------------------------
+            // ========================================================
 
             if (ModelState.IsValid)
             {
@@ -358,10 +456,12 @@ namespace LabDash.Controllers
                 }
 
 
-                // Update TestType fields
+                // ----------------------------------------------------
+                // Update basic fields
+                // ----------------------------------------------------
 
                 existingTestType.Name =
-                    testType.Name;
+                    testType.Name.Trim();
 
                 existingTestType.TestCategoryId =
                     testType.TestCategoryId;
@@ -372,36 +472,41 @@ namespace LabDash.Controllers
                 existingTestType.UnitOfMeasurement =
                     testType.UnitOfMeasurement;
 
-                existingTestType.TurnaroundTimeHours =
-                    testType.TurnaroundTimeHours;
-
                 existingTestType.ReferenceRangeLow =
                     testType.ReferenceRangeLow;
 
                 existingTestType.ReferenceRangeHigh =
                     testType.ReferenceRangeHigh;
 
-
-                // ----------------------------------------------------
-                // REMOVE OLD CONSUMABLE RELATIONSHIPS
-                // ----------------------------------------------------
-
-                _context.TestTypeConsumables.RemoveRange(
-                    existingTestType.TestTypeConsumables);
+                existingTestType.TurnaroundTimeHours =
+                    testType.TurnaroundTimeHours;
 
 
                 // ----------------------------------------------------
-                // ADD UPDATED CONSUMABLE RELATIONSHIPS
+                // Remove old consumables
+                // ----------------------------------------------------
+
+                if (existingTestType.TestTypeConsumables != null &&
+                    existingTestType.TestTypeConsumables.Any())
+                {
+                    _context.TestTypeConsumables.RemoveRange(
+                        existingTestType.TestTypeConsumables);
+                }
+
+
+                // ----------------------------------------------------
+                // Add new consumables
                 // ----------------------------------------------------
 
                 if (SelectedConsumableIds != null &&
-                    ConsumableQuantities != null)
+                    ConsumableQuantities != null &&
+                    SelectedConsumableIds.Length > 0)
                 {
                     for (int i = 0;
                          i < SelectedConsumableIds.Length;
                          i++)
                     {
-                        _context.TestTypeConsumables.Add(
+                        var testTypeConsumable =
                             new TestTypeConsumable
                             {
                                 TestTypeId = id,
@@ -411,12 +516,20 @@ namespace LabDash.Controllers
 
                                 QuantityRequired =
                                     ConsumableQuantities[i]
-                            });
+                            };
+
+                        _context.TestTypeConsumables.Add(
+                            testTypeConsumable);
                     }
                 }
 
 
+                // ----------------------------------------------------
+                // Save changes
+                // ----------------------------------------------------
+
                 await _context.SaveChangesAsync();
+
 
                 TempData["SuccessMessage"] =
                     "Test type updated successfully.";
@@ -425,8 +538,15 @@ namespace LabDash.Controllers
             }
 
 
+            // ========================================================
+            // VALIDATION FAILED
+            // ========================================================
+
             LoadCategories(testType.TestCategoryId);
+
             LoadConsumables();
+
+            LoadSampleTypes(testType.RequiredSampleType);
 
             return View(testType);
         }
@@ -436,6 +556,7 @@ namespace LabDash.Controllers
         // DELETE - GET
         // ============================================================
 
+        [HttpGet]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -480,7 +601,7 @@ namespace LabDash.Controllers
 
 
             // --------------------------------------------------------
-            // DO NOT DELETE TEST TYPES ALREADY USED IN REQUESTS
+            // Check if used in Test Requests
             // --------------------------------------------------------
 
             bool usedInRequests =
@@ -497,7 +618,7 @@ namespace LabDash.Controllers
 
 
             // --------------------------------------------------------
-            // REMOVE TECHNICIAN ASSIGNMENTS
+            // Remove technician assignments
             // --------------------------------------------------------
 
             if (testType.TechnicianTestTypes != null &&
@@ -509,7 +630,7 @@ namespace LabDash.Controllers
 
 
             // --------------------------------------------------------
-            // REMOVE CONSUMABLE RELATIONSHIPS
+            // Remove consumable relationships
             // --------------------------------------------------------
 
             if (testType.TestTypeConsumables != null &&
@@ -521,12 +642,13 @@ namespace LabDash.Controllers
 
 
             // --------------------------------------------------------
-            // DELETE TEST TYPE
+            // Delete test type
             // --------------------------------------------------------
 
             _context.TestTypes.Remove(testType);
 
             await _context.SaveChangesAsync();
+
 
             TempData["SuccessMessage"] =
                 "Test type deleted successfully.";
@@ -573,6 +695,25 @@ namespace LabDash.Controllers
                 _context.Consumables
                     .OrderBy(c => c.Name)
                     .ToList();
+        }
+
+
+        // ============================================================
+        // LOAD SAMPLE TYPES
+        // ============================================================
+
+        private void LoadSampleTypes(
+            string? selectedSampleType = null)
+        {
+            ViewData["SampleTypes"] =
+                new SelectList(
+                    _context.SampleTypeLookups
+                        .Where(s => s.IsActive)
+                        .OrderBy(s => s.Name)
+                        .ToList(),
+                    "Name",
+                    "Name",
+                    selectedSampleType);
         }
     }
 }

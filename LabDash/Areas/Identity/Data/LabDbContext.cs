@@ -44,6 +44,15 @@ public class LabDbContext : IdentityDbContext<LabUser>
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<LabUser>()
+         .HasIndex(u => u.HPCSANumber)
+         .IsUnique()
+         .HasFilter("[HPCSANumber] IS NOT NULL AND [HPCSANumber] <> ''");
+
+        builder.Entity<LabUser>()
+            .HasIndex(u => u.EmployeeNumber)
+            .IsUnique()
+            .HasFilter("[EmployeeNumber] IS NOT NULL AND [EmployeeNumber] <> ''");
 
         builder.Entity<Patient>()
         .HasOne<LabUser>()

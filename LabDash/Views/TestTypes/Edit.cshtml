@@ -2,29 +2,110 @@
 
 @{
     ViewData["Title"] = "Edit Test Type";
-    var consumables = ViewBag.Consumables as IEnumerable<LabDash.Models.Consumable>;
-    var existingConsumables = Model.TestTypeConsumables?
-        .ToDictionary(x => x.ConsumableId, x => x.QuantityRequired)
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    var consumables =
+        ViewBag.Consumables as IEnumerable<LabDash.Models.Consumable>;
+
+    var existingConsumables =
+        Model.TestTypeConsumables?
+        .ToDictionary(
+            x => x.ConsumableId,
+            x => x.QuantityRequired)
         ?? new Dictionary<int, int>();
 }
 
-<div class="container-fluid py-4">
+<style>
+
+    .test-page {
+        padding: 30px;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #134e4a;
+    }
+
+    .page-subtitle {
+        color: #64748b;
+    }
+
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+    }
+
+    .card-header {
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .section-icon {
+        color: #0f766e;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 8px;
+        padding: 11px 13px;
+        border: 1px solid #cbd5e1;
+    }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #0f766e;
+            box-shadow: 0 0 0 0.2rem rgba(15,118,110,.15);
+        }
+
+    .btn-teal {
+        background: #0f766e;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px;
+        font-weight: 600;
+    }
+
+        .btn-teal:hover {
+            background: #115e59;
+            color: white;
+        }
+
+    .consumable-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+    }
+
+        .consumable-item:hover {
+            background: #f0fdfa;
+        }
+
+</style>
+
+
+<div class="test-page">
 
     <div class="mb-4">
 
         <a asp-action="Index"
-           class="text-decoration-none">
+           class="text-decoration-none"
+           style="color:#0f766e;">
 
             <i class="fa-solid fa-arrow-left me-2"></i>
+
             Back to Test Types
 
         </a>
 
-        <h2 class="fw-bold mt-3 mb-1">
+        <h1 class="page-title mt-3 mb-1">
             Edit Test Type
-        </h2>
+        </h1>
 
-        <p class="text-muted">
+        <p class="page-subtitle">
             Update the laboratory test configuration.
         </p>
 
@@ -39,7 +120,6 @@
         <input type="hidden"
                asp-for="Id" />
 
-
         <div asp-validation-summary="ModelOnly"
              class="alert alert-danger">
         </div>
@@ -51,13 +131,13 @@
 
             <div class="col-lg-8">
 
-                <div class="card border-0 shadow-sm">
+                <div class="card">
 
-                    <div class="card-header bg-white py-3">
+                    <div class="card-header py-3">
 
                         <h5 class="fw-bold mb-0">
 
-                            <i class="fa-solid fa-flask me-2 text-primary"></i>
+                            <i class="fa-solid fa-flask section-icon me-2"></i>
 
                             Test Information
 
@@ -66,7 +146,7 @@
                     </div>
 
 
-                    <div class="card-body">
+                    <div class="card-body p-4">
 
                         <div class="mb-4">
 
@@ -75,7 +155,7 @@
                             </label>
 
                             <input asp-for="Name"
-                                   class="form-control form-control-lg" />
+                                   class="form-control" />
 
                             <span asp-validation-for="Name"
                                   class="text-danger">
@@ -110,6 +190,8 @@
                         </div>
 
 
+                        <!-- DATABASE SAMPLE TYPES -->
+
                         <div class="mb-4">
 
                             <label asp-for="RequiredSampleType"
@@ -120,36 +202,23 @@
                             </label>
 
                             <select asp-for="RequiredSampleType"
+                                    asp-items="ViewBag.SampleTypes"
                                     class="form-select">
 
-                                <option value="Whole Blood">
-                                    Whole Blood
-                                </option>
-
-                                <option value="Bone Marrow">
-                                    Bone Marrow
-                                </option>
-
-                                <option value="Plasma">
-                                    Plasma
-                                </option>
-
-                                <option value="Serum">
-                                    Serum
-                                </option>
-
-                                <option value="Urine">
-                                    Urine
-                                </option>
-
-                                <option value="CSF">
-                                    Cerebrospinal Fluid
+                                <option value="">
+                                    -- Select Sample Type --
                                 </option>
 
                             </select>
 
+                            <span asp-validation-for="RequiredSampleType"
+                                  class="text-danger">
+                            </span>
+
                         </div>
 
+
+                        <!-- HARD-CODED UNITS -->
 
                         <div class="mb-4">
 
@@ -193,6 +262,11 @@
 
                                 <div class="col-md-6">
 
+                                    <label asp-for="ReferenceRangeLow"
+                                           class="form-label">
+                                        Minimum
+                                    </label>
+
                                     <input asp-for="ReferenceRangeLow"
                                            class="form-control"
                                            type="number"
@@ -201,6 +275,11 @@
                                 </div>
 
                                 <div class="col-md-6">
+
+                                    <label asp-for="ReferenceRangeHigh"
+                                           class="form-label">
+                                        Maximum
+                                    </label>
 
                                     <input asp-for="ReferenceRangeHigh"
                                            class="form-control"
@@ -249,13 +328,13 @@
 
             <div class="col-lg-4">
 
-                <div class="card border-0 shadow-sm">
+                <div class="card">
 
-                    <div class="card-header bg-white py-3">
+                    <div class="card-header py-3">
 
                         <h5 class="fw-bold mb-1">
 
-                            <i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>
+                            <i class="fa-solid fa-boxes-stacked section-icon me-2"></i>
 
                             Consumables
 
@@ -268,7 +347,7 @@
                     </div>
 
 
-                    <div class="card-body">
+                    <div class="card-body p-4">
 
                         @if (consumables != null && consumables.Any())
                         {
@@ -285,7 +364,7 @@
                                         : 1;
 
 
-                                <div class="border rounded-3 p-3 mb-3">
+                                <div class="consumable-item">
 
                                     <div class="form-check">
 
@@ -326,7 +405,9 @@
                         else
                         {
                             <div class="alert alert-warning">
+
                                 No consumables available.
+
                             </div>
                         }
 
@@ -338,7 +419,7 @@
                 <div class="d-grid gap-2 mt-4">
 
                     <button type="submit"
-                            class="btn btn-primary btn-lg">
+                            class="btn btn-teal">
 
                         <i class="fa-solid fa-save me-2"></i>
 
@@ -347,7 +428,7 @@
                     </button>
 
                     <a asp-action="Index"
-                       class="btn btn-light btn-lg">
+                       class="btn btn-light">
 
                         Cancel
 
@@ -362,6 +443,7 @@
     </form>
 
 </div>
+
 
 @section Scripts {
 
