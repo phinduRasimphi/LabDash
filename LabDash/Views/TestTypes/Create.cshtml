@@ -112,7 +112,6 @@
            style="color:#0f766e;">
 
             <i class="fa-solid fa-arrow-left me-2"></i>
-
             Back to Test Types
 
         </a>
@@ -139,9 +138,11 @@
         @Html.AntiForgeryToken()
 
 
-        <!-- VALIDATION SUMMARY -->
+        <!-- ===================================================== -->
+        <!-- VALIDATION -->
+        <!-- ===================================================== -->
 
-        <div asp-validation-summary="ModelOnly"
+        <div asp-validation-summary="All"
              class="alert alert-danger">
         </div>
 
@@ -173,9 +174,7 @@
                     <div class="card-body p-4">
 
 
-                        <!-- ===================================== -->
                         <!-- TEST NAME -->
-                        <!-- ===================================== -->
 
                         <div class="mb-4">
 
@@ -197,9 +196,7 @@
                         </div>
 
 
-                        <!-- ===================================== -->
                         <!-- TEST CATEGORY -->
-                        <!-- ===================================== -->
 
                         <div class="mb-4">
 
@@ -227,9 +224,7 @@
                         </div>
 
 
-                        <!-- ===================================== -->
                         <!-- SAMPLE TYPE -->
-                        <!-- ===================================== -->
 
                         <div class="mb-4">
 
@@ -258,16 +253,15 @@
 
                                 <i class="fa-solid fa-circle-info me-1"></i>
 
-                                Sample types are managed through the Sample Type Lookup.
+                                Sample types are managed through the
+                                Sample Type Lookup.
 
                             </small>
 
                         </div>
 
 
-                        <!-- ===================================== -->
-                        <!-- UNIT OF MEASUREMENT -->
-                        <!-- ===================================== -->
+                        <!-- UNIT -->
 
                         <div class="mb-4">
 
@@ -305,9 +299,7 @@
                         </div>
 
 
-                        <!-- ===================================== -->
                         <!-- REFERENCE RANGE -->
-                        <!-- ===================================== -->
 
                         <div class="mb-4">
 
@@ -319,8 +311,6 @@
 
                             <div class="row g-3">
 
-
-                                <!-- MINIMUM -->
 
                                 <div class="col-md-6">
 
@@ -343,8 +333,6 @@
 
                                 </div>
 
-
-                                <!-- MAXIMUM -->
 
                                 <div class="col-md-6">
 
@@ -372,9 +360,7 @@
                         </div>
 
 
-                        <!-- ===================================== -->
-                        <!-- TURNAROUND TIME -->
-                        <!-- ===================================== -->
+                        <!-- TURNAROUND -->
 
                         <div class="mb-2">
 
@@ -394,9 +380,7 @@
                                        placeholder="Enter time" />
 
                                 <span class="input-group-text">
-
                                     Hours
-
                                 </span>
 
                             </div>
@@ -406,6 +390,7 @@
                             </span>
 
                         </div>
+
 
                     </div>
 
@@ -433,9 +418,7 @@
                         </h5>
 
                         <small class="text-muted">
-
                             Select the consumables used for this test.
-
                         </small>
 
                     </div>
@@ -444,10 +427,13 @@
                     <div class="card-body p-4">
 
 
-                        @if (consumables != null && consumables.Any())
+                        @if (consumables != null &&
+                             consumables.Any())
                         {
+
                             foreach (var consumable in consumables)
                             {
+
                                 <div class="consumable-item"
                                      data-consumable-container>
 
@@ -482,7 +468,7 @@
                                         </label>
 
                                         <input type="number"
-                                               name="ConsumableQuantities"
+                                               name=""
                                                value="1"
                                                min="1"
                                                class="form-control quantity-input"
@@ -497,10 +483,13 @@
                                     </div>
 
                                 </div>
+
                             }
+
                         }
                         else
                         {
+
                             <div class="alert alert-warning">
 
                                 <i class="fa-solid fa-triangle-exclamation me-2"></i>
@@ -508,6 +497,7 @@
                                 No consumables have been added yet.
 
                             </div>
+
                         }
 
                     </div>
@@ -549,9 +539,6 @@
 </div>
 
 
-<!-- ============================================================= -->
-<!-- JAVASCRIPT -->
-<!-- ============================================================= -->
 @section Scripts {
 
     @{
@@ -583,29 +570,36 @@
 
                     if (checkbox.checked) {
 
-                        // Enable quantity input
+                        // Enable quantity
                         quantityInput.disabled = false;
 
-                        // Highlight selected consumable
+                        // IMPORTANT:
+                        // Add the name so ASP.NET receives it
+                        quantityInput.name =
+                            "ConsumableQuantities";
+
                         container.classList.add("selected");
 
-                        // Update help text
                         helpText.textContent =
                             "Enter the quantity required for one test.";
 
                     }
                     else {
 
-                        // Disable quantity input
+                        // Disable quantity
                         quantityInput.disabled = true;
 
-                        // Reset quantity
+                        // IMPORTANT:
+                        // Remove name so unselected quantities
+                        // are NOT submitted
+                        quantityInput.removeAttribute("name");
+
                         quantityInput.value = 1;
 
-                        // Remove highlight
+                        quantityInput.classList.remove("is-invalid");
+
                         container.classList.remove("selected");
 
-                        // Update help text
                         helpText.textContent =
                             "Select the consumable first.";
 
@@ -617,7 +611,7 @@
 
 
             // =====================================================
-            // FORM VALIDATION
+            // CLIENT-SIDE VALIDATION
             // =====================================================
 
             const form =
@@ -642,6 +636,7 @@
                             "[data-consumable-container]"
                         );
 
+
                     const quantityInput =
                         container.querySelector(
                             ".quantity-input"
@@ -652,7 +647,8 @@
                         parseInt(quantityInput.value);
 
 
-                    if (isNaN(quantity) || quantity <= 0) {
+                    if (isNaN(quantity) ||
+                        quantity <= 0) {
 
                         valid = false;
 
@@ -687,5 +683,4 @@
         });
 
     </script>
-
 }
