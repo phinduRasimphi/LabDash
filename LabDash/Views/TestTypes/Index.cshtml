@@ -1,0 +1,421 @@
+﻿@model IEnumerable<LabDash.Models.TestType>
+
+@{
+    ViewData["Title"] = "Test Types";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<style>
+
+    .test-page {
+        padding: 30px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #134e4a;
+        margin-bottom: 5px;
+    }
+
+    .page-subtitle {
+        color: #64748b;
+        margin: 0;
+    }
+
+    .btn-teal {
+        background: #0f766e;
+        color: white;
+        border: none;
+        padding: 11px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+        .btn-teal:hover {
+            background: #115e59;
+            color: white;
+        }
+
+    .search-card {
+        background: white;
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 20px;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+    }
+
+    .search-input {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 14px;
+    }
+
+    .table-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+    }
+
+    .table thead {
+        background: #0f766e;
+        color: white;
+    }
+
+        .table thead th {
+            padding: 15px;
+            font-size: 14px;
+            border: none;
+        }
+
+    .table tbody td {
+        padding: 14px 15px;
+        vertical-align: middle;
+    }
+
+    .table tbody tr:hover {
+        background: #f0fdfa;
+    }
+
+    .badge-teal {
+        background: #ccfbf1;
+        color: #115e59;
+        padding: 6px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    .badge-blue {
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 6px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    .action-btn {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 7px;
+        text-decoration: none;
+        margin-right: 4px;
+    }
+
+    .btn-view {
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .btn-edit {
+        background: #ccfbf1;
+        color: #0f766e;
+    }
+
+    .btn-delete {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #64748b;
+    }
+
+        .empty-state i {
+            font-size: 45px;
+            color: #94a3b8;
+            margin-bottom: 15px;
+        }
+
+</style>
+
+
+<div class="test-page">
+
+    <!-- HEADER -->
+
+    <div class="page-header">
+
+        <div>
+
+            <h1 class="page-title">
+                Test Types
+            </h1>
+
+            <p class="page-subtitle">
+                Manage laboratory test types and their configurations.
+            </p>
+
+        </div>
+
+        <div>
+
+            <a asp-action="Create"
+               class="btn btn-teal">
+
+                <i class="fa-solid fa-plus me-2"></i>
+
+                Add Test Type
+
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- SUCCESS / ERROR MESSAGES -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">
+            <i class="fa-solid fa-circle-check me-2"></i>
+            @TempData["SuccessMessage"]
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>
+            @TempData["ErrorMessage"]
+        </div>
+    }
+
+
+    <!-- SEARCH -->
+
+    <div class="search-card">
+
+        <form asp-action="Index"
+              method="get">
+
+            <div class="row g-2">
+
+                <div class="col-md-10">
+
+                    <input type="text"
+                           name="searchString"
+                           value="@ViewBag.SearchString"
+                           class="form-control search-input"
+                           placeholder="Search by test name or sample type..." />
+
+                </div>
+
+                <div class="col-md-2">
+
+                    <button type="submit"
+                            class="btn btn-teal w-100">
+
+                        <i class="fa-solid fa-search me-2"></i>
+
+                        Search
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+
+
+    <!-- TABLE -->
+
+    <div class="table-card">
+
+        @if (Model != null && Model.Any())
+        {
+            <div class="table-responsive">
+
+                <table class="table table-hover mb-0">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Test Name
+                            </th>
+
+                            <th>
+                                Category
+                            </th>
+
+                            <th>
+                                Sample Type
+                            </th>
+
+                            <th>
+                                Unit
+                            </th>
+
+                            <th>
+                                Reference Range
+                            </th>
+
+                            <th>
+                                Turnaround
+                            </th>
+
+                            <th>
+                                Consumables
+                            </th>
+
+                            <th class="text-center">
+                                Actions
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+
+                                <td>
+                                    <strong>
+                                        @item.Name
+                                    </strong>
+                                </td>
+
+                                <td>
+
+                                    @if (item.TestCategory != null)
+                                    {
+                                        <span class="badge-teal">
+                                            @item.TestCategory.CategoryName
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">
+                                            Not assigned
+                                        </span>
+                                    }
+
+                                </td>
+
+                                <td>
+                                    @item.RequiredSampleType
+                                </td>
+
+                                <td>
+                                    @(string.IsNullOrWhiteSpace(item.UnitOfMeasurement)
+                                        ? "-"
+                                        : item.UnitOfMeasurement)
+                                </td>
+
+                                <td>
+
+                                    @if (item.ReferenceRangeLow.HasValue &&
+                                        item.ReferenceRangeHigh.HasValue)
+                                    {
+                                        @item.ReferenceRangeLow
+                                        <span> - </span>
+                                        @item.ReferenceRangeHigh
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">
+                                            Not specified
+                                        </span>
+                                    }
+
+                                </td>
+
+                                <td>
+                                    <span class="badge-blue">
+                                        @item.TurnaroundTimeHours hrs
+                                    </span>
+                                </td>
+
+                                <td>
+                                    @(item.TestTypeConsumables?.Count() ?? 0)
+                                </td>
+
+                                <td class="text-center">
+
+                                    <a asp-action="Details"
+                                       asp-route-id="@item.Id"
+                                       class="action-btn btn-view"
+                                       title="View">
+
+                                        <i class="fa-solid fa-eye"></i>
+
+                                    </a>
+
+                                    <a asp-action="Edit"
+                                       asp-route-id="@item.Id"
+                                       class="action-btn btn-edit"
+                                       title="Edit">
+
+                                        <i class="fa-solid fa-pen"></i>
+
+                                    </a>
+
+                                    <a asp-action="Delete"
+                                       asp-route-id="@item.Id"
+                                       class="action-btn btn-delete"
+                                       title="Delete">
+
+                                        <i class="fa-solid fa-trash"></i>
+
+                                    </a>
+
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+
+                <i class="fa-solid fa-flask"></i>
+
+                <h5>
+                    No test types found
+                </h5>
+
+                <p>
+                    Add your first laboratory test type.
+                </p>
+
+                <a asp-action="Create"
+                   class="btn btn-teal">
+
+                    <i class="fa-solid fa-plus me-2"></i>
+
+                    Add Test Type
+
+                </a>
+
+            </div>
+        }
+
+    </div>
+
+</div>

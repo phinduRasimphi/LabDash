@@ -165,7 +165,9 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Kamogelo";
         user.LastName = "Makuwa";
-        //user.HCRN = 0;
+        user.HPCSANumber = "HPCSA123456";
+        user.EmployeeNumber = null;
+
         user.PhoneNumb = "0824773857";
         user.Gender = "Female";
 
@@ -188,8 +190,10 @@ using (var scope = app.Services.CreateScope())
             FirstName = "Siyolise",
             LastName = "Sipika",
             Phone = "0819859207",
-            Gender = "Female"
+            Gender = "Female",
+            EmployeeNumber = "EMP001"
         },
+
         new
         {
             Email = "liyemasipika@gmail.com",
@@ -197,7 +201,8 @@ using (var scope = app.Services.CreateScope())
             FirstName = "Liyema",
             LastName = "Mabaso",
             Phone = "0821234567",
-            Gender = "Male"
+            Gender = "Male",
+            EmployeeNumber = "EMP002"
         }
     };
 
@@ -214,6 +219,8 @@ using (var scope = app.Services.CreateScope())
                 LastName = tech.LastName,
                 PhoneNumb = tech.Phone,
                 Gender = tech.Gender,
+                EmployeeNumber = tech.EmployeeNumber,
+                HPCSANumber = null,
                 Timestamp_AccountCreated = DateTime.Now
             };
 

@@ -1,0 +1,232 @@
+﻿@model LabDash.Models.ConsumableOrder
+
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<div class="container-fluid p-4">
+
+    <h2 class="fw-bold mb-2">
+        Edit Consumable Order
+    </h2>
+
+    <p class="text-muted mb-4">
+        Update an order that has not yet been processed.
+    </p>
+
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <form asp-action="Edit" method="post">
+
+                <input type="hidden"
+                       asp-for="ConsumableOrderId" />
+
+
+                <div asp-validation-summary="ModelOnly"
+                     class="alert alert-danger">
+                </div>
+
+
+                <div class="row">
+
+                    <div class="col-md-6 mb-3">
+
+                        <label asp-for="OrderNumber"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="OrderNumber"
+                               class="form-control" />
+
+                    </div>
+
+
+                    <div class="col-md-6 mb-3">
+
+                        <label class="form-label">
+                            Supplier
+                        </label>
+
+                        <select asp-for="SupplierId"
+                                asp-items="ViewBag.Suppliers"
+                                class="form-select">
+
+                            <option value="">
+                                -- Select Supplier --
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <div class="mb-4">
+
+                    <label asp-for="DateOrdered"
+                           class="form-label">
+                    </label>
+
+                    <input asp-for="DateOrdered"
+                           type="datetime-local"
+                           class="form-control" />
+
+                </div>
+
+
+                <hr />
+
+                <h5 class="fw-bold">
+                    Consumables
+                </h5>
+
+                <div id="items">
+
+                    @foreach (var item in Model.Items)
+                    {
+                        <div class="row item-row mb-3">
+
+                            <div class="col-md-7">
+
+                                <select name="consumableIds"
+                                        class="form-select">
+
+                                    @foreach (var consumable in ViewBag.Consumables)
+                                    {
+                                        if (consumable.ConsumableID ==
+                                            item.ConsumableId)
+                                        {
+                                            <option selected
+                                                    value="@consumable.ConsumableID">
+
+                                                @consumable.Name
+
+                                            </option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@consumable.ConsumableID">
+
+                                                @consumable.Name
+
+                                            </option>
+                                        }
+                                    }
+
+                                </select>
+
+                            </div>
+
+
+                            <div class="col-md-3">
+
+                                <input name="quantities"
+                                       type="number"
+                                       min="1"
+                                       value="@item.QuantityOrdered"
+                                       class="form-control" />
+
+                            </div>
+
+
+                            <div class="col-md-2">
+
+                                <button type="button"
+                                        class="btn btn-danger remove-item">
+
+                                    <i class="bi bi-trash"></i>
+
+                                </button>
+
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+
+                <button type="button"
+                        id="addItem"
+                        class="btn btn-outline-primary mb-4">
+
+                    <i class="bi bi-plus"></i>
+                    Add Consumable
+
+                </button>
+
+
+                <div>
+
+                    <button type="submit"
+                            class="btn btn-primary">
+
+                        Save Changes
+
+                    </button>
+
+                    <a asp-action="Index"
+                       class="btn btn-secondary">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    document.getElementById("addItem")
+        .addEventListener("click", function() {
+
+            const container =
+                document.getElementById("items");
+
+            const first =
+                document.querySelector(".item-row");
+
+            const newRow =
+                first.cloneNode(true);
+
+            newRow.querySelector("select").selectedIndex = 0;
+
+            newRow.querySelector("input").value = 1;
+
+            container.appendChild(newRow);
+
+        });
+
+
+    document.addEventListener("click", function(e) {
+
+        if (e.target.closest(".remove-item")) {
+
+            const rows =
+                document.querySelectorAll(".item-row");
+
+            if (rows.length > 1) {
+
+                e.target
+                    .closest(".item-row")
+                    .remove();
+
+            }
+
+        }
+
+    });
+
+</script>

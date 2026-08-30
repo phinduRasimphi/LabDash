@@ -1,0 +1,351 @@
+﻿@model LabDash.Models.ConsumableOrder
+
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<div class="container-fluid p-4">
+
+    <div class="d-flex justify-content-between mb-4">
+
+        <div>
+
+            <h2 class="fw-bold">
+                Order @Model.OrderNumber
+            </h2>
+
+            <p class="text-muted">
+                Consumable order details
+            </p>
+
+        </div>
+
+        <a asp-action="Index"
+           class="btn btn-secondary">
+
+            Back to Orders
+
+        </a>
+
+    </div>
+
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["Error"]
+        </div>
+    }
+
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-md-3">
+
+                    <strong>Order Number</strong>
+
+                    <p>
+                        @Model.OrderNumber
+                    </p>
+
+                </div>
+
+                <div class="col-md-3">
+
+                    <strong>Supplier</strong>
+
+                    <p>
+                        @Model.Supplier?.SupplierName
+                    </p>
+
+                </div>
+
+                <div class="col-md-3">
+
+                    <strong>Date Ordered</strong>
+
+                    <p>
+                        @Model.DateOrdered.ToString("dd MMM yyyy")
+                    </p>
+
+                </div>
+
+                <div class="col-md-3">
+
+                    <strong>Status</strong>
+
+                    <p>
+
+                        @if (Model.Status == "Complete")
+                        {
+                            <span class="badge bg-success">
+                                Complete
+                            </span>
+                        }
+                        else if (Model.Status == "Partially complete")
+                        {
+                            <span class="badge bg-warning text-dark">
+                                Partially Complete
+                            </span>
+                        }
+                        else if (Model.Status == "Cancelled")
+                        {
+                            <span class="badge bg-danger">
+                                Cancelled
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary">
+                                Ordered
+                            </span>
+                        }
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    @if (Model.Status == "Ordered" ||
+         Model.Status == "Partially complete")
+    {
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-body">
+
+                <h5 class="fw-bold">
+                    Order Actions
+                </h5>
+
+                <div class="d-flex gap-2">
+
+                    <form asp-action="ReceiveOrder"
+                          method="post">
+
+                        <input type="hidden"
+                               name="id"
+                               value="@Model.ConsumableOrderId" />
+
+                        <button type="submit"
+                                class="btn btn-success">
+
+                            <i class="bi bi-box-arrow-in-down"></i>
+                            Receive Remaining Items
+
+                        </button>
+
+                    </form>
+
+
+                    <form asp-action="Cancel"
+                          method="post"
+                          class="d-flex gap-2">
+
+                        <input type="hidden"
+                               name="id"
+                               value="@Model.ConsumableOrderId" />
+
+                        <input type="text"
+                               name="cancellationReason"
+                               class="form-control"
+                               placeholder="Cancellation reason"
+                               required />
+
+                        <button type="submit"
+                                class="btn btn-danger">
+
+                            Cancel Order
+
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <h5 class="fw-bold mb-3">
+                Order Items
+            </h5>
+
+            <div class="table-responsive">
+
+                <table class="table table-hover">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Consumable
+                            </th>
+
+                            <th>
+                                Quantity
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Date Received
+                            </th>
+
+                            <th>
+                                Action
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+
+                                <td class="fw-semibold">
+
+                                    @item.Consumable?.Name
+
+                                </td>
+
+                                <td>
+
+                                    @item.QuantityOrdered
+
+                                </td>
+
+                                <td>
+
+                                    @if (item.Status == "Received")
+                                    {
+                                        <span class="badge bg-success">
+                                            Received
+                                        </span>
+                                    }
+                                    else if (item.Status == "Cancelled")
+                                    {
+                                        <span class="badge bg-danger">
+                                            Cancelled
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary">
+                                            Ordered
+                                        </span>
+                                    }
+
+                                </td>
+
+                                <td>
+
+                                    @if (item.DateReceived.HasValue)
+                                    {
+                                        @item.DateReceived.Value.ToString(
+                                            "dd MMM yyyy HH:mm")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">
+                                            -
+                                        </span>
+                                    }
+
+                                </td>
+
+                                <td>
+
+                                    @if (item.Status == "Ordered")
+                                    {
+                                        <div class="d-flex gap-2">
+
+                                            <form asp-action="ReceiveItem"
+                                                  method="post">
+
+                                                <input type="hidden"
+                                                       name="id"
+                                                       value="@item.ConsumableOrderItemId" />
+
+                                                <button type="submit"
+                                                        class="btn btn-sm btn-success">
+
+                                                    Receive
+
+                                                </button>
+
+                                            </form>
+
+                                            <form asp-action="CancelItem"
+                                                  method="post">
+
+                                                <input type="hidden"
+                                                       name="id"
+                                                       value="@item.ConsumableOrderItemId" />
+
+                                                <input type="hidden"
+                                                       name="cancellationReason"
+                                                       value="Cancelled by manager" />
+
+                                                <button type="submit"
+                                                        class="btn btn-sm btn-danger">
+
+                                                    Cancel
+
+                                                </button>
+
+                                            </form>
+
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">
+                                            No action
+                                        </span>
+                                    }
+
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>

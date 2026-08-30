@@ -35,10 +35,24 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<SampleTypeLookup> SampleTypeLookups { get; set; }
     public DbSet<Unit> Units { get; set; }
     public DbSet<TestCategory> TestCategories { get; set; }
+    public DbSet<Consumable> Consumables { get; set; }
+    public DbSet<Supplier> Suppliers { get; set; }
+    public DbSet<ConsumableOrder> ConsumableOrders { get; set; }
+
+    public DbSet<ConsumableOrderItem> ConsumableOrderItems { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<LabUser>()
+         .HasIndex(u => u.HPCSANumber)
+         .IsUnique()
+         .HasFilter("[HPCSANumber] IS NOT NULL AND [HPCSANumber] <> ''");
+
+        builder.Entity<LabUser>()
+            .HasIndex(u => u.EmployeeNumber)
+            .IsUnique()
+            .HasFilter("[EmployeeNumber] IS NOT NULL AND [EmployeeNumber] <> ''");
 
         builder.Entity<Patient>()
         .HasOne<LabUser>()

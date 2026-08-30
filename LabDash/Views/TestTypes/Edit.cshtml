@@ -1,0 +1,454 @@
+﻿@model LabDash.Models.TestType
+
+@{
+    ViewData["Title"] = "Edit Test Type";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    var consumables =
+        ViewBag.Consumables as IEnumerable<LabDash.Models.Consumable>;
+
+    var existingConsumables =
+        Model.TestTypeConsumables?
+        .ToDictionary(
+            x => x.ConsumableId,
+            x => x.QuantityRequired)
+        ?? new Dictionary<int, int>();
+}
+
+<style>
+
+    .test-page {
+        padding: 30px;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #134e4a;
+    }
+
+    .page-subtitle {
+        color: #64748b;
+    }
+
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+    }
+
+    .card-header {
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .section-icon {
+        color: #0f766e;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 8px;
+        padding: 11px 13px;
+        border: 1px solid #cbd5e1;
+    }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #0f766e;
+            box-shadow: 0 0 0 0.2rem rgba(15,118,110,.15);
+        }
+
+    .btn-teal {
+        background: #0f766e;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px;
+        font-weight: 600;
+    }
+
+        .btn-teal:hover {
+            background: #115e59;
+            color: white;
+        }
+
+    .consumable-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+    }
+
+        .consumable-item:hover {
+            background: #f0fdfa;
+        }
+
+</style>
+
+
+<div class="test-page">
+
+    <div class="mb-4">
+
+        <a asp-action="Index"
+           class="text-decoration-none"
+           style="color:#0f766e;">
+
+            <i class="fa-solid fa-arrow-left me-2"></i>
+
+            Back to Test Types
+
+        </a>
+
+        <h1 class="page-title mt-3 mb-1">
+            Edit Test Type
+        </h1>
+
+        <p class="page-subtitle">
+            Update the laboratory test configuration.
+        </p>
+
+    </div>
+
+
+    <form asp-action="Edit"
+          method="post">
+
+        @Html.AntiForgeryToken()
+
+        <input type="hidden"
+               asp-for="Id" />
+
+        <div asp-validation-summary="ModelOnly"
+             class="alert alert-danger">
+        </div>
+
+
+        <div class="row g-4">
+
+            <!-- INFORMATION -->
+
+            <div class="col-lg-8">
+
+                <div class="card">
+
+                    <div class="card-header py-3">
+
+                        <h5 class="fw-bold mb-0">
+
+                            <i class="fa-solid fa-flask section-icon me-2"></i>
+
+                            Test Information
+
+                        </h5>
+
+                    </div>
+
+
+                    <div class="card-body p-4">
+
+                        <div class="mb-4">
+
+                            <label asp-for="Name"
+                                   class="form-label fw-semibold">
+                            </label>
+
+                            <input asp-for="Name"
+                                   class="form-control" />
+
+                            <span asp-validation-for="Name"
+                                  class="text-danger">
+                            </span>
+
+                        </div>
+
+
+                        <div class="mb-4">
+
+                            <label asp-for="TestCategoryId"
+                                   class="form-label fw-semibold">
+
+                                Test Category
+
+                            </label>
+
+                            <select asp-for="TestCategoryId"
+                                    asp-items="ViewBag.TestCategoryId"
+                                    class="form-select">
+
+                                <option value="">
+                                    -- Select Category --
+                                </option>
+
+                            </select>
+
+                            <span asp-validation-for="TestCategoryId"
+                                  class="text-danger">
+                            </span>
+
+                        </div>
+
+
+                        <!-- DATABASE SAMPLE TYPES -->
+
+                        <div class="mb-4">
+
+                            <label asp-for="RequiredSampleType"
+                                   class="form-label fw-semibold">
+
+                                Required Sample Type
+
+                            </label>
+
+                            <select asp-for="RequiredSampleType"
+                                    asp-items="ViewBag.SampleTypes"
+                                    class="form-select">
+
+                                <option value="">
+                                    -- Select Sample Type --
+                                </option>
+
+                            </select>
+
+                            <span asp-validation-for="RequiredSampleType"
+                                  class="text-danger">
+                            </span>
+
+                        </div>
+
+
+                        <!-- HARD-CODED UNITS -->
+
+                        <div class="mb-4">
+
+                            <label asp-for="UnitOfMeasurement"
+                                   class="form-label fw-semibold">
+
+                                Unit of Measurement
+
+                            </label>
+
+                            <select asp-for="UnitOfMeasurement"
+                                    class="form-select">
+
+                                <option value="">
+                                    -- Select Unit --
+                                </option>
+
+                                <option value="µL">µL</option>
+                                <option value="mcL">mcL</option>
+                                <option value="g/dL">g/dL</option>
+                                <option value="g/L">g/L</option>
+                                <option value="g/mL">g/mL</option>
+                                <option value="k/µL">k/µL</option>
+                                <option value="x10³/µL">x10³/µL</option>
+                                <option value="mmol/L">mmol/L</option>
+                                <option value="mg/dL">mg/dL</option>
+                                <option value="%">%</option>
+
+                            </select>
+
+                        </div>
+
+
+                        <div class="mb-4">
+
+                            <label class="form-label fw-semibold">
+                                Normal / Reference Range
+                            </label>
+
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+
+                                    <label asp-for="ReferenceRangeLow"
+                                           class="form-label">
+                                        Minimum
+                                    </label>
+
+                                    <input asp-for="ReferenceRangeLow"
+                                           class="form-control"
+                                           type="number"
+                                           step="0.01" />
+
+                                </div>
+
+                                <div class="col-md-6">
+
+                                    <label asp-for="ReferenceRangeHigh"
+                                           class="form-label">
+                                        Maximum
+                                    </label>
+
+                                    <input asp-for="ReferenceRangeHigh"
+                                           class="form-control"
+                                           type="number"
+                                           step="0.01" />
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div>
+
+                            <label asp-for="TurnaroundTimeHours"
+                                   class="form-label fw-semibold">
+
+                                Turnaround Time
+
+                            </label>
+
+                            <div class="input-group">
+
+                                <input asp-for="TurnaroundTimeHours"
+                                       class="form-control"
+                                       type="number"
+                                       min="1" />
+
+                                <span class="input-group-text">
+                                    Hours
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- CONSUMABLES -->
+
+            <div class="col-lg-4">
+
+                <div class="card">
+
+                    <div class="card-header py-3">
+
+                        <h5 class="fw-bold mb-1">
+
+                            <i class="fa-solid fa-boxes-stacked section-icon me-2"></i>
+
+                            Consumables
+
+                        </h5>
+
+                        <small class="text-muted">
+                            Update the consumables used per test.
+                        </small>
+
+                    </div>
+
+
+                    <div class="card-body p-4">
+
+                        @if (consumables != null && consumables.Any())
+                        {
+                            foreach (var consumable in consumables)
+                            {
+                                bool selected =
+                                    existingConsumables.ContainsKey(
+                                        consumable.ConsumableID);
+
+                                int quantity =
+                                    selected
+                                        ? existingConsumables[
+                                            consumable.ConsumableID]
+                                        : 1;
+
+
+                                <div class="consumable-item">
+
+                                    <div class="form-check">
+
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="SelectedConsumableIds"
+                                               value="@consumable.ConsumableID"
+                                               id="edit_consumable_@consumable.ConsumableID"
+                                        @(selected ? "checked" : "") />
+
+                                        <label class="form-check-label fw-semibold"
+                                               for="edit_consumable_@consumable.ConsumableID">
+
+                                            @consumable.Name
+
+                                        </label>
+
+                                    </div>
+
+
+                                    <div class="mt-2">
+
+                                        <label class="form-label small text-muted">
+                                            Quantity per test
+                                        </label>
+
+                                        <input type="number"
+                                               name="ConsumableQuantities"
+                                               value="@quantity"
+                                               min="1"
+                                               class="form-control" />
+
+                                    </div>
+
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning">
+
+                                No consumables available.
+
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+
+
+                <div class="d-grid gap-2 mt-4">
+
+                    <button type="submit"
+                            class="btn btn-teal">
+
+                        <i class="fa-solid fa-save me-2"></i>
+
+                        Save Changes
+
+                    </button>
+
+                    <a asp-action="Index"
+                       class="btn btn-light">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+@section Scripts {
+
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+}

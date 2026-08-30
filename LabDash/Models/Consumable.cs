@@ -15,6 +15,7 @@
         public int ReorderLevel { get; set; }
 
         public int StockLevel { get; set; }
+        public string? SupplierName { get; set; }
 
         public DateTime CreatedAt { get; set; }
 

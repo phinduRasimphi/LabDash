@@ -9,13 +9,14 @@ namespace LabDash.Models
 
         public int TestTypeId { get; set; }
 
-        public TestType TestType { get; set; }
+        public virtual TestType? TestType { get; set; }
 
         public int ConsumableId { get; set; }
 
-        public Consumable Consumable { get; set; }
+        public virtual Consumable? Consumable { get; set; }
 
-        // Quantity used for ONE test
+        [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be greater than zero.")]
         public int QuantityRequired { get; set; }
     }
 }

@@ -5,8 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LabDash.Controllers
 {
-    // Restrict to Laboratory Manager role only
-    // [Authorize(Roles = "LaboratoryManager")]
     public class TestCategoriesController : Controller
     {
         private readonly LabDbContext _context;
@@ -17,21 +15,10 @@ namespace LabDash.Controllers
         }
 
         // GET: TestCategories
-        public async Task<IActionResult> Index(string searchTerm)
+        public async Task<IActionResult> Index()
         {
-            var query = _context.TestCategories
+            var categories = await _context.TestCategories
                 .Include(c => c.TestTypes)
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                query = query.Where(c => c.CategoryName.Contains(searchTerm)
-                                       || c.Description.Contains(searchTerm));
-            }
-
-            ViewData["SearchTerm"] = searchTerm;
-
-            var categories = await query
                 .OrderBy(c => c.CategoryName)
                 .ToListAsync();
 
@@ -41,13 +28,15 @@ namespace LabDash.Controllers
         // GET: TestCategories/Details/5
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null) return NotFound();
+            if (id == null)
+                return NotFound();
 
             var category = await _context.TestCategories
                 .Include(c => c.TestTypes)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.TestCategoryId == id);
 
-            if (category == null) return NotFound();
+            if (category == null)
+                return NotFound();
 
             return View(category);
         }
@@ -61,28 +50,39 @@ namespace LabDash.Controllers
         // POST: TestCategories/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("CategoryName,Description")] TestCategory category)
+        public async Task<IActionResult> Create(TestCategory testCategory)
         {
-            await ValidateUniqueName(category);
-
-            if (ModelState.IsValid)
+            if (await _context.TestCategories
+                .AnyAsync(x => x.CategoryName == testCategory.CategoryName))
             {
-                _context.Add(category);
-                await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = $"Test category '{category.CategoryName}' created successfully.";
-                return RedirectToAction(nameof(Index));
+                ModelState.AddModelError(
+                    "CategoryName",
+                    "A test category with this name already exists.");
             }
 
-            return View(category);
+            if (!ModelState.IsValid)
+                return View(testCategory);
+
+            _context.TestCategories.Add(testCategory);
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Test category created successfully.";
+
+            return RedirectToAction(nameof(Index));
         }
 
         // GET: TestCategories/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null) return NotFound();
+            if (id == null)
+                return NotFound();
 
-            var category = await _context.TestCategories.FindAsync(id);
-            if (category == null) return NotFound();
+            var category = await _context.TestCategories
+                .FindAsync(id);
+
+            if (category == null)
+                return NotFound();
 
             return View(category);
         }
@@ -90,42 +90,57 @@ namespace LabDash.Controllers
         // POST: TestCategories/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,CategoryName,Description")] TestCategory category)
+        public async Task<IActionResult> Edit(
+            int id,
+            TestCategory testCategory)
         {
-            if (id != category.Id) return NotFound();
+            if (id != testCategory.TestCategoryId)
+                return NotFound();
 
-            await ValidateUniqueName(category);
-
-            if (ModelState.IsValid)
+            if (await _context.TestCategories.AnyAsync(x =>
+                x.CategoryName == testCategory.CategoryName &&
+                x.TestCategoryId != testCategory.TestCategoryId))
             {
-                try
-                {
-                    _context.Update(category);
-                    await _context.SaveChangesAsync();
-                    TempData["SuccessMessage"] = $"Test category '{category.CategoryName}' updated successfully.";
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!await CategoryExists(category.Id))
-                        return NotFound();
-                    throw;
-                }
-                return RedirectToAction(nameof(Index));
+                ModelState.AddModelError(
+                    "CategoryName",
+                    "A test category with this name already exists.");
             }
 
-            return View(category);
+            if (!ModelState.IsValid)
+                return View(testCategory);
+
+            try
+            {
+                _context.Update(testCategory);
+
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] =
+                    "Test category updated successfully.";
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!TestCategoryExists(testCategory.TestCategoryId))
+                    return NotFound();
+
+                throw;
+            }
+
+            return RedirectToAction(nameof(Index));
         }
 
         // GET: TestCategories/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
-            if (id == null) return NotFound();
+            if (id == null)
+                return NotFound();
 
             var category = await _context.TestCategories
                 .Include(c => c.TestTypes)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.TestCategoryId == id);
 
-            if (category == null) return NotFound();
+            if (category == null)
+                return NotFound();
 
             return View(category);
         }
@@ -137,45 +152,34 @@ namespace LabDash.Controllers
         {
             var category = await _context.TestCategories
                 .Include(c => c.TestTypes)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .FirstOrDefaultAsync(c => c.TestCategoryId == id);
 
-            if (category == null) return NotFound();
+            if (category == null)
+                return NotFound();
 
-            // Prevent deletion if test types still reference this category
+            // Prevent deleting a category that has test types
             if (category.TestTypes.Any())
             {
-                TempData["ErrorMessage"] = $"Cannot delete '{category.CategoryName}' because " +
-                    $"{category.TestTypes.Count} test type(s) are still assigned to it. " +
-                    "Reassign or remove those test types first.";
+                TempData["Error"] =
+                    "This category cannot be deleted because test types are assigned to it.";
+
                 return RedirectToAction(nameof(Index));
             }
 
             _context.TestCategories.Remove(category);
+
             await _context.SaveChangesAsync();
-            TempData["SuccessMessage"] = $"Test category '{category.CategoryName}' deleted.";
+
+            TempData["Success"] =
+                "Test category deleted successfully.";
 
             return RedirectToAction(nameof(Index));
         }
 
-        private async Task<bool> CategoryExists(int id)
+        private bool TestCategoryExists(int id)
         {
-            return await _context.TestCategories.AnyAsync(e => e.Id == id);
-        }
-
-        // Case-insensitive uniqueness check, excluding the current record when editing
-        private async Task ValidateUniqueName(TestCategory category)
-        {
-            if (string.IsNullOrWhiteSpace(category.CategoryName)) return;
-
-            var nameExists = await _context.TestCategories
-                .AnyAsync(c => c.Id != category.Id
-                            && c.CategoryName.ToLower() == category.CategoryName.Trim().ToLower());
-
-            if (nameExists)
-            {
-                ModelState.AddModelError(nameof(TestCategory.CategoryName),
-                    "A test category with this name already exists.");
-            }
+            return _context.TestCategories
+                .Any(e => e.TestCategoryId == id);
         }
     }
 }

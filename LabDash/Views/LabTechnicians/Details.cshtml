@@ -1,0 +1,242 @@
+﻿@model LabDash.Areas.Identity.Data.LabUser
+
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "Technician Details";
+
+    var assignments = ViewBag.Assignments
+        as List<LabDash.Models.TechnicianTestType>
+        ?? new List<LabDash.Models.TechnicianTestType>();
+}
+
+<style>
+    .details-page {
+        padding: 30px;
+        background: #f4fafa;
+        min-height: 100vh;
+    }
+
+    .details-card {
+        max-width: 900px;
+        margin: auto;
+        background: white;
+        border-radius: 14px;
+        padding: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    }
+
+    .details-title {
+        color: #134e4a;
+        font-weight: 700;
+        margin-bottom: 25px;
+    }
+
+    .detail-row {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        padding: 13px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .detail-label {
+        font-weight: 700;
+        color: #64748b;
+    }
+
+    .detail-value {
+        color: #334155;
+    }
+
+    .test-list {
+        margin-top: 25px;
+    }
+
+    .test-item {
+        display: inline-block;
+        background: #ccfbf1;
+        color: #115e59;
+        padding: 8px 12px;
+        border-radius: 20px;
+        margin: 5px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        margin-top: 25px;
+        margin-right: 8px;
+    }
+
+    .btn-edit {
+        background: #0f766e;
+        color: white;
+    }
+
+    .btn-back {
+        background: #e2e8f0;
+        color: #334155;
+    }
+</style>
+
+<div class="details-page">
+
+    <div class="details-card">
+
+        <h1 class="details-title">
+            <i class="bi bi-person-vcard"></i>
+            Technician Details
+        </h1>
+
+
+        <div class="detail-row">
+            <div class="detail-label">
+                First Name
+            </div>
+
+            <div class="detail-value">
+                @Model.FirstName
+            </div>
+        </div>
+
+
+        <div class="detail-row">
+            <div class="detail-label">
+                Surname
+            </div>
+
+            <div class="detail-value">
+                @Model.LastName
+            </div>
+        </div>
+
+
+        <div class="detail-row">
+            <div class="detail-label">
+                South African ID
+            </div>
+
+            <div class="detail-value">
+                @Model.SouthAfricanID
+            </div>
+        </div>
+
+
+        <div class="detail-row">
+            <div class="detail-label">
+                Employee Number
+            </div>
+
+            <div class="detail-value">
+                @Model.EmployeeNumber
+            </div>
+        </div>
+
+
+        <div class="detail-row">
+            <div class="detail-label">
+                Email Address
+            </div>
+
+            <div class="detail-value">
+                @Model.Email
+            </div>
+        </div>
+
+
+        <div class="detail-row">
+            <div class="detail-label">
+                Contact Number
+            </div>
+
+            <div class="detail-value">
+                @Model.PhoneNumb
+            </div>
+        </div>
+
+
+        <div class="detail-row">
+            <div class="detail-label">
+                Password Status
+            </div>
+
+            <div class="detail-value">
+
+                @if (Model.MustChangePassword)
+                {
+                    <span style="color:#b45309;font-weight:700;">
+                        Must change password
+                    </span>
+                }
+                else
+                {
+                    <span style="color:#15803d;font-weight:700;">
+                        Password changed
+                    </span>
+                }
+
+            </div>
+        </div>
+
+
+        <div class="test-list">
+
+            <h4 style="color:#134e4a;">
+                <i class="bi bi-clipboard2-pulse"></i>
+                Assigned Test Types
+            </h4>
+
+            @if (assignments.Any())
+            {
+                @foreach (var assignment in assignments)
+                {
+                    <span class="test-item">
+                        @assignment.TestType.Name
+                    </span>
+                }
+            }
+            else
+            {
+                <p style="color:#dc2626;">
+                    No test types assigned.
+                </p>
+            }
+
+        </div>
+
+
+        <a asp-action="Edit"
+           asp-route-id="@Model.Id"
+           class="btn btn-edit">
+
+            <i class="bi bi-pencil"></i>
+            Edit Technician
+
+        </a>
+
+
+        <a asp-action="AssignTestTypes"
+           asp-route-id="@Model.Id"
+           class="btn btn-edit">
+
+            <i class="bi bi-clipboard-check"></i>
+            Manage Test Types
+
+        </a>
+
+
+        <a asp-action="Index"
+           class="btn btn-back">
+
+            <i class="bi bi-arrow-left"></i>
+            Back
+
+        </a>
+
+    </div>
+
+</div>

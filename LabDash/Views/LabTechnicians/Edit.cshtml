@@ -1,0 +1,287 @@
+﻿@model LabDash.Areas.Identity.Data.LabUser
+
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "Edit Lab Technician";
+
+    var testTypes = ViewBag.TestTypes
+        as List<LabDash.Models.TestType>
+        ?? new List<LabDash.Models.TestType>();
+
+    var selectedTestTypes = ViewBag.SelectedTestTypes
+        as List<int>
+        ?? new List<int>();
+}
+
+<style>
+    .form-page {
+        padding: 30px;
+        background: #f4fafa;
+        min-height: 100vh;
+    }
+
+    .form-card {
+        max-width: 900px;
+        margin: auto;
+        background: white;
+        padding: 30px;
+        border-radius: 14px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    }
+
+    .form-title {
+        color: #134e4a;
+        font-weight: 700;
+        margin-bottom: 25px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .form-control {
+        border-radius: 8px;
+        padding: 10px;
+        border: 1px solid #cbd5e1;
+    }
+
+    .test-box {
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        padding: 15px;
+        max-height: 250px;
+        overflow-y: auto;
+    }
+
+    .test-option {
+        display: block;
+        padding: 9px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+        .test-option:hover {
+            background: #f0fdfa;
+        }
+
+    .btn-save {
+        background: #0f766e;
+        color: white;
+        border: none;
+        padding: 11px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+    .btn-cancel {
+        background: #e2e8f0;
+        color: #334155;
+        padding: 11px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .text-danger {
+        font-size: 12px;
+    }
+</style>
+
+<div class="form-page">
+
+    <div class="form-card">
+
+        <h1 class="form-title">
+            <i class="bi bi-pencil-square"></i>
+            Edit Lab Technician
+        </h1>
+
+
+        <form asp-action="Edit" method="post">
+
+            @Html.AntiForgeryToken()
+
+            <input type="hidden"
+                   asp-for="Id" />
+
+            <div asp-validation-summary="ModelOnly"
+                 class="text-danger mb-3">
+            </div>
+
+
+            <div class="row">
+
+                <div class="col-md-6 mb-3">
+
+                    <label asp-for="FirstName"
+                           class="form-label">
+                    </label>
+
+                    <input asp-for="FirstName"
+                           class="form-control" />
+
+                    <span asp-validation-for="FirstName"
+                          class="text-danger">
+                    </span>
+
+                </div>
+
+
+                <div class="col-md-6 mb-3">
+
+                    <label asp-for="LastName"
+                           class="form-label">
+                    </label>
+
+                    <input asp-for="LastName"
+                           class="form-control" />
+
+                    <span asp-validation-for="LastName"
+                          class="text-danger">
+                    </span>
+
+                </div>
+
+
+                <div class="col-md-6 mb-3">
+
+                    <label asp-for="SouthAfricanID"
+                           class="form-label">
+                    </label>
+
+                    <input asp-for="SouthAfricanID"
+                           class="form-control"
+                           maxlength="13" />
+
+                    <span asp-validation-for="SouthAfricanID"
+                          class="text-danger">
+                    </span>
+
+                </div>
+
+
+                <div class="col-md-6 mb-3">
+
+                    <label asp-for="EmployeeNumber"
+                           class="form-label">
+                    </label>
+
+                    <input asp-for="EmployeeNumber"
+                           class="form-control" />
+
+                    <span asp-validation-for="EmployeeNumber"
+                          class="text-danger">
+                    </span>
+
+                </div>
+
+
+                <div class="col-md-6 mb-3">
+
+                    <label asp-for="Email"
+                           class="form-label">
+                        Email Address
+                    </label>
+
+                    <input asp-for="Email"
+                           type="email"
+                           class="form-control" />
+
+                    <span asp-validation-for="Email"
+                          class="text-danger">
+                    </span>
+
+                </div>
+
+
+                <div class="col-md-6 mb-3">
+
+                    <label asp-for="PhoneNumb"
+                           class="form-label">
+                        Contact Number
+                    </label>
+
+                    <input asp-for="PhoneNumb"
+                           class="form-control" />
+
+                    <span asp-validation-for="PhoneNumb"
+                          class="text-danger">
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <hr />
+
+            <h5 style="color:#134e4a;">
+                <i class="bi bi-clipboard2-pulse"></i>
+                Test Types
+            </h5>
+
+            <p class="text-muted">
+                Select at least one test type.
+            </p>
+
+
+            <div class="test-box">
+
+                @foreach (var test in testTypes)
+                {
+                    <label class="test-option">
+
+                        <input type="checkbox"
+                               name="selectedTestTypes"
+                               value="@test.Id"
+                        @(selectedTestTypes.Contains(test.Id)
+                            ? "checked"
+                            : "") />
+
+                        @test.Name
+
+                    </label>
+                }
+
+            </div>
+
+
+            @if (ViewData.ModelState.ContainsKey("selectedTestTypes"))
+            {
+                <div class="text-danger mt-2">
+                    @foreach (var error in ViewData.ModelState["selectedTestTypes"]!.Errors)
+                    {
+                        <div>@error.ErrorMessage</div>
+                    }
+                </div>
+            }
+
+
+            <div style="margin-top:25px;">
+
+                <button type="submit"
+                        class="btn-save">
+
+                    <i class="bi bi-save"></i>
+                    Save Changes
+
+                </button>
+
+                <a asp-action="Index"
+                   class="btn-cancel">
+
+                    Cancel
+
+                </a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -39,6 +39,19 @@ public class LabUser : IdentityUser
     [RegularExpression(@"^1?[0-9]{10}$", ErrorMessage = "Not a valid Phone number")]
     public string PhoneNumb { get; set; }
 
+    [Required]
+    [StringLength(13, MinimumLength = 13)]
+    [Display(Name = "South African ID Number")]
+    public string? SouthAfricanID { get; set; }
+
+    [Required]
+    [StringLength(50)]
+    [Display(Name = "Employee Number")]
+    public string? EmployeeNumber { get; set; }
+
+    [StringLength(50)]
+    [Display(Name = "HPCSA Number")]
+    public string? HPCSANumber { get; set; }
 
 
     [Required]

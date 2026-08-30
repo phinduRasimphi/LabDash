@@ -4,6 +4,7 @@ using LabDash.Areas.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    partial class LabDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260827115530_SampleTypeLookup")]
+    partial class SampleTypeLookup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -679,12 +682,6 @@ namespace LabDash.Migrations
                     b.Property<int>("PatientId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("ReleaseDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ReleaseNote")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("RequestDate")
                         .HasColumnType("datetime2");
 
@@ -721,6 +718,7 @@ namespace LabDash.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TestRequestItemId"));
 
                     b.Property<string>("AssignedTechnicianId")
+                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime?>("CompletionDateTime")
@@ -1200,7 +1198,9 @@ namespace LabDash.Migrations
                 {
                     b.HasOne("LabDash.Areas.Identity.Data.LabUser", "AssignedTechnician")
                         .WithMany()
-                        .HasForeignKey("AssignedTechnicianId");
+                        .HasForeignKey("AssignedTechnicianId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("LabDash.Models.TestRequest", "TestRequest")
                         .WithMany("TestRequestItems")

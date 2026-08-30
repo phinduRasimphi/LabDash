@@ -2,10 +2,10 @@
 
 namespace LabDash.Models
 {
-    public class SampleTypeLookup
+    public class SampleType
     {
         [Key]
-        public int SampleTypeLookupId { get; set; }
+        public int SampleTypeId { get; set; }
 
         [Required(ErrorMessage = "Sample type name is required.")]
         [StringLength(100)]
@@ -15,7 +15,6 @@ namespace LabDash.Models
         [StringLength(300)]
         public string? Description { get; set; }
 
-        [Display(Name = "Active")]
         public bool IsActive { get; set; } = true;
     }
 }

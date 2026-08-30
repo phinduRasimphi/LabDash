@@ -1,0 +1,310 @@
+﻿@model LabDash.Models.TestType
+
+@{
+    ViewData["Title"] = "Test Type Details";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<style>
+
+    .test-page {
+        padding: 30px;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #134e4a;
+    }
+
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 3px 12px rgba(0,0,0,.06);
+    }
+
+    .detail-label {
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+
+    .detail-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .badge-teal {
+        background: #ccfbf1;
+        color: #115e59;
+        padding: 7px 12px;
+        border-radius: 20px;
+    }
+
+    .btn-teal {
+        background: #0f766e;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+    }
+
+        .btn-teal:hover {
+            background: #115e59;
+            color: white;
+        }
+
+</style>
+
+
+<div class="test-page">
+
+    <div class="mb-4">
+
+        <a asp-action="Index"
+           class="text-decoration-none"
+           style="color:#0f766e;">
+
+            <i class="fa-solid fa-arrow-left me-2"></i>
+
+            Back to Test Types
+
+        </a>
+
+        <h1 class="page-title mt-3">
+            Test Type Details
+        </h1>
+
+    </div>
+
+
+    <div class="row g-4">
+
+        <div class="col-lg-8">
+
+            <div class="card">
+
+                <div class="card-header bg-white py-3">
+
+                    <h5 class="fw-bold mb-0">
+
+                        <i class="fa-solid fa-flask me-2"
+                           style="color:#0f766e;"></i>
+
+                        Test Information
+
+                    </h5>
+
+                </div>
+
+
+                <div class="card-body p-4">
+
+                    <div class="row g-4">
+
+                        <div class="col-md-6">
+
+                            <div class="detail-label">
+                                Test Name
+                            </div>
+
+                            <div class="detail-value">
+                                @Model.Name
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <div class="detail-label">
+                                Category
+                            </div>
+
+                            <div class="detail-value">
+
+                                @if (Model.TestCategory != null)
+                                {
+                                    <span class="badge-teal">
+                                        @Model.TestCategory.CategoryName
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">
+                                        Not assigned
+                                    </span>
+                                }
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <div class="detail-label">
+                                Required Sample Type
+                            </div>
+
+                            <div class="detail-value">
+                                @Model.RequiredSampleType
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <div class="detail-label">
+                                Unit of Measurement
+                            </div>
+
+                            <div class="detail-value">
+                                @Model.UnitOfMeasurement
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <div class="detail-label">
+                                Minimum Reference Range
+                            </div>
+
+                            <div class="detail-value">
+
+                                @(Model.ReferenceRangeLow?.ToString()
+                                  ?? "Not specified")
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <div class="detail-label">
+                                Maximum Reference Range
+                            </div>
+
+                            <div class="detail-value">
+
+                                @(Model.ReferenceRangeHigh?.ToString()
+                                  ?? "Not specified")
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-6">
+
+                            <div class="detail-label">
+                                Turnaround Time
+                            </div>
+
+                            <div class="detail-value">
+
+                                @Model.TurnaroundTimeHours Hours
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- CONSUMABLES -->
+
+        <div class="col-lg-4">
+
+            <div class="card">
+
+                <div class="card-header bg-white py-3">
+
+                    <h5 class="fw-bold mb-0">
+
+                        <i class="fa-solid fa-boxes-stacked me-2"
+                           style="color:#0f766e;"></i>
+
+                        Consumables
+
+                    </h5>
+
+                </div>
+
+
+                <div class="card-body">
+
+                    @if (Model.TestTypeConsumables != null &&
+                         Model.TestTypeConsumables.Any())
+                    {
+                        foreach (var item in Model.TestTypeConsumables)
+                        {
+                            <div class="border rounded p-3 mb-3">
+
+                                <strong>
+                                    @item.Consumable?.Name
+                                </strong>
+
+                                <div class="text-muted small mt-1">
+
+                                    Quantity per test:
+                                    <strong>
+                                        @item.QuantityRequired
+                                    </strong>
+
+                                </div>
+
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted">
+                            No consumables assigned.
+                        </p>
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div class="mt-4">
+
+        <a asp-action="Edit"
+           asp-route-id="@Model.Id"
+           class="btn btn-teal">
+
+            <i class="fa-solid fa-pen me-2"></i>
+
+            Edit Test Type
+
+        </a>
+
+        <a asp-action="Index"
+           class="btn btn-light ms-2">
+
+            Back
+
+        </a>
+
+    </div>
+
+</div>
