@@ -44,8 +44,11 @@ namespace LabDash.Models
 
       
         public string? CancellationReason { get; set; }
+        // Add to TestRequest.cs, alongside the other properties
+        public string? ReleaseNote { get; set; }
+        public DateTime? ReleaseDate { get; set; }
 
-       
+
         public virtual ICollection<Sample> Samples { get; set; }
             = new List<Sample>();
 

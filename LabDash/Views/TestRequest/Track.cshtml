@@ -1,0 +1,174 @@
+﻿@model LabDash.ViewModels.TrackRequestsViewModel
+@{
+    ViewData["Title"] = "Track Requests";
+    ViewData["ActivePage"] = "TrackRequests";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<style>
+    .tk-folder-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 14px;
+    }
+
+    .tk-folder-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid rgba(13,107,99,0.1);
+        padding: 18px;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+        .tk-folder-card:hover {
+            box-shadow: 0 4px 10px rgba(13,107,99,0.12);
+            transform: translateY(-2px);
+        }
+
+    .tk-folder-icon {
+        font-size: 32px;
+        color: #0d6b63;
+        margin-bottom: 10px;
+    }
+
+    .tk-folder-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1a2f4e;
+    }
+
+    .tk-folder-count {
+        font-size: 11px;
+        color: #7a8da8;
+        margin-top: 4px;
+    }
+
+    .tk-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(20,30,50,0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .tk-modal.show {
+            display: flex;
+        }
+
+    .tk-modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 380px;
+        padding: 22px;
+        text-align: center;
+    }
+
+        .tk-modal-content i {
+            font-size: 28px;
+            color: #0d6b63;
+            margin-bottom: 8px;
+        }
+
+        .tk-modal-content h3 {
+            font-size: 15px;
+            color: #1a2f4e;
+            margin-bottom: 14px;
+        }
+
+        .tk-modal-content input {
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 7px;
+            padding: 9px 11px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+
+    .tk-modal-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .tk-btn-close {
+        flex: 1;
+        background: #f0f2f5;
+        color: #4a5c7c;
+        border: none;
+        border-radius: 7px;
+        padding: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .tk-btn-unlock {
+        flex: 1;
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        border: none;
+        border-radius: 7px;
+        padding: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+</style>
+
+<h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:4px;">Track Requests</h1>
+<p style="font-size:12px;color:#7a8da8;margin-bottom:20px;">Select a patient folder and enter their ID number to view test requests</p>
+
+@if (!Model.PatientFolders.Any())
+{
+    <div class="empty-state">
+        <i class="fas fa-folder-open"></i>No test requests submitted yet.
+    </div>
+}
+else
+{
+    <div class="tk-folder-grid">
+        @foreach (var f in Model.PatientFolders)
+        {
+            <div class="tk-folder-card" onclick="openUnlockModal(@f.PatientId, '@f.PatientName')">
+                <div class="tk-folder-icon"><i class="fas fa-folder-closed"></i></div>
+                <div class="tk-folder-name">@f.PatientName</div>
+                <div class="tk-folder-count">@f.RequestCount request(s)</div>
+            </div>
+        }
+    </div>
+}
+
+<div id="unlockModal" class="tk-modal">
+    <div class="tk-modal-content">
+        <i class="fas fa-lock"></i>
+        <h3 id="unlockPatientName">Enter ID number to unlock</h3>
+        <form asp-action="UnlockFolder" method="post">
+            <input type="hidden" name="patientId" id="unlockPatientId" />
+            <input type="text" name="idNumber" placeholder="13-digit SA ID number" maxlength="13" required autofocus />
+            <div class="tk-modal-actions">
+                <button type="button" class="tk-btn-close" onclick="closeUnlockModal()">Cancel</button>
+                <button type="submit" class="tk-btn-unlock">Unlock</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openUnlockModal(patientId, patientName) {
+            document.getElementById('unlockPatientId').value = patientId;
+            document.getElementById('unlockPatientName').textContent = 'Enter ID number for ' + patientName;
+            document.getElementById('unlockModal').classList.add('show');
+        }
+        function closeUnlockModal() {
+            document.getElementById('unlockModal').classList.remove('show');
+        }
+    </script>
+}

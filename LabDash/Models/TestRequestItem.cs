@@ -18,9 +18,8 @@ namespace LabDash.Models
 
         public string Status { get; set; } = "Submitted";
 
-        public string AssignedTechnicianId { get; set; }
-        public virtual LabUser AssignedTechnician { get; set; }
-
+        public string? AssignedTechnicianId { get; set; }
+        public virtual LabUser? AssignedTechnician { get; set; }
         public DateTime? StartDateTime { get; set; }
         public DateTime? CompletionDateTime { get; set; }
     }
