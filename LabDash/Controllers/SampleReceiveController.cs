@@ -1,5 +1,6 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -7,176 +8,417 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LabDash.Controllers
 {
+    [Authorize(Roles = "Lab_Technician")]
     public class SampleReceiveController : Controller
     {
         private readonly LabDbContext _context;
+        private readonly UserManager<LabUser> _userManager;
 
-        public SampleReceiveController(LabDbContext context)
+        public SampleReceiveController(
+            LabDbContext context,
+            UserManager<LabUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
+        // =========================================================
         // GET: /SampleReceive/Receive
+        // =========================================================
+
         [HttpGet]
-        public IActionResult Receive()
+        public async Task<IActionResult> Receive()
         {
-            PopulateRequestList();
-            return View();
+            await PopulateRequestList();
+
+            return View(new SampleReceive());
         }
 
+        // =========================================================
         // POST: /SampleReceive/Receive
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Receive(SampleReceive sample)
         {
-            // SampleType is now server-derived, not client-supplied — don't require
-            // ModelState validity on it here; strip any client-side error for it
-            // before checking ModelState so a blank hidden field doesn't block submission.
-            ModelState.Remove(nameof(SampleReceive.SampleType));
+            // -----------------------------------------------------
+            // GET LOGGED-IN TECHNICIAN
+            // -----------------------------------------------------
 
-            if (!ModelState.IsValid)
+            var technician = await _userManager.GetUserAsync(User);
+
+            if (technician == null)
             {
-                PopulateRequestList();
-                return View(sample);
+                TempData["Error"] = "Unable to identify the logged-in technician.";
+                return RedirectToAction(nameof(Receive));
             }
+
+            // -----------------------------------------------------
+            // VALIDATE REQUEST NUMBER
+            // -----------------------------------------------------
+
+            if (sample.RequestId <= 0)
+            {
+                TempData["Error"] = "Please select a test request.";
+                return RedirectToAction(nameof(Receive));
+            }
+
+            // -----------------------------------------------------
+            // VALIDATE BARCODE
+            // -----------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(sample.SampleBarcode))
+            {
+                TempData["Error"] = "Please enter the sample barcode.";
+                return RedirectToAction(nameof(Receive));
+            }
+
+            sample.SampleBarcode = sample.SampleBarcode.Trim();
+
+            // -----------------------------------------------------
+            // FIND TEST REQUEST
+            // -----------------------------------------------------
 
             var request = await _context.TestRequests
                 .Include(r => r.Samples)
                 .Include(r => r.SampleReceives)
+                .Include(r => r.TestRequestItems)
                 .FirstOrDefaultAsync(r => r.RequestId == sample.RequestId);
 
             if (request == null)
             {
-                ModelState.AddModelError("", "The selected test request could not be found.");
-                PopulateRequestList();
-                return View(sample);
+                TempData["Error"] =
+                    $"Test request #{sample.RequestId} could not be found.";
+
+                return RedirectToAction(nameof(Receive));
             }
 
-            // Allow "Pending" (first sample) or "Partially Received" (subsequent samples)
-            if (request.Status != "Pending" && request.Status != "Partially Received")
+            // -----------------------------------------------------
+            // CHECK REQUEST STATUS
+            // -----------------------------------------------------
+
+            if (request.Status != "Pending" &&
+                request.Status != "Partially Received")
             {
-                ModelState.AddModelError("", "This request is not open to receive samples.");
-                PopulateRequestList();
-                return View(sample);
+                TempData["Error"] =
+                    $"Request #{request.RequestId} cannot receive samples because its current status is '{request.Status}'.";
+
+                return RedirectToAction(nameof(Receive));
             }
 
-            // Confirm the barcode matches a sample actually expected on this request
-            // ASSUMPTION: Sample entity exposes "BarcodeNumber". Adjust if named differently.
-            var expectedSample = request.Samples
-                .FirstOrDefault(s => s.Barcode == sample.SampleBarcode);
+            // -----------------------------------------------------
+            // FIND SAMPLE USING BARCODE
+            // -----------------------------------------------------
+
+            var expectedSample = await _context.Samples
+                .FirstOrDefaultAsync(s =>
+                    s.TestRequestId == sample.RequestId &&
+                    s.Barcode == sample.SampleBarcode);
 
             if (expectedSample == null)
             {
-                ModelState.AddModelError("", "This barcode does not match any sample expected for the selected request.");
-                PopulateRequestList();
-                return View(sample);
+                TempData["Error"] =
+                    $"Barcode '{sample.SampleBarcode}' does not belong to request #{sample.RequestId}.";
+
+                return RedirectToAction(nameof(Receive));
             }
 
-            // Prevent duplicate barcode submissions across the whole system
-            bool barcodeAlreadyReceived = await _context.SampleReceives
-                .AnyAsync(s => s.SampleBarcode == sample.SampleBarcode);
+            // -----------------------------------------------------
+            // CHECK WHETHER THIS SAMPLE WAS ALREADY RECEIVED
+            // -----------------------------------------------------
 
-            if (barcodeAlreadyReceived)
+            if (expectedSample.IsReceived)
             {
-                ModelState.AddModelError("", "This barcode has already been recorded as received.");
-                PopulateRequestList();
-                return View(sample);
+                TempData["Error"] =
+                    $"Sample barcode '{sample.SampleBarcode}' has already been received.";
+
+                return RedirectToAction(nameof(Receive));
             }
 
-            var now = DateTime.UtcNow;
+            // -----------------------------------------------------
+            // ALSO CHECK SAMPLE RECEIVES TABLE
+            // -----------------------------------------------------
 
-            // Sample type comes from the matched expected sample — never trust the
-            // client-posted value, since the form field is display-only.
-            sample.SampleType = expectedSample.SampleType;
-            sample.DateTimeReceived = now;
-            sample.Status = "Samples Received";
-            sample.TechnicianName = User.Identity?.Name ?? "Unknown";
+            var alreadyReceived = await _context.SampleReceives
+                .AnyAsync(s =>
+                    s.SampleBarcode == sample.SampleBarcode);
 
-            request.SampleReceives.Add(sample);
-
-            // Determine whether ALL expected samples for this request are now received
-            int expectedCount = request.Samples.Count;
-            int receivedCount = request.SampleReceives.Count; // includes the one just added
-
-            request.Status = receivedCount >= expectedCount
-                ? "Samples Received"
-                : "Partially Received";
-
-            if (request.Status == "Samples Received")
+            if (alreadyReceived)
             {
+                TempData["Error"] =
+                    $"Sample barcode '{sample.SampleBarcode}' has already been recorded.";
+
+                return RedirectToAction(nameof(Receive));
+            }
+
+            // -----------------------------------------------------
+            // CURRENT DATE/TIME
+            // -----------------------------------------------------
+
+            var now = DateTime.Now;
+
+            // -----------------------------------------------------
+            // TECHNICIAN NAME
+            //
+            // Your database requires TechnicianName.
+            //
+            // We use the logged-in user's name.
+            // -----------------------------------------------------
+
+            string technicianName;
+
+            if (!string.IsNullOrWhiteSpace(technician.UserName))
+            {
+                technicianName = technician.UserName;
+            }
+            else
+            {
+                technicianName = "Laboratory Technician";
+            }
+
+            // -----------------------------------------------------
+            // UPDATE THE ORIGINAL SAMPLE
+            //
+            // THIS IS VERY IMPORTANT.
+            //
+            // Your Samples table contains:
+            //
+            // IsReceived
+            // DateReceived
+            // ReceivedByTechnician
+            //
+            // These must be updated.
+            // -----------------------------------------------------
+
+            expectedSample.IsReceived = true;
+
+            expectedSample.DateReceived = now;
+
+            expectedSample.ReceivedByTechnician = technicianName;
+
+            // -----------------------------------------------------
+            // CREATE SAMPLE RECEIVE RECORD
+            // -----------------------------------------------------
+
+            var sampleReceive = new SampleReceive
+            {
+                RequestId = request.RequestId,
+
+                TechnicianName = technicianName,
+
+                SampleBarcode = expectedSample.Barcode,
+
+                SampleType = expectedSample.SampleType,
+
+                DateTimeReceived = now,
+
+                Status = "Samples Received",
+
+                Notes = sample.Notes
+            };
+
+            // -----------------------------------------------------
+            // ADD SAMPLE RECEIVE
+            // -----------------------------------------------------
+
+            _context.SampleReceives.Add(sampleReceive);
+
+            // -----------------------------------------------------
+            // CHECK WHETHER ALL SAMPLES FOR THIS REQUEST
+            // HAVE NOW BEEN RECEIVED
+            // -----------------------------------------------------
+
+            var allSamples = await _context.Samples
+                .Where(s => s.TestRequestId == request.RequestId)
+                .ToListAsync();
+
+            bool allReceived =
+                allSamples.Count > 0 &&
+                allSamples.All(s => s.IsReceived);
+
+            if (allReceived)
+            {
+                request.Status = "Samples Received";
+
                 request.DateTimeReceived = now;
             }
+            else
+            {
+                request.Status = "Partially Received";
+            }
+
+            // -----------------------------------------------------
+            // SAVE EVERYTHING
+            // -----------------------------------------------------
 
             try
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException)
+            catch (Exception ex)
             {
-                ModelState.AddModelError("", "This request was updated by another user. Please refresh and try again.");
-                PopulateRequestList();
-                return View(sample);
+                TempData["Error"] =
+                    "The sample could not be saved. Database error: " +
+                    ex.InnerException?.Message ??
+                    ex.Message;
+
+                return RedirectToAction(nameof(Receive));
             }
 
-            TempData["Success"] = "Sample received successfully.";
-            return RedirectToAction(nameof(Index));
+            // -----------------------------------------------------
+            // SUCCESS
+            // -----------------------------------------------------
+
+            TempData["Success"] =
+                $"Sample '{expectedSample.Barcode}' received successfully for request #{request.RequestId}.";
+
+            // -----------------------------------------------------
+            // GO DIRECTLY TO AVAILABLE TESTS
+            // -----------------------------------------------------
+
+            return RedirectToAction(
+                "Index",
+                "AvailableTests");
         }
 
-        // GET: /SampleReceive/GetSampleType?requestId=12&barcode=BC12345
-        // Used by the Receive view to auto-resolve sample type from the scanned barcode.
+        // =========================================================
+        // GET SAMPLE TYPE
+        // =========================================================
+
         [HttpGet]
-        public async Task<IActionResult> GetSampleType(int requestId, string barcode)
+        public async Task<IActionResult> GetSampleType(
+            int requestId,
+            string barcode)
         {
-            if (string.IsNullOrWhiteSpace(barcode))
+            if (requestId <= 0)
             {
-                return Json(new { found = false, message = "Enter a barcode." });
+                return Json(new
+                {
+                    found = false,
+                    message = "Select a test request."
+                });
             }
 
+            if (string.IsNullOrWhiteSpace(barcode))
+            {
+                return Json(new
+                {
+                    found = false,
+                    message = "Enter a barcode."
+                });
+            }
+
+            barcode = barcode.Trim();
+
             var sample = await _context.Samples
-                .FirstOrDefaultAsync(s => s.TestRequestId == requestId && s.Barcode == barcode);
+                .FirstOrDefaultAsync(s =>
+                    s.TestRequestId == requestId &&
+                    s.Barcode == barcode);
 
             if (sample == null)
             {
-                return Json(new { found = false, message = "No sample with this barcode is expected on the selected request." });
+                return Json(new
+                {
+                    found = false,
+                    message =
+                        "This barcode does not belong to the selected request."
+                });
             }
 
-            bool alreadyReceived = await _context.SampleReceives
-                .AnyAsync(s => s.SampleBarcode == barcode);
+            if (sample.IsReceived)
+            {
+                return Json(new
+                {
+                    found = false,
+                    message =
+                        "This sample has already been received."
+                });
+            }
+
+            var alreadyReceived =
+                await _context.SampleReceives
+                    .AnyAsync(s =>
+                        s.SampleBarcode == barcode);
 
             if (alreadyReceived)
             {
-                return Json(new { found = false, message = "This barcode has already been received." });
+                return Json(new
+                {
+                    found = false,
+                    message =
+                        "This barcode has already been received."
+                });
             }
 
-            return Json(new { found = true, sampleType = sample.SampleType });
+            return Json(new
+            {
+                found = true,
+                sampleType = sample.SampleType
+            });
         }
 
-        // GET: /SampleReceive/Index
+        // =========================================================
+        // INDEX
+        // =========================================================
+
         [HttpGet]
         public async Task<IActionResult> Index()
         {
             var samples = await _context.SampleReceives
+
                 .Include(s => s.TestRequest)
+
                 .OrderByDescending(s => s.DateTimeReceived)
+
                 .ToListAsync();
 
             return View(samples);
         }
 
-        private void PopulateRequestList()
+        // =========================================================
+        // REQUEST LIST
+        // =========================================================
+
+        private async Task PopulateRequestList()
         {
-            var openRequests = _context.TestRequests
-                .Where(r => r.Status == "Pending" || r.Status == "Partially Received")
+            var openRequests = await _context.TestRequests
+
+                .Where(r =>
+                    r.Status == "Pending" ||
+                    r.Status == "Partially Received")
+
                 .Include(r => r.Patient)
+
+                .OrderByDescending(r => r.RequestDate)
+
                 .Select(r => new
                 {
                     r.RequestId,
-                    // ASSUMPTION: Patient has a FullName property — adjust to match your model
-                    Display = "#" + r.RequestId + " — " + r.Patient.Name + " (" + r.RequestDate.ToString("dd MMM") + ")"
-                })
-                .ToList();
 
-            ViewBag.RequestList = new SelectList(openRequests, "RequestId", "Display");
+                    Display =
+                        "#" +
+                        r.RequestId +
+                        " — " +
+                        (
+                            r.Patient != null
+                                ? r.Patient.Name +
+                                  " " +
+                                  r.Patient.Surname
+                                : "Patient"
+                        ) +
+                        " (" +
+                        r.RequestDate.ToString("dd MMM yyyy") +
+                        ")"
+                })
+
+                .ToListAsync();
+
+            ViewBag.RequestList =
+                new SelectList(
+                    openRequests,
+                    "RequestId",
+                    "Display");
         }
     }
 }

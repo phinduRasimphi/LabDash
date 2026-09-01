@@ -140,7 +140,7 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Thabo";
         user.LastName = "Mokoena";
-        //user.HCRN = 0;
+        user.EmployeeNumber = null;
         user.PhoneNumb = "0732451097";
         user.Gender = "Male";
 
@@ -248,7 +248,7 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Lusanda";
         user.LastName = "Mkhize";
-        //user.HCRN = 0;
+        user.EmployeeNumber = null;
         user.PhoneNumb = "0639278012";
         user.Gender = "Female";
 
@@ -274,7 +274,7 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Phindulo";
         user.LastName = "Rasimphi";
-        //user.HCRN = 0;
+        user.EmployeeNumber = null;
         user.PhoneNumb = "0741234567";
         user.Gender = "Male";
 
@@ -300,7 +300,7 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Phindulo";
         user.LastName = "Rasimphi";
-        //user.HCRN = 0;
+        user.EmployeeNumber = null;
         user.PhoneNumb = "0741234567";
         user.Gender = "Male";
 

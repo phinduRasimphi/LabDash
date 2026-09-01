@@ -44,7 +44,6 @@ public class LabUser : IdentityUser
     [Display(Name = "South African ID Number")]
     public string? SouthAfricanID { get; set; }
 
-    [Required]
     [StringLength(50)]
     [Display(Name = "Employee Number")]
     public string? EmployeeNumber { get; set; }
