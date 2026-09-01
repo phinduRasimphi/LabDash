@@ -49,10 +49,10 @@ public class LabDbContext : IdentityDbContext<LabUser>
          .IsUnique()
          .HasFilter("[HPCSANumber] IS NOT NULL AND [HPCSANumber] <> ''");
 
-        builder.Entity<LabUser>()
-            .HasIndex(u => u.EmployeeNumber)
-            .IsUnique()
-            .HasFilter("[EmployeeNumber] IS NOT NULL AND [EmployeeNumber] <> ''");
+        //builder.Entity<LabUser>()
+        //    .HasIndex(u => u.EmployeeNumber)
+        //    .IsUnique()
+        //    .HasFilter("[EmployeeNumber] IS NOT NULL AND [EmployeeNumber] <> ''");
 
         builder.Entity<Patient>()
         .HasOne<LabUser>()

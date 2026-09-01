@@ -113,10 +113,6 @@ namespace LabDash.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EmployeeNumber")
-                        .IsUnique()
-                        .HasFilter("[EmployeeNumber] IS NOT NULL AND [EmployeeNumber] <> ''");
-
                     b.HasIndex("HPCSANumber")
                         .IsUnique()
                         .HasFilter("[HPCSANumber] IS NOT NULL AND [HPCSANumber] <> ''");

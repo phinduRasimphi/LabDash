@@ -13,10 +13,9 @@ namespace LabDash.Controllers
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
 
-```
-    public AvailableTestsController(
-        LabDbContext context,
-        UserManager<LabUser> userManager)
+        public AvailableTestsController(
+            LabDbContext context,
+            UserManager<LabUser> userManager)
         {
             _context = context;
             _userManager = userManager;
@@ -34,29 +33,27 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Challenge();
 
-            // ------------------------------------------------------
-            // IMPORTANT:
-            // For now, every laboratory technician can perform
-            // every test type.
-            //
-            // We therefore DO NOT check TechnicianTestTypes here.
-            // ------------------------------------------------------
+            /*
+             * A technician can currently perform ANY test type.
+             *
+             * A test becomes available when:
+             *
+             * TestRequest.Status = "Samples Received"
+             * AND
+             * TestRequestItem.Status = "Submitted"
+             *
+             * We do NOT check TechnicianTestTypes for now.
+             */
 
             var tests = await _context.TestRequestItems
-
                 .Include(x => x.TestType)
-
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
-
                 .Include(x => x.AssignedTechnician)
-
                 .Where(x =>
                     x.Status == "Submitted" &&
                     x.TestRequest.Status == "Samples Received")
-
                 .OrderByDescending(x => x.TestRequest.RequestDate)
-
                 .ToListAsync();
 
             return View(tests);
@@ -64,29 +61,27 @@ namespace LabDash.Controllers
 
 
         // ==========================================================
-        // GET PATIENT
+        // GET PATIENT / TEST DETAILS
         // ==========================================================
 
         [HttpGet]
         public async Task<IActionResult> GetPatient(int id)
         {
             var item = await _context.TestRequestItems
-
                 .Include(x => x.TestType)
-
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
-
                 .FirstOrDefaultAsync(x =>
                     x.TestRequestItemId == id);
 
             if (item == null)
                 return NotFound();
 
+            if (item.TestRequest == null)
+                return NotFound("Test request not found.");
 
             if (item.TestRequest.Patient == null)
-                return BadRequest("The patient linked to this request could not be found.");
-
+                return NotFound("Patient not found.");
 
             return Json(new
             {
@@ -112,6 +107,7 @@ namespace LabDash.Controllers
                     turnaround = item.TestType.TurnaroundTimeHours,
                     sample = item.TestType.RequiredSampleType,
                     urgency = item.TestRequest.Urgency,
+                    status = item.Status,
                     requestId = item.RequestId
                 }
             });
@@ -119,34 +115,34 @@ namespace LabDash.Controllers
 
 
         // ==========================================================
-        // COMPATIBILITY ENDPOINT
-        // Your current AvailableTests view calls:
+        // ALIAS FOR YOUR EXISTING JAVASCRIPT
+        // ==========================================================
+        //
+        // Your AvailableTests.cshtml currently calls:
         //
         // /AvailableTests/GetPatientDetails?id=...
         //
-        // So we provide that endpoint as well.
-        // ==========================================================
+        // Therefore this action is provided as well.
+        //
 
         [HttpGet]
         public async Task<IActionResult> GetPatientDetails(int id)
         {
             var item = await _context.TestRequestItems
-
                 .Include(x => x.TestType)
-
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
-
                 .FirstOrDefaultAsync(x =>
                     x.TestRequestItemId == id);
 
             if (item == null)
                 return NotFound();
 
+            if (item.TestRequest == null)
+                return NotFound();
 
             if (item.TestRequest.Patient == null)
-                return BadRequest("Patient information could not be found.");
-
+                return NotFound();
 
             return Json(new
             {
@@ -156,8 +152,7 @@ namespace LabDash.Controllers
                     item.TestRequest.Patient.Name + " " +
                     item.TestRequest.Patient.Surname,
 
-                idNumber =
-                    item.TestRequest.Patient.IDNumber,
+                idNumber = item.TestRequest.Patient.IDNumber,
 
                 cellphone =
                     item.TestRequest.Patient.CellphoneNumber,
@@ -193,13 +188,16 @@ namespace LabDash.Controllers
                     item.TestType.TurnaroundTimeHours,
 
                 urgency =
-                    item.TestRequest.Urgency
+                    item.TestRequest.Urgency,
+
+                status =
+                    item.Status
             });
         }
 
 
         // ==========================================================
-        // START TEST
+        // START / SELECT TEST
         // ==========================================================
 
         [HttpPost]
@@ -211,62 +209,62 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Challenge();
 
+            /*
+             * Find the requested test.
+             */
 
             var item = await _context.TestRequestItems
-
                 .Include(x => x.TestRequest)
-
                 .Include(x => x.TestType)
-
                 .FirstOrDefaultAsync(x =>
                     x.TestRequestItemId == id);
 
-
             if (item == null)
-                return NotFound();
+            {
+                TempData["Error"] =
+                    "The selected laboratory test could not be found.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (item.TestRequest == null)
+            {
+                TempData["Error"] =
+                    "The test request could not be found.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (item.TestType == null)
+            {
+                TempData["Error"] =
+                    "The test type could not be found.";
+
+                return RedirectToAction(nameof(Index));
+            }
 
 
-            // ------------------------------------------------------
-            // Verify that the request has received samples
-            // ------------------------------------------------------
+            // ======================================================
+            // VERIFY SAMPLE WAS RECEIVED
+            // ======================================================
 
             if (item.TestRequest.Status != "Samples Received")
             {
                 TempData["Error"] =
-                    "Samples for this request have not been received yet.";
+                    "The sample for this request has not been received.";
 
                 return RedirectToAction(nameof(Index));
             }
 
 
-            // ------------------------------------------------------
-            // Only Submitted tests can be started
-            // ------------------------------------------------------
+            // ======================================================
+            // VERIFY TEST IS STILL AVAILABLE
+            // ======================================================
 
             if (item.Status != "Submitted")
             {
                 TempData["Error"] =
-                    "This test has already been started or processed.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
-
-            // ------------------------------------------------------
-            // Make sure there is actually a received sample
-            // ------------------------------------------------------
-
-            bool sampleReceived = await _context.Samples
-
-                .AnyAsync(s =>
-                    s.TestRequestId == item.RequestId &&
-                    s.IsReceived == true);
-
-
-            if (!sampleReceived)
-            {
-                TempData["Error"] =
-                    "No received sample was found for this request.";
+                    "This test is no longer available.";
 
                 return RedirectToAction(nameof(Index));
             }
@@ -277,12 +275,9 @@ namespace LabDash.Controllers
             // ======================================================
 
             var consumables = await _context.TestTypeConsumables
-
                 .Include(x => x.Consumable)
-
                 .Where(x =>
                     x.TestTypeId == item.TestTypeId)
-
                 .ToListAsync();
 
 
@@ -292,8 +287,10 @@ namespace LabDash.Controllers
 
             foreach (var stock in consumables)
             {
-                if (stock.Consumable.StockLevel <
-                    stock.QuantityRequired)
+                if (stock.Consumable == null)
+                    continue;
+
+                if (stock.Consumable.StockLevel < stock.QuantityRequired)
                 {
                     TempData["Error"] =
                         $"Not enough stock for {stock.Consumable.Name}.";
@@ -309,6 +306,9 @@ namespace LabDash.Controllers
 
             foreach (var stock in consumables)
             {
+                if (stock.Consumable == null)
+                    continue;
+
                 stock.Consumable.StockLevel -=
                     stock.QuantityRequired;
 
@@ -318,7 +318,7 @@ namespace LabDash.Controllers
 
 
             // ======================================================
-            // ASSIGN TECHNICIAN
+            // ASSIGN TEST TO TECHNICIAN
             // ======================================================
 
             item.AssignedTechnicianId =
@@ -334,6 +334,10 @@ namespace LabDash.Controllers
             // ======================================================
             // UPDATE REQUEST STATUS
             // ======================================================
+            //
+            // Once at least one test has started, the request becomes
+            // In Progress.
+            //
 
             item.TestRequest.Status =
                 "In Progress";
@@ -343,12 +347,21 @@ namespace LabDash.Controllers
             // SAVE
             // ======================================================
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                TempData["Error"] =
+                    "The test could not be started. Please try again.";
+
+                return RedirectToAction(nameof(Index));
+            }
 
 
             TempData["Success"] =
                 "Test successfully assigned to you.";
-
 
             return RedirectToAction(
                 nameof(ProcessTest),
@@ -373,28 +386,35 @@ namespace LabDash.Controllers
                 return Challenge();
 
 
-            var test =
-                await _context.TestRequestItems
-
+            var test = await _context.TestRequestItems
                 .Include(x => x.TestType)
-
                 .Include(x => x.TestRequest)
                     .ThenInclude(r => r.Patient)
-
                 .Include(x => x.AssignedTechnician)
-
                 .FirstOrDefaultAsync(x =>
-                    x.TestRequestItemId == id &&
-                    x.AssignedTechnicianId == technician.Id);
+                    x.TestRequestItemId == id);
 
 
             if (test == null)
                 return NotFound();
 
 
-            // ------------------------------------------------------
-            // Consumables
-            // ------------------------------------------------------
+            // ======================================================
+            // SECURITY
+            // ======================================================
+
+            if (test.AssignedTechnicianId != technician.Id)
+            {
+                TempData["Error"] =
+                    "This test is not assigned to you.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+
+            // ======================================================
+            // CONSUMABLES
+            // ======================================================
 
             var consumables =
                 await _context.TestTypeConsumables
@@ -411,113 +431,109 @@ namespace LabDash.Controllers
                 consumables;
 
 
+            // ======================================================
+            // PATIENT
+            // ======================================================
+
             ViewBag.Patient =
                 test.TestRequest.Patient;
 
+
+            // ======================================================
+            // REQUEST
+            // ======================================================
 
             ViewBag.Request =
                 test.TestRequest;
 
 
-            // ------------------------------------------------------
-            // Turnaround
-            // ------------------------------------------------------
+            // ======================================================
+            // TURNAROUND
+            // ======================================================
 
             var turnaround =
                 TimeSpan.FromHours(
                     test.TestType.TurnaroundTimeHours);
 
 
-            ViewBag.ExpectedCompletion =
-                test.StartDateTime?.Add(turnaround);
-
-
-            // ------------------------------------------------------
-            // Time remaining
-            // ------------------------------------------------------
-
-            if (test.StartDateTime != null)
+            if (test.StartDateTime.HasValue)
             {
+                ViewBag.ExpectedCompletion =
+                    test.StartDateTime.Value.Add(turnaround);
+
                 var expected =
                     test.StartDateTime.Value.Add(turnaround);
 
-
                 ViewBag.TimeRemaining =
                     expected - DateTime.Now;
-
 
                 ViewBag.IsOverdue =
                     DateTime.Now > expected;
             }
             else
             {
+                ViewBag.ExpectedCompletion =
+                    DateTime.Now.Add(turnaround);
+
                 ViewBag.TimeRemaining =
-                    TimeSpan.Zero;
+                    turnaround;
 
                 ViewBag.IsOverdue =
                     false;
             }
 
 
-            // ------------------------------------------------------
-            // Progress
-            // ------------------------------------------------------
+            // ======================================================
+            // PROGRESS
+            // ======================================================
 
-            int progress = 0;
-
-            switch (test.Status)
+            int progress = test.Status switch
             {
-                case "Submitted":
-                    progress = 20;
-                    break;
-
-                case "In Progress":
-                    progress = 50;
-                    break;
-
-                case "Completed":
-                    progress = 75;
-                    break;
-
-                case "Verified":
-                    progress = 100;
-                    break;
-
-                case "To Be Reviewed":
-                    progress = 60;
-                    break;
-            }
-
+                "Submitted" => 20,
+                "In Progress" => 50,
+                "Completed" => 75,
+                "Verified" => 100,
+                "To Be Reviewed" => 60,
+                _ => 0
+            };
 
             ViewBag.Progress =
                 progress;
 
 
-            // ------------------------------------------------------
-            // Dashboard statistics
-            // ------------------------------------------------------
+            // ======================================================
+            // TECHNICIAN STATISTICS
+            // ======================================================
 
             ViewBag.TotalAssigned =
-                await _context.TestRequestItems.CountAsync(x =>
-                    x.AssignedTechnicianId == technician.Id);
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId ==
+                        technician.Id);
 
 
             ViewBag.InProgress =
-                await _context.TestRequestItems.CountAsync(x =>
-                    x.AssignedTechnicianId == technician.Id &&
-                    x.Status == "In Progress");
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId ==
+                        technician.Id &&
+                        x.Status == "In Progress");
 
 
             ViewBag.Completed =
-                await _context.TestRequestItems.CountAsync(x =>
-                    x.AssignedTechnicianId == technician.Id &&
-                    x.Status == "Completed");
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId ==
+                        technician.Id &&
+                        x.Status == "Completed");
 
 
             ViewBag.Verified =
-                await _context.TestRequestItems.CountAsync(x =>
-                    x.AssignedTechnicianId == technician.Id &&
-                    x.Status == "Verified");
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId ==
+                        technician.Id &&
+                        x.Status == "Verified");
 
 
             return View(test);
@@ -547,10 +563,14 @@ namespace LabDash.Controllers
                     .ThenInclude(x => x.Patient)
 
                 .Where(x =>
-                    x.AssignedTechnicianId == technician.Id &&
-                    x.Status == "In Progress")
+                    x.AssignedTechnicianId ==
+                    technician.Id &&
 
-                .OrderBy(x => x.StartDateTime)
+                    x.Status ==
+                    "In Progress")
+
+                .OrderBy(x =>
+                    x.StartDateTime)
 
                 .ToListAsync();
 
@@ -605,8 +625,11 @@ namespace LabDash.Controllers
                 return NotFound();
 
 
-            if (item.AssignedTechnicianId !=
-                technician.Id)
+            // ======================================================
+            // ONLY ASSIGNED TECHNICIAN CAN COMPLETE
+            // ======================================================
+
+            if (item.AssignedTechnicianId != technician.Id)
             {
                 TempData["Error"] =
                     "You can only complete tests assigned to you.";
@@ -615,6 +638,10 @@ namespace LabDash.Controllers
                     nameof(InProgress));
             }
 
+
+            // ======================================================
+            // TEST MUST BE IN PROGRESS
+            // ======================================================
 
             if (item.Status != "In Progress")
             {
@@ -626,6 +653,10 @@ namespace LabDash.Controllers
             }
 
 
+            // ======================================================
+            // COMPLETE
+            // ======================================================
+
             item.Status =
                 "Completed";
 
@@ -633,9 +664,9 @@ namespace LabDash.Controllers
                 DateTime.Now;
 
 
-            // ------------------------------------------------------
-            // Check if every test is complete
-            // ------------------------------------------------------
+            // ======================================================
+            // CHECK IF ALL TESTS ARE COMPLETE
+            // ======================================================
 
             bool allComplete =
                 await _context.TestRequestItems
@@ -646,7 +677,8 @@ namespace LabDash.Controllers
 
                 .AllAsync(x =>
                     x.Status == "Completed" ||
-                    x.Status == "Verified");
+                    x.Status == "Verified" ||
+                    x.Status == "To Be Reviewed");
 
 
             if (allComplete)
@@ -692,9 +724,7 @@ namespace LabDash.Controllers
 
                 .Where(x =>
                     x.AssignedTechnicianId ==
-                    technician.Id
-
-                    &&
+                    technician.Id &&
 
                     (
                         x.Status == "Completed" ||
@@ -702,8 +732,8 @@ namespace LabDash.Controllers
                         x.Status == "To Be Reviewed"
                     ))
 
-                .OrderByDescending(
-                    x => x.CompletionDateTime)
+                .OrderByDescending(x =>
+                    x.CompletionDateTime)
 
                 .ToListAsync();
 
@@ -757,6 +787,10 @@ namespace LabDash.Controllers
 
             if (!string.IsNullOrWhiteSpace(search))
             {
+                search =
+                    search.Trim();
+
+
                 query =
                     query.Where(x =>
 
@@ -837,45 +871,50 @@ namespace LabDash.Controllers
 
 
             ViewBag.Assigned =
-                await _context.TestRequestItems.CountAsync(x =>
-                    x.AssignedTechnicianId ==
-                    technician.Id);
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId ==
+                        technician.Id);
 
 
             ViewBag.InProgress =
-                await _context.TestRequestItems.CountAsync(x =>
-                    x.AssignedTechnicianId ==
-                    technician.Id &&
-
-                    x.Status ==
-                    "In Progress");
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId ==
+                        technician.Id &&
+                        x.Status == "In Progress");
 
 
             ViewBag.Completed =
-                await _context.TestRequestItems.CountAsync(x =>
-                    x.AssignedTechnicianId ==
-                    technician.Id &&
-
-                    x.Status ==
-                    "Completed");
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId ==
+                        technician.Id &&
+                        x.Status == "Completed");
 
 
             ViewBag.Verified =
-                await _context.TestRequestItems.CountAsync(x =>
-                    x.AssignedTechnicianId ==
-                    technician.Id &&
-
-                    x.Status ==
-                    "Verified");
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId ==
+                        technician.Id &&
+                        x.Status == "Verified");
 
 
             ViewBag.ToReview =
-                await _context.TestRequestItems.CountAsync(x =>
-                    x.AssignedTechnicianId ==
-                    technician.Id &&
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId ==
+                        technician.Id &&
+                        x.Status == "To Be Reviewed");
 
-                    x.Status ==
-                    "To Be Reviewed");
+
+            ViewBag.Available =
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.Status == "Submitted" &&
+                        x.TestRequest.Status ==
+                        "Samples Received");
 
 
             ViewBag.Overdue =
@@ -901,5 +940,4 @@ namespace LabDash.Controllers
             return View();
         }
     }
-
 }
