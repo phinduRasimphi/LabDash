@@ -1,6 +1,5 @@
 using LabDash.Areas.Identity.Data;
 using LabDash.Models;
-
 using LabDash.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -267,14 +266,26 @@ namespace LabDash.Controllers
         }
 
         // POST: /TestRequest/UnlockResultsFolder
+        // POST: /TestRequest/UnlockResultsFolder
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UnlockResultsFolder(int patientId, string idNumber)
+        public async Task<IActionResult> UnlockResultsFolder(
+            int patientId,
+            string idNumber)
         {
             var doctor = await _userManager.GetUserAsync(User);
 
+            if (doctor == null)
+            {
+                return Unauthorized();
+            }
+
             var patient = await _context.Patients.FindAsync(patientId);
-            if (patient == null) return NotFound();
+
+            if (patient == null)
+            {
+                return NotFound();
+            }
 
             if (patient.IDNumber != idNumber?.Trim())
             {
@@ -283,9 +294,10 @@ namespace LabDash.Controllers
             }
 
             var requests = await _context.TestRequests
-                .Where(r => r.PatientId == patientId
-                         && r.RequestingDoctorId == doctor.Id
-                         && (r.Status == "Completed" || r.Status == "Released"))
+                .Where(r =>
+                    r.PatientId == patientId &&
+                    r.RequestingDoctorId == doctor.Id &&
+                    (r.Status == "Completed" || r.Status == "Released"))
                 .OrderByDescending(r => r.RequestDate)
                 .ToListAsync();
 
@@ -308,7 +320,8 @@ namespace LabDash.Controllers
                 foreach (var item in items)
                 {
                     var result = await _context.TestResults
-                        .FirstOrDefaultAsync(res => res.TestRequestItemId == item.TestRequestItemId);
+                        .FirstOrDefaultAsync(
+                            res => res.TestRequestItemId == item.TestRequestItemId);
 
                     if (result != null)
                     {
@@ -334,12 +347,13 @@ namespace LabDash.Controllers
                     ReleaseNote = r.ReleaseNote,
                     Results = results
                 });
-
-                return View("PatientResults", vm);
             }
 
-            // POST: /TestRequest/ReleaseResults
-            [HttpPost]
+            return View("PatientResults", vm);
+        }
+
+        // POST: /TestRequest/ReleaseResults
+        [HttpPost]
             [ValidateAntiForgeryToken]
             public async Task<IActionResult> ReleaseResults(int requestId, string releaseNote)
             {
@@ -372,8 +386,8 @@ namespace LabDash.Controllers
 
                 await _emailSender.SendEmailAsync(request.Patient.Email, "Your test results are available", emailBody);
 
-                TempData["Success"] = "Results released to patient.";
-                return RedirectToAction(nameof(Results));
-            }
+            TempData["Success"] = "Results released to patient.";
+            return RedirectToAction(nameof(Results));
         }
-    } }
+    }
+}
