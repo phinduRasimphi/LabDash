@@ -36,7 +36,7 @@ namespace LabDash.Models
         public int PatientPendingRequests { get; set; }
         public int PatientResultsReady { get; set; }
         public int PatientAbnormalCount { get; set; }
-        public List<TestRequestViewModel> PatientRecentRequests { get; set; } = new();
+     
     }
 
     public class AdminListViewModel

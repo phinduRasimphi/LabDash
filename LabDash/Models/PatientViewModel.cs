@@ -39,17 +39,15 @@ namespace LabDash.Models
     }
 
     // ── 2. Test Request ──────────────────────────────────────
-    public class TestRequestViewModel
+    public class TestRequestSummaryViewModel
     {
         public string RequestID { get; set; } = "";
         public DateTime RequestDate { get; set; }
         public string DoctorName { get; set; } = "";
         public List<string> Tests { get; set; } = new();
-        public string Urgency { get; set; } = "Routine";  // Routine | Urgent | Stat
+        public string Urgency { get; set; } = "Routine";
         public string Status { get; set; } = "Submitted";
-        // Submitted | Samples Received | In Progress | Completed | Released | Cancelled
 
-        // Display helpers
         public string UrgencyCssClass => Urgency.ToLower() switch
         {
             "stat" => "urgency-stat",
@@ -125,6 +123,6 @@ namespace LabDash.Models
         public int PendingRequests { get; set; }
         public int ResultsReady { get; set; }
         public int AbnormalCount { get; set; }
-        public List<TestRequestViewModel> RecentRequests { get; set; } = new();
+        public List<TestRequestSummaryViewModel> RecentRequests { get; set; } = new();
     }
 }
