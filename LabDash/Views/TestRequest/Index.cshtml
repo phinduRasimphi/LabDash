@@ -1,113 +1,553 @@
-@model IEnumerable<LabDash.Models.TestRequest>
+@model IEnumerable<LabDash.ViewModels.TestRequestListViewModel>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Test Requests";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
-<h1>Index</h1>
+<style>
+    .tr-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.PatientId)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Patient)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.RequestingDoctorId)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.RequestingDoctor)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.RequestDate)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Urgency)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.ClinicalNotes)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Status)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.DateTimeReceived)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SubmittedDate)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.CancellationReason)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Samples)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.SampleReceives)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.TestRequestItems)
-            </th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>
-                @Html.DisplayFor(model => item.PatientId)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.Patient)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.RequestingDoctorId)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.RequestingDoctor)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.RequestDate)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.Urgency)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.ClinicalNotes)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.Status)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.DateTimeReceived)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.SubmittedDate)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.CancellationReason)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.Samples)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.SampleReceives)
-            </td>
-            <td>
-                @Html.DisplayFor(model => item.TestRequestItems)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.RequestId">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.RequestId">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.RequestId">Delete</a>
-            </td>
-        </tr>
+    .tr-page-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #1a2f4e;
+    }
+
+    .tr-page-subtitle {
+        font-size: 14px;
+        color: #7a8da8;
+        margin-top: 4px;
+    }
+
+    .tr-toolbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+        .tr-toolbar input,
+        .tr-toolbar select {
+            border: 1px solid #d1d9e6;
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            background: white;
+            color: #1a2f4e;
+        }
+
+            .tr-toolbar input:focus,
+            .tr-toolbar select:focus {
+                border-color: #0d6b63;
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(13, 107, 99, 0.1);
+            }
+
+        .tr-toolbar input {
+            min-width: 220px;
+        }
+
+    .tr-btn-primary {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        padding: 8px 18px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+        .tr-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(13, 107, 99, 0.3);
+        }
+
+    .tr-table-container {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        border: 1px solid #eef2f6;
+        overflow-x: auto;
+    }
+
+    .tr-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+        .tr-table thead {
+            background: #f8f9fc;
+        }
+
+        .tr-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            color: #4a5c7c;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        .tr-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f2f5;
+            color: #2d3a5e;
+            vertical-align: middle;
+            word-wrap: break-word;
+            max-width: 200px;
+        }
+
+        .tr-table tbody tr:hover {
+            background: #f8fafd;
+        }
+
+        .tr-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .tr-table .test-types-cell {
+            max-width: 180px;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        .tr-table .cancelled-reason {
+            color: #dc3545;
+            font-style: italic;
+            font-size: 12px;
+        }
+
+    .tr-status-badge {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+    }
+
+        .tr-status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .tr-status-badge.in-progress {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .tr-status-badge.completed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .tr-status-badge.released {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .tr-status-badge.cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+    .tr-urgency-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+        .tr-urgency-badge.stat {
+            background: #dc3545;
+            color: white;
+        }
+
+        .tr-urgency-badge.urgent {
+            background: #fd7e14;
+            color: white;
+        }
+
+        .tr-urgency-badge.routine {
+            background: #0d6b63;
+            color: white;
+        }
+
+    .tr-barcode-cell {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        color: #1a2f4e;
+        letter-spacing: 0.5px;
+    }
+
+        .tr-barcode-cell .separator {
+            color: #d1d9e6;
+            margin: 0 4px;
+        }
+
+        .tr-barcode-cell .empty {
+            color: #a0b0c8;
+            font-family: 'Inter', sans-serif;
+            font-style: italic;
+            font-size: 12px;
+        }
+
+    .tr-action-link {
+        color: #0d6b63;
+        text-decoration: none;
+        font-size: 13px;
+        margin-right: 12px;
+        transition: color 0.2s;
+    }
+
+        .tr-action-link:hover {
+            color: #1a8c82;
+            text-decoration: underline;
+        }
+
+        .tr-action-link.danger {
+            color: #dc3545;
+        }
+
+            .tr-action-link.danger:hover {
+                color: #c82333;
+            }
+
+    .tr-empty {
+        text-align: center;
+        padding: 48px 24px;
+        color: #a0b0c8;
+    }
+
+        .tr-empty i {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 16px;
+            color: #d1d9e6;
+        }
+
+        .tr-empty h4 {
+            color: #1a2f4e;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .tr-empty p {
+            font-size: 14px;
+        }
+
+    .tr-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 20px;
+        border-top: 1px solid #f0f2f5;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 13px;
+        color: #7a8da8;
+    }
+
+    .tr-pagination-buttons {
+        display: flex;
+        gap: 4px;
+    }
+
+        .tr-pagination-buttons a {
+            padding: 6px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #4a5c7c;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+            .tr-pagination-buttons a:hover {
+                background: #0d6b63;
+                color: white;
+                border-color: #0d6b63;
+            }
+
+            .tr-pagination-buttons a.active {
+                background: #0d6b63;
+                color: white;
+                border-color: #0d6b63;
+            }
+
+            .tr-pagination-buttons a.disabled {
+                opacity: 0.4;
+                pointer-events: none;
+            }
+
+    .tr-request-id {
+        font-weight: 600;
+        color: #1a2f4e;
+    }
+
+    .tr-test-type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        background: #eef2f6;
+        border-radius: 4px;
+        font-size: 11px;
+        color: #4a5c7c;
+        margin: 2px 2px 2px 0;
+        white-space: nowrap;
+    }
+
+    /* Responsive */
+    media (max-width: 768px) {
+        .tr-page-header
+
+    {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .tr-toolbar {
+        flex-direction: column;
+    }
+
+        .tr-toolbar input {
+            min-width: auto;
+            width: 100%;
+        }
+
+        .tr-toolbar select {
+            width: 100%;
+        }
+
+        .tr-toolbar .tr-btn-primary {
+            width: 100%;
+            justify-content: center;
+        }
+
+    .tr-table {
+        font-size: 12px;
+    }
+
+        .tr-table th,
+        .tr-table td {
+            padding: 8px 10px;
+        }
+
+    .tr-pagination {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .tr-table .test-types-cell {
+        max-width: 120px;
+    }
+
+    }
+
+    media (max-width: 480px) {
+        .tr-table th, .tr-table td
+
+    {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    .tr-status-badge,
+    .tr-urgency-badge {
+        font-size: 9px;
+        padding: 2px 8px;
+    }
+
+    .tr-action-link {
+        font-size: 11px;
+        margin-right: 6px;
+    }
+
+    .tr-barcode-cell {
+        font-size: 10px;
+    }
+
+    }
+</style>
+
+<div>
+    <!-- Page Header -->
+    <div class="tr-page-header">
+        <div>
+            <div class="tr-page-title">Test Requests</div>
+            <div class="tr-page-subtitle">View and manage all laboratory test requests</div>
+        </div>
+        <div class="tr-toolbar">
+            <input type="text" id="searchInput" placeholder="Search patient or doctor..." />
+            <select id="statusFilter">
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Released">Released</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+            <a href="@Url.Action("Create", "TestRequest")" class="tr-btn-primary">
+                <i class="fas fa-plus"></i> New Request
+            </a>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="tr-table-container">
+        @if (Model != null && Model.Any())
+        {
+            <table class="tr-table" id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Patient</th>
+                        <th>Doctor</th>
+                        <th>Date</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Test Types</th>
+                        <th>Barcodes</th>
+                        <th>Cancellation Reason</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="tr-request-id">@item.RequestId</td>
+                            <td>@item.PatientName</td>
+                            <td>@item.DoctorName</td>
+                            <td>@item.RequestDate.ToString("dd MMM yyyy")</td>
+                            <td>
+                                <span class="tr-urgency-badge @item.Urgency.ToLower()">
+                                    @item.Urgency
+                                </span>
+                            </td>
+                            <td>
+                                <span class="tr-status-badge @item.Status.ToLower().Replace(" ", "-")">
+                                    @item.Status
+                                </span>
+                            </td>
+                            <td class="test-types-cell">
+                                @if (item.TestTypeNames != null && item.TestTypeNames.Any())
+                                {
+                                    foreach (var testName in item.TestTypeNames.Take(3))
+                                    {
+                                        <span class="tr-test-type-badge">@testName</span>
+                                    }
+                                    if (item.TestTypeNames.Count > 3)
+                                    {
+                                        <span class="tr-test-type-badge" style="background:#e2e8f0;">+@(item.TestTypeNames.Count - 3) more</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span style="color:#a0b0c8;font-style:italic;font-size:12px;">No tests</span>
+                                }
+                            </td>
+                            <td class="tr-barcode-cell">
+                                @if (item.SampleBarcodes != null && item.SampleBarcodes.Any())
+                                {
+                                    @string.Join("  •  ", item.SampleBarcodes)
+                                }
+                                else
+                                {
+                                    <span class="empty">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(item.CancellationReason))
+                                {
+                                    <span class="cancelled-reason">@item.CancellationReason</span>
+                                }
+                                else
+                                {
+                                    <span style="color:#a0b0c8;font-size:12px;">—</span>
+                                }
+                            </td>
+                            <td>
+                               
+                                <a href="@Url.Action("Edit", "TestResults", new { id = item.RequestId })" class="tr-action-link" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="@Url.Action("Delete", "TestResults", new { id = item.RequestId })" class="tr-action-link danger" title="Delete" onclick="return confirm('Delete this request?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div class="tr-pagination">
+                <span>Showing @Model.Count() entries</span>
+                <div class="tr-pagination-buttons">
+                    <a href="#" class="disabled">Previous</a>
+                    <a href="#" class="active">1</a>
+                    <a href="#">2</a>
+                    <a href="#">3</a>
+                    <a href="#">Next</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="tr-empty">
+                <i class="fas fa-inbox"></i>
+                <h4>No test requests found</h4>
+                <p>Start by creating a new test request for a patient.</p>
+                <a href="@Url.Action("Create", "TestRequest")" class="tr-btn-primary" style="display:inline-flex;margin-top:16px;">
+                    <i class="fas fa-plus"></i> Create New Request
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Search
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            var value = this.value.toLowerCase();
+            var rows = document.querySelectorAll('#resultsTable tbody tr');
+            rows.forEach(function(row) {
+                row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
+            });
+        });
+
+        // Status filter
+        document.getElementById('statusFilter').addEventListener('change', function() {
+            var value = this.value.toLowerCase();
+            var rows = document.querySelectorAll('#resultsTable tbody tr');
+            rows.forEach(function(row) {
+                var status = row.querySelector('td:nth-child(6)')?.textContent.toLowerCase().trim() || '';
+                row.style.display = (value === '' || status === value) ? '' : 'none';
+            });
+        });
+    </script>
 }
-    </tbody>
-</table>

@@ -48,7 +48,8 @@ namespace LabDash.Models
         public string? ReleaseNote { get; set; }
         public DateTime? ReleaseDate { get; set; }
 
-
+        [StringLength(500)]
+        public string? SampleBarcodes { get; set; }
         public virtual ICollection<Sample> Samples { get; set; }
             = new List<Sample>();
 

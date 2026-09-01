@@ -1,4 +1,6 @@
-﻿namespace LabDash.ViewModels
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace LabDash.ViewModels
 {
     public class TestRequestCreateViewModel
     {
@@ -11,7 +13,11 @@
         public DateTime RequestDate { get; set; } = DateTime.Now;
 
         public string Urgency { get; set; } = "Routine";
+        [Display(Name = "Sample Barcode 1")]
+        public string SampleBarcode1 { get; set; }
 
+        [Display(Name = "Sample Barcode 2")]
+        public string SampleBarcode2 { get; set; }
         public string? ClinicalNotes { get; set; }
 
         public List<int> SelectedTestTypeIds { get; set; } = new();
