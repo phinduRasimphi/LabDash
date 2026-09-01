@@ -822,8 +822,7 @@ namespace LabDash.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("ReferenceRangeHigh")
                         .HasColumnType("decimal(18,2)");

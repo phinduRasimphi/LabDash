@@ -1,7 +1,6 @@
 ﻿
 using LabDash.Areas.Identity.Data;
 using LabDash.Models;
-using LabDash.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -165,11 +164,13 @@ namespace LabDash.Controllers
 
             var model = requests.Select(r => new TestRequestViewModel
             {
-                RequestID = r.RequestID.ToString(),
+                RequestID = r.RequestId.ToString(),
 
                 RequestDate = r.RequestDate,
 
-               
+                DoctorName = r.RequestingDoctor != null
+                    ? r.RequestingDoctor.FullName
+                    : "Unknown",
 
                 Tests = r.TestRequestItems
                     .Where(i => i.TestType != null)

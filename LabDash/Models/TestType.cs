@@ -40,6 +40,5 @@ namespace LabDash.Models
 
         public virtual ICollection<TestTypeConsumable> TestTypeConsumables { get; set; }
             = new List<TestTypeConsumable>();
-
     }
 }

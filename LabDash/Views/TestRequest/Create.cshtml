@@ -1,6 +1,6 @@
-﻿@model LabDash.ViewModels.TestRequestViewModel
+@model LabDash.ViewModels.TestRequestCreateViewModel
 @{
-    ViewData["Title"] = "New Test Request";
+    ViewData["Title"] = "Create Test Request";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
@@ -9,41 +9,33 @@
         background: linear-gradient(135deg, #0d6b63, #1a8c82);
         color: white;
         border-radius: 12px;
-        padding: 18px 22px;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
         margin-bottom: 20px;
     }
 
-    .tr-patient-name {
-        font-size: 16px;
+    .tr-patient-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-weight: 700;
     }
 
-    .tr-patient-id {
+    .tr-patient-name {
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    .tr-patient-sub {
         font-size: 12px;
         opacity: 0.85;
-        margin-bottom: 12px;
     }
-
-    .tr-patient-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px 20px;
-        border-top: 1px solid rgba(255,255,255,0.2);
-        padding-top: 12px;
-    }
-
-    .tr-patient-item {
-        font-size: 12px;
-    }
-
-        .tr-patient-item strong {
-            display: block;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            opacity: 0.75;
-            margin-bottom: 2px;
-        }
 
     .tr-card {
         background: white;
@@ -89,18 +81,9 @@
             font-family: 'Inter', sans-serif;
         }
 
-            .tr-form-group select[multiple] {
-                height: 180px;
-            }
-
         .tr-form-group textarea {
             resize: vertical;
             min-height: 70px;
-        }
-
-        .tr-form-group small {
-            font-size: 11px;
-            color: #7a8da8;
         }
 
     .tr-section-title {
@@ -114,41 +97,69 @@
         border-top: 1px solid #f0f2f5;
     }
 
-    .tr-barcode-row {
+    .tr-testtype-list {
         display: flex;
+        flex-direction: column;
         gap: 8px;
-        margin-bottom: 8px;
+        max-height: 260px;
+        overflow-y: auto;
+        padding-right: 4px;
     }
 
-        .tr-barcode-row input {
-            flex: 1;
-            border: 1px solid #e2e8f0;
-            border-radius: 7px;
-            padding: 9px 11px;
-            font-size: 13px;
-            font-family: 'Inter', sans-serif;
+    .tr-testtype-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px 12px;
+    }
+
+        .tr-testtype-item.checked {
+            border-color: #0d6b63;
+            background: #f0f7f6;
         }
 
-    .tr-remove-barcode {
-        background: #ffebee;
-        color: #c62828;
-        border: 1px solid #ffcdd2;
-        border-radius: 7px;
-        width: 36px;
-        cursor: pointer;
-        font-size: 16px;
+    .tr-testtype-info {
+        flex: 1;
     }
 
-    .tr-add-barcode {
-        background: white;
-        color: #0d6b63;
-        border: 1px dashed #0d6b63;
-        border-radius: 7px;
-        padding: 8px 14px;
-        font-size: 12px;
+    .tr-testtype-name {
+        font-size: 13px;
         font-weight: 600;
-        cursor: pointer;
+        color: #1a2f4e;
     }
+
+    .tr-testtype-meta {
+        font-size: 11px;
+        color: #7a8da8;
+        margin-top: 2px;
+    }
+
+    .tr-sample-pill {
+        background: #e3f2fd;
+        color: #1565c0;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 10px;
+        white-space: nowrap;
+    }
+
+    .tr-samples-needed {
+        margin-top: 16px;
+        background: #fff8e1;
+        border: 1px solid #ffe082;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 12.5px;
+        color: #7a5c00;
+    }
+
+        .tr-samples-needed strong {
+            display: block;
+            margin-bottom: 4px;
+        }
 
     .tr-actions {
         margin-top: 22px;
@@ -187,80 +198,86 @@
         font-size: 12px;
         margin-bottom: 14px;
     }
-
-    .text-danger {
-        font-size: 11px;
-        color: #dc3545;
-    }
 </style>
 
-<h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:16px;">New Test Request</h1>
+<h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:16px;">Create Test Request</h1>
 
 <div class="tr-patient-banner">
-    <div class="tr-patient-name">@Model.PatientName @Model.PatientSurname</div>
-    <div class="tr-patient-id">ID: @Model.PatientIDNumber</div>
-
-    <div class="tr-patient-grid">
-        <div class="tr-patient-item"><strong>Date of Birth</strong>@Model.PatientDOB.ToString("dd MMM yyyy")</div>
-        <div class="tr-patient-item"><strong>Cellphone</strong>@Model.PatientCellphone</div>
-        <div class="tr-patient-item"><strong>Email</strong>@Model.PatientEmail</div>
-        <div class="tr-patient-item"><strong>Medical Conditions</strong>@(Model.MedicalConditions ?? "None recorded")</div>
-        <div class="tr-patient-item"><strong>Allergies</strong>@(Model.Allergies ?? "None recorded")</div>
-        <div class="tr-patient-item"><strong>Current Medication</strong>@(Model.Medication ?? "None recorded")</div>
+    <div class="tr-patient-avatar">@Model.PatientName.Substring(0, 1)</div>
+    <div>
+        <div class="tr-patient-name">@Model.PatientName</div>
+        <div class="tr-patient-sub">ID: @Model.PatientIDNumber</div>
     </div>
 </div>
 
 <div class="tr-card">
     <form asp-action="Create" method="post">
-        <input type="hidden" asp-for="PatientId" />
-
         <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+        <input type="hidden" asp-for="PatientId" />
+        <input type="hidden" asp-for="PatientName" />
+        <input type="hidden" asp-for="PatientIDNumber" />
 
         <div class="tr-form-grid">
             <div class="tr-form-group">
-                <label asp-for="RequestDate"></label>
-                <input asp-for="RequestDate" />
+                <label>Request Date</label>
+                <input asp-for="RequestDate" type="date" />
                 <span asp-validation-for="RequestDate" class="text-danger"></span>
             </div>
             <div class="tr-form-group">
-                <label asp-for="Urgency"></label>
+                <label>Urgency</label>
                 <select asp-for="Urgency">
+                    <option value="">-- Select --</option>
                     <option value="Routine">Routine</option>
                     <option value="Urgent">Urgent</option>
-                    <option value="Stat">Stat</option>
+                    <option value="STAT">STAT</option>
                 </select>
                 <span asp-validation-for="Urgency" class="text-danger"></span>
             </div>
             <div class="tr-form-group full">
-                <label asp-for="ClinicalNotes"></label>
+                <label>Clinical Notes</label>
                 <textarea asp-for="ClinicalNotes" placeholder="Reason for the test request..."></textarea>
-                <span asp-validation-for="ClinicalNotes" class="text-danger"></span>
             </div>
         </div>
 
-        <div class="tr-section-title">Test Types</div>
-        <div class="tr-form-group full">
-            <select asp-for="SelectedTestTypeIds" asp-items="Model.AvailableTestTypes" multiple id="testTypeSelect"></select>
-            <small>Hold Ctrl (Cmd on Mac) to select multiple.</small>
-            <span asp-validation-for="SelectedTestTypeIds" class="text-danger"></span>
+        <div class="tr-section-title">Select Test Types</div>
+        <div class="tr-testtype-list" id="testTypeList">
+            @foreach (var t in Model.AvailableTestTypes)
+            {
+                <label class="tr-testtype-item" data-sample="@t.RequiredSampleType">
+                    <input type="checkbox"
+                           name="SelectedTestTypeIds"
+                           value="@t.Id"
+                           class="tt-checkbox" />
+                    <div class="tr-testtype-info">
+                        <div class="tr-testtype-name">@t.Name</div>
+                        <div class="tr-testtype-meta">@t.Category &middot; ~@t.TurnaroundTimeHours hrs turnaround</div>
+                    </div>
+                    <span class="tr-sample-pill">@t.RequiredSampleType</span>
+                </label>
+            }
         </div>
+        <span asp-validation-for="SelectedTestTypeIds" class="text-danger"></span>
 
-        <div class="tr-section-title">Sample Barcodes</div>
-        <div id="barcodeContainer">
-            <div class="tr-barcode-row">
-                <input type="text" name="Barcodes" placeholder="Scan or type barcode" />
-                <button type="button" class="tr-remove-barcode">&times;</button>
-            </div>
-        </div>
-        <div class="tr-section-title">Sample Barcode</div>
-        <div class="tr-form-group full">
-            <input asp-for="Barcode" placeholder="Scan or type the sample barcode" />
-            <span asp-validation-for="Barcode" class="text-danger"></span>
+        <div class="tr-samples-needed" id="samplesNeededBox" style="display:none;">
+            <strong>Samples to collect:</strong>
+            <span id="samplesNeededText"></span>
         </div>
 
         <div class="tr-actions">
-            <a asp-controller="Doctor" asp-action="ManagePatients" class="tr-btn-cancel">Cancel</a>
+            <a href="@Url.Action("ManagePatients", "Doctor")" class="tr-btn-cancel">Cancel</a>
             <button type="submit" class="tr-btn-submit">Submit Test Request</button>
+        </div>
+        <div id="confirmModal" class="tr-modal">
+            <div class="tr-modal-content">
+                <i class="fas fa-check-circle" style="color:#0d6b63;font-size:32px;margin-bottom:10px;"></i>
+                <h3>Confirm Test Request</h3>
+                <p id="confirmSummary" style="font-size:13px;color:#4a5c7c;margin-bottom:16px;"></p>
+                <div class="tr-modal-actions">
+                    <button type="button" class="tr-btn-cancel-modal" onclick="closeConfirmModal()">Go Back</button>
+                    <button type="button" class="tr-btn-submit" onclick="submitConfirmedForm()">Confirm and Submit</button>
+                </div>
+            </div>
         </div>
     </form>
 </div>
@@ -268,23 +285,29 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        document.getElementById('addBarcode').addEventListener('click', function () {
-            const container = document.getElementById('barcodeContainer');
-            const row = document.createElement('div');
-            row.className = 'tr-barcode-row';
-            row.innerHTML = `
-                <input type="text" name="Barcodes" placeholder="Scan or type barcode" />
-                <button type="button" class="tr-remove-barcode">&times;</button>`;
-            container.appendChild(row);
-        });
+        document.addEventListener('DOMContentLoaded', function () {
+            const checkboxes = document.querySelectorAll('.tt-checkbox');
+            const samplesBox = document.getElementById('samplesNeededBox');
+            const samplesText = document.getElementById('samplesNeededText');
 
-        document.getElementById('barcodeContainer').addEventListener('click', function (e) {
-            if (e.target.classList.contains('tr-remove-barcode')) {
-                const rows = document.querySelectorAll('.tr-barcode-row');
-                if (rows.length > 1) {
-                    e.target.closest('.tr-barcode-row').remove();
+            function updateSamplesNeeded() {
+                const selected = Array.from(checkboxes).filter(cb => cb.checked);
+                const sampleTypes = [...new Set(selected.map(cb => cb.closest('.tr-testtype-item').dataset.sample))];
+
+                selected.forEach(cb => cb.closest('.tr-testtype-item').classList.add('checked'));
+                Array.from(checkboxes)
+                    .filter(cb => !cb.checked)
+                    .forEach(cb => cb.closest('.tr-testtype-item').classList.remove('checked'));
+
+                if (sampleTypes.length > 0) {
+                    samplesBox.style.display = 'block';
+                    samplesText.textContent = sampleTypes.join(', ');
+                } else {
+                    samplesBox.style.display = 'none';
                 }
             }
+
+            checkboxes.forEach(cb => cb.addEventListener('change', updateSamplesNeeded));
         });
     </script>
 }
