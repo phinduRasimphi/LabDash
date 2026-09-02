@@ -1,0 +1,326 @@
+﻿@model LabDash.Models.TestResult
+
+@{
+    ViewData["Title"] = "Laboratory Result Details";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    var testItem = ViewBag.TestItem as LabDash.Models.TestRequestItem;
+    var patient = ViewBag.Patient as LabDash.Models.Patient;
+}
+
+<style>
+    .details-container {
+        padding: 30px;
+    }
+
+    .details-header {
+        background: linear-gradient(135deg, #0e7a83, #09636b);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 25px;
+    }
+
+        .details-header h2 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+    .card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 18px rgba(0,0,0,.05);
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    .label {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: #6b7280;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .value {
+        font-size: 16px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .result-value {
+        font-size: 32px;
+        font-weight: 800;
+        color: #0e7a83;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 7px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 12px;
+    }
+
+    .status-completed {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .status-review {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-verified {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .abnormal {
+        background: #fee2e2;
+        color: #991b1b;
+        padding: 15px;
+        border-radius: 10px;
+        margin-top: 15px;
+        font-weight: 600;
+    }
+
+    .buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .btn-custom {
+        padding: 10px 18px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-edit {
+        background: #0e7a83;
+        color: white;
+    }
+
+    .btn-back {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .btn-custom:hover {
+        opacity: .9;
+        color: white;
+    }
+</style>
+
+<div class="details-container">
+
+    <div class="details-header">
+        <h2>
+            <i class="fa-solid fa-flask"></i>
+            Laboratory Result Details
+        </h2>
+
+        <p>
+            View the captured laboratory result and test information.
+        </p>
+    </div>
+
+
+    <!-- PATIENT INFORMATION -->
+
+    <div class="card">
+
+        <h4>
+            <i class="fa-solid fa-user"></i>
+            Patient Information
+        </h4>
+
+        <hr />
+
+        <div class="info-grid">
+
+            <div>
+                <div class="label">Patient</div>
+
+                <div class="value">
+                    @patient?.Name
+                </div>
+            </div>
+
+            <div>
+                <div class="label">Request Number</div>
+
+                <div class="value">
+                    @testItem?.RequestId
+                </div>
+            </div>
+
+            <div>
+                <div class="label">Test Type</div>
+
+                <div class="value">
+                    @testItem?.TestType?.Name
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- RESULT -->
+
+    <div class="card">
+
+        <h4>
+            <i class="fa-solid fa-vial"></i>
+            Laboratory Result
+        </h4>
+
+        <hr />
+
+        <div class="info-grid">
+
+            <div>
+                <div class="label">Result</div>
+
+                <div class="result-value">
+                    @Model.ResultValue
+                    @Model.Units
+                </div>
+            </div>
+
+            <div>
+                <div class="label">Reference Range</div>
+
+                <div class="value">
+                    @Model.ReferenceRange
+                </div>
+            </div>
+
+            <div>
+                <div class="label">Date Captured</div>
+
+                <div class="value">
+                    @Model.DateCaptured.ToString("dd MMMM yyyy HH:mm")
+                </div>
+            </div>
+
+        </div>
+
+
+        @if (Model.IsAbnormal)
+        {
+            <div class="abnormal">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                This result is outside the expected reference range.
+            </div>
+        }
+
+    </div>
+
+
+    <!-- COMMENTS -->
+    @if (!string.IsNullOrWhiteSpace(Model.Comments))
+    {
+        <div class="card">
+
+            <h4>
+                <i class="fa-solid fa-comment"></i>
+                Laboratory Comments
+            </h4>
+
+            <hr />
+
+            <p>
+                @Model.Comments
+            </p>
+
+        </div>
+    }
+
+
+    <!-- STATUS -->
+
+    <div class="card">
+
+        <h4>
+            <i class="fa-solid fa-circle-check"></i>
+            Result Status
+        </h4>
+
+        <hr />
+
+        @if (Model.Status == "Completed")
+        {
+            <span class="status status-completed">
+                COMPLETED
+            </span>
+        }
+        else if (Model.Status == "To Be Reviewed")
+        {
+            <span class="status status-review">
+                TO BE REVIEWED
+            </span>
+        }
+        else if (Model.Status == "Verified")
+        {
+            <span class="status status-verified">
+                VERIFIED
+            </span>
+        }
+        else
+        {
+            <span class="status status-completed">
+                @Model.Status
+            </span>
+        }
+
+    </div>
+
+
+    <!-- BUTTONS -->
+
+    <div class="buttons">
+
+        @if (Model.Status == "Completed" ||
+             Model.Status == "To Be Reviewed")
+        {
+            <a asp-controller="CaptureResults"
+               asp-action="Edit"
+               asp-route-id="@Model.TestRequestItemId"
+               class="btn-custom btn-edit">
+
+                <i class="fa-solid fa-pen"></i>
+
+                Edit Result
+
+            </a>
+        }
+
+        <a asp-controller="CaptureResults"
+           asp-action="Index"
+           class="btn-custom btn-back">
+
+            <i class="fa-solid fa-arrow-left"></i>
+
+            Back
+
+        </a>
+
+    </div>
+
+</div>

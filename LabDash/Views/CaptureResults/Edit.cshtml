@@ -1,0 +1,349 @@
+﻿@model LabDash.Models.TestResult
+
+@{
+    ViewData["Title"] = "Edit Laboratory Result";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    var testItem = ViewBag.TestItem as LabDash.Models.TestRequestItem;
+    var patient = ViewBag.Patient as LabDash.Models.Patient;
+
+    bool isResubmission =
+        ViewBag.IsResubmission == true;
+
+    string? previousNote =
+        ViewBag.PreviousVerificationNote as string;
+}
+
+<style>
+    .edit-container {
+        padding: 30px;
+    }
+
+    .header {
+        background: linear-gradient(135deg, #0e7a83, #09636b);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 25px;
+    }
+
+        .header h2 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+    .card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 18px rgba(0,0,0,.05);
+    }
+
+    .review-warning {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #9a3412;
+        padding: 18px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+
+    .patient-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    .label {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: #6b7280;
+        font-weight: 700;
+    }
+
+    .value {
+        font-size: 16px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        font-weight: 700;
+        color: #374151;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 15px;
+    }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #0e7a83;
+            box-shadow: 0 0 0 3px rgba(14,122,131,.12);
+        }
+
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .buttons {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-save {
+        background: #0e7a83;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .btn-cancel {
+        background: #f3f4f6;
+        color: #374151;
+        padding: 12px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    .validation {
+        color: #dc2626;
+        margin-bottom: 15px;
+    }
+</style>
+
+<div class="edit-container">
+
+    <div class="header">
+
+        <h2>
+            <i class="fa-solid fa-pen-to-square"></i>
+            Edit Laboratory Result
+        </h2>
+
+        <p>
+            Correct the result before sending it back for verification.
+        </p>
+
+    </div>
+
+
+    @if (isResubmission)
+    {
+        <div class="review-warning">
+
+            <strong>
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                Result Returned For Review
+            </strong>
+
+            @if (!string.IsNullOrWhiteSpace(previousNote))
+            {
+                <div style="margin-top:10px;">
+                    <strong>Reviewer's Note:</strong>
+
+                    <br />
+
+                    @previousNote
+                </div>
+            }
+
+        </div>
+    }
+
+
+    <!-- PATIENT INFORMATION -->
+
+    <div class="card">
+
+        <h4>
+            <i class="fa-solid fa-user"></i>
+            Patient & Test Information
+        </h4>
+
+        <hr />
+
+        <div class="patient-grid">
+
+            <div>
+                <div class="label">
+                    Patient
+                </div>
+
+                <div class="value">
+                    @patient?.Name
+                </div>
+            </div>
+
+            <div>
+                <div class="label">
+                    Request Number
+                </div>
+
+                <div class="value">
+                    @testItem?.RequestId
+                </div>
+            </div>
+
+            <div>
+                <div class="label">
+                    Test Type
+                </div>
+
+                <div class="value">
+                    @testItem?.TestType?.Name
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- EDIT FORM -->
+
+    <div class="card">
+
+        <h4>
+            <i class="fa-solid fa-flask"></i>
+            Laboratory Result
+        </h4>
+
+        <hr />
+
+        <form asp-controller="CaptureResults"
+              asp-action="Edit"
+              asp-route-id="@Model.TestRequestItemId"
+              method="post">
+
+            @Html.AntiForgeryToken()
+
+            <input type="hidden"
+                   asp-for="TestRequestItemId" />
+
+            <div asp-validation-summary="ModelOnly"
+                 class="validation">
+            </div>
+
+
+            <!-- RESULT VALUE -->
+
+            <div class="form-group">
+
+                <label asp-for="ResultValue"
+                       class="form-label">
+                    Result Value
+                </label>
+
+                <input asp-for="ResultValue"
+                       class="form-control"
+                       placeholder="Enter laboratory result" />
+
+                <span asp-validation-for="ResultValue"
+                      class="validation">
+                </span>
+
+            </div>
+
+
+            <!-- UNITS -->
+
+            <div class="form-group">
+
+                <label asp-for="Units"
+                       class="form-label">
+                    Units
+                </label>
+
+                <input asp-for="Units"
+                       class="form-control"
+                       placeholder="e.g. g/dL, x10³/µL, %" />
+
+            </div>
+
+
+            <!-- REFERENCE RANGE -->
+
+            <div class="form-group">
+
+                <label asp-for="ReferenceRange"
+                       class="form-label">
+                    Reference Range
+                </label>
+
+                <input asp-for="ReferenceRange"
+                       class="form-control"
+                       readonly />
+
+            </div>
+
+
+            <!-- COMMENTS -->
+
+            <div class="form-group">
+
+                <label asp-for="Comments"
+                       class="form-label">
+                    Comments
+                </label>
+
+                <textarea asp-for="Comments"
+                          class="form-control"
+                          placeholder="Enter laboratory comments">
+                </textarea>
+
+            </div>
+
+
+            <!-- BUTTONS -->
+
+            <div class="buttons">
+
+                <button type="submit"
+                        class="btn-save">
+
+                    <i class="fa-solid fa-floppy-disk"></i>
+
+                    Save Changes & Send For Verification
+
+                </button>
+
+                <a asp-controller="CaptureResults"
+                   asp-action="Details"
+                   asp-route-id="@Model.TestRequestItemId"
+                   class="btn-cancel">
+
+                    Cancel
+
+                </a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
