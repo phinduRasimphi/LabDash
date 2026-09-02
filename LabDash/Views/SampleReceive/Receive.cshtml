@@ -6,8 +6,7 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
 <div class="receive-page">
-
-<div class="receive-container">
+    <div class="receive-container">
 
     <!-- HEADER -->
     <div class="receive-header">
@@ -21,7 +20,7 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
         </div>
     </div>
 
-    <!-- SUCCESS MESSAGE -->
+    <!-- SUCCESS -->
     @if (TempData["Success"] != null)
     {
         <div class="alert-message success-message">
@@ -33,7 +32,7 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
         </div>
     }
 
-    <!-- ERROR MESSAGE -->
+    <!-- ERROR -->
     @if (TempData["Error"] != null)
     {
         <div class="alert-message error-message">
@@ -46,10 +45,9 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
     }
 
     <!-- VALIDATION -->
-    <div asp-validation-summary="All"
-         class="validation-summary"></div>
+    <div asp-validation-summary="All" class="validation-summary"></div>
 
-    <!-- FORM -->
+    <!-- RECEIVE CARD -->
     <div class="receive-card">
 
         <form asp-controller="SampleReceive"
@@ -69,7 +67,7 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
                 </label>
 
                 <select asp-for="RequestId"
-                        asp-items="ViewBag.RequestList"
+                        asp-items="@(ViewBag.RequestList as IEnumerable<SelectListItem>)"
                         id="requestId"
                         class="form-control">
 
@@ -79,6 +77,14 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
                 <span asp-validation-for="RequestId"
                       class="field-error"></span>
+
+                @if (ViewBag.RequestList == null)
+                {
+                    <div class="request-warning">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        No test requests were loaded.
+                    </div>
+                }
 
             </div>
 
@@ -94,8 +100,7 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
                     <div class="technician-avatar">
                         @{
-                            var technicianName =
-                                User.Identity?.Name ?? "Unknown";
+                            var technicianName = User.Identity?.Name ?? "Unknown";
 
                             var initials = string.Join(
                                 "",
@@ -146,6 +151,7 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
                         <i class="fa-solid fa-magnifying-glass"></i>
                         Verify
+
                     </button>
 
                 </div>
@@ -178,14 +184,13 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
                 </div>
 
-                <!-- IMPORTANT -->
                 <input asp-for="SampleType"
                        type="hidden"
                        id="sampleType" />
 
             </div>
 
-            <!-- DATE/TIME -->
+            <!-- DATE / TIME -->
             <div class="form-group">
 
                 <label>
@@ -232,6 +237,7 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
                     <i class="fa-solid fa-rotate-left"></i>
                     Clear
+
                 </button>
 
                 <button type="submit"
@@ -241,6 +247,7 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
                     <i class="fa-solid fa-vial-circle-check"></i>
                     Receive Sample
+
                 </button>
 
             </div>
@@ -260,9 +267,9 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
             <strong>Receiving procedure</strong>
 
             <p>
-                Select the test request, scan or enter the sample barcode,
-                verify the barcode and sample type, then click
-                <strong>Receive Sample</strong>.
+                Select the test request, enter or scan the sample barcode,
+                click <strong>Verify</strong>, confirm the sample type,
+                then click <strong>Receive Sample</strong>.
             </p>
         </div>
 
@@ -388,6 +395,22 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
         height: 120px;
         padding: 13px 15px;
         resize: vertical;
+    }
+
+    /* REQUEST WARNING */
+
+    .request-warning {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #fff3cd;
+        border: 1px solid #ffe69c;
+        color: #856404;
+        font-size: 13px;
+    }
+
+    .request-warning i {
+        margin-right: 6px;
     }
 
     /* TECHNICIAN */
@@ -683,43 +706,18 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
     document.addEventListener("DOMContentLoaded", function () {
 
-        const requestId =
-            document.getElementById("requestId");
-
-        const barcode =
-            document.getElementById("sampleBarcode");
-
-        const checkButton =
-            document.getElementById("checkBarcode");
-
-        const receiveButton =
-            document.getElementById("receiveButton");
-
-        const clearButton =
-            document.getElementById("clearButton");
-
-        const message =
-            document.getElementById("barcodeMessage");
-
-        const sampleType =
-            document.getElementById("sampleType");
-
-        const sampleTypeText =
-            document.getElementById("sampleTypeText");
-
-        const sampleTypeBox =
-            document.getElementById("sampleTypeBox");
-
-        const form =
-            document.getElementById("receiveForm");
-
+        const requestId = document.getElementById("requestId");
+        const barcode = document.getElementById("sampleBarcode");
+        const checkButton = document.getElementById("checkBarcode");
+        const receiveButton = document.getElementById("receiveButton");
+        const clearButton = document.getElementById("clearButton");
+        const message = document.getElementById("barcodeMessage");
+        const sampleType = document.getElementById("sampleType");
+        const sampleTypeText = document.getElementById("sampleTypeText");
+        const sampleTypeBox = document.getElementById("sampleTypeBox");
+        const form = document.getElementById("receiveForm");
 
         let barcodeVerified = false;
-
-
-        // ==========================================
-        // RESET
-        // ==========================================
 
         function resetBarcode() {
 
@@ -739,21 +737,12 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
             message.className = "barcode-message";
         }
 
-
-        // ==========================================
-        // VERIFY BARCODE
-        // ==========================================
-
         async function verifyBarcode() {
 
             resetBarcode();
 
-            const request =
-                requestId.value;
-
-            const code =
-                barcode.value.trim();
-
+            const request = requestId.value;
+            const code = barcode.value.trim();
 
             if (!request) {
 
@@ -766,7 +755,6 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
                 return;
             }
 
-
             if (!code) {
 
                 message.textContent =
@@ -778,13 +766,11 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
                 return;
             }
 
-
             message.textContent =
                 "Checking barcode...";
 
             message.className =
                 "barcode-message barcode-checking";
-
 
             try {
 
@@ -795,7 +781,6 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
                     + "&barcode="
                     + encodeURIComponent(code);
 
-
                 const response =
                     await fetch(url, {
                         method: "GET",
@@ -804,19 +789,14 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
                         }
                     });
 
-
                 if (!response.ok) {
 
                     throw new Error(
-                        "Server returned " +
-                        response.status
+                        "Server returned " + response.status
                     );
                 }
 
-
-                const data =
-                    await response.json();
-
+                const data = await response.json();
 
                 if (data.found) {
 
@@ -831,20 +811,16 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
                     sampleTypeBox.style.color =
                         "#00695c";
 
-
                     message.innerHTML =
                         '<i class="fa-solid fa-circle-check"></i> ' +
                         'Barcode verified successfully.';
 
-
                     message.className =
                         "barcode-message barcode-success";
 
-
                     receiveButton.disabled = false;
 
-                }
-                else {
+                } else {
 
                     resetBarcode();
 
@@ -871,36 +847,18 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
             }
         }
 
+        requestId.addEventListener("change", function () {
 
-        // ==========================================
-        // REQUEST CHANGED
-        // ==========================================
+            barcode.value = "";
 
-        requestId.addEventListener(
-            "change",
-            function () {
+            resetBarcode();
 
-                barcode.value = "";
-
-                resetBarcode();
-
-            }
-        );
-
-
-        // ==========================================
-        // VERIFY BUTTON
-        // ==========================================
+        });
 
         checkButton.addEventListener(
             "click",
             verifyBarcode
         );
-
-
-        // ==========================================
-        // ENTER KEY
-        // ==========================================
 
         barcode.addEventListener(
             "keydown",
@@ -915,11 +873,6 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
             }
         );
-
-
-        // ==========================================
-        // BARCODE CHANGED
-        // ==========================================
 
         barcode.addEventListener(
             "input",
@@ -939,11 +892,6 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
             }
         );
 
-
-        // ==========================================
-        // CLEAR
-        // ==========================================
-
         clearButton.addEventListener(
             "click",
             function () {
@@ -952,19 +900,19 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
                 barcode.value = "";
 
-                document.querySelector(
-                    "textarea[name='Notes']"
-                ).value = "";
+                const notes =
+                    document.querySelector(
+                        "textarea[name='Notes']"
+                    );
+
+                if (notes) {
+                    notes.value = "";
+                }
 
                 resetBarcode();
 
             }
         );
-
-
-        // ==========================================
-        // FINAL SUBMIT CHECK
-        // ==========================================
 
         form.addEventListener(
             "submit",
@@ -981,7 +929,6 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
                     return;
                 }
 
-
                 receiveButton.disabled = true;
 
                 receiveButton.innerHTML =
@@ -995,3 +942,4 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
 </script>
 
 }
+
