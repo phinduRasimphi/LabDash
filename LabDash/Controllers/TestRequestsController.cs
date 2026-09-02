@@ -351,43 +351,88 @@ namespace LabDash.Controllers
 
             return View("PatientResults", vm);
         }
+        // GET: TestRequest/Index
+        public async Task<IActionResult> Index()
+        {
+            var testRequests = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .Include(tr => tr.RequestingDoctor)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
+                .OrderByDescending(tr => tr.RequestDate)
+                .ToListAsync();
 
+            var viewModel = testRequests.Select(tr => new TestRequestListViewModel
+            {
+                RequestId = tr.RequestId,
+                PatientName = tr.Patient != null ? $"{tr.Patient.Name} {tr.Patient.Surname}" : "Unknown",
+                DoctorName = tr.RequestingDoctor != null ? tr.RequestingDoctor.FullName : "Unknown",
+                RequestDate = tr.RequestDate,
+                Urgency = tr.Urgency,
+                Status = tr.Status,
+                HasAbnormalResults = false,
+                ResultCount = tr.TestRequestItems?.Count ?? 0,
+
+                // ===== TEST TYPES =====
+                TestTypeNames = tr.TestRequestItems?.Select(tri => tri.TestType?.Name ?? "Unknown").ToList() ?? new List<string>(),
+                TestTypesDisplay = tr.TestRequestItems != null && tr.TestRequestItems.Any()
+                    ? string.Join(", ", tr.TestRequestItems.Select(tri => tri.TestType?.Name ?? "Unknown"))
+                    : "No tests",
+
+                // ===== BARCODES =====
+                SampleBarcodes = !string.IsNullOrEmpty(tr.SampleBarcodes)
+                    ? tr.SampleBarcodes.Split(',').ToList()
+                    : new List<string>(),
+                SampleBarcodesString = tr.SampleBarcodes ?? "",
+
+                // ===== CANCELLATION REASON =====
+                CancellationReason = tr.CancellationReason,
+
+                // ===== CLINICAL NOTES =====
+                ClinicalNotes = tr.ClinicalNotes
+            });
+
+            return View(viewModel);
+        }
         // POST: /TestRequest/ReleaseResults
         [HttpPost]
-            [ValidateAntiForgeryToken]
-            public async Task<IActionResult> ReleaseResults(int requestId, string releaseNote)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReleaseResults(int requestId, string releaseNote)
+        {
+            var doctor = await _userManager.GetUserAsync(User);
+
+            var request = await _context.TestRequests
+                .Include(r => r.Patient)
+                .FirstOrDefaultAsync(r => r.RequestId == requestId);
+
+            if (request == null) return NotFound();
+            if (request.RequestingDoctorId != doctor.Id) return Forbid();
+
+            if (request.Status != "Completed")
             {
-                var doctor = await _userManager.GetUserAsync(User);
+                TempData["Error"] = "Only completed results can be released.";
+                return RedirectToAction(nameof(Results));
+            }
 
-                var request = await _context.TestRequests
-                    .Include(r => r.Patient)
-                    .FirstOrDefaultAsync(r => r.RequestId == requestId);
+            request.Status = "Released";
+            request.ReleaseNote = releaseNote;
+            request.ReleaseDate = DateTime.Now;
 
-                if (request == null) return NotFound();
-                if (request.RequestingDoctorId != doctor.Id) return Forbid();
+            await _context.SaveChangesAsync();
 
-                if (request.Status != "Completed")
-                {
-                    TempData["Error"] = "Only completed results can be released.";
-                    return RedirectToAction(nameof(Results));
-                }
-
-                request.Status = "Released";
-                request.ReleaseNote = releaseNote;
-                request.ReleaseDate = DateTime.Now;
-
-                await _context.SaveChangesAsync();
-
-                string emailBody = $@"
+            string emailBody = $@"
                 <p>Dear {request.Patient.Name},</p>
                 <p>Your test results from Dr. {doctor.LastName} are now available.</p>
                 {(string.IsNullOrWhiteSpace(releaseNote) ? "" : $"<p>{releaseNote}</p>")}
                 <p>Please contact the lab or your doctor if you have any questions.</p>";
 
-                await _emailSender.SendEmailAsync(request.Patient.Email, "Your test results are available", emailBody);
+            await _emailSender.SendEmailAsync(request.Patient.Email, "Your test results are available", emailBody);
 
             TempData["Success"] = "Results released to patient.";
             return RedirectToAction(nameof(Results));
+
+
+
         }
     }
-}
+ }

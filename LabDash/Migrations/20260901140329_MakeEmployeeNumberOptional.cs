@@ -10,6 +10,11 @@ namespace LabDash.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // ===== DROP THE INDEX FIRST =====
+            migrationBuilder.DropIndex(
+                name: "IX_AspNetUsers_EmployeeNumber",
+                table: "AspNetUsers");
+
             // Remove the existing foreign key because
             // AssignedTechnicianId is being changed to nullable.
             migrationBuilder.DropForeignKey(
@@ -36,6 +41,13 @@ namespace LabDash.Migrations
                 oldType: "nvarchar(50)",
                 oldMaxLength: 50);
 
+            // ===== RECREATE THE INDEX (OPTIONAL) =====
+            // If you want to keep the index on EmployeeNumber, uncomment this:
+            // migrationBuilder.CreateIndex(
+            //     name: "IX_AspNetUsers_EmployeeNumber",
+            //     table: "AspNetUsers",
+            //     column: "EmployeeNumber");
+
             // Recreate the foreign key without cascade delete
             migrationBuilder.AddForeignKey(
                 name: "FK_TestRequestItems_AspNetUsers_AssignedTechnicianId",
@@ -48,6 +60,11 @@ namespace LabDash.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // ===== DROP THE INDEX AGAIN =====
+            migrationBuilder.DropIndex(
+                name: "IX_AspNetUsers_EmployeeNumber",
+                table: "AspNetUsers");
+
             migrationBuilder.DropForeignKey(
                 name: "FK_TestRequestItems_AspNetUsers_AssignedTechnicianId",
                 table: "TestRequestItems");
@@ -75,6 +92,12 @@ namespace LabDash.Migrations
                 oldType: "nvarchar(50)",
                 oldMaxLength: 50,
                 oldNullable: true);
+
+            // ===== RECREATE THE INDEX =====
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_EmployeeNumber",
+                table: "AspNetUsers",
+                column: "EmployeeNumber");
 
             // Restore the original cascade foreign key
             migrationBuilder.AddForeignKey(
