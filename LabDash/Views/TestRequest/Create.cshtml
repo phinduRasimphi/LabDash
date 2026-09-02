@@ -1,4 +1,3 @@
-@model LabDash.ViewModels.TestRequestCreateViewModel
 @{
     ViewData["Title"] = "Create Test Request";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
@@ -146,22 +145,6 @@
         white-space: nowrap;
     }
 
-    .tr-samples-needed {
-        margin-top: 16px;
-        background: #fff8e1;
-        border: 1px solid #ffe082;
-        border-radius: 8px;
-        padding: 12px 14px;
-        font-size: 12.5px;
-        color: #7a5c00;
-    }
-
-        .tr-samples-needed strong {
-            display: block;
-            margin-bottom: 4px;
-        }
-
-    /* ===== BARCODE STYLES ===== */
     .tr-barcode-section {
         margin-top: 16px;
         padding-top: 16px;
@@ -264,50 +247,44 @@
 <h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:16px;">Create Test Request</h1>
 
 <div class="tr-patient-banner">
-    <div class="tr-patient-avatar">@Model.PatientName.Substring(0, 1)</div>
+    <div class="tr-patient-avatar">@ViewBag.PatientName.Substring(0, 1)</div>
     <div>
-        <div class="tr-patient-name">@Model.PatientName</div>
-        <div class="tr-patient-sub">ID: @Model.PatientIDNumber</div>
+        <div class="tr-patient-name">@ViewBag.PatientName</div>
+        <div class="tr-patient-sub">ID: @ViewBag.PatientIDNumber</div>
     </div>
 </div>
 
 <div class="tr-card">
     <form asp-action="Create" method="post">
-        <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
-
-        <input type="hidden" asp-for="PatientId" />
-        <input type="hidden" asp-for="PatientName" />
-        <input type="hidden" asp-for="PatientIDNumber" />
+        <input type="hidden" name="patientId" value="@ViewBag.PatientId" />
 
         <div class="tr-form-grid">
             <div class="tr-form-group">
                 <label>Request Date</label>
-                <input asp-for="RequestDate" type="date" />
-                <span asp-validation-for="RequestDate" class="text-danger"></span>
+                <input name="requestDate" type="date" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
             </div>
             <div class="tr-form-group">
                 <label>Urgency</label>
-                <select asp-for="Urgency">
+                <select name="urgency">
                     <option value="">-- Select --</option>
                     <option value="Routine">Routine (24-48 hours)</option>
                     <option value="Urgent">Urgent (4-8 hours)</option>
                     <option value="STAT">STAT (1-2 hours)</option>
                 </select>
-                <span asp-validation-for="Urgency" class="text-danger"></span>
             </div>
             <div class="tr-form-group full">
                 <label>Clinical Notes</label>
-                <textarea asp-for="ClinicalNotes" placeholder="Reason for the test request..."></textarea>
+                <textarea name="clinicalNotes" placeholder="Reason for the test request..."></textarea>
             </div>
         </div>
 
         <div class="tr-section-title">Select Test Types</div>
         <div class="tr-testtype-list" id="testTypeList">
-            @foreach (var t in Model.AvailableTestTypes)
+            @foreach (var t in ViewBag.TestTypes as List<LabDash.Models.TestType>)
             {
                 <label class="tr-testtype-item" data-sample="@t.RequiredSampleType">
                     <input type="checkbox"
-                           name="SelectedTestTypeIds"
+                           name="selectedTestTypeIds"
                            value="@t.Id"
                            class="tt-checkbox" />
                     <div class="tr-testtype-info">
@@ -318,82 +295,64 @@
                 </label>
             }
         </div>
-        <span asp-validation-for="SelectedTestTypeIds" class="text-danger"></span>
+        <span class="text-danger" style="font-size: 12px;">@TempData["Error"]</span>
 
-        <div class="tr-samples-needed" id="samplesNeededBox" style="display:none;">
-            <strong>Samples to collect:</strong>
-            <span id="samplesNeededText"></span>
-        </div>
-
-        <!-- ===== BARCODE SECTION ===== -->
         <div class="tr-barcode-section">
             <div class="tr-section-title" style="border-top:none;padding-top:0;margin-top:0;">
                 Sample Barcodes
-                <span style="font-weight:400;color:#7a8da8;font-size:20px;text-transform:none;">
-                  
-                </span>
             </div>
 
-            <div class="tr-barcode-grid">
-                <!-- Barcode 1 -->
-                <div class="tr-barcode-item">
-                    <span class="label">#1</span>
-                    <div class="barcode-input-wrapper">
+            <!-- ===== BARCODE SECTION ===== -->
+            <div class="tr-barcode-section">
+                <div class="tr-section-title" style="border-top:none;padding-top:0;margin-top:0;">
+                    Sample Barcodes
+                </div>
+
+                <div class="tr-form-grid">
+                    
+                    <div class="tr-form-group">
+                        <label>Barcode #1</label>
                         <input type="text"
-                               asp-for="SampleBarcode1"
+                               name="sampleBarcode1"
+                               placeholder="Enter barcode..."
+                               autocomplete="off" />
+                    </div>
+
+                    <div class="tr-form-group">
+                        <label>Barcode #2</label>
+                        <input type="text"
+                               name="sampleBarcode2"
                                placeholder="Enter barcode..."
                                autocomplete="off" />
                     </div>
                 </div>
-
-                <!-- Barcode 2 -->
-                <div class="tr-barcode-item">
-                    <span class="label">#2</span>
-                    <div class="barcode-input-wrapper">
-                        <input type="text"
-                               asp-for="SampleBarcode2"
-                               placeholder="Enter barcode..."
-                               autocomplete="off" />
-                    </div>
-                </div>
             </div>
-        </div>
+             
 
         <div class="tr-actions">
             <a href="@Url.Action("ManagePatients", "Doctor")" class="tr-btn-cancel">Cancel</a>
             <button type="submit" class="tr-btn-submit">Submit Test Request</button>
         </div>
-
-       
     </form>
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const checkboxes = document.querySelectorAll('.tt-checkbox');
-            const samplesBox = document.getElementById('samplesNeededBox');
-            const samplesText = document.getElementById('samplesNeededText');
+            const barcodeItems = document.querySelectorAll('.tr-barcode-item');
 
-            function updateSamplesNeeded() {
-                const selected = Array.from(checkboxes).filter(cb => cb.checked);
-                const sampleTypes = [...new Set(selected.map(cb => cb.closest('.tr-testtype-item').dataset.sample))];
+            checkboxes.forEach(cb => cb.addEventListener('change', function () {
+                this.closest('.tr-testtype-item').classList.toggle('checked', this.checked);
+            }));
 
-                selected.forEach(cb => cb.closest('.tr-testtype-item').classList.add('checked'));
-                Array.from(checkboxes)
-                    .filter(cb => !cb.checked)
-                    .forEach(cb => cb.closest('.tr-testtype-item').classList.remove('checked'));
-
-                if (sampleTypes.length > 0) {
-                    samplesBox.style.display = 'block';
-                    samplesText.textContent = sampleTypes.join(', ');
-                } else {
-                    samplesBox.style.display = 'none';
-                }
-            }
-
-            checkboxes.forEach(cb => cb.addEventListener('change', updateSamplesNeeded));
+            // Highlight barcode inputs when they have value
+            barcodeItems.forEach(item => {
+                const input = item.querySelector('input');
+                input.addEventListener('input', function () {
+                    item.classList.toggle('has-value', input.value.trim() !== '');
+                });
+            });
         });
     </script>
 }

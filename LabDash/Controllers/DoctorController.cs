@@ -108,7 +108,11 @@ namespace LabDash.Controllers
                 Email = model.Email,
                 FirstName = model.Name,
                 LastName = model.Surname,
-                PhoneNumb = model.CellphoneNumber,
+                Gender = "Not Specified",                                 // <--- FIX
+                PhoneNumb = string.IsNullOrWhiteSpace(model.CellphoneNumber) ? "0000000000" : model.CellphoneNumber,
+                SouthAfricanID = model.IDNumber,                          // <--- FIX
+                EmployeeNumber = "N/A",                                   // <--- FIX
+                HPCSANumber = "N/A",                                      // <--- FIX
                 MustChangePassword = true
             };
 
@@ -125,17 +129,18 @@ namespace LabDash.Controllers
             // 3. Create the Patient record, linked via UserId
             var patient = new Patient
             {
-                UserId = user.Id,
-                Name = model.Name,
-                Surname = model.Surname,
-                IDNumber = model.IDNumber,
-                CellphoneNumber = model.CellphoneNumber,
-                DOB = model.DOB,
-                Email = model.Email,
-                HomeAddress = model.HomeAddress,
-                MedicalConditions = model.MedicalConditions,
-                Allergies = model.Allergies,
-                Medication = model.Medication
+                    UserId = user.Id,
+                    Name = model.Name,
+                    Surname = model.Surname,
+                    IDNumber = model.IDNumber,
+                    CellphoneNumber = model.CellphoneNumber,
+                    DOB = model.DOB,
+                    Email = model.Email,
+                    HomeAddress = model.HomeAddress,
+                    MedicalConditions = string.IsNullOrWhiteSpace(model.MedicalConditions) ? "None" : model.MedicalConditions,
+                    Allergies = string.IsNullOrWhiteSpace(model.Allergies) ? "None" : model.Allergies,
+                    Medication = string.IsNullOrWhiteSpace(model.Medication) ? "None" : model.Medication
+                
             };
 
             _context.Patients.Add(patient);
