@@ -161,6 +161,67 @@
             margin-bottom: 4px;
         }
 
+    /* ===== BARCODE STYLES ===== */
+    .tr-barcode-section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #f0f2f5;
+    }
+
+    .tr-barcode-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 8px;
+    }
+
+    .tr-barcode-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        background: #f8fafd;
+        border-radius: 6px;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+    }
+
+        .tr-barcode-item.has-value {
+            border-color: #0d6b63;
+            background: #f0f7f6;
+        }
+
+        .tr-barcode-item .label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #4a5c7c;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .tr-barcode-item .barcode-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+            .tr-barcode-item .barcode-input-wrapper input {
+                width: 100%;
+                padding: 6px 10px;
+                border: 2px solid #e2e8f0;
+                border-radius: 6px;
+                font-size: 13px;
+                font-family: 'Courier New', monospace;
+                letter-spacing: 1px;
+                transition: all 0.3s ease;
+                background: white;
+            }
+
+                .tr-barcode-item .barcode-input-wrapper input:focus {
+                    border-color: #0d6b63;
+                    outline: none;
+                    box-shadow: 0 0 0 3px rgba(13, 107, 99, 0.1);
+                }
+
     .tr-actions {
         margin-top: 22px;
         display: flex;
@@ -228,9 +289,9 @@
                 <label>Urgency</label>
                 <select asp-for="Urgency">
                     <option value="">-- Select --</option>
-                    <option value="Routine">Routine</option>
-                    <option value="Urgent">Urgent</option>
-                    <option value="STAT">STAT</option>
+                    <option value="Routine">Routine (24-48 hours)</option>
+                    <option value="Urgent">Urgent (4-8 hours)</option>
+                    <option value="STAT">STAT (1-2 hours)</option>
                 </select>
                 <span asp-validation-for="Urgency" class="text-danger"></span>
             </div>
@@ -264,21 +325,46 @@
             <span id="samplesNeededText"></span>
         </div>
 
+        <!-- ===== BARCODE SECTION ===== -->
+        <div class="tr-barcode-section">
+            <div class="tr-section-title" style="border-top:none;padding-top:0;margin-top:0;">
+                Sample Barcodes
+                <span style="font-weight:400;color:#7a8da8;font-size:20px;text-transform:none;">
+                  
+                </span>
+            </div>
+
+            <div class="tr-barcode-grid">
+                <!-- Barcode 1 -->
+                <div class="tr-barcode-item">
+                    <span class="label">#1</span>
+                    <div class="barcode-input-wrapper">
+                        <input type="text"
+                               asp-for="SampleBarcode1"
+                               placeholder="Enter barcode..."
+                               autocomplete="off" />
+                    </div>
+                </div>
+
+                <!-- Barcode 2 -->
+                <div class="tr-barcode-item">
+                    <span class="label">#2</span>
+                    <div class="barcode-input-wrapper">
+                        <input type="text"
+                               asp-for="SampleBarcode2"
+                               placeholder="Enter barcode..."
+                               autocomplete="off" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="tr-actions">
             <a href="@Url.Action("ManagePatients", "Doctor")" class="tr-btn-cancel">Cancel</a>
             <button type="submit" class="tr-btn-submit">Submit Test Request</button>
         </div>
-        <div id="confirmModal" class="tr-modal">
-            <div class="tr-modal-content">
-                <i class="fas fa-check-circle" style="color:#0d6b63;font-size:32px;margin-bottom:10px;"></i>
-                <h3>Confirm Test Request</h3>
-                <p id="confirmSummary" style="font-size:13px;color:#4a5c7c;margin-bottom:16px;"></p>
-                <div class="tr-modal-actions">
-                    <button type="button" class="tr-btn-cancel-modal" onclick="closeConfirmModal()">Go Back</button>
-                    <button type="button" class="tr-btn-submit" onclick="submitConfirmedForm()">Confirm and Submit</button>
-                </div>
-            </div>
-        </div>
+
+       
     </form>
 </div>
 

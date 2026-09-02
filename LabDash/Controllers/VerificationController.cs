@@ -1,11 +1,11 @@
-﻿using LabDash.Models;
+﻿using LabDash.Areas.Identity.Data;
 using LabDash.Enums;
+using LabDash.Models;
+using LabDash.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using LabDash.Areas.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using LabDash.Services;
 
 namespace LabDash.Controllers
 {
@@ -26,49 +26,11 @@ namespace LabDash.Controllers
             _notificationService = notificationService;
         }
 
-        //==========================================================
-        // FULL REVIEW / VERIFICATION HISTORY
-        //==========================================================
-        // Read-only audit trail for a single TestRequestItem. Every
-        // verification decision (approve or return, with its note) is
-        // already persisted in TestVerifications by the Verify action
-        // below — this simply surfaces it. Available to any lab
-        // technician; it's an audit view, not a decision-making one,
-        // so the "cannot review own result" / assignment rules that
-        // gate the Verify action don't apply here.
-        //==========================================================
-        [HttpGet]
-        public async Task<IActionResult> History(int id)
-        {
-            var item = await _context.TestRequestItems
-                .Include(t => t.TestType)
-                .Include(t => t.TestRequest)
-                    .ThenInclude(r => r.Patient)
-                .FirstOrDefaultAsync(t => t.TestRequestItemId == id);
 
-            if (item == null)
-                return NotFound();
-
-            var currentResult = await _context.TestResults
-                .Include(r => r.CapturedByTechnician)
-                .FirstOrDefaultAsync(r => r.TestRequestItemId == id);
-
-            var history = await _context.TestVerifications
-                .Include(v => v.VerifiedByTechnician)
-                .Where(v => v.TestRequestItemId == id)
-                .OrderBy(v => v.VerificationDate)
-                .ToListAsync();
-
-            ViewBag.TestItem = item;
-            ViewBag.Patient = item.TestRequest.Patient;
-            ViewBag.CurrentResult = currentResult;
-
-            return View(history);
-        }
-
-        //==========================================================
+        // ============================================================
         // VERIFICATION QUEUE
-        //==========================================================
+        // ============================================================
+        [HttpGet]
         public async Task<IActionResult> Index()
         {
             var technician = await _userManager.GetUserAsync(User);
@@ -76,51 +38,89 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Challenge();
 
-            var queue = await _context.TestResults
+
+            // --------------------------------------------------------
+            // LOAD ALL COMPLETED RESULTS THAT HAVE NOT BEEN VERIFIED
+            // --------------------------------------------------------
+            var results = await _context.TestResults
+                .Include(r => r.TestRequestItem)
+                    .ThenInclude(i => i.TestType)
 
                 .Include(r => r.TestRequestItem)
-                    .ThenInclude(t => t.TestType)
-
-                .Include(r => r.TestRequestItem)
-                    .ThenInclude(t => t.TestRequest)
-                        .ThenInclude(r => r.Patient)
+                    .ThenInclude(i => i.TestRequest)
+                        .ThenInclude(req => req.Patient)
 
                 .Include(r => r.CapturedByTechnician)
 
                 .Where(r =>
                     r.Status == "Completed" &&
                     r.VerifiedByTechnicianId == null &&
-                    r.CapturedByTechnicianId != technician.Id)
-
+                    r.TestRequestItem != null &&
+                    r.TestRequestItem.Status == "Completed" &&
+                    r.CapturedByTechnicianId != technician.Id
+                )
                 .OrderBy(r => r.DateCaptured)
-
                 .ToListAsync();
 
-            // Only show results for test types assigned
-            // to this technician
 
-            var assignedTestTypes = await _context.TechnicianAssignments
+            // --------------------------------------------------------
+            // SEND INFORMATION TO VIEW
+            // --------------------------------------------------------
+            ViewBag.CurrentTechnicianId = technician.Id;
 
-                .Where(a => a.TechnicianId == technician.Id)
-
-                .Select(a => a.TestTypeId)
-
-                .ToListAsync();
-
-            queue = queue
-
-                .Where(r =>
-                    assignedTestTypes.Contains(
-                        r.TestRequestItem.TestTypeId))
-
-                .ToList();
-
-            return View(queue);
+            return View(results);
         }
 
-        //==========================================================
-        // DISPLAY VERIFICATION PAGE
-        //==========================================================
+
+        // ============================================================
+        // VERIFICATION HISTORY
+        // ============================================================
+        [HttpGet]
+        public async Task<IActionResult> History(int id)
+        {
+            var item = await _context.TestRequestItems
+
+                .Include(i => i.TestType)
+
+                .Include(i => i.TestRequest)
+                    .ThenInclude(r => r.Patient)
+
+                .FirstOrDefaultAsync(
+                    i => i.TestRequestItemId == id
+                );
+
+            if (item == null)
+                return NotFound();
+
+
+            var result = await _context.TestResults
+                .Include(r => r.CapturedByTechnician)
+                .Include(r => r.VerifiedByTechnician)
+                .FirstOrDefaultAsync(
+                    r => r.TestRequestItemId == id
+                );
+
+
+            var history = await _context.TestVerifications
+                .Include(v => v.VerifiedByTechnician)
+                .Where(v =>
+                    v.TestRequestItemId == id
+                )
+                .OrderByDescending(v => v.VerificationDate)
+                .ToListAsync();
+
+
+            ViewBag.TestItem = item;
+            ViewBag.Patient = item.TestRequest?.Patient;
+            ViewBag.CurrentResult = result;
+
+            return View(history);
+        }
+
+
+        // ============================================================
+        // OPEN VERIFICATION PAGE
+        // ============================================================
         [HttpGet]
         public async Task<IActionResult> Verify(int id)
         {
@@ -129,290 +129,395 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Challenge();
 
+
+            // --------------------------------------------------------
+            // LOAD TEST ITEM
+            // --------------------------------------------------------
             var item = await _context.TestRequestItems
 
-                .Include(t => t.TestType)
+                .Include(i => i.TestType)
 
-                .Include(t => t.TestRequest)
+                .Include(i => i.TestRequest)
                     .ThenInclude(r => r.Patient)
 
-                .Include(t => t.AssignedTechnician)
+                .Include(i => i.AssignedTechnician)
 
-                .FirstOrDefaultAsync(t =>
-                    t.TestRequestItemId == id);
+                .FirstOrDefaultAsync(
+                    i => i.TestRequestItemId == id
+                );
 
             if (item == null)
                 return NotFound();
 
-            var result = await _context.TestResults
 
-                .FirstOrDefaultAsync(r =>
-                    r.TestRequestItemId == id &&
-                    r.VerifiedByTechnicianId == null);
+            // --------------------------------------------------------
+            // LOAD RESULT
+            // --------------------------------------------------------
+            var result = await _context.TestResults
+                .Include(r => r.CapturedByTechnician)
+                .FirstOrDefaultAsync(
+                    r => r.TestRequestItemId == id
+                );
 
             if (result == null)
             {
                 TempData["Error"] =
-                    "This laboratory result has already been verified.";
+                    "No laboratory result exists for this test.";
 
                 return RedirectToAction(nameof(Index));
             }
 
-            //---------------------------------------------------
-            // Rule 1
-            // Cannot verify own result
-            //---------------------------------------------------
 
+            // --------------------------------------------------------
+            // RESULT MUST BE COMPLETED
+            // --------------------------------------------------------
+            if (result.Status != "Completed")
+            {
+                TempData["Error"] =
+                    "This result is not waiting for verification.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+
+            // --------------------------------------------------------
+            // TECHNICIAN CANNOT VERIFY OWN RESULT
+            // --------------------------------------------------------
             if (result.CapturedByTechnicianId == technician.Id)
             {
                 TempData["Error"] =
-                    "You cannot verify a laboratory result that you captured yourself.";
+                    "You cannot verify a result that you captured yourself.";
 
                 return RedirectToAction(nameof(Index));
             }
 
-            //---------------------------------------------------
-            // Rule 2
-            // Must be assigned to the Test Type
-            //---------------------------------------------------
 
-            bool assigned = await _context.TechnicianAssignments
-
-                .AnyAsync(a =>
-                    a.TechnicianId == technician.Id &&
-                    a.TestTypeId == item.TestTypeId);
-
-            if (!assigned)
+            // --------------------------------------------------------
+            // PREVENT DOUBLE VERIFICATION
+            // --------------------------------------------------------
+            if (!string.IsNullOrEmpty(
+                result.VerifiedByTechnicianId))
             {
                 TempData["Error"] =
-                    "You are not authorised to verify this test type.";
+                    "This result has already been verified.";
 
                 return RedirectToAction(nameof(Index));
             }
 
-            //---------------------------------------------------
-            // Test must still be awaiting verification
-            //---------------------------------------------------
 
-            if (item.Status != "Completed")
-            {
-                TempData["Error"] =
-                    "This laboratory result is no longer awaiting verification.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
+            // --------------------------------------------------------
+            // SEND DATA TO VIEW
+            // --------------------------------------------------------
             ViewBag.TestItem = item;
-            ViewBag.Patient = item.TestRequest.Patient;
-            ViewBag.Result = result;
+
+            ViewBag.Patient =
+                item.TestRequest?.Patient;
+
+            ViewBag.Result =
+                result;
+
 
             return View(new TestVerification
             {
-                TestRequestItemId = item.TestRequestItemId,
-                Status = "Verified"
+                TestRequestItemId =
+                    item.TestRequestItemId,
+
+                Status =
+                    "Verified"
             });
         }
 
-        //==========================================================
-        // VERIFY RESULT
-        //==========================================================
+
+        // ============================================================
+        // SAVE VERIFICATION
+        // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Verify(TestVerification verification)
+        public async Task<IActionResult> Verify(
+            TestVerification verification)
         {
-            //----------------------------------------------------
-            // A note is mandatory whenever a result is being
-            // returned for review — approvals may still include
-            // an optional comment, but a return must explain why.
-            // This runs before the ModelState check below so it
-            // feeds into the same reload-and-redisplay path.
-            //----------------------------------------------------
-            if (verification.Status == "To Be Reviewed"
-                && string.IsNullOrWhiteSpace(verification.VerificationNotes))
-            {
-                ModelState.AddModelError(
-                    nameof(verification.VerificationNotes),
-                    "Please provide a note explaining why this result is being returned for review.");
-            }
-
-            if (!ModelState.IsValid)
-            {
-                var itemReload = await _context.TestRequestItems
-                    .Include(t => t.TestType)
-                    .Include(t => t.TestRequest)
-                        .ThenInclude(r => r.Patient)
-                    .FirstOrDefaultAsync(t =>
-                        t.TestRequestItemId == verification.TestRequestItemId);
-
-                if (itemReload != null)
-                {
-                    ViewBag.TestItem = itemReload;
-                    ViewBag.Patient = itemReload.TestRequest.Patient;
-
-                    ViewBag.Result = await _context.TestResults
-                        .FirstOrDefaultAsync(r =>
-                            r.TestRequestItemId == verification.TestRequestItemId);
-                }
-
-                return View(verification);
-            }
-
             var technician = await _userManager.GetUserAsync(User);
 
             if (technician == null)
                 return Challenge();
 
-            //----------------------------------------------------
-            // Get Test Item
-            //----------------------------------------------------
+
+            // --------------------------------------------------------
+            // VALIDATE ID
+            // --------------------------------------------------------
+            if (verification.TestRequestItemId <= 0)
+            {
+                TempData["Error"] =
+                    "Invalid test request item.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+
+            // --------------------------------------------------------
+            // LOAD ITEM
+            // --------------------------------------------------------
             var item = await _context.TestRequestItems
-                .Include(t => t.TestRequest)
-                .Include(t => t.TestType)
-                .FirstOrDefaultAsync(t =>
-                    t.TestRequestItemId == verification.TestRequestItemId);
+
+                .Include(i => i.TestType)
+
+                .Include(i => i.TestRequest)
+                    .ThenInclude(r => r.Patient)
+
+                .FirstOrDefaultAsync(
+                    i => i.TestRequestItemId ==
+                         verification.TestRequestItemId
+                );
 
             if (item == null)
                 return NotFound();
 
-            //----------------------------------------------------
-            // Get Result
-            //----------------------------------------------------
+
+            // --------------------------------------------------------
+            // LOAD RESULT
+            // --------------------------------------------------------
             var result = await _context.TestResults
-                .FirstOrDefaultAsync(r =>
-                    r.TestRequestItemId == verification.TestRequestItemId);
+                .FirstOrDefaultAsync(
+                    r => r.TestRequestItemId ==
+                         verification.TestRequestItemId
+                );
 
             if (result == null)
             {
-                TempData["Error"] = "Laboratory result not found.";
+                TempData["Error"] =
+                    "Laboratory result could not be found.";
+
                 return RedirectToAction(nameof(Index));
             }
 
-            //----------------------------------------------------
-            // Rule 1
-            // Cannot verify own result
-            //----------------------------------------------------
+
+            // --------------------------------------------------------
+            // CHECK RESULT STATUS
+            // --------------------------------------------------------
+            if (result.Status != "Completed")
+            {
+                TempData["Error"] =
+                    "This result is no longer waiting for verification.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+
+            // --------------------------------------------------------
+            // CANNOT VERIFY OWN RESULT
+            // --------------------------------------------------------
             if (result.CapturedByTechnicianId == technician.Id)
             {
                 TempData["Error"] =
-                    "You cannot verify a laboratory result that you captured.";
+                    "You cannot verify your own laboratory result.";
 
                 return RedirectToAction(nameof(Index));
             }
 
-            //----------------------------------------------------
-            // Rule 2
-            // Technician must be assigned
-            //----------------------------------------------------
-            bool assigned = await _context.TechnicianAssignments
-                .AnyAsync(x =>
-                    x.TechnicianId == technician.Id &&
-                    x.TestTypeId == item.TestTypeId);
 
-            if (!assigned)
+            // --------------------------------------------------------
+            // PREVENT DOUBLE VERIFICATION
+            // --------------------------------------------------------
+            if (!string.IsNullOrEmpty(
+                result.VerifiedByTechnicianId))
             {
                 TempData["Error"] =
-                    "You are not authorised to verify this laboratory test.";
+                    "This result has already been verified.";
 
                 return RedirectToAction(nameof(Index));
             }
 
-            //----------------------------------------------------
-            // Test must still be awaiting verification.
-            // Without this check, a stale or replayed form post could
-            // verify an item whose status has since moved on (e.g. it
-            // was already verified, or reassigned for rework).
-            //----------------------------------------------------
-            if (item.Status != "Completed")
+
+            // ========================================================
+            // VALIDATE DECISION
+            // ========================================================
+
+            if (verification.Status != "Verified" &&
+                verification.Status != "To Be Reviewed")
             {
                 TempData["Error"] =
-                    "This laboratory result is no longer awaiting verification.";
+                    "Please select either Verify Result or Return For Review.";
 
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(
+                    nameof(Verify),
+                    new
+                    {
+                        id = verification.TestRequestItemId
+                    });
             }
 
-            //----------------------------------------------------
-            // Prevent double verification
-            //----------------------------------------------------
-            if (!string.IsNullOrEmpty(result.VerifiedByTechnicianId))
+
+            // --------------------------------------------------------
+            // REVIEW NOTE REQUIRED
+            // --------------------------------------------------------
+            if (verification.Status == "To Be Reviewed" &&
+                string.IsNullOrWhiteSpace(
+                    verification.VerificationNotes))
             {
                 TempData["Error"] =
-                    "This laboratory result has already been verified.";
+                    "Please provide a reason when returning a result for review.";
 
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(
+                    nameof(Verify),
+                    new
+                    {
+                        id = verification.TestRequestItemId
+                    });
             }
 
-            //----------------------------------------------------
-            // Save Verification History
-            //----------------------------------------------------
-            verification.VerifiedByTechnicianId = technician.Id;
-            verification.VerificationDate = DateTime.Now;
 
-            _context.TestVerifications.Add(verification);
+            // ========================================================
+            // CREATE VERIFICATION HISTORY RECORD
+            // ========================================================
 
-            //----------------------------------------------------
-            // APPROVED
-            //----------------------------------------------------
+            var history = new TestVerification
+            {
+                TestRequestItemId =
+                    item.TestRequestItemId,
+
+                VerifiedByTechnicianId =
+                    technician.Id,
+
+                VerificationDate =
+                    DateTime.Now,
+
+                Status =
+                    verification.Status,
+
+                VerificationNotes =
+                    verification.VerificationNotes
+            };
+
+            _context.TestVerifications.Add(history);
+
+
+            // ========================================================
+            // RESULT VERIFIED
+            // ========================================================
+
             if (verification.Status == "Verified")
             {
-                result.Status = "Verified";
-                result.VerifiedByTechnicianId = technician.Id;
-                result.VerificationDate = DateTime.Now;
-                result.VerificationNote = verification.VerificationNotes;
+                result.Status =
+                    "Verified";
 
-                item.Status = "Verified";
+                result.VerifiedByTechnicianId =
+                    technician.Id;
+
+                result.VerificationDate =
+                    DateTime.Now;
+
+                result.VerificationNote =
+                    verification.VerificationNotes;
+
+                item.Status =
+                    "Verified";
             }
 
-            //----------------------------------------------------
-            // RETURN FOR REVIEW
-            //----------------------------------------------------
+
+            // ========================================================
+            // RESULT RETURNED FOR REVIEW
+            // ========================================================
+
             else
             {
-                result.Status = "To Be Reviewed";
-                result.VerifiedByTechnicianId = technician.Id;
-                result.VerificationDate = DateTime.Now;
-                result.VerificationNote = verification.VerificationNotes;
+                result.Status =
+                    "To Be Reviewed";
 
-                item.Status = "To Be Reviewed";
+                // VERY IMPORTANT:
+                // This technician did NOT verify the result.
+                result.VerifiedByTechnicianId =
+                    null;
 
-                // Return to original technician
-                item.AssignedTechnicianId = result.CapturedByTechnicianId;
+                result.VerificationDate =
+                    null;
+
+                result.VerificationNote =
+                    verification.VerificationNotes;
+
+                item.Status =
+                    "To Be Reviewed";
+
+                // Return the test to the technician
+                // who originally captured it.
+                item.AssignedTechnicianId =
+                    result.CapturedByTechnicianId;
             }
 
-            //----------------------------------------------------
-            // Persist the result/item status changes first. The
-            // "is everything verified" check below queries the
-            // database directly, so it must run after this commit —
-            // otherwise this item's own status change isn't visible
-            // yet and the check can never succeed on the very last
-            // item of a request (exactly the case that matters).
-            //----------------------------------------------------
-            await _context.SaveChangesAsync();
 
-            //----------------------------------------------------
-            // Check whether entire request is verified
-            //----------------------------------------------------
-            bool allVerified = await _context.TestRequestItems
-                .Where(x => x.RequestId == item.RequestId)
-                .AllAsync(x => x.Status == "Verified");
+            // ========================================================
+            // SAVE
+            // ========================================================
 
-            if (allVerified)
+            try
             {
-                item.TestRequest.Status = "Verified";
-
                 await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] =
+                    "Verification could not be saved: " +
+                    (ex.InnerException?.Message ?? ex.Message);
 
-                // Fired after both saves have committed. The service
-                // itself swallows and logs any failure (bad doctor email,
-                // SMTP outage, PDF error) — a notification problem must
-                // never look like the verification itself failed, since
-                // the result is already correctly saved at this point.
-                await _notificationService.SendVerifiedResultsAsync(item.RequestId);
+                return RedirectToAction(nameof(Index));
             }
 
-            TempData["Success"] =
-                verification.Status == "Verified"
-                ? "Laboratory result verified successfully."
-                : "Laboratory result returned to the original technician for review.";
+
+            // ========================================================
+            // IF VERIFIED, CHECK ENTIRE REQUEST
+            // ========================================================
+
+            if (verification.Status == "Verified")
+            {
+                var allVerified =
+                    await _context.TestRequestItems
+                        .Where(x =>
+                            x.RequestId ==
+                            item.RequestId)
+                        .AllAsync(x =>
+                            x.Status == "Verified");
+
+
+                if (allVerified)
+                {
+                    item.TestRequest.Status =
+                        "Verified";
+
+                    await _context.SaveChangesAsync();
+
+
+                    // ------------------------------------------------
+                    // NOTIFY DOCTOR
+                    // ------------------------------------------------
+                    try
+                    {
+                        await _notificationService
+                            .SendVerifiedResultsAsync(
+                                item.RequestId);
+                    }
+                    catch
+                    {
+                        // Do not break verification if
+                        // email notification fails.
+                    }
+                }
+            }
+
+
+            // ========================================================
+            // SUCCESS MESSAGE
+            // ========================================================
+
+            if (verification.Status == "Verified")
+            {
+                TempData["Success"] =
+                    "Laboratory result verified successfully.";
+            }
+            else
+            {
+                TempData["Success"] =
+                    "Laboratory result returned to the capturing technician for review.";
+            }
+
 
             return RedirectToAction(nameof(Index));
         }
