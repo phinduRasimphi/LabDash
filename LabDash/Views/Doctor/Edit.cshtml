@@ -1,0 +1,204 @@
+﻿@model LabDash.ViewModels.PatientCreateViewModel
+@{
+    ViewData["Title"] = "Edit Patient";
+    ViewData["ActivePage"] = "ManagePatients";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<style>
+    .cp-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 24px 28px;
+        max-width: 720px;
+    }
+
+    .cp-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .cp-form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+        .cp-form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .cp-form-group label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #4a5c7c;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .cp-form-group input,
+        .cp-form-group textarea {
+            border: 1px solid #e2e8f0;
+            border-radius: 7px;
+            padding: 9px 11px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .cp-form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .cp-form-group span.text-danger {
+            font-size: 11px;
+            color: #dc3545;
+        }
+
+    .cp-section-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #1a2f4e;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin: 20px 0 12px;
+        padding-top: 16px;
+        border-top: 1px solid #f0f2f5;
+    }
+
+        .cp-section-title:first-of-type {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+
+    .cp-note {
+        grid-column: 1 / -1;
+        background: #f0f7f6;
+        border: 1px solid #cde8e4;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 12px;
+        color: #0d6b63;
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        margin-top: 18px;
+    }
+
+    .cp-actions {
+        margin-top: 22px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .cp-btn-cancel {
+        background: #f0f2f5;
+        color: #4a5c7c;
+        border: none;
+        border-radius: 7px;
+        padding: 10px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .cp-btn-save {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        border: none;
+        border-radius: 7px;
+        padding: 10px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .validation-summary-errors ul {
+        list-style: none;
+        color: #dc3545;
+        font-size: 12px;
+        margin-bottom: 14px;
+    }
+</style>
+
+<h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:4px;">Edit Patient</h1>
+
+<div class="cp-card">
+    <form asp-action="EditPatient" method="post">
+        <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+        <!-- Hidden Patient ID -->
+        <input type="hidden" asp-for="IDNumber" />
+
+        <div class="cp-section-title">Personal Details</div>
+        <div class="cp-form-grid">
+            <div class="cp-form-group">
+                <label>Name</label>
+                <input asp-for="Name" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="cp-form-group">
+                <label>Surname</label>
+                <input asp-for="Surname" />
+                <span asp-validation-for="Surname" class="text-danger"></span>
+            </div>
+            <div class="cp-form-group">
+                <label>South African ID Number</label>
+                <input asp-for="IDNumber" maxlength="13" />
+                <span asp-validation-for="IDNumber" class="text-danger"></span>
+            </div>
+            <div class="cp-form-group">
+                <label>Date of Birth</label>
+                <input asp-for="DOB" />
+                <span asp-validation-for="DOB" class="text-danger"></span>
+            </div>
+            <div class="cp-form-group">
+                <label>Cellphone Number</label>
+                <input asp-for="CellphoneNumber" />
+                <span asp-validation-for="CellphoneNumber" class="text-danger"></span>
+            </div>
+            <div class="cp-form-group">
+                <label>Email Address (Username)</label>
+                <input asp-for="Email" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="cp-form-group full">
+                <label>Home Address</label>
+                <input asp-for="HomeAddress" />
+                <span asp-validation-for="HomeAddress" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="cp-section-title">Medical Information</div>
+        <div class="cp-form-grid">
+            <div class="cp-form-group full">
+                <label>Known Medical Conditions</label>
+                <textarea asp-for="MedicalConditions" placeholder="e.g. Type 2 Diabetes, Hypertension"></textarea>
+            </div>
+            <div class="cp-form-group full">
+                <label>Allergies</label>
+                <textarea asp-for="Allergies" placeholder="e.g. Penicillin"></textarea>
+            </div>
+            <div class="cp-form-group full">
+                <label>Current Medication</label>
+                <textarea asp-for="Medication" placeholder="e.g. Metformin 500mg twice daily"></textarea>
+            </div>
+        </div>
+
+        <div class="cp-actions">
+            <a href="@Url.Action("ManagePatients")" class="cp-btn-cancel">Cancel</a>
+            <button type="submit" class="cp-btn-save">Save Changes</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

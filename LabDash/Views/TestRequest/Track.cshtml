@@ -1,0 +1,349 @@
+﻿@model List<LabDash.Models.TrackRequestViewModel>
+
+@{
+    ViewData["Title"] = "Track Test Requests";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<style>
+    .track-container {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .track-card {
+        background: white;
+        border-radius: 16px;
+        border: 2px solid rgba(0,0,0,0.05);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        margin-bottom: 30px;
+    }
+
+    .track-header {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .track-patient {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .track-avatar {
+        width: 55px;
+        height: 55px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 18px;
+    }
+
+    .track-patient-name {
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .track-patient-sub {
+        font-size: 13px;
+        opacity: 0.85;
+    }
+
+    .track-body {
+        padding: 24px;
+    }
+
+    .track-status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .track-request {
+        background: #f8fafd;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px;
+    }
+
+    .status-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #7a8da8;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
+
+    .track-status {
+        padding: 6px 14px;
+        border-radius: 16px;
+        font-size: 14px;
+        font-weight: 700;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+
+        .track-status.Submitted {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .track-status.SamplesReceived {
+            background: #f3e5f5;
+            color: #6a1b9a;
+        }
+
+        .track-status.InProgress {
+            background: #fff8e1;
+            color: #7a5c00;
+        }
+
+        .track-status.Completed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .track-status.Releasedbydoctor {
+            background: #e0f2f1;
+            color: #00695c;
+        }
+
+        .track-status.Cancelled {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+    .track-urgency {
+        font-size: 13px;
+        color: #7a8da8;
+        margin-bottom: 10px;
+    }
+
+    .track-progress {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        width: 100%;
+        margin-top: 16px;
+        padding: 10px 0;
+    }
+
+    .track-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        min-width: 40px;
+    }
+
+    .track-progress-step {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #7a8da8;
+    }
+
+        .track-progress-step.active {
+            background: #0d6b63;
+            color: white;
+        }
+
+    .track-step-label {
+        font-size: 9px;
+        font-weight: 600;
+        color: #7a8da8;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .track-progress-line {
+        flex: 1;
+        height: 3px;
+        background: #e2e8f0;
+        margin-top: 12px;
+        border-radius: 2px;
+    }
+
+        .track-progress-line.active {
+            background: #0d6b63;
+        }
+
+    .track-unlock {
+        margin-top: 16px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+    }
+
+        .track-unlock form {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .track-unlock input {
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .track-unlock button {
+            width: 100%;
+            background: #0d6b63;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .track-unlock a {
+            color: #0d6b63;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+    .btn-view {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+        margin-bottom: 10px;
+        background: #0d6b63;
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+        .btn-view.disabled {
+            background: #e2e8f0;
+            color: #7a8da8;
+            cursor: not-allowed;
+            pointer-events: none; /* Prevents clicking the disabled button */
+        }
+</style>
+
+<div class="track-container">
+    <h1 style="font-size:22px;font-weight:700;color:#1a2f4e;margin-bottom:16px;">Track Test Requests</h1>
+
+    @if (TempData["Error"] != null)
+    {
+        <div style="background: #ffebee; color: #c62828; padding: 14px; border-radius: 10px; margin-bottom: 16px;">
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (!Model.Any())
+    {
+        <p style="text-align:center; padding: 40px; color:#7a8da8; font-size: 16px;">No test requests found.</p>
+    }
+    else
+    {
+        foreach (var folder in Model)
+        {
+            <div class="track-card">
+                <div class="track-header">
+                    <div class="track-patient">
+                        <div class="track-avatar">@folder.Patient.Name[0]@folder.Patient.Surname[0]</div>
+                        <div>
+                            <div class="track-patient-name">@folder.Patient.Name @folder.Patient.Surname</div>
+                            <div class="track-patient-sub">ID: @folder.Patient.IDNumber</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track-body">
+                    <div class="track-status-grid">
+                        @foreach (var request in folder.Requests)
+                        {
+                            <div class="track-request">
+                                <div class="status-label">Request #@request.RequestId - @request.RequestDate.ToString("dd MMM")</div>
+
+                                <span class="track-status @request.Status.Replace(" ", "")">@request.Status</span>
+
+                                <div class="track-urgency">
+                                    Urgency: <strong>@request.Urgency</strong>
+                                </div>
+
+                                <!-- Progress Timeline with Labels -->
+                                <div class="track-progress">
+                                    <div class="track-step">
+                                        <div class="track-progress-step @(request.Status == "Submitted" || request.Status == "Samples Received" || request.Status == "In Progress" || request.Status == "Completed" || request.Status == "Released by doctor" ? "active" : "")">1</div>
+                                        <div class="track-step-label">Submitted</div>
+                                    </div>
+                                    <div class="track-progress-line @(request.Status == "Submitted" || request.Status == "Samples Received" || request.Status == "In Progress" || request.Status == "Completed" || request.Status == "Released by doctor" ? "active" : "")"></div>
+                                    <div class="track-step">
+                                        <div class="track-progress-step @(request.Status == "Samples Received" || request.Status == "In Progress" || request.Status == "Completed" || request.Status == "Released by doctor" ? "active" : "")">2</div>
+                                        <div class="track-step-label">Received</div>
+                                    </div>
+                                    <div class="track-progress-line @(request.Status == "In Progress" || request.Status == "Completed" || request.Status == "Released by doctor" ? "active" : "")"></div>
+                                    <div class="track-step">
+                                        <div class="track-progress-step @(request.Status == "Completed" || request.Status == "Released by doctor" ? "active" : "")">3</div>
+                                        <div class="track-step-label">Testing</div>
+                                    </div>
+                                    <div class="track-progress-line @(request.Status == "Released by doctor" ? "active" : "")"></div>
+                                    <div class="track-step">
+                                        <div class="track-progress-step @(request.Status == "Released by doctor" ? "active" : "")">4</div>
+                                        <div class="track-step-label">Done</div>
+                                    </div>
+                                </div>
+
+                                <div class="track-unlock">
+                                    <!-- ===== VIEW BUTTON (Always visible) ===== -->
+                                    <a href="@Url.Action("PatientRequests", "TestRequest", new { id = request.RequestId })"
+                                       class="btn-view @(request.Status == "Completed" || request.Status == "Released by doctor" ? "" : "disabled")">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+
+                                    @if (request.Status == "Submitted" || request.Status == "Samples Received")
+                                    {
+                                        <form asp-action="Cancel" method="post" style="margin-top: 10px;">
+                                            <input type="hidden" name="requestId" value="@request.RequestId" />
+                                            <input type="text" name="cancellationReason" placeholder="Enter a detailed cancellation reason..." required />
+                                            <button type="submit">Cancel Request</button>
+                                        </form>
+                                    }
+                                    else if (request.Status == "Completed")
+                                    {
+                                        <form asp-action="ReleaseResults" method="post" style="margin-top: 10px;">
+                                            <input type="hidden" name="requestId" value="@request.RequestId" />
+                                            <input type="text" name="releaseNote" placeholder="Optional note for patient..." />
+                                            <button type="submit">Release to Patient</button>
+                                        </form>
+                                    }
+                                    else if (request.Status == "Cancelled")
+                                    {
+                                        <span style="font-size: 14px; color: #c62828; font-weight: 600;">Reason: @request.CancellationReason</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>

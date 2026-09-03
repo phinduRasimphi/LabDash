@@ -145,65 +145,26 @@
         white-space: nowrap;
     }
 
+    .tr-samples-needed {
+        margin-top: 16px;
+        background: #fff8e1;
+        border: 1px solid #ffe082;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 12.5px;
+        color: #7a5c00;
+    }
+
+        .tr-samples-needed strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
     .tr-barcode-section {
         margin-top: 16px;
         padding-top: 16px;
         border-top: 1px solid #f0f2f5;
     }
-
-    .tr-barcode-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-top: 8px;
-    }
-
-    .tr-barcode-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 10px;
-        background: #f8fafd;
-        border-radius: 6px;
-        border: 2px solid transparent;
-        transition: all 0.3s ease;
-    }
-
-        .tr-barcode-item.has-value {
-            border-color: #0d6b63;
-            background: #f0f7f6;
-        }
-
-        .tr-barcode-item .label {
-            font-size: 11px;
-            font-weight: 700;
-            color: #4a5c7c;
-            min-width: 24px;
-            text-align: center;
-        }
-
-        .tr-barcode-item .barcode-input-wrapper {
-            flex: 1;
-            position: relative;
-        }
-
-            .tr-barcode-item .barcode-input-wrapper input {
-                width: 100%;
-                padding: 6px 10px;
-                border: 2px solid #e2e8f0;
-                border-radius: 6px;
-                font-size: 13px;
-                font-family: 'Courier New', monospace;
-                letter-spacing: 1px;
-                transition: all 0.3s ease;
-                background: white;
-            }
-
-                .tr-barcode-item .barcode-input-wrapper input:focus {
-                    border-color: #0d6b63;
-                    outline: none;
-                    box-shadow: 0 0 0 3px rgba(13, 107, 99, 0.1);
-                }
 
     .tr-actions {
         margin-top: 22px;
@@ -297,37 +258,35 @@
         </div>
         <span class="text-danger" style="font-size: 12px;">@TempData["Error"]</span>
 
+        <!-- === SAMPLES NEEDED BOX === -->
+        <div class="tr-samples-needed" id="samplesNeededBox" style="display:none;">
+            <strong>Samples to collect:</strong>
+            <span id="samplesNeededText"></span>
+        </div>
+
         <div class="tr-barcode-section">
             <div class="tr-section-title" style="border-top:none;padding-top:0;margin-top:0;">
                 Sample Barcodes
             </div>
 
-            <!-- ===== BARCODE SECTION ===== -->
-            <div class="tr-barcode-section">
-                <div class="tr-section-title" style="border-top:none;padding-top:0;margin-top:0;">
-                    Sample Barcodes
+            <div class="tr-form-grid">
+                <div class="tr-form-group">
+                    <label>Barcode #1</label>
+                    <input type="text"
+                           name="sampleBarcode1"
+                           placeholder="Enter barcode..."
+                           autocomplete="off" />
                 </div>
 
-                <div class="tr-form-grid">
-                    
-                    <div class="tr-form-group">
-                        <label>Barcode #1</label>
-                        <input type="text"
-                               name="sampleBarcode1"
-                               placeholder="Enter barcode..."
-                               autocomplete="off" />
-                    </div>
-
-                    <div class="tr-form-group">
-                        <label>Barcode #2</label>
-                        <input type="text"
-                               name="sampleBarcode2"
-                               placeholder="Enter barcode..."
-                               autocomplete="off" />
-                    </div>
+                <div class="tr-form-group">
+                    <label>Barcode #2</label>
+                    <input type="text"
+                           name="sampleBarcode2"
+                           placeholder="Enter barcode..."
+                           autocomplete="off" />
                 </div>
             </div>
-             
+        </div>
 
         <div class="tr-actions">
             <a href="@Url.Action("ManagePatients", "Doctor")" class="tr-btn-cancel">Cancel</a>
@@ -340,19 +299,30 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const checkboxes = document.querySelectorAll('.tt-checkbox');
-            const barcodeItems = document.querySelectorAll('.tr-barcode-item');
+            const samplesBox = document.getElementById('samplesNeededBox');
+            const samplesText = document.getElementById('samplesNeededText');
 
-            checkboxes.forEach(cb => cb.addEventListener('change', function () {
-                this.closest('.tr-testtype-item').classList.toggle('checked', this.checked);
-            }));
+            function updateSamplesNeeded() {
+                const selected = Array.from(checkboxes).filter(cb => cb.checked);
+                const sampleTypes = [...new Set(selected.map(cb => cb.closest('.tr-testtype-item').dataset.sample))];
 
-            // Highlight barcode inputs when they have value
-            barcodeItems.forEach(item => {
-                const input = item.querySelector('input');
-                input.addEventListener('input', function () {
-                    item.classList.toggle('has-value', input.value.trim() !== '');
-                });
-            });
+                // Toggle visual 'checked' class
+                selected.forEach(cb => cb.closest('.tr-testtype-item').classList.add('checked'));
+                Array.from(checkboxes)
+                    .filter(cb => !cb.checked)
+                    .forEach(cb => cb.closest('.tr-testtype-item').classList.remove('checked'));
+
+                // Show the samples needed box
+                if (sampleTypes.length > 0) {
+                    samplesBox.style.display = 'block';
+                    samplesText.textContent = sampleTypes.join(', ');
+                } else {
+                    samplesBox.style.display = 'none';
+                }
+            }
+
+            // Attach event listeners to all checkboxes
+            checkboxes.forEach(cb => cb.addEventListener('change', updateSamplesNeeded));
         });
     </script>
 }
