@@ -730,8 +730,10 @@
         function loadPatient(id) {
             atSelectedId = id;
 
+            // Highlight selected test
             document.querySelectorAll(".at-row").forEach(row => {
                 row.classList.remove("at-selected");
+
                 if (parseInt(row.dataset.testId) === id) {
                     row.classList.add("at-selected");
                 }
@@ -739,74 +741,346 @@
 
             fetch('/AvailableTests/GetPatient?id=' + id)
                 .then(response => {
-                    if (!response.ok) throw new Error("Unable to load patient.");
+                    if (!response.ok) {
+                        throw new Error("Unable to load patient information.");
+                    }
+
                     return response.json();
                 })
                 .then(data => {
-                    const initials = (data.patientName || "").split(" ").filter(Boolean).map(p => p[0]).slice(0, 2).join("").toUpperCase();
 
-                    document.getElementById("slipPanel").innerHTML = `
-                                <div class="at-slip-body">
-                                    <div class="at-slip-head">
-                                        <div>
-                                            <p class="at-pid">SPECIMEN · REQ #${data.requestId || ''}</p>
-                                            <h3 class="at-pname">${data.patientName}</h3>
-                                        </div>
-                                        <div class="at-avatar">${initials}</div>
-                                    </div>
+                    // =====================================================
+                    // IMPORTANT:
+                    // GetPatient() returns:
+                    //
+                    // data.patient
+                    // data.test
+                    // =====================================================
 
-                                    <div class="at-slip-section">
-                                        <h4><i class="fa-solid fa-flask-vial"></i> Selected test</h4>
-                                        <div class="at-info-grid">
-                                            <div class="at-info-item"><small>Test</small><span>${data.testName || '-'}</span></div>
-                                            <div class="at-info-item"><small>Category</small><span>${data.category || '-'}</span></div>
-                                            <div class="at-info-item"><small>Sample</small><span>${data.sample || '-'}</span></div>
-                                            <div class="at-info-item"><small>Turnaround</small><span>${data.turnaround || '-'} hours</span></div>
-                                        </div>
-                                    </div>
+                    const patient = data.patient || {};
+                    const test = data.test || {};
 
-                                    <div class="at-slip-section">
-                                        <h4><i class="fa-solid fa-notes-medical"></i> Clinical flags</h4>
-                                        <div class="at-flag-row">
-                                            <div class="at-flag allergy"><i class="fa-solid fa-triangle-exclamation"></i> Allergies — ${data.allergies || 'None recorded'}</div>
-                                            <div class="at-flag condition"><i class="fa-solid fa-heart-pulse"></i> Conditions — ${data.conditions || 'None recorded'}</div>
-                                            <div class="at-flag med"><i class="fa-solid fa-pills"></i> Medication — ${data.medication || 'None recorded'}</div>
-                                        </div>
-                                    </div>
+                    const patientName =
+                        `${patient.name || ''} ${patient.surname || ''}`.trim()
+                        || 'Unknown patient';
 
-                                    <div class="at-slip-section">
-                                        <h4><i class="fa-solid fa-file-lines"></i> Doctor's clinical notes</h4>
-                                        <p>${data.clinicalNotes || 'No clinical notes.'}</p>
-                                    </div>
+                    const initials = patientName
+                        .split(" ")
+                        .filter(Boolean)
+                        .map(p => p[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase();
+
+                    const slipPanel = document.getElementById("slipPanel");
+
+                    slipPanel.innerHTML = `
+
+                        <!-- =========================================
+                             PATIENT HEADER
+                        ========================================== -->
+                        <div class="at-slip-body">
+
+                            <div class="at-slip-head">
+
+                                <div>
+                                    <p class="at-pid">
+                                        SPECIMEN · REQ #${test.requestId ?? '-'}
+                                    </p>
+
+                                    <h3 class="at-pname">
+                                        ${patientName}
+                                    </h3>
                                 </div>
 
-                                <div class="at-reminder">
-                                    <strong>Before you start</strong>
-                                    Verify the sample barcode. Confirm patient identity. Consumables are deducted automatically once processing begins.
+                                <div class="at-avatar">
+                                    ${initials}
                                 </div>
 
-                                <div class="at-stamp-wrap">
-                                    <button type="button" class="at-stamp" id="stampBtn">
-                                        <i class="fa-solid fa-stamp"></i> Begin processing
-                                    </button>
+                            </div>
+
+
+                            <!-- =========================================
+                                 PATIENT FILE
+                            ========================================== -->
+
+                            <div class="at-slip-section">
+
+                                <h4>
+                                    <i class="fa-solid fa-user"></i>
+                                    Patient file
+                                </h4>
+
+                                <div class="at-info-grid">
+
+                                    <div class="at-info-item">
+                                        <small>ID Number</small>
+                                        <span>
+                                            ${patient.idNumber || '-'}
+                                        </span>
+                                    </div>
+
+                                    <div class="at-info-item">
+                                        <small>Cellphone</small>
+                                        <span>
+                                            ${patient.cellphone || '-'}
+                                        </span>
+                                    </div>
+
+                                    <div class="at-info-item">
+                                        <small>Email</small>
+                                        <span>
+                                            ${patient.email || '-'}
+                                        </span>
+                                    </div>
+
+                                    <div class="at-info-item">
+                                        <small>Address</small>
+                                        <span>
+                                            ${patient.address || '-'}
+                                        </span>
+                                    </div>
+
                                 </div>
-                            `;
 
-                    document.getElementById("stampBtn").addEventListener("click", function() {
-                        if (!confirm("Start processing this laboratory test?")) return;
+                            </div>
 
-                        this.classList.add("at-stamped");
-                        this.innerHTML = '<i class="fa-solid fa-check"></i> Processing started';
-                        this.disabled = true;
 
-                        setTimeout(() => {
-                            document.getElementById("startTestId").value = atSelectedId;
-                            document.getElementById("startTestForm").submit();
-                        }, 320);
-                    });
+                            <!-- =========================================
+                                 SELECTED TEST
+                            ========================================== -->
+
+                            <div class="at-slip-section">
+
+                                <h4>
+                                    <i class="fa-solid fa-flask-vial"></i>
+                                    Selected test
+                                </h4>
+
+                                <div class="at-info-grid">
+
+                                    <div class="at-info-item">
+                                        <small>Test</small>
+                                        <span>
+                                            ${test.name || '-'}
+                                        </span>
+                                    </div>
+
+                                    <div class="at-info-item">
+                                        <small>Category</small>
+                                        <span>
+                                            ${test.category || '-'}
+                                        </span>
+                                    </div>
+
+                                    <div class="at-info-item">
+                                        <small>Sample</small>
+                                        <span>
+                                            ${test.sample || '-'}
+                                        </span>
+                                    </div>
+
+                                    <div class="at-info-item">
+                                        <small>Turnaround</small>
+                                        <span>
+                                            ${test.turnaround ?? '-'} hours
+                                        </span>
+                                    </div>
+
+                                    <div class="at-info-item">
+                                        <small>Urgency</small>
+                                        <span>
+                                            ${test.urgency || '-'}
+                                        </span>
+                                    </div>
+
+                                    <div class="at-info-item">
+                                        <small>Status</small>
+                                        <span>
+                                            ${test.status || '-'}
+                                        </span>
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- =========================================
+                                 CLINICAL FLAGS
+                            ========================================== -->
+
+                            <div class="at-slip-section">
+
+                                <h4>
+                                    <i class="fa-solid fa-notes-medical"></i>
+                                    Clinical flags
+                                </h4>
+
+                                <div class="at-flag-row">
+
+                                    <div class="at-flag allergy">
+
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+
+                                        <span>
+                                            <strong>Allergies</strong><br>
+                                            ${patient.allergies || 'None recorded'}
+                                        </span>
+
+                                    </div>
+
+
+                                    <div class="at-flag condition">
+
+                                        <i class="fa-solid fa-heart-pulse"></i>
+
+                                        <span>
+                                            <strong>Medical conditions</strong><br>
+                                            ${patient.conditions || 'None recorded'}
+                                        </span>
+
+                                    </div>
+
+
+                                    <div class="at-flag med">
+
+                                        <i class="fa-solid fa-pills"></i>
+
+                                        <span>
+                                            <strong>Medication</strong><br>
+                                            ${patient.medication || 'None recorded'}
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- =========================================
+                                 DOCTOR'S NOTES
+                            ========================================== -->
+
+                            <div class="at-slip-section">
+
+                                <h4>
+                                    <i class="fa-solid fa-file-lines"></i>
+                                    Doctor's clinical notes
+                                </h4>
+
+                                <p>
+                                    ${patient.notes || 'No clinical notes.'}
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =============================================
+                             BEFORE YOU START
+                        ============================================== -->
+
+                        <div class="at-reminder">
+
+                            <strong>
+                                Before you start
+                            </strong>
+
+                            Verify the sample barcode.
+                            Confirm patient identity.
+                            Consumables are deducted automatically
+                            once processing begins.
+
+                        </div>
+
+
+                        <!-- =============================================
+                             START PROCESSING
+                        ============================================== -->
+
+                        <div class="at-stamp-wrap">
+
+                            <button
+                                type="button"
+                                class="at-stamp"
+                                id="stampBtn">
+
+                                <i class="fa-solid fa-stamp"></i>
+
+                                Begin processing
+
+                            </button>
+
+                        </div>
+                    `;
+
+
+                    // =====================================================
+                    // BEGIN PROCESSING BUTTON
+                    // =====================================================
+
+                    const stampBtn =
+                        document.getElementById("stampBtn");
+
+                    if (stampBtn) {
+
+                        stampBtn.addEventListener("click", function() {
+
+                            if (!confirm(
+                                "Start processing this laboratory test?"
+                            )) {
+                                return;
+                            }
+
+                            this.classList.add("at-stamped");
+
+                            this.innerHTML =
+                                '<i class="fa-solid fa-check"></i> Processing started';
+
+                            this.disabled = true;
+
+                            setTimeout(() => {
+
+                                document.getElementById(
+                                    "startTestId"
+                                ).value = atSelectedId;
+
+                                document.getElementById(
+                                    "startTestForm"
+                                ).submit();
+
+                            }, 320);
+
+                        });
+
+                    }
+
                 })
                 .catch(error => {
-                    alert(error.message);
+
+                    console.error(error);
+
+                    document.getElementById("slipPanel").innerHTML = `
+
+                        <div class="at-empty-slip">
+
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+
+                            <strong>
+                                Unable to load patient record
+                            </strong>
+
+                            <p>
+                                Please try selecting the test again.
+                            </p>
+
+                        </div>
+
+                    `;
+
                 });
         }
 

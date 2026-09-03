@@ -803,6 +803,74 @@ namespace LabDash.Controllers
 
             return View(tests);
         }
+        // =========================================================
+        // VIEW COMPLETED TEST DETAILS
+        // =========================================================
+        [HttpGet]
+        public async Task<IActionResult> CompletedDetails(int id)
+        {
+            var technician = await _userManager.GetUserAsync(User);
+
+            if (technician == null)
+                return Challenge();
+
+            var item = await _context.TestRequestItems
+                .Include(x => x.TestType)
+                .Include(x => x.TestRequest)
+                    .ThenInclude(x => x.Patient)
+                .Include(x => x.AssignedTechnician)
+                .FirstOrDefaultAsync(x =>
+                    x.TestRequestItemId == id);
+
+            if (item == null)
+            {
+                TempData["Error"] = "The laboratory test could not be found.";
+                return RedirectToAction(nameof(Completed));
+            }
+
+            // Only allow the technician assigned to this test
+            if (item.AssignedTechnicianId != technician.Id)
+            {
+                TempData["Error"] =
+                    "You are not assigned to this laboratory test.";
+
+                return RedirectToAction(nameof(Completed));
+            }
+
+            // Only completed/history statuses can be viewed here
+            if (item.Status != "Completed" &&
+                item.Status != "Verified" &&
+                item.Status != "To Be Reviewed")
+            {
+                TempData["Error"] =
+                    "This test is not available in the completed test history.";
+
+                return RedirectToAction(nameof(Completed));
+            }
+
+            // Load laboratory result
+            var result = await _context.TestResults
+                .Include(x => x.CapturedByTechnician)
+                .Include(x => x.VerifiedByTechnician)
+                .FirstOrDefaultAsync(x =>
+                    x.TestRequestItemId == item.TestRequestItemId);
+
+            // Load latest verification/review information
+            var verification = await _context.TestVerifications
+                .Include(x => x.VerifiedByTechnician)
+                .Where(x =>
+                    x.TestRequestItemId == item.TestRequestItemId)
+                .OrderByDescending(x => x.VerificationDate)
+                .FirstOrDefaultAsync();
+
+            ViewBag.TestItem = item;
+            ViewBag.Patient = item.TestRequest?.Patient;
+            ViewBag.Result = result;
+            ViewBag.Verification = verification;
+            ViewBag.CurrentTechnician = technician;
+
+            return View(item);
+        }
 
         // =========================================================
         // TEST HISTORY
