@@ -103,30 +103,113 @@ namespace LabDash.Controllers
         }
 
         // POST: /TestRequest/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(
-            int patientId,
-            DateTime requestDate,
-            string urgency,
-            string? clinicalNotes,
-            int[] selectedTestTypeIds,
-            string? sampleBarcode1,
-            string? sampleBarcode2)
+        // POST: /TestRequest/Create
+        // POST: /TestRequest/Create
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Create(
+    int patientId,
+    DateTime requestDate,
+    string urgency,
+    string? clinicalNotes,
+    int[] selectedTestTypeIds,
+    string? sampleBarcode1,
+    string? sampleBarcode2)
         {
-            if (selectedTestTypeIds == null || !selectedTestTypeIds.Any())
+            // =========================================================
+            // 1. VALIDATE SELECTED TESTS
+            // =========================================================
+
+            if (selectedTestTypeIds == null ||
+                selectedTestTypeIds.Length == 0)
             {
-                TempData["Error"] = "Select at least one test type.";
-                return RedirectToAction(nameof(Create), new { patientId });
+                TempData["Error"] =
+                    "Please select at least one test type.";
+
+                return RedirectToAction(nameof(Create),
+                    new { patientId });
             }
 
-            var doctor = await _userManager.GetUserAsync(User);
-            var patient = await _context.Patients.FindAsync(patientId);
-            if (patient == null) return NotFound();
-
-            var barcodes = new[] { sampleBarcode1, sampleBarcode2 }
-                .Where(b => !string.IsNullOrWhiteSpace(b))
+            // Remove duplicate test IDs
+            selectedTestTypeIds = selectedTestTypeIds
+                .Distinct()
                 .ToArray();
+
+
+            // =========================================================
+            // 2. GET LOGGED-IN DOCTOR
+            // =========================================================
+
+            var doctor = await _userManager.GetUserAsync(User);
+
+            if (doctor == null)
+            {
+                TempData["Error"] =
+                    "Unable to identify the logged-in doctor.";
+
+                return RedirectToAction(nameof(Create),
+                    new { patientId });
+            }
+
+
+            // =========================================================
+            // 3. GET PATIENT
+            // =========================================================
+
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p =>
+                    p.PatientID == patientId);
+
+            if (patient == null)
+            {
+                TempData["Error"] =
+                    "Patient not found.";
+
+                return RedirectToAction(
+                    "ManagePatients",
+                    "Doctor");
+            }
+
+
+            // =========================================================
+            // 4. GET SELECTED TEST TYPES
+            // =========================================================
+
+            var selectedTypes = await _context.TestTypes
+                .Where(t => selectedTestTypeIds.Contains(t.Id))
+                .ToListAsync();
+
+            if (selectedTypes.Count != selectedTestTypeIds.Length)
+            {
+                TempData["Error"] =
+                    "One or more selected laboratory tests could not be found. " +
+                    "Please refresh the page and select the tests again.";
+
+                return RedirectToAction(nameof(Create),
+                    new { patientId });
+            }
+
+
+            // =========================================================
+            // 5. COLLECT SAMPLE BARCODES
+            // =========================================================
+
+            var barcodes = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(sampleBarcode1))
+            {
+                barcodes.Add(sampleBarcode1.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(sampleBarcode2))
+            {
+                barcodes.Add(sampleBarcode2.Trim());
+            }
+
+
+            // =========================================================
+            // 6. CREATE TEST REQUEST
+            // =========================================================
 
             var testRequest = new TestRequest
             {
@@ -141,27 +224,68 @@ namespace LabDash.Controllers
             };
 
             _context.TestRequests.Add(testRequest);
+
+            // IMPORTANT:
+            // Save the request first so that RequestId is generated.
             await _context.SaveChangesAsync();
 
-            var selectedTypes = await _context.TestTypes
-                .Where(t => selectedTestTypeIds.Contains(t.Id))
-                .ToListAsync();
 
-            foreach (var type in selectedTypes)
+            // =========================================================
+            // 7. CREATE TEST REQUEST ITEMS
+            // =========================================================
+
+            foreach (var testType in selectedTypes)
             {
-                _context.TestRequestItems.Add(new TestRequestItem
+                var testItem = new TestRequestItem
                 {
                     RequestId = testRequest.RequestId,
-                    TestTypeId = type.Id,
-                    Status = "Submitted"
-                });
+                    TestTypeId = testType.Id,
+                    Status = "Submitted",
+                    AssignedTechnicianId = null,
+                    StartDateTime = null,
+                    CompletionDateTime = null
+                };
+
+                _context.TestRequestItems.Add(testItem);
             }
+
+
+            // =========================================================
+            // 8. SAVE TEST REQUEST ITEMS
+            // =========================================================
 
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = "Test request successfully sent to the lab!";
+
+            // =========================================================
+            // 9. VERIFY THAT ITEMS WERE CREATED
+            // =========================================================
+
+            var itemCount = await _context.TestRequestItems
+                .CountAsync(x =>
+                    x.RequestId == testRequest.RequestId);
+
+            if (itemCount == 0)
+            {
+                TempData["Error"] =
+                    $"Request #{testRequest.RequestId} was created, " +
+                    "but no laboratory test items were created.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+
+            // =========================================================
+            // 10. SUCCESS
+            // =========================================================
+
+            TempData["SuccessMessage"] =
+                $"Test request #{testRequest.RequestId} created successfully " +
+                $"with {itemCount} laboratory test(s).";
+
             return RedirectToAction(nameof(Index));
         }
+
 
         // POST: /TestRequest/Cancel
         [HttpPost]

@@ -4,841 +4,1150 @@
     ViewData["Title"] = "Available Laboratory Tests";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
-    // Maps test category to a specimen tube cap color, mirroring real
-    // venipuncture tube tops so technicians recognise it at a glance.
-    Func<string, (string Cls, string Label)> capFor = category => category switch
+    var tests = Model?.ToList() ?? new List<LabDash.Models.TestRequestItem>();
+
+    Func<string, (string Cls, string Label)> GetTube = category =>
     {
-        "Hematology" => ("violet", "LAV"),
-        "Chemistry" => ("gold", "SST"),
-        "Coagulation" => ("blue", "CIT"),
-        "Microbiology" => ("green", "MSU"),
-        _ => ("violet", "GEN")
+        if (category == "Hematology")
+            return ("violet", "LAV");
+
+        if (category == "Chemistry")
+            return ("gold", "SST");
+
+        if (category == "Coagulation")
+            return ("blue", "CIT");
+
+        if (category == "Microbiology")
+            return ("green", "MSU");
+
+        return ("violet", "GEN");
     };
 }
 
-<div class="at-wrap">
+<div class="available-page">
 
-    <!-- BANNER HEADER -->
-    <div class="at-banner">
-        <div class="at-banner-left">
-            <div class="at-icon-badge">
-                <i class="fa-solid fa-flask-vial"></i>
-            </div>
-            <div>
-                <h1>Available Laboratory Tests</h1>
-                <p>Select a test to pull the patient record and begin processing.</p>
-            </div>
+    <!-- HEADER -->
+    <div class="available-header">
+
+        <div class="header-icon">
+            <i class="fa-solid fa-flask-vial"></i>
         </div>
+
+        <div>
+            <h1>Available Laboratory Tests</h1>
+            <p>Select a laboratory test to view the patient record and begin processing.</p>
+        </div>
+
     </div>
 
-    <!-- STATS -->
-    <div class="at-stats">
-        <div class="at-stat-card">
+
+    <!-- SUMMARY CARDS -->
+    <div class="summary-grid">
+
+        <div class="summary-card">
             <div>
-                <small>Total tests</small>
-                <h2>@Model.Count()</h2>
+                <span>Total Available</span>
+                <strong>@tests.Count</strong>
             </div>
-            <i class="fa-solid fa-vials at-ic-teal"></i>
+
+            <div class="summary-icon teal">
+                <i class="fa-solid fa-vials"></i>
+            </div>
         </div>
-        <div class="at-stat-card">
+
+
+        <div class="summary-card">
             <div>
-                <small>Urgent</small>
-                <h2 class="at-red">@Model.Count(x => x.TestRequest.Urgency == "Urgent")</h2>
+                <span>Urgent</span>
+                <strong class="red">
+                    @tests.Count(x =>
+                        x.TestRequest != null &&
+                        (
+                            x.TestRequest.Urgency == "Urgent" ||
+                            x.TestRequest.Urgency == "STAT"
+                        ))
+                </strong>
             </div>
-            <i class="fa-solid fa-bell at-ic-red"></i>
+
+            <div class="summary-icon red">
+                <i class="fa-solid fa-bell"></i>
+            </div>
         </div>
-        <div class="at-stat-card">
+
+
+        <div class="summary-card">
             <div>
-                <small>Today's requests</small>
-                <h2 class="at-gold">@Model.Count(x => x.TestRequest.RequestDate.Date == DateTime.Today)</h2>
+                <span>Today's Requests</span>
+                <strong class="gold">
+                    @tests.Count(x =>
+                        x.TestRequest != null &&
+                        x.TestRequest.RequestDate.Date == DateTime.Today)
+                </strong>
             </div>
-            <i class="fa-solid fa-calendar-day at-ic-gold"></i>
+
+            <div class="summary-icon gold">
+                <i class="fa-solid fa-calendar-day"></i>
+            </div>
         </div>
-        <div class="at-stat-card">
+
+
+        <div class="summary-card">
             <div>
-                <small>Available</small>
-                <h2 class="at-teal">@Model.Count()</h2>
+                <span>Waiting to Start</span>
+                <strong class="teal">@tests.Count</strong>
             </div>
-            <i class="fa-solid fa-circle-check at-ic-teal"></i>
+
+            <div class="summary-icon teal">
+                <i class="fa-solid fa-hourglass-start"></i>
+            </div>
         </div>
+
     </div>
+
 
     <!-- SEARCH -->
-    <div class="at-card at-search-card">
+    <div class="search-box">
+
         <i class="fa-solid fa-magnifying-glass"></i>
-        <input class="at-search" id="searchBox" placeholder="scan barcode, or search patient / test..." />
+
+        <input type="text"
+               id="testSearch"
+               placeholder="Search by patient, request number or test name..." />
+
     </div>
 
-    <div class="at-layout">
 
-        <!-- TEST LIST -->
-        <div class="at-card at-list-card">
-            <div class="at-card-head">
-                <span><i class="fa-solid fa-list-ul"></i> Available tests</span>
-                <span class="at-count-chip">@Model.Count() tests</span>
+    <!-- MAIN CONTENT -->
+    <div class="content-grid">
+
+        <!-- AVAILABLE TESTS -->
+        <div class="tests-card">
+
+            <div class="card-header">
+
+                <div>
+                    <i class="fa-solid fa-list-check"></i>
+                    Available Tests
+                </div>
+
+                <span id="testCount">@tests.Count tests</span>
+
             </div>
 
-            <div id="testContainer">
-                @foreach (var item in Model)
+
+            <div id="testList">
+
+                @if (tests.Any())
                 {
-                    var cap = capFor(item.TestType.Category);
-                    var urgencyCls = item.TestRequest.Urgency == "Urgent" ? "urgent"
-                        : item.TestRequest.Urgency == "High" ? "high" : "routine";
-                    var urgencyIcon = item.TestRequest.Urgency == "Urgent" ? "fa-bell"
-                        : item.TestRequest.Urgency == "High" ? "fa-triangle-exclamation" : "fa-circle-check";
+                    <div style="background:red;color:white;padding:20px;font-size:20px;">
+                        TEST DISPLAY CHECK - THERE ARE @tests.Count TESTS
+                    </div>
+                    foreach (var item in tests)
+                    {
+                        var testName = item.TestType?.Name ?? "Unknown Test";
+                        var category = item.TestType?.Category ?? "Laboratory";
+                        var sample = item.TestType?.RequiredSampleType ?? "Not specified";
+                        var turnaround = item.TestType?.TurnaroundTimeHours ?? 0;
 
-                    <div class="at-row" data-test-id="@item.TestRequestItemId" onclick="loadPatient(@item.TestRequestItemId)">
-                        <div class="at-row-icon @cap.Cls">@cap.Label</div>
+                        var patientName = "Unknown Patient";
 
-                        <div class="at-row-main">
-                            <div class="at-row-top">
-                                <strong>@item.TestType.Name</strong>
-                                <span class="at-badge @urgencyCls">
-                                    <i class="fa-solid @urgencyIcon"></i> @item.TestRequest.Urgency
-                                </span>
+                        if (item.TestRequest?.Patient != null)
+                        {
+                            patientName =
+                                $"{item.TestRequest.Patient.Name} {item.TestRequest.Patient.Surname}";
+                        }
+
+                        var urgency = item.TestRequest?.Urgency ?? "Routine";
+
+                        var urgencyClass =
+                            urgency == "Urgent" || urgency == "STAT"
+                                ? "urgent"
+                                : urgency == "High"
+                                    ? "high"
+                                    : "routine";
+
+                        var urgencyIcon =
+                            urgency == "Urgent" || urgency == "STAT"
+                                ? "fa-bell"
+                                : urgency == "High"
+                                    ? "fa-triangle-exclamation"
+                                    : "fa-circle-check";
+
+                        var tube = GetTube(category);
+
+                        <div class="test-row"
+                             data-test-id="@item.TestRequestItemId"
+                             data-search="@($"{patientName} {testName} {item.RequestId} {category}")">
+
+                            <!-- TUBE -->
+                            <div class="tube @tube.Cls">
+                                @tube.Label
                             </div>
-                            <small>@item.TestRequest.Patient.Name @item.TestRequest.Patient.Surname · Request #@item.RequestId</small>
 
-                            <div class="at-row-meta">
-                                <span><i class="fa-solid fa-vial"></i> @item.TestType.RequiredSampleType</span>
-                                <span><i class="fa-solid fa-tags"></i> @item.TestType.Category</span>
-                                <span><i class="fa-solid fa-hourglass-half"></i> @item.TestType.TurnaroundTimeHours h</span>
+
+                            <!-- TEST INFORMATION -->
+                            <div class="test-information">
+
+                                <div class="test-title">
+
+                                    <strong>
+                                        @testName
+                                    </strong>
+
+                                    <span class="urgency @urgencyClass">
+
+                                        <i class="fa-solid @urgencyIcon"></i>
+
+                                        @urgency
+
+                                    </span>
+
+                                </div>
+
+
+                                <div class="patient-line">
+
+                                    <i class="fa-solid fa-user"></i>
+
+                                    @patientName
+
+                                    <span>•</span>
+
+                                    Request #@item.RequestId
+
+                                </div>
+
+
+                                <div class="test-details">
+
+                                    <span>
+                                        <i class="fa-solid fa-vial"></i>
+                                        @sample
+                                    </span>
+
+                                    <span>
+                                        <i class="fa-solid fa-layer-group"></i>
+                                        @category
+                                    </span>
+
+                                    <span>
+                                        <i class="fa-solid fa-clock"></i>
+                                        @turnaround hours
+                                    </span>
+
+                                    <span>
+                                        <i class="fa-solid fa-circle"></i>
+                                        @item.Status
+                                    </span>
+
+                                </div>
+
                             </div>
+
+
+                            <!-- ACTION -->
+                            <button type="button"
+                                    class="view-patient-btn"
+                                    onclick="loadPatient(@item.TestRequestItemId)">
+
+                                <i class="fa-solid fa-user-doctor"></i>
+
+                                View Patient
+
+                            </button>
+
                         </div>
+                    }
+                }
+                else
+                {
+                    <div class="empty-state">
 
-                        <button type="button" class="at-view-btn" onclick="event.stopPropagation(); loadPatient(@item.TestRequestItemId)">
-                            <i class="fa-solid fa-user-doctor"></i> View patient
-                        </button>
+                        <i class="fa-solid fa-vials"></i>
+
+                        <h3>No Available Tests</h3>
+
+                        <p>
+                            There are currently no laboratory tests waiting to be processed.
+                        </p>
+
                     </div>
                 }
+
             </div>
 
-            @if (!Model.Any())
-            {
-                <div class="at-empty">
-                    <i class="fa-solid fa-circle-check"></i>
-                    <h3>No available tests</h3>
-                    <p>There are currently no laboratory requests assigned to your specialization.</p>
-                </div>
-            }
         </div>
 
-        <!-- REQUISITION SLIP -->
-        <div class="at-card at-slip-card">
-            <div class="at-card-head">
-                <span><i class="fa-solid fa-file-medical"></i> Requisition slip</span>
-            </div>
-            <div id="slipPanel">
-                <div class="at-empty-slip">
+
+        <!-- PATIENT DETAILS -->
+        <div class="patient-card">
+
+            <div class="card-header">
+
+                <div>
                     <i class="fa-solid fa-file-medical"></i>
-                    Select a test to pull the patient record.
+                    Patient Requisition
                 </div>
+
             </div>
+
+
+            <div id="patientPanel">
+
+                <div class="select-message">
+
+                    <div class="select-icon">
+                        <i class="fa-solid fa-file-medical"></i>
+                    </div>
+
+                    <h3>Select a test</h3>
+
+                    <p>
+                        Select "View Patient" on a laboratory test
+                        to view the patient and test information.
+                    </p>
+
+                </div>
+
+            </div>
+
         </div>
 
     </div>
+
 </div>
 
-<form id="startTestForm" asp-action="StartTest" method="post" style="display:none;">
+
+<!-- START TEST FORM -->
+<form id="startTestForm"
+      asp-controller="AvailableTests"
+      asp-action="StartTest"
+      method="post"
+      style="display:none;">
+
     @Html.AntiForgeryToken()
-    <input type="hidden" name="id" id="startTestId" value="" />
+
+    <input type="hidden"
+           id="startTestId"
+           name="id" />
+
 </form>
 
+
 <style>
+
     :root {
-        --at-teal: #0F9488;
-        --at-teal-dark: #0B5B52;
-        --at-teal-tint: #E7F5F3;
-        --at-ink: #1F2937;
-        --at-ink-soft: #6B7280;
-        --at-line: #EEF2F1;
-        --at-gold: #B98900;
-        --at-gold-tint: #FBF2DC;
-        --at-red: #DC3545;
-        --at-red-tint: #FBE9EA;
-        --at-violet: #6B5B95;
-        --at-violet-tint: #EFECF6;
-        --at-blue: #3E6C8C;
-        --at-blue-tint: #E7EFF4;
-        --at-green: #4B7B67;
-        --at-green-tint: #E9F1EC;
-        --at-radius: 20px;
-        --at-shadow: 0 4px 20px rgba(15, 23, 42, .06);
+        --av-primary: #0d766e;
+        --av-primary-dark: #095a54;
+        --av-primary-light: #e7f5f3;
+        --av-text: #1f2937;
+        --av-muted: #6b7280;
+        --av-border: #e5e7eb;
+        --av-bg: #f5f7fa;
+        --av-card: #ffffff;
+        --av-red: #dc3545;
+        --av-red-light: #fbe9ea;
+        --av-gold: #b98900;
+        --av-gold-light: #fbf2dc;
     }
 
-    .at-wrap {
-        max-width: 1180px;
+
+    .available-page {
+        max-width: 1200px;
         margin: 0 auto;
-        padding: 24px 0 60px;
-        color: var(--at-ink);
-        font-family: 'Segoe UI', Inter, sans-serif;
+        padding: 25px 20px 60px;
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--av-text);
     }
 
-    .at-banner {
-        background: linear-gradient(135deg, var(--at-teal), var(--at-teal-dark));
-        border-radius: var(--at-radius);
-        padding: 30px 34px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        color: #fff;
-        box-shadow: var(--at-shadow);
-    }
 
-    .at-banner-left {
+    /* HEADER */
+
+    .available-header {
+        background: linear-gradient(135deg, #0d766e, #0a5d57);
+        color: white;
+        border-radius: 18px;
+        padding: 28px 32px;
         display: flex;
         align-items: center;
         gap: 20px;
+        margin-bottom: 22px;
+        box-shadow: 0 8px 25px rgba(0,0,0,.08);
     }
 
-    .at-icon-badge {
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        background: rgba(255,255,255,.15);
-        border: 2px solid rgba(255,255,255,.4);
+
+    .header-icon {
+        width: 62px;
+        height: 62px;
+        border-radius: 16px;
+        background: rgba(255,255,255,.16);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 26px;
-        flex-shrink: 0;
+        font-size: 28px;
     }
 
-    .at-banner h1 {
-        margin: 0 0 6px;
-        font-size: 26px;
+
+    .available-header h1 {
+        margin: 0 0 5px;
+        font-size: 27px;
         font-weight: 700;
     }
 
-    .at-banner p {
+
+    .available-header p {
         margin: 0;
-        opacity: .9;
-        font-size: 14.5px;
-    }
-
-    .at-pill-btn {
-        background: rgba(255,255,255,.15);
-        border: 1px solid rgba(255,255,255,.5);
-        color: #fff;
-        text-decoration: none;
-        padding: 10px 20px;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: 600;
         font-size: 14px;
-        transition: .15s;
-        white-space: nowrap;
+        opacity: .9;
     }
 
-        .at-pill-btn:hover {
-            background: rgba(255,255,255,.28);
-        }
 
-    .at-stats {
+    /* SUMMARY */
+
+    .summary-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 18px;
+        gap: 16px;
         margin-bottom: 20px;
     }
 
-    .at-stat-card {
-        background: #fff;
-        border-radius: var(--at-radius);
-        box-shadow: var(--at-shadow);
-        padding: 20px 22px;
+
+    .summary-card {
+        background: white;
+        border: 1px solid var(--av-border);
+        border-radius: 16px;
+        padding: 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        transition: transform .2s, box-shadow .2s;
+        box-shadow: 0 4px 18px rgba(0,0,0,.04);
     }
 
-        .at-stat-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 26px rgba(15,23,42,.1);
-        }
 
-        .at-stat-card small {
+        .summary-card span {
             display: block;
-            color: var(--at-ink-soft);
-            font-size: 13px;
-            margin-bottom: 6px;
+            font-size: 12px;
+            color: var(--av-muted);
+            margin-bottom: 5px;
         }
 
-        .at-stat-card h2 {
-            margin: 0;
-            font-size: 26px;
-            font-weight: 700;
-            color: var(--at-ink);
+
+        .summary-card strong {
+            font-size: 28px;
+            color: var(--av-primary);
         }
 
-            .at-stat-card h2.at-red {
-                color: var(--at-red);
+
+            .summary-card strong.red {
+                color: var(--av-red);
             }
 
-            .at-stat-card h2.at-gold {
-                color: var(--at-gold);
+
+            .summary-card strong.gold {
+                color: var(--av-gold);
             }
 
-            .at-stat-card h2.at-teal {
-                color: var(--at-teal);
+
+            .summary-card strong.teal {
+                color: var(--av-primary);
             }
 
-        .at-stat-card i {
-            font-size: 30px;
-            opacity: .85;
+
+    .summary-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 19px;
+    }
+
+
+        .summary-icon.teal {
+            background: var(--av-primary-light);
+            color: var(--av-primary);
         }
 
-    .at-ic-teal {
-        color: var(--at-teal);
-    }
 
-    .at-ic-red {
-        color: var(--at-red);
-    }
+        .summary-icon.red {
+            background: var(--av-red-light);
+            color: var(--av-red);
+        }
 
-    .at-ic-gold {
-        color: var(--at-gold);
-    }
 
-    .at-card {
-        background: #fff;
-        border-radius: var(--at-radius);
-        box-shadow: var(--at-shadow);
-    }
+        .summary-icon.gold {
+            background: var(--av-gold-light);
+            color: var(--av-gold);
+        }
 
-    .at-search-card {
+
+    /* SEARCH */
+
+    .search-box {
+        background: white;
+        border: 1px solid var(--av-border);
+        border-radius: 14px;
+        padding: 13px 18px;
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 14px 22px;
         margin-bottom: 20px;
     }
 
-        .at-search-card i {
-            color: var(--at-ink-soft);
-            font-size: 15px;
+
+        .search-box > i {
+            color: var(--av-muted);
         }
 
-    .at-search {
-        flex: 1;
-        border: none;
-        outline: none;
-        font-size: 15px;
-        padding: 6px 0;
-        color: var(--at-ink);
-    }
 
-        .at-search::placeholder {
-            color: #9CA3AF;
+        .search-box input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 14px;
+            color: var(--av-text);
         }
 
-    .at-layout {
+
+    /* GRID */
+
+    .content-grid {
         display: grid;
-        grid-template-columns: 1.4fr 1fr;
+        grid-template-columns: 1.5fr 1fr;
         gap: 20px;
         align-items: start;
     }
 
-    .at-card-head {
-        background: linear-gradient(135deg, var(--at-teal), var(--at-teal-dark));
-        color: #fff;
-        padding: 16px 22px;
-        border-radius: var(--at-radius) var(--at-radius) 0 0;
-        font-weight: 600;
-        font-size: 15px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+
+    .tests-card,
+    .patient-card {
+        background: white;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid var(--av-border);
+        box-shadow: 0 4px 20px rgba(0,0,0,.05);
     }
 
-        .at-card-head i {
+
+    /* CARD HEADER */
+
+    .card-header {
+        background: linear-gradient(135deg, #0d766e, #0a5d57);
+        color: white;
+        padding: 17px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: 600;
+        font-size: 15px;
+    }
+
+
+        .card-header i {
             margin-right: 8px;
         }
 
-    .at-count-chip {
-        background: rgba(255,255,255,.2);
-        padding: 4px 12px;
-        border-radius: 999px;
-        font-size: 12.5px;
-        font-weight: 600;
-    }
 
-    .at-list-card, .at-slip-card {
-        padding-bottom: 6px;
-        overflow: hidden;
-    }
+        .card-header span {
+            background: rgba(255,255,255,.18);
+            padding: 5px 11px;
+            border-radius: 30px;
+            font-size: 12px;
+        }
 
-    .at-row {
+
+    /* TEST ROW */
+
+    .test-row {
+        padding: 18px 20px;
+        border-bottom: 1px solid #edf0f2;
         display: flex;
         align-items: center;
-        gap: 16px;
-        padding: 18px 22px;
-        border-bottom: 1px solid var(--at-line);
-        cursor: pointer;
-        transition: background .15s;
+        gap: 15px;
+        transition: .15s;
     }
 
-        .at-row:hover {
-            background: var(--at-teal-tint);
-        }
 
-        .at-row.at-selected {
-            background: var(--at-teal-tint);
-        }
-
-        .at-row:last-child {
+        .test-row:last-child {
             border-bottom: none;
         }
 
-    .at-row-icon {
-        width: 42px;
-        height: 42px;
+
+        .test-row:hover {
+            background: #f1faf8;
+        }
+
+
+    .tube {
+        width: 46px;
+        height: 46px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 10.5px;
-        font-weight: 700;
         flex-shrink: 0;
+        font-size: 10px;
+        font-weight: 700;
     }
 
-        .at-row-icon.violet {
-            background: var(--at-violet-tint);
-            color: var(--at-violet);
+
+        .tube.violet {
+            background: #eeeafa;
+            color: #675b91;
         }
 
-        .at-row-icon.gold {
-            background: var(--at-gold-tint);
-            color: var(--at-gold);
+
+        .tube.gold {
+            background: #faf1d7;
+            color: #a47800;
         }
 
-        .at-row-icon.blue {
-            background: var(--at-blue-tint);
-            color: var(--at-blue);
+
+        .tube.blue {
+            background: #e8f0f6;
+            color: #3e6c8c;
         }
 
-        .at-row-icon.green {
-            background: var(--at-green-tint);
-            color: var(--at-green);
+
+        .tube.green {
+            background: #e7f0eb;
+            color: #46745f;
         }
 
-    .at-row-main {
+
+    .test-information {
         flex: 1;
         min-width: 0;
     }
 
-    .at-row-top {
+
+    .test-title {
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 10px;
     }
 
-        .at-row-top strong {
-            font-size: 15.5px;
-            color: var(--at-ink);
+
+        .test-title strong {
+            font-size: 15px;
         }
 
-    .at-row-main small {
-        display: block;
-        color: var(--at-ink-soft);
+
+    .urgency {
+        padding: 4px 9px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+
+        .urgency.urgent {
+            color: var(--av-red);
+            background: var(--av-red-light);
+        }
+
+
+        .urgency.high {
+            color: var(--av-gold);
+            background: var(--av-gold-light);
+        }
+
+
+        .urgency.routine {
+            color: var(--av-primary-dark);
+            background: var(--av-primary-light);
+        }
+
+
+    .patient-line {
+        margin-top: 5px;
+        color: var(--av-muted);
         font-size: 13px;
-        margin: 3px 0 8px;
     }
 
-    .at-row-meta {
+
+        .patient-line i {
+            color: var(--av-primary);
+            margin-right: 5px;
+        }
+
+
+    .test-details {
         display: flex;
-        gap: 16px;
         flex-wrap: wrap;
-        font-size: 12.5px;
-        color: var(--at-ink-soft);
+        gap: 12px;
+        margin-top: 9px;
+        color: var(--av-muted);
+        font-size: 11.5px;
     }
 
-        .at-row-meta i {
-            color: var(--at-teal);
+
+        .test-details i {
+            color: var(--av-primary);
             margin-right: 4px;
         }
 
-    .at-badge {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: .03em;
-        text-transform: uppercase;
-        padding: 5px 11px;
-        border-radius: 999px;
-        white-space: nowrap;
-    }
 
-        .at-badge.urgent {
-            background: var(--at-red-tint);
-            color: var(--at-red);
-        }
+    /* BUTTON */
 
-        .at-badge.high {
-            background: var(--at-gold-tint);
-            color: var(--at-gold);
-        }
-
-        .at-badge.routine {
-            background: var(--at-teal-tint);
-            color: var(--at-teal-dark);
-        }
-
-    .at-view-btn {
-        border: 1px solid var(--at-teal);
-        background: transparent;
-        color: var(--at-teal-dark);
+    .view-patient-btn {
+        border: 1px solid var(--av-primary);
+        color: var(--av-primary-dark);
+        background: white;
+        border-radius: 30px;
+        padding: 9px 13px;
+        font-size: 12px;
         font-weight: 600;
-        font-size: 13px;
-        padding: 9px 16px;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
         cursor: pointer;
         white-space: nowrap;
-        transition: .15s;
-        flex-shrink: 0;
     }
 
-        .at-view-btn:hover {
-            background: var(--at-teal);
-            color: #fff;
+
+        .view-patient-btn:hover {
+            background: var(--av-primary);
+            color: white;
         }
 
-    .at-empty, .at-empty-slip {
-        padding: 60px 24px;
+
+    /* EMPTY */
+
+    .empty-state {
         text-align: center;
-        color: var(--at-ink-soft);
+        padding: 60px 25px;
+        color: var(--av-muted);
     }
 
-        .at-empty i, .at-empty-slip i {
-            font-size: 34px;
-            margin-bottom: 12px;
-            display: block;
-            color: var(--at-teal);
+
+        .empty-state i {
+            font-size: 38px;
+            color: var(--av-primary);
+            margin-bottom: 15px;
         }
 
-        .at-empty h3 {
-            color: var(--at-ink);
-            margin: 0 0 6px;
+
+        .empty-state h3 {
+            margin: 0 0 7px;
+            color: var(--av-text);
         }
 
-    /* SLIP CONTENT (rendered via JS) */
-    .at-slip-body {
-        padding: 22px;
+
+        .empty-state p {
+            margin: 0;
+            font-size: 13px;
+        }
+
+
+    /* PATIENT PANEL */
+
+    .select-message {
+        padding: 70px 25px;
+        text-align: center;
+        color: var(--av-muted);
     }
 
-    .at-slip-head {
+
+    .select-icon {
+        width: 65px;
+        height: 65px;
+        margin: 0 auto 15px;
+        border-radius: 50%;
+        background: var(--av-primary-light);
+        color: var(--av-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 25px;
+    }
+
+
+    .select-message h3 {
+        color: var(--av-text);
+        margin: 0 0 8px;
+    }
+
+
+    .select-message p {
+        font-size: 13px;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+
+    .patient-content {
+        padding: 20px;
+    }
+
+
+    .patient-header {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 18px;
+        align-items: center;
+        margin-bottom: 20px;
     }
 
-    .at-pid {
-        font-size: 12px;
-        color: var(--at-ink-soft);
-        margin: 0 0 4px;
-    }
 
-    .at-pname {
-        font-size: 20px;
-        font-weight: 700;
-        margin: 0;
-        color: var(--at-ink);
-    }
+        .patient-header small {
+            display: block;
+            color: var(--av-muted);
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
 
-    .at-avatar {
+
+        .patient-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+
+    .avatar {
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        background: var(--at-teal-dark);
-        color: #fff;
+        background: var(--av-primary);
+        color: white;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 700;
-        font-size: 16px;
-        flex-shrink: 0;
     }
 
-    .at-slip-section {
+
+    .detail-section {
+        border-top: 1px solid var(--av-border);
         padding: 16px 0;
-        border-top: 1px solid var(--at-line);
     }
 
-        .at-slip-section h4 {
-            font-size: 12.5px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .04em;
-            color: var(--at-teal-dark);
+
+        .detail-section h4 {
             margin: 0 0 12px;
-            display: flex;
-            align-items: center;
-            gap: 7px;
+            color: var(--av-primary-dark);
+            font-size: 12px;
+            text-transform: uppercase;
         }
 
-        .at-slip-section p {
-            margin: 0;
-            font-size: 14px;
-            line-height: 1.55;
-            color: var(--at-ink);
-        }
 
-    .at-info-grid {
+    .detail-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 12px 16px;
+        gap: 12px;
     }
 
-    .at-info-item small {
+
+    .detail-item small {
         display: block;
-        font-size: 11px;
+        color: var(--av-muted);
+        font-size: 10px;
         text-transform: uppercase;
-        letter-spacing: .04em;
-        color: var(--at-ink-soft);
         margin-bottom: 3px;
     }
 
-    .at-info-item span {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--at-ink);
-    }
 
-    .at-flag-row {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .at-flag {
-        padding: 10px 12px;
-        border-radius: 10px;
+    .detail-item span {
         font-size: 13px;
-        display: flex;
-        gap: 8px;
-        align-items: flex-start;
-        line-height: 1.4;
+        font-weight: 600;
     }
 
-        .at-flag.allergy {
-            background: var(--at-red-tint);
-            color: #8B2E33;
-        }
 
-        .at-flag.condition {
-            background: var(--at-gold-tint);
-            color: #7C5D1E;
-        }
-
-        .at-flag.med {
-            background: var(--at-teal-tint);
-            color: var(--at-teal-dark);
-        }
-
-        .at-flag i {
-            margin-top: 2px;
-            font-size: 12px;
-        }
-
-    .at-reminder {
-        margin: 0 22px 18px;
-        border-radius: 12px;
-        background: var(--at-teal-tint);
-        border-left: 4px solid var(--at-teal);
-        padding: 14px 16px;
-        font-size: 12.5px;
-        color: var(--at-teal-dark);
-        line-height: 1.7;
+    .clinical-item {
+        padding: 10px;
+        border-radius: 9px;
+        margin-bottom: 7px;
+        font-size: 12px;
+        line-height: 1.5;
     }
 
-        .at-reminder strong {
-            display: block;
-            margin-bottom: 4px;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .04em;
+
+        .clinical-item.allergy {
+            background: var(--av-red-light);
+            color: #8b2e33;
         }
 
-    .at-stamp-wrap {
-        padding: 0 22px 22px;
-    }
 
-    .at-stamp {
+        .clinical-item.condition {
+            background: var(--av-gold-light);
+            color: #76591c;
+        }
+
+
+        .clinical-item.medication {
+            background: var(--av-primary-light);
+            color: var(--av-primary-dark);
+        }
+
+
+    .start-button {
         width: 100%;
-        font-weight: 700;
-        font-size: 15px;
-        letter-spacing: .02em;
-        padding: 15px;
-        background: var(--at-teal);
         border: none;
         border-radius: 12px;
-        color: #fff;
+        background: var(--av-primary);
+        color: white;
+        padding: 14px;
+        font-weight: 700;
+        font-size: 14px;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        transition: background .15s, transform .1s;
-        box-shadow: var(--at-shadow);
+        margin-top: 10px;
     }
 
-        .at-stamp:hover {
-            background: var(--at-teal-dark);
+
+        .start-button:hover {
+            background: var(--av-primary-dark);
         }
 
-        .at-stamp:active {
-            transform: scale(.98);
-        }
 
-        .at-stamp.at-stamped {
-            background: var(--at-teal-dark);
-        }
+    @@media (max-width: 950px) {
 
-    @@media (max-width: 900px) {
-        .at-layout {
-            grid-template-columns: 1fr;
-        }
-
-        .at-stats {
+        .summary-grid {
             grid-template-columns: 1fr 1fr;
         }
 
-        .at-banner {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 18px;
-        }
-
-        .at-row {
-            flex-wrap: wrap;
+        .content-grid {
+            grid-template-columns: 1fr;
         }
     }
+
+
+    @@media (max-width: 650px) {
+
+        .summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .test-row {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .view-patient-btn {
+            width: 100%;
+        }
+
+        .test-title {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+
 </style>
 
-@section Scripts
-{
+
+@section Scripts {
+
     <script>
-        let atSelectedId = 0;
 
-        function loadPatient(id) {
-            atSelectedId = id;
+        let selectedTestId = 0;
 
-            // Highlight selected test
-            document.querySelectorAll(".at-row").forEach(row => {
-                row.classList.remove("at-selected");
 
-                if (parseInt(row.dataset.testId) === id) {
-                    row.classList.add("at-selected");
+        // =========================================================
+        // SEARCH
+        // =========================================================
+
+        document.getElementById("testSearch").addEventListener("input", function() {
+
+            const search = this.value.toLowerCase().trim();
+
+            const rows = document.querySelectorAll(".test-row");
+
+            let visible = 0;
+
+            rows.forEach(row => {
+
+                const text =
+                    row.dataset.search.toLowerCase();
+
+                if (text.includes(search)) {
+
+                    row.style.display = "";
+                    visible++;
+
+                } else {
+
+                    row.style.display = "none";
+
                 }
+
             });
 
-            fetch('/AvailableTests/GetPatient?id=' + id)
+            document.getElementById("testCount").innerText =
+                visible + (visible === 1 ? " test" : " tests");
+
+        });
+
+
+        // =========================================================
+        // LOAD PATIENT
+        // =========================================================
+
+        function loadPatient(id) {
+
+            selectedTestId = id;
+
+
+            // Highlight selected row
+
+            document.querySelectorAll(".test-row").forEach(row => {
+
+                row.style.background = "";
+
+            });
+
+
+            const selectedRow =
+                document.querySelector(
+                    '.test-row[data-test-id="' + id + '"]'
+                );
+
+
+            if (selectedRow) {
+
+                selectedRow.style.background = "#e7f5f3";
+
+            }
+
+
+            const panel =
+                document.getElementById("patientPanel");
+
+
+            panel.innerHTML = `
+
+                    <div class="select-message">
+
+                        <div class="select-icon">
+
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+
+                        </div>
+
+                        <h3>Loading patient...</h3>
+
+                        <p>Please wait.</p>
+
+                    </div>
+
+                `;
+
+
+            fetch(
+                '@Url.Action("GetPatient", "AvailableTests")?id=' + id
+            )
                 .then(response => {
+
                     if (!response.ok) {
-                        throw new Error("Unable to load patient information.");
+
+                        throw new Error(
+                            "Unable to retrieve patient information."
+                        );
+
                     }
 
                     return response.json();
+
                 })
                 .then(data => {
-
-                    // =====================================================
-                    // IMPORTANT:
-                    // GetPatient() returns:
-                    //
-                    // data.patient
-                    // data.test
-                    // =====================================================
 
                     const patient = data.patient || {};
                     const test = data.test || {};
 
-                    const patientName =
-                        `${patient.name || ''} ${patient.surname || ''}`.trim()
-                        || 'Unknown patient';
 
-                    const initials = patientName
-                        .split(" ")
-                        .filter(Boolean)
-                        .map(p => p[0])
-                        .slice(0, 2)
-                        .join("")
-                        .toUpperCase();
+                    const fullName =
+                        `${patient.name || ""} ${patient.surname || ""}`.trim()
+                        || "Unknown Patient";
 
-                    const slipPanel = document.getElementById("slipPanel");
 
-                    slipPanel.innerHTML = `
+                    const initials =
+                        fullName
+                            .split(" ")
+                            .filter(Boolean)
+                            .map(x => x.charAt(0))
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase();
 
-                        <!-- =========================================
-                             PATIENT HEADER
-                        ========================================== -->
-                        <div class="at-slip-body">
 
-                            <div class="at-slip-head">
+                    panel.innerHTML = `
+
+                        <div class="patient-content">
+
+
+                            <div class="patient-header">
 
                                 <div>
-                                    <p class="at-pid">
-                                        SPECIMEN · REQ #${test.requestId ?? '-'}
-                                    </p>
 
-                                    <h3 class="at-pname">
-                                        ${patientName}
-                                    </h3>
+                                    <small>
+                                        REQUEST #${test.requestId ?? "-"}
+                                    </small>
+
+                                    <h2>
+                                        ${fullName}
+                                    </h2>
+
                                 </div>
 
-                                <div class="at-avatar">
+                                <div class="avatar">
                                     ${initials}
                                 </div>
 
                             </div>
 
 
-                            <!-- =========================================
-                                 PATIENT FILE
-                            ========================================== -->
+                            <!-- PATIENT INFORMATION -->
 
-                            <div class="at-slip-section">
+                            <div class="detail-section">
 
                                 <h4>
                                     <i class="fa-solid fa-user"></i>
-                                    Patient file
+                                    Patient Information
                                 </h4>
 
-                                <div class="at-info-grid">
 
-                                    <div class="at-info-item">
+                                <div class="detail-grid">
+
+                                    <div class="detail-item">
+
                                         <small>ID Number</small>
+
                                         <span>
-                                            ${patient.idNumber || '-'}
+                                            ${patient.idNumber || "-"}
                                         </span>
+
                                     </div>
 
-                                    <div class="at-info-item">
+
+                                    <div class="detail-item">
+
                                         <small>Cellphone</small>
+
                                         <span>
-                                            ${patient.cellphone || '-'}
+                                            ${patient.cellphone || "-"}
                                         </span>
+
                                     </div>
 
-                                    <div class="at-info-item">
+
+                                    <div class="detail-item">
+
                                         <small>Email</small>
+
                                         <span>
-                                            ${patient.email || '-'}
+                                            ${patient.email || "-"}
                                         </span>
+
                                     </div>
 
-                                    <div class="at-info-item">
+
+                                    <div class="detail-item">
+
                                         <small>Address</small>
+
                                         <span>
-                                            ${patient.address || '-'}
+                                            ${patient.address || "-"}
                                         </span>
+
                                     </div>
 
                                 </div>
@@ -846,59 +1155,81 @@
                             </div>
 
 
-                            <!-- =========================================
-                                 SELECTED TEST
-                            ========================================== -->
+                            <!-- TEST -->
 
-                            <div class="at-slip-section">
+                            <div class="detail-section">
 
                                 <h4>
                                     <i class="fa-solid fa-flask-vial"></i>
-                                    Selected test
+                                    Laboratory Test
                                 </h4>
 
-                                <div class="at-info-grid">
 
-                                    <div class="at-info-item">
+                                <div class="detail-grid">
+
+                                    <div class="detail-item">
+
                                         <small>Test</small>
+
                                         <span>
-                                            ${test.name || '-'}
+                                            ${test.name || "-"}
                                         </span>
+
                                     </div>
 
-                                    <div class="at-info-item">
+
+                                    <div class="detail-item">
+
                                         <small>Category</small>
+
                                         <span>
-                                            ${test.category || '-'}
+                                            ${test.category || "-"}
                                         </span>
+
                                     </div>
 
-                                    <div class="at-info-item">
+
+                                    <div class="detail-item">
+
                                         <small>Sample</small>
+
                                         <span>
-                                            ${test.sample || '-'}
+                                            ${test.sample || "-"}
                                         </span>
+
                                     </div>
 
-                                    <div class="at-info-item">
+
+                                    <div class="detail-item">
+
                                         <small>Turnaround</small>
+
                                         <span>
-                                            ${test.turnaround ?? '-'} hours
+                                            ${test.turnaround ?? "-"} hours
                                         </span>
+
                                     </div>
 
-                                    <div class="at-info-item">
+
+                                    <div class="detail-item">
+
                                         <small>Urgency</small>
+
                                         <span>
-                                            ${test.urgency || '-'}
+                                            ${test.urgency || "Routine"}
                                         </span>
+
                                     </div>
 
-                                    <div class="at-info-item">
+
+                                    <div class="detail-item">
+
                                         <small>Status</small>
+
                                         <span>
-                                            ${test.status || '-'}
+                                            ${test.status || "Submitted"}
                                         </span>
+
                                     </div>
 
                                 </div>
@@ -906,172 +1237,106 @@
                             </div>
 
 
-                            <!-- =========================================
-                                 CLINICAL FLAGS
-                            ========================================== -->
+                            <!-- CLINICAL INFORMATION -->
 
-                            <div class="at-slip-section">
+                            <div class="detail-section">
 
                                 <h4>
                                     <i class="fa-solid fa-notes-medical"></i>
-                                    Clinical flags
+                                    Clinical Information
                                 </h4>
 
-                                <div class="at-flag-row">
 
-                                    <div class="at-flag allergy">
+                                <div class="clinical-item allergy">
 
-                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                    <strong>Allergies</strong><br>
 
-                                        <span>
-                                            <strong>Allergies</strong><br>
-                                            ${patient.allergies || 'None recorded'}
-                                        </span>
+                                    ${patient.allergies || "None recorded"}
 
-                                    </div>
+                                </div>
 
 
-                                    <div class="at-flag condition">
+                                <div class="clinical-item condition">
 
-                                        <i class="fa-solid fa-heart-pulse"></i>
+                                    <strong>Medical Conditions</strong><br>
 
-                                        <span>
-                                            <strong>Medical conditions</strong><br>
-                                            ${patient.conditions || 'None recorded'}
-                                        </span>
+                                    ${patient.conditions || "None recorded"}
 
-                                    </div>
+                                </div>
 
 
-                                    <div class="at-flag med">
+                                <div class="clinical-item medication">
 
-                                        <i class="fa-solid fa-pills"></i>
+                                    <strong>Medication</strong><br>
 
-                                        <span>
-                                            <strong>Medication</strong><br>
-                                            ${patient.medication || 'None recorded'}
-                                        </span>
-
-                                    </div>
+                                    ${patient.medication || "None recorded"}
 
                                 </div>
 
                             </div>
 
 
-                            <!-- =========================================
-                                 DOCTOR'S NOTES
-                            ========================================== -->
+                            <!-- DOCTOR NOTES -->
 
-                            <div class="at-slip-section">
+                            <div class="detail-section">
 
                                 <h4>
+
                                     <i class="fa-solid fa-file-lines"></i>
-                                    Doctor's clinical notes
+
+                                    Doctor's Notes
+
                                 </h4>
 
-                                <p>
-                                    ${patient.notes || 'No clinical notes.'}
+
+                                <p style="
+                                    font-size:13px;
+                                    line-height:1.6;
+                                    margin:0;
+                                ">
+
+                                    ${patient.notes || "No clinical notes recorded."}
+
                                 </p>
 
                             </div>
 
-                        </div>
 
-
-                        <!-- =============================================
-                             BEFORE YOU START
-                        ============================================== -->
-
-                        <div class="at-reminder">
-
-                            <strong>
-                                Before you start
-                            </strong>
-
-                            Verify the sample barcode.
-                            Confirm patient identity.
-                            Consumables are deducted automatically
-                            once processing begins.
-
-                        </div>
-
-
-                        <!-- =============================================
-                             START PROCESSING
-                        ============================================== -->
-
-                        <div class="at-stamp-wrap">
+                            <!-- START -->
 
                             <button
                                 type="button"
-                                class="at-stamp"
-                                id="stampBtn">
+                                class="start-button"
+                                onclick="startProcessing()">
 
-                                <i class="fa-solid fa-stamp"></i>
+                                <i class="fa-solid fa-play"></i>
 
-                                Begin processing
+                                Begin Processing
 
                             </button>
 
                         </div>
+
                     `;
-
-
-                    // =====================================================
-                    // BEGIN PROCESSING BUTTON
-                    // =====================================================
-
-                    const stampBtn =
-                        document.getElementById("stampBtn");
-
-                    if (stampBtn) {
-
-                        stampBtn.addEventListener("click", function() {
-
-                            if (!confirm(
-                                "Start processing this laboratory test?"
-                            )) {
-                                return;
-                            }
-
-                            this.classList.add("at-stamped");
-
-                            this.innerHTML =
-                                '<i class="fa-solid fa-check"></i> Processing started';
-
-                            this.disabled = true;
-
-                            setTimeout(() => {
-
-                                document.getElementById(
-                                    "startTestId"
-                                ).value = atSelectedId;
-
-                                document.getElementById(
-                                    "startTestForm"
-                                ).submit();
-
-                            }, 320);
-
-                        });
-
-                    }
 
                 })
                 .catch(error => {
 
                     console.error(error);
 
-                    document.getElementById("slipPanel").innerHTML = `
 
-                        <div class="at-empty-slip">
+                    panel.innerHTML = `
 
-                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        <div class="select-message">
 
-                            <strong>
-                                Unable to load patient record
-                            </strong>
+                            <div class="select-icon"
+                                 style="background:#fbe9ea;color:#dc3545;">
+
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+
+                            </div>
+
+                            <h3>Unable to load patient</h3>
 
                             <p>
                                 Please try selecting the test again.
@@ -1082,13 +1347,46 @@
                     `;
 
                 });
+
         }
 
-        document.getElementById("searchBox").addEventListener("keyup", function() {
-            const value = this.value.toLowerCase();
-            document.querySelectorAll(".at-row").forEach(row => {
-                row.style.display = row.innerText.toLowerCase().includes(value) ? "" : "none";
-            });
-        });
+
+        // =========================================================
+        // START PROCESSING
+        // =========================================================
+
+        function startProcessing() {
+
+            if (!selectedTestId || selectedTestId === 0) {
+
+                alert("Please select a laboratory test first.");
+
+                return;
+
+            }
+
+
+            const confirmed =
+                confirm(
+                    "Start processing this laboratory test?"
+                );
+
+
+            if (!confirmed) {
+
+                return;
+
+            }
+
+
+            document.getElementById("startTestId").value =
+                selectedTestId;
+
+
+            document.getElementById("startTestForm").submit();
+
+        }
+
     </script>
+
 }

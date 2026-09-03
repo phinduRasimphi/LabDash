@@ -26,47 +26,14 @@ namespace LabDash.Controllers
         // =========================================================
 
         [HttpGet]
-        public async Task<IActionResult> Index(int? id)
+        public async Task<IActionResult> Index()
         {
-            var technician =
-                await _userManager.GetUserAsync(User);
-
-            if (technician == null)
-                return Challenge();
-
-            // IMPORTANT:
-            //
-            // A request can be:
-            // Samples Received
-            // OR
-            // In Progress
-            //
-            // We must NOT only check Samples Received because
-            // starting one test changes the request to In Progress.
-            //
-            // Individual test status must be Submitted.
-
             var tests = await _context.TestRequestItems
                 .Include(x => x.TestType)
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
-                .Include(x => x.TestRequest)
-                    .ThenInclude(x => x.Samples)
-                .Include(x => x.AssignedTechnician)
-                .Where(x =>
-                    x.Status == "Submitted" &&
-                    x.TestRequest != null &&
-                    (
-                        x.TestRequest.Status ==
-                            "Samples Received"
-                        ||
-                        x.TestRequest.Status ==
-                            "In Progress"
-                    ))
-                .OrderByDescending(
-                    x => x.TestRequest.RequestDate)
-                .ThenByDescending(
-                    x => x.TestRequestItemId)
+                .Where(x => x.Status == "Submitted")
+                .OrderByDescending(x => x.TestRequestItemId)
                 .ToListAsync();
 
             return View(tests);
