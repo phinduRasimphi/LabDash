@@ -162,24 +162,64 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(ManagePatients));
         }
 
-        // POST: /Doctor/UpdatePatient
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdatePatient(PatientDetailsViewModel model)
+       
+        // GET: /Doctor/EditPatient/5
+        public async Task<IActionResult> EditPatient(int? id)
         {
-            var patient = await _context.Patients.FindAsync(model.PatientID);
+            if (id == null) return NotFound();
+
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.PatientID == id);
+
             if (patient == null) return NotFound();
 
-            patient.MedicalConditions = model.MedicalConditions;
-            patient.Allergies = model.Allergies;
-            patient.Medication = model.Medication;
+            var vm = new PatientCreateViewModel
+            {
+                Name = patient.Name,
+                Surname = patient.Surname,
+                IDNumber = patient.IDNumber,
+                DOB = patient.DOB,
+                CellphoneNumber = patient.CellphoneNumber,
+                Email = patient.Email,
+                HomeAddress = patient.HomeAddress,
+                MedicalConditions = patient.MedicalConditions,
+                Allergies = patient.Allergies,
+                Medication = patient.Medication
+            };
 
-            await _context.SaveChangesAsync();
+            // Pass the PatientID as a hidden value
+            ViewBag.PatientID = patient.PatientID;
 
-            TempData["Success"] = "Patient record updated.";
-            return RedirectToAction(nameof(ManagePatients));
+            return View(vm);
         }
+       
+            [HttpPost]
+            [ValidateAntiForgeryToken]
+            public async Task<IActionResult> UpdatePatient(PatientDetailsViewModel model)
+            {
+                // Find the patient in the database
+                var patient = await _context.Patients.FindAsync(model.PatientID);
+                if (patient == null) return NotFound();
 
+                // Update ALL personal details
+                patient.Name = model.Name;
+                patient.Surname = model.Surname;
+                patient.IDNumber = model.IDNumber;
+                patient.DOB = model.DOB;
+                patient.CellphoneNumber = model.CellphoneNumber;
+                patient.Email = model.Email;
+                patient.HomeAddress = model.HomeAddress;
+
+                // Update medical details
+                patient.MedicalConditions = model.MedicalConditions;
+                patient.Allergies = model.Allergies;
+                patient.Medication = model.Medication;
+
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Patient record updated.";
+                return RedirectToAction(nameof(ManagePatients));
+            }
         private string GenerateTemporaryPassword()
         {
             const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
