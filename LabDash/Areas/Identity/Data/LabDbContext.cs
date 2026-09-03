@@ -49,10 +49,11 @@ public class LabDbContext : IdentityDbContext<LabUser>
          .IsUnique()
          .HasFilter("[HPCSANumber] IS NOT NULL AND [HPCSANumber] <> ''");
 
-        //builder.Entity<LabUser>()
-        //    .HasIndex(u => u.EmployeeNumber)
-        //    .IsUnique()
-        //    .HasFilter("[EmployeeNumber] IS NOT NULL AND [EmployeeNumber] <> ''");
+
+        builder.Entity<LabUser>()
+            .HasIndex(u => u.EmployeeNumber)
+            .IsUnique()
+            .HasFilter("[EmployeeNumber] IS NOT NULL AND [EmployeeNumber] <> ''");
 
         builder.Entity<Patient>()
         .HasOne<LabUser>()
@@ -109,6 +110,13 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .HasForeignKey(v => v.TestRequestItemId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        builder.Entity<TestType>()
+    .Property(x => x.ReferenceRangeLow)
+    .HasPrecision(18, 2);
+
+        builder.Entity<TestType>()
+            .Property(x => x.ReferenceRangeHigh)
+            .HasPrecision(18, 2);
         // =============================
         // Admin Subsystem Configuration
         // =============================
