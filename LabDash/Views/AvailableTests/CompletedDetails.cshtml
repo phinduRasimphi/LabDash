@@ -1,0 +1,858 @@
+﻿@model LabDash.Models.TestRequestItem
+
+@{
+    ViewData["Title"] = "Laboratory Test Details";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    var patient = ViewBag.Patient as LabDash.Models.Patient;
+    var result = ViewBag.Result as LabDash.Models.TestResult;
+    var verification = ViewBag.Verification as LabDash.Models.TestVerification;
+}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="details-wrap">
+
+    <!-- HEADER -->
+    <div class="details-header">
+
+        <div class="header-icon">
+            <i class="fa-solid fa-file-medical"></i>
+        </div>
+
+        <div class="header-text">
+            <h1>Laboratory Test Details</h1>
+            <p>
+                View the completed laboratory test and captured result.
+            </p>
+        </div>
+
+        <a asp-action="Completed" class="back-btn">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to completed tests
+        </a>
+
+    </div>
+
+
+    <!-- STATUS -->
+    <div class="status-card">
+
+        <div>
+            <span class="status-label">Current Status</span>
+
+            @if (Model.Status == "Verified")
+            {
+                <span class="status-badge verified">
+                    <i class="fa-solid fa-shield-check"></i>
+                    Verified
+                </span>
+            }
+            else if (Model.Status == "Completed")
+            {
+                <span class="status-badge completed">
+                    <i class="fa-solid fa-circle-check"></i>
+                    Completed
+                </span>
+            }
+            else
+            {
+                <span class="status-badge review">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    To Be Reviewed
+                </span>
+            }
+        </div>
+
+        <div class="request-number">
+            <span>Request Number</span>
+            <strong>#@Model.RequestId</strong>
+        </div>
+
+    </div>
+
+
+    <!-- PATIENT + TEST -->
+    <div class="info-grid">
+
+        <!-- PATIENT -->
+        <div class="info-card">
+
+            <div class="card-title">
+                <i class="fa-solid fa-user"></i>
+                Patient Information
+            </div>
+
+            @if (patient != null)
+            {
+                <div class="patient-profile">
+
+                    <div class="patient-avatar">
+                        @patient.Name?.FirstOrDefault()
+                        @patient.Surname?.FirstOrDefault()
+                    </div>
+
+                    <div>
+                        <h3>
+                            @patient.Name @patient.Surname
+                        </h3>
+
+                        <p>
+                            ID Number:
+                            <strong>@patient.IDNumber</strong>
+                        </p>
+                    </div>
+
+                </div>
+
+                <div class="details-list">
+
+                    <div>
+                        <span>Cellphone</span>
+                        <strong>@patient.CellphoneNumber</strong>
+                    </div>
+
+                    <div>
+                        <span>Email</span>
+                        <strong>@patient.Email</strong>
+                    </div>
+
+                </div>
+            }
+
+        </div>
+
+
+        <!-- TEST INFORMATION -->
+        <div class="info-card">
+
+            <div class="card-title">
+                <i class="fa-solid fa-flask"></i>
+                Test Information
+            </div>
+
+            <div class="details-list">
+
+                <div>
+                    <span>Test</span>
+                    <strong>@Model.TestType?.Name</strong>
+                </div>
+
+                <div>
+                    <span>Category</span>
+                    <strong>@Model.TestType?.Category</strong>
+                </div>
+
+                <div>
+                    <span>Sample Type</span>
+                    <strong>@Model.TestType?.RequiredSampleType</strong>
+                </div>
+
+                <div>
+                    <span>Turnaround Time</span>
+                    <strong>
+                        @Model.TestType?.TurnaroundTimeHours hours
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Start Time</span>
+                    <strong>
+                        @(Model.StartDateTime?.ToString("dd MMM yyyy HH:mm") ?? "—")
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Completion Time</span>
+                    <strong>
+                        @(Model.CompletionDateTime?.ToString("dd MMM yyyy HH:mm") ?? "—")
+                    </strong>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- LABORATORY RESULT -->
+    <div class="result-card">
+
+        <div class="card-title">
+            <i class="fa-solid fa-microscope"></i>
+            Laboratory Result
+        </div>
+
+        @if (result != null)
+        {
+            <div class="result-grid">
+
+                <div class="result-box @(result.IsAbnormal ? "abnormal" : "")">
+
+                    <span class="result-label">
+                        Result Value
+                    </span>
+
+                    <strong class="result-value">
+                        @result.ResultValue
+                    </strong>
+
+                    @if (result.IsAbnormal)
+                    {
+                        <span class="abnormal-label">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            Abnormal result
+                        </span>
+                    }
+
+                </div>
+
+
+                <div class="result-box">
+
+                    <span class="result-label">
+                        Units
+                    </span>
+
+                    <strong>
+                        @(string.IsNullOrWhiteSpace(result.Units)
+                            ? "—"
+                            : result.Units)
+                    </strong>
+
+                </div>
+
+
+                <div class="result-box">
+
+                    <span class="result-label">
+                        Reference Range
+                    </span>
+
+                    <strong>
+                        @(string.IsNullOrWhiteSpace(result.ReferenceRange)
+                            ? "—"
+                            : result.ReferenceRange)
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="comments-box">
+
+                <span class="result-label">
+                    Laboratory Comments
+                </span>
+
+                <p>
+                    @(string.IsNullOrWhiteSpace(result.Comments)
+                        ? "No comments recorded."
+                        : result.Comments)
+                </p>
+
+            </div>
+
+
+            <div class="capture-info">
+
+                <div>
+                    <span>Captured By</span>
+
+                    <strong>
+                        @(result.CapturedByTechnician?.FullName
+                            ?? result.CapturedByTechnician?.UserName
+                            ?? "Unknown")
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Date Captured</span>
+
+                    <strong>
+                        @result.DateCaptured.ToString("dd MMM yyyy HH:mm")
+                    </strong>
+                </div>
+
+            </div>
+        }
+        else
+        {
+            <div class="no-result">
+                <i class="fa-solid fa-file-circle-exclamation"></i>
+
+                <h3>No laboratory result found</h3>
+
+                <p>
+                    There is currently no result recorded for this test.
+                </p>
+            </div>
+        }
+
+    </div>
+
+
+    <!-- VERIFICATION -->
+    @if (verification != null || result?.VerifiedByTechnician != null)
+    {
+        <div class="verification-card">
+
+            <div class="card-title">
+                <i class="fa-solid fa-shield-check"></i>
+                Verification Information
+            </div>
+
+            @if (verification != null)
+            {
+                <div class="verification-grid">
+
+                    <div>
+                        <span>Decision</span>
+
+                        <strong>
+                            @verification.Status
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Verified By</span>
+
+                        <strong>
+                            @(verification.VerifiedByTechnician?.FullName
+                                ?? verification.VerifiedByTechnician?.UserName
+                                ?? "Unknown")
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Date</span>
+
+                        <strong>
+                            @verification.VerificationDate.ToString("dd MMM yyyy HH:mm")
+                        </strong>
+                    </div>
+
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(verification.VerificationNotes))
+                {
+                    <div class="verification-note">
+
+                        <strong>
+                            Verification Note
+                        </strong>
+
+                        <p>
+                            @verification.VerificationNotes
+                        </p>
+
+                    </div>
+                }
+            }
+            else if (result?.VerifiedByTechnician != null)
+            {
+                <div class="verification-grid">
+
+                    <div>
+                        <span>Verified By</span>
+
+                        <strong>
+                            @(result.VerifiedByTechnician.FullName
+                                ?? result.VerifiedByTechnician.UserName)
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Verification Date</span>
+
+                        <strong>
+                            @(result.VerificationDate?.ToString("dd MMM yyyy HH:mm") ?? "—")
+                        </strong>
+                    </div>
+
+                </div>
+            }
+
+        </div>
+    }
+
+
+    <!-- ACTIONS -->
+    <div class="bottom-actions">
+
+        <a asp-action="Completed"
+           class="action-btn secondary">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back
+        </a>
+
+        <a asp-controller="CaptureResults"
+           asp-action="Details"
+           asp-route-id="@Model.TestRequestItemId"
+           class="action-btn primary">
+            <i class="fa-solid fa-file-medical"></i>
+            View Laboratory Result
+        </a>
+
+    </div>
+
+</div>
+
+
+<style>
+
+    :root {
+        --d-teal: #0E8C7F;
+        --d-teal-dark: #0A5850;
+        --d-teal-light: #E5F4F1;
+        --d-bg: #F3F8F7;
+        --d-white: #FFFFFF;
+        --d-text: #14302C;
+        --d-muted: #718985;
+        --d-border: #E1ECEA;
+        --d-gold: #B4862A;
+        --d-gold-light: #FBF1DA;
+        --d-red: #B0463F;
+        --d-red-light: #F7E8E7;
+        --d-shadow: 0 5px 20px rgba(10,60,55,.07);
+    }
+
+    .details-wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 0 60px;
+        color: var(--d-text);
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* HEADER */
+
+    .details-header {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 25px 28px;
+        margin-bottom: 22px;
+        border-radius: 18px;
+        background: linear-gradient( 120deg, #12988A, #0A5850 );
+        box-shadow: var(--d-shadow);
+    }
+
+    .header-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 22px;
+        background: rgba(255,255,255,.15);
+        border: 2px solid rgba(255,255,255,.3);
+    }
+
+    .header-text {
+        flex: 1;
+    }
+
+        .header-text h1 {
+            margin: 0 0 5px;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .header-text p {
+            margin: 0;
+            color: rgba(255,255,255,.85);
+            font-size: 14px;
+        }
+
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        color: white;
+        text-decoration: none;
+        border: 1px solid rgba(255,255,255,.4);
+        background: rgba(255,255,255,.12);
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,.25);
+            color: white;
+        }
+
+    /* STATUS */
+
+    .status-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: white;
+        padding: 20px 24px;
+        border-radius: 16px;
+        margin-bottom: 20px;
+        box-shadow: var(--d-shadow);
+    }
+
+    .status-label,
+    .request-number span {
+        display: block;
+        color: var(--d-muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 7px;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+        .status-badge.verified {
+            color: var(--d-teal-dark);
+            background: var(--d-teal-light);
+        }
+
+        .status-badge.completed {
+            color: #55716C;
+            background: #E3EEEC;
+        }
+
+        .status-badge.review {
+            color: var(--d-gold);
+            background: var(--d-gold-light);
+        }
+
+    .request-number {
+        text-align: right;
+    }
+
+        .request-number strong {
+            font-size: 20px;
+            color: var(--d-teal-dark);
+        }
+
+    /* INFO */
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .info-card,
+    .result-card,
+    .verification-card {
+        background: white;
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow: var(--d-shadow);
+        margin-bottom: 20px;
+    }
+
+    .card-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--d-teal-dark);
+        font-weight: 700;
+        font-size: 15px;
+        margin-bottom: 20px;
+    }
+
+        .card-title i {
+            color: var(--d-teal);
+        }
+
+    .patient-profile {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--d-border);
+        margin-bottom: 18px;
+    }
+
+    .patient-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        background: linear-gradient( 135deg, var(--d-teal), var(--d-teal-dark) );
+    }
+
+    .patient-profile h3 {
+        margin: 0 0 4px;
+        font-family: 'Poppins', sans-serif;
+        font-size: 16px;
+    }
+
+    .patient-profile p {
+        margin: 0;
+        color: var(--d-muted);
+        font-size: 12px;
+    }
+
+    .details-list {
+        display: grid;
+        gap: 14px;
+    }
+
+        .details-list div {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--d-border);
+        }
+
+            .details-list div:last-child {
+                border-bottom: none;
+            }
+
+        .details-list span,
+        .verification-grid span {
+            color: var(--d-muted);
+            font-size: 12px;
+        }
+
+        .details-list strong,
+        .verification-grid strong {
+            font-size: 13px;
+            text-align: right;
+        }
+
+    /* RESULT */
+
+    .result-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1.2fr;
+        gap: 14px;
+    }
+
+    .result-box {
+        padding: 18px;
+        border-radius: 14px;
+        background: var(--d-bg);
+    }
+
+        .result-box.abnormal {
+            background: var(--d-red-light);
+            border: 1px solid #E7C2C0;
+        }
+
+    .result-label {
+        display: block;
+        color: var(--d-muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .result-value {
+        font-family: 'Poppins', sans-serif;
+        font-size: 25px;
+        color: var(--d-teal-dark);
+    }
+
+    .abnormal .result-value {
+        color: var(--d-red);
+    }
+
+    .abnormal-label {
+        display: block;
+        margin-top: 6px;
+        color: var(--d-red);
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .comments-box {
+        margin-top: 16px;
+        padding: 18px;
+        border-radius: 14px;
+        background: #F8FAFA;
+    }
+
+        .comments-box p {
+            margin: 5px 0 0;
+            color: var(--d-text);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+    .capture-info {
+        display: flex;
+        gap: 50px;
+        margin-top: 18px;
+        padding-top: 18px;
+        border-top: 1px solid var(--d-border);
+    }
+
+        .capture-info span {
+            display: block;
+            color: var(--d-muted);
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
+
+        .capture-info strong {
+            font-size: 13px;
+        }
+
+    /* VERIFICATION */
+
+    .verification-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+
+        .verification-grid > div {
+            padding: 16px;
+            background: var(--d-bg);
+            border-radius: 12px;
+        }
+
+        .verification-grid span {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+    .verification-note {
+        margin-top: 15px;
+        padding: 15px;
+        border-radius: 12px;
+        background: var(--d-gold-light);
+    }
+
+        .verification-note strong {
+            color: var(--d-gold);
+            font-size: 12px;
+        }
+
+        .verification-note p {
+            margin: 6px 0 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+    /* EMPTY RESULT */
+
+    .no-result {
+        padding: 40px;
+        text-align: center;
+        color: var(--d-muted);
+    }
+
+        .no-result i {
+            font-size: 30px;
+            color: var(--d-teal);
+            margin-bottom: 10px;
+        }
+
+        .no-result h3 {
+            margin: 0 0 5px;
+            color: var(--d-text);
+            font-family: 'Poppins', sans-serif;
+        }
+
+    /* BOTTOM BUTTONS */
+
+    .bottom-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 5px;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 18px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+        .action-btn.secondary {
+            color: var(--d-teal-dark);
+            border: 1px solid var(--d-teal);
+            background: white;
+        }
+
+        .action-btn.primary {
+            color: white;
+            background: var(--d-teal);
+            border: 1px solid var(--d-teal);
+        }
+
+            .action-btn.primary:hover {
+                background: var(--d-teal-dark);
+                color: white;
+            }
+
+        .action-btn.secondary:hover {
+            background: var(--d-teal-light);
+        }
+
+    @@media (max-width: 850px) {
+
+        .details-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .result-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .verification-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .status-card {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .request-number {
+            text-align: left;
+        }
+
+        .capture-info {
+            flex-direction: column;
+            gap: 15px;
+        }
+    }
+
+</style>
