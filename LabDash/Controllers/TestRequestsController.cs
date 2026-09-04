@@ -451,7 +451,49 @@ public async Task<IActionResult> Create(
 
             return View(folders);
         }
+        // GET: TestRequest/Index
+        public async Task<IActionResult> Index()
+        {
+            var testRequests = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .Include(tr => tr.RequestingDoctor)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
+                .OrderByDescending(tr => tr.RequestDate)
+                .ToListAsync();
 
+            var viewModel = testRequests.Select(tr => new TestRequestListViewModel
+            {
+                RequestId = tr.RequestId,
+                PatientName = tr.Patient != null ? $"{tr.Patient.Name} {tr.Patient.Surname}" : "Unknown",
+                DoctorName = tr.RequestingDoctor != null ? tr.RequestingDoctor.FullName : "Unknown",
+                RequestDate = tr.RequestDate,
+                Urgency = tr.Urgency,
+                Status = tr.Status,
+                HasAbnormalResults = false,
+                ResultCount = tr.TestRequestItems?.Count ?? 0,
+
+                // ===== TEST TYPES =====
+                TestTypeNames = tr.TestRequestItems?.Select(tri => tri.TestType?.Name ?? "Unknown").ToList() ?? new List<string>(),
+                TestTypesDisplay = tr.TestRequestItems != null && tr.TestRequestItems.Any()
+                    ? string.Join(", ", tr.TestRequestItems.Select(tri => tri.TestType?.Name ?? "Unknown"))
+                    : "No tests",
+
+                // ===== BARCODES =====
+                SampleBarcodes = !string.IsNullOrEmpty(tr.SampleBarcodes)
+                    ? tr.SampleBarcodes.Split(',').ToList()
+                    : new List<string>(),
+                SampleBarcodesString = tr.SampleBarcodes ?? "",
+
+                // ===== CANCELLATION REASON =====
+                CancellationReason = tr.CancellationReason,
+
+                // ===== CLINICAL NOTES =====
+                ClinicalNotes = tr.ClinicalNotes
+            });
+
+            return View(viewModel);
+        }
         // POST: /TestRequest/ReleaseResults
         // POST: /TestRequest/ReleaseResults
         [HttpPost]
@@ -521,4 +563,4 @@ public async Task<IActionResult> Create(
             return View("PatientRequests", new List<TestRequest> { request });
         }
     }
-}
+ }

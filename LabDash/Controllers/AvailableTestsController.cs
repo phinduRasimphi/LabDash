@@ -162,8 +162,7 @@ namespace LabDash.Controllers
                     " " +
                     item.TestRequest.Patient.Surname,
 
-                idNumber =
-                    item.TestRequest.Patient.IDNumber,
+                idNumber = item.TestRequest.Patient.IDNumber,
 
                 cellphone =
                     item.TestRequest.Patient.CellphoneNumber,

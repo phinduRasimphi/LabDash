@@ -1,4 +1,5 @@
 ﻿using LabDash.Areas.Identity.Data;
+using LabDash.Enums;
 using LabDash.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -21,10 +22,9 @@ namespace LabDash.Controllers
             _userManager = userManager;
         }
 
-        // =========================================================
-        // TESTS RETURNED FOR REVIEW
-        // =========================================================
-        [HttpGet]
+        //-------------------------------------------------------
+        // Tests returned for review
+        //-------------------------------------------------------
         public async Task<IActionResult> Index()
         {
             var technician = await _userManager.GetUserAsync(User);
@@ -33,184 +33,94 @@ namespace LabDash.Controllers
                 return Challenge();
 
             var tests = await _context.TestRequestItems
-                .Include(x => x.TestType)
-                .Include(x => x.TestRequest)
-                    .ThenInclude(x => x.Patient)
-                .Include(x => x.AssignedTechnician)
-                .Where(x =>
-                    x.Status == "To Be Reviewed" &&
-                    x.AssignedTechnicianId == technician.Id
-                )
-                .OrderByDescending(x => x.CompletionDateTime)
+                .Include(t => t.TestRequest)
+                .Include(t => t.TestType)
+                .Where(t =>
+                    t.Status == "ToBeReviewed" &&
+                    t.AssignedTechnicianId == technician.Id)
+                .OrderByDescending(t => t.CompletionDateTime)
                 .ToListAsync();
 
             return View(tests);
         }
 
-        // =========================================================
-        // OPEN TEST FOR REVIEW
-        // =========================================================
+        //-------------------------------------------------------
+        // Display returned test
+        //-------------------------------------------------------
         [HttpGet]
         public async Task<IActionResult> Review(int id)
         {
-            var technician = await _userManager.GetUserAsync(User);
-
-            if (technician == null)
-                return Challenge();
-
             var item = await _context.TestRequestItems
-                .Include(x => x.TestType)
-                .Include(x => x.TestRequest)
-                    .ThenInclude(x => x.Patient)
-                .Include(x => x.AssignedTechnician)
-                .FirstOrDefaultAsync(x =>
-                    x.TestRequestItemId == id);
+                .Include(t => t.TestRequest)
+                .Include(t => t.TestType)
+                .Include(t => t.AssignedTechnician)
+                .FirstOrDefaultAsync(t =>
+                    t.TestRequestItemId == id);
 
             if (item == null)
                 return NotFound();
 
-            // Only the technician who originally captured
-            // the result can review the returned test.
-            if (item.AssignedTechnicianId != technician.Id)
-            {
-                TempData["Error"] =
-                    "You are not assigned to review this test.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
-            // Make sure this is actually a returned test.
-            if (item.Status != "To Be Reviewed")
-            {
-                TempData["Error"] =
-                    "This test is not currently waiting for review.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
             var result = await _context.TestResults
-                .FirstOrDefaultAsync(x =>
-                    x.TestRequestItemId == id);
-
-            if (result == null)
-            {
-                TempData["Error"] =
-                    "No laboratory result was found for this test.";
-
-                return RedirectToAction(nameof(Index));
-            }
+                .FirstOrDefaultAsync(r =>
+                    r.TestRequestItemId == id);
 
             var verification = await _context.TestVerifications
-                .Include(x => x.VerifiedByTechnician)
-                .Where(x =>
-                    x.TestRequestItemId == id)
-                .OrderByDescending(x => x.VerificationDate)
+                .Where(v => v.TestRequestItemId == id)
+                .OrderByDescending(v => v.VerificationDate)
                 .FirstOrDefaultAsync();
 
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p =>
+                    p.PatientID == item.TestRequest.PatientId);
+
             ViewBag.TestItem = item;
-            ViewBag.Patient = item.TestRequest?.Patient;
+            ViewBag.Patient = patient;
             ViewBag.Verification = verification;
 
             return View(result);
         }
 
-        // =========================================================
-        // SAVE CORRECTED RESULT
-        // =========================================================
+        //-------------------------------------------------------
+        // Save corrected result
+        //-------------------------------------------------------
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Review(TestResult model)
         {
-            var technician = await _userManager.GetUserAsync(User);
+            if (!ModelState.IsValid)
+                return View(model);
 
-            if (technician == null)
-                return Challenge();
-
-            // -----------------------------------------------------
-            // LOAD RESULT
-            // -----------------------------------------------------
             var result = await _context.TestResults
-                .FirstOrDefaultAsync(x =>
-                    x.ResultId == model.ResultId);
+                .FirstOrDefaultAsync(r =>
+                    r.ResultId == model.ResultId);
 
             if (result == null)
-            {
-                TempData["Error"] =
-                    "Laboratory result could not be found.";
+                return NotFound();
 
-                return RedirectToAction(nameof(Index));
-            }
-
-            // -----------------------------------------------------
-            // LOAD TEST ITEM
-            // -----------------------------------------------------
-            var item = await _context.TestRequestItems
-                .Include(x => x.TestRequest)
-                .FirstOrDefaultAsync(x =>
-                    x.TestRequestItemId ==
-                    result.TestRequestItemId);
-
-            if (item == null)
-            {
-                TempData["Error"] =
-                    "Test could not be found.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
-            // -----------------------------------------------------
-            // SECURITY CHECK
-            // -----------------------------------------------------
-            if (item.AssignedTechnicianId != technician.Id)
-            {
-                TempData["Error"] =
-                    "You are not assigned to this test.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
-            // -----------------------------------------------------
-            // STATUS CHECK
-            // -----------------------------------------------------
-            if (item.Status != "To Be Reviewed")
-            {
-                TempData["Error"] =
-                    "This test is not currently waiting for review.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
-            // -----------------------------------------------------
-            // UPDATE RESULT
-            // -----------------------------------------------------
+            // Update result
             result.ResultValue = model.ResultValue;
             result.Units = model.Units;
             result.ReferenceRange = model.ReferenceRange;
             result.Comments = model.Comments;
-
             result.DateCaptured = DateTime.Now;
 
-            // -----------------------------------------------------
-            // RESULT GOES BACK TO VERIFICATION
-            // -----------------------------------------------------
-            result.Status = "Completed";
+            // Return test to Completed
+            var item = await _context.TestRequestItems
+                .FirstOrDefaultAsync(t =>
+                    t.TestRequestItemId == result.TestRequestItemId);
 
-            // The original technician is still the
-            // AssignedTechnicianId.
-
-            item.Status = "Completed";
-            item.CompletionDateTime = DateTime.Now;
+            if (item != null)
+            {
+                item.Status = "Completed";
+                item.CompletionDateTime = DateTime.Now;
+            }
 
             await _context.SaveChangesAsync();
 
             TempData["Success"] =
-                "Result corrected successfully and returned to the verification queue.";
+                "Result updated and sent back for verification.";
 
-            // IMPORTANT:
-            // Send technician to Verification queue.
-            return RedirectToAction(
-                "Index",
-                "Verification");
+            return RedirectToAction(nameof(Index));
         }
     }
 }
