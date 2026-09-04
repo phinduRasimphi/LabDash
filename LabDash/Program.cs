@@ -115,16 +115,15 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Phindulo";
         user.LastName = "Rasimphi";
-        //user.HCRN = 0;
+        user.SouthAfricanID = "0001010000000";  //  ADDED
         user.PhoneNumb = "0741234567";
         user.Gender = "Male";
-
         user.Timestamp_AccountCreated = DateTime.Now;
         await userManager.CreateAsync(user, password);
-
         await userManager.AddToRoleAsync(user, "Admin");
     }
 }
+
 using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
@@ -140,16 +139,16 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Thabo";
         user.LastName = "Mokoena";
+        user.SouthAfricanID = "9905120000000";  //  ADDED
         user.EmployeeNumber = null;
         user.PhoneNumb = "0732451097";
         user.Gender = "Male";
-
         user.Timestamp_AccountCreated = DateTime.Now;
         await userManager.CreateAsync(user, password);
-
         await userManager.AddToRoleAsync(user, "Patient");
     }
 }
+
 using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
@@ -165,18 +164,17 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Kamogelo";
         user.LastName = "Makuwa";
+        user.SouthAfricanID = "9503150000000";  //  ADDED
         user.HPCSANumber = "HPCSA123456";
         user.EmployeeNumber = null;
-
         user.PhoneNumb = "0824773857";
         user.Gender = "Female";
-
         user.Timestamp_AccountCreated = DateTime.Now;
         await userManager.CreateAsync(user, password);
-
         await userManager.AddToRoleAsync(user, "Doctor");
     }
 }
+
 using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
@@ -189,17 +187,18 @@ using (var scope = app.Services.CreateScope())
             Password = "Password!123",
             FirstName = "Siyolise",
             LastName = "Sipika",
+            SouthAfricanID = "9807200000000",  //  ADDED
             Phone = "0819859207",
             Gender = "Female",
             EmployeeNumber = "EMP001"
         },
-
         new
         {
             Email = "liyemasipika@gmail.com",
             Password = "Password!123",
             FirstName = "Liyema",
             LastName = "Mabaso",
+            SouthAfricanID = "9611050000000",  //  ADDED
             Phone = "0821234567",
             Gender = "Male",
             EmployeeNumber = "EMP002"
@@ -217,6 +216,7 @@ using (var scope = app.Services.CreateScope())
                 EmailConfirmed = true,
                 FirstName = tech.FirstName,
                 LastName = tech.LastName,
+                SouthAfricanID = tech.SouthAfricanID,  // ✅ ADDED
                 PhoneNumb = tech.Phone,
                 Gender = tech.Gender,
                 EmployeeNumber = tech.EmployeeNumber,
@@ -225,7 +225,6 @@ using (var scope = app.Services.CreateScope())
             };
 
             var result = await userManager.CreateAsync(user, tech.Password);
-
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(user, "Lab_Technician");
@@ -233,6 +232,7 @@ using (var scope = app.Services.CreateScope())
         }
     }
 }
+
 using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
@@ -248,13 +248,12 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Lusanda";
         user.LastName = "Mkhize";
+        user.SouthAfricanID = "9002100000000";  //  ADDED
         user.EmployeeNumber = null;
         user.PhoneNumb = "0639278012";
         user.Gender = "Female";
-
         user.Timestamp_AccountCreated = DateTime.Now;
         await userManager.CreateAsync(user, password);
-
         await userManager.AddToRoleAsync(user, "Lab_Manager");
     }
 }
@@ -274,17 +273,16 @@ using (var scope = app.Services.CreateScope())
         user.EmailConfirmed = true;
         user.FirstName = "Phindulo";
         user.LastName = "Rasimphi";
+        user.SouthAfricanID = "0306120000000"; 
         user.EmployeeNumber = null;
         user.PhoneNumb = "0741234567";
         user.Gender = "Male";
-
         user.Timestamp_AccountCreated = DateTime.Now;
         await userManager.CreateAsync(user, password);
-
         await userManager.AddToRoleAsync(user, "Patient");
-
     }
 }
+
 using (var scope = app.Services.CreateScope())
 {
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<LabUser>>();
@@ -298,17 +296,14 @@ using (var scope = app.Services.CreateScope())
         user.Email = email;
         user.UserName = email;
         user.EmailConfirmed = true;
-        user.FirstName = "Phindulo";
-        user.LastName = "Rasimphi";
-        user.EmployeeNumber = null;
+        user.FirstName = "Lesley"; 
+        user.LastName = "Mafhuwa"; 
+        user.SouthAfricanID = "9409180000000"; 
         user.PhoneNumb = "0741234567";
         user.Gender = "Male";
-
         user.Timestamp_AccountCreated = DateTime.Now;
         await userManager.CreateAsync(user, password);
-
         await userManager.AddToRoleAsync(user, "Patient");
-
     }
 }
 app.Run();
