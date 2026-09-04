@@ -1,5 +1,6 @@
 using LabDash.Areas.Identity.Data;
 using LabDash.Models;
+using LabDash.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -104,18 +105,16 @@ namespace LabDash.Controllers
         }
 
         // POST: /TestRequest/Create
-        // POST: /TestRequest/Create
-        // POST: /TestRequest/Create
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> Create(
-    int patientId,
-    DateTime requestDate,
-    string urgency,
-    string? clinicalNotes,
-    int[] selectedTestTypeIds,
-    string? sampleBarcode1,
-    string? sampleBarcode2)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(
+            int patientId,
+            DateTime requestDate,
+            string urgency,
+            string? clinicalNotes,
+            int[] selectedTestTypeIds,
+            string? sampleBarcode1,
+            string? sampleBarcode2)
         {
             // =========================================================
             // 1. VALIDATE SELECTED TESTS
@@ -424,6 +423,7 @@ public async Task<IActionResult> Create(
             TempData["Success"] = "Test request cancelled.";
             return RedirectToAction(nameof(Index));
         }
+
         // GET: /TestRequest/Track
         public async Task<IActionResult> Track()
         {
@@ -451,8 +451,14 @@ public async Task<IActionResult> Create(
 
             return View(folders);
         }
-        // GET: TestRequest/Index
-        public async Task<IActionResult> Index()
+
+        // GET: TestRequest/AllRequests
+        // NOTE: renamed from Index() to resolve CS0111 duplicate-method error.
+        // This returns a flat list (TestRequestListViewModel) rather than patient folders.
+        // You'll need an AllRequests.cshtml view, or change this to
+        // return View("SomeExistingViewName", viewModel) if you already have
+        // a view for this shape under a different name.
+        public async Task<IActionResult> AllRequests()
         {
             var testRequests = await _context.TestRequests
                 .Include(tr => tr.Patient)
@@ -494,7 +500,7 @@ public async Task<IActionResult> Create(
 
             return View(viewModel);
         }
-        // POST: /TestRequest/ReleaseResults
+
         // POST: /TestRequest/ReleaseResults
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -521,8 +527,9 @@ public async Task<IActionResult> Create(
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Results released to patient.";
-            return RedirectToAction(nameof(Track)); 
+            return RedirectToAction(nameof(Track));
         }
+
         // GET: /TestRequest/Results
         public async Task<IActionResult> Results()
         {
@@ -547,6 +554,7 @@ public async Task<IActionResult> Create(
 
             return View(folders);
         }
+
         // GET: /TestRequest/ViewRequest/5
         public async Task<IActionResult> ViewRequest(int id)
         {
@@ -563,4 +571,4 @@ public async Task<IActionResult> Create(
             return View("PatientRequests", new List<TestRequest> { request });
         }
     }
- }
+}
