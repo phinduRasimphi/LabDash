@@ -1,6 +1,5 @@
 using LabDash.Areas.Identity.Data;
 using LabDash.Models;
-using LabDash.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -26,6 +25,55 @@ namespace LabDash.Controllers
             _emailSender = emailSender;
         }
 
+        // GET: /TestRequest/Index
+        public async Task<IActionResult> Index()
+        {
+            var allRequests = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .Include(tr => tr.RequestingDoctor)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
+                .ToListAsync();
+
+            var folders = allRequests
+                .GroupBy(tr => tr.PatientId)
+                .Select(g => new
+                {
+                    Patient = g.First().Patient,
+                    Requests = g.OrderByDescending(r => r.RequestDate).ToList()
+                })
+                .OrderBy(x => x.Patient.Name)
+                .ToList();
+
+            return View(folders);
+        }
+
+        // POST: /TestRequest/UnlockFolder
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UnlockFolder(int patientId, string idNumber)
+        {
+            var patient = await _context.Patients.FindAsync(patientId);
+            if (patient == null) return NotFound();
+
+            if (patient.IDNumber != idNumber?.Trim())
+            {
+                TempData["Error"] = "Incorrect ID number. Folder remains locked.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var requests = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .Include(tr => tr.RequestingDoctor)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
+                .Where(r => r.PatientId == patientId)
+                .OrderByDescending(r => r.RequestDate)
+                .ToListAsync();
+
+            return View("PatientRequests", requests);
+        }
+
         // GET: /TestRequest/Create?patientId=5
         public async Task<IActionResult> Create(int? patientId)
         {
@@ -42,97 +90,180 @@ namespace LabDash.Controllers
                 return RedirectToAction("ManagePatients", "Doctor");
             }
 
+            ViewBag.PatientId = patient.PatientID;
+            ViewBag.PatientName = $"{patient.Name} {patient.Surname}";
+            ViewBag.PatientIDNumber = patient.IDNumber;
+
             var testTypes = await _context.TestTypes
                 .OrderBy(t => t.Category).ThenBy(t => t.Name)
-                .Select(t => new TestTypeOptionViewModel
-                {
-                    Id = t.Id,
-                    Name = t.Name,
-                    Category = t.Category,
-                    RequiredSampleType = t.RequiredSampleType,
-                    TurnaroundTimeHours = t.TurnaroundTimeHours
-                })
                 .ToListAsync();
 
-            var vm = new TestRequestCreateViewModel
-            {
-                PatientId = patient.PatientID,
-                PatientName = $"{patient.Name} {patient.Surname}",
-                PatientIDNumber = patient.IDNumber,
-                AvailableTestTypes = testTypes
-            };
+            ViewBag.TestTypes = testTypes;
 
-            return View(vm);
+            return View();
         }
 
         // POST: /TestRequest/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(TestRequestCreateViewModel model)
+        // POST: /TestRequest/Create
+        // POST: /TestRequest/Create
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Create(
+    int patientId,
+    DateTime requestDate,
+    string urgency,
+    string? clinicalNotes,
+    int[] selectedTestTypeIds,
+    string? sampleBarcode1,
+    string? sampleBarcode2)
         {
-            if (model.SelectedTestTypeIds == null || !model.SelectedTestTypeIds.Any())
+            // =========================================================
+            // 1. VALIDATE SELECTED TESTS
+            // =========================================================
+
+            if (selectedTestTypeIds == null ||
+                selectedTestTypeIds.Length == 0)
             {
-                ModelState.AddModelError(nameof(model.SelectedTestTypeIds), "Select at least one test type");
+                TempData["Error"] =
+                    "Please select at least one test type.";
+
+                return RedirectToAction(nameof(Create),
+                    new { patientId });
             }
 
-            if (!ModelState.IsValid)
+            if (string.IsNullOrWhiteSpace(sampleBarcode1) && string.IsNullOrWhiteSpace(sampleBarcode2))
             {
-                model.AvailableTestTypes = await _context.TestTypes
-                    .OrderBy(t => t.Category).ThenBy(t => t.Name)
-                    .Select(t => new TestTypeOptionViewModel
-                    {
-                        Id = t.Id,
-                        Name = t.Name,
-                        Category = t.Category,
-                        RequiredSampleType = t.RequiredSampleType,
-                        TurnaroundTimeHours = t.TurnaroundTimeHours
-                    })
-                    .ToListAsync();
-
-                var patientForReload = await _context.Patients.FindAsync(model.PatientId);
-                if (patientForReload != null)
-                {
-                    model.PatientName = $"{patientForReload.Name} {patientForReload.Surname}";
-                    model.PatientIDNumber = patientForReload.IDNumber;
-                }
-
-                return View(model);
+                TempData["Error"] = "At least one sample barcode is required.";
+                return RedirectToAction(nameof(Create), new { patientId });
             }
+
+            // Remove duplicate test IDs
+            selectedTestTypeIds = selectedTestTypeIds
+                .Distinct()
+                .ToArray();
+
+
+            // =========================================================
+            // 2. GET LOGGED-IN DOCTOR
+            // =========================================================
 
             var doctor = await _userManager.GetUserAsync(User);
-            var patient = await _context.Patients.FindAsync(model.PatientId);
-            if (patient == null) return NotFound();
+
+            if (doctor == null)
+            {
+                TempData["Error"] =
+                    "Unable to identify the logged-in doctor.";
+
+                return RedirectToAction(nameof(Create),
+                    new { patientId });
+            }
+
+
+            // =========================================================
+            // 3. GET PATIENT
+            // =========================================================
+
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p =>
+                    p.PatientID == patientId);
+
+            if (patient == null)
+            {
+                TempData["Error"] =
+                    "Patient not found.";
+
+                return RedirectToAction(
+                    "ManagePatients",
+                    "Doctor");
+            }
+
+
+            // =========================================================
+            // 4. GET SELECTED TEST TYPES
+            // =========================================================
+
+            var selectedTypes = await _context.TestTypes
+                .Where(t => selectedTestTypeIds.Contains(t.Id))
+                .ToListAsync();
+
+            if (selectedTypes.Count != selectedTestTypeIds.Length)
+            {
+                TempData["Error"] =
+                    "One or more selected laboratory tests could not be found. " +
+                    "Please refresh the page and select the tests again.";
+
+                return RedirectToAction(nameof(Create),
+                    new { patientId });
+            }
+
+
+            // =========================================================
+            // 5. COLLECT SAMPLE BARCODES
+            // =========================================================
+
+            var barcodes = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(sampleBarcode1))
+            {
+                barcodes.Add(sampleBarcode1.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(sampleBarcode2))
+            {
+                barcodes.Add(sampleBarcode2.Trim());
+            }
+
+
+            // =========================================================
+            // 6. CREATE TEST REQUEST
+            // =========================================================
 
             var testRequest = new TestRequest
             {
-                PatientId = model.PatientId,
+                PatientId = patientId,
                 RequestingDoctorId = doctor.Id,
-                RequestDate = model.RequestDate,
-                Urgency = model.Urgency,
-                ClinicalNotes = model.ClinicalNotes,
+                RequestDate = requestDate,
+                Urgency = urgency,
+                ClinicalNotes = clinicalNotes,
                 Status = "Submitted",
-                SubmittedDate = DateTime.Now
+                SubmittedDate = DateTime.Now,
+                SampleBarcodes = string.Join(",", barcodes)
             };
 
             _context.TestRequests.Add(testRequest);
+
+            // IMPORTANT:
+            // Save the request first so that RequestId is generated.
             await _context.SaveChangesAsync();
 
-            var selectedTypes = await _context.TestTypes
-                .Where(t => model.SelectedTestTypeIds.Contains(t.Id))
-                .ToListAsync();
 
-            foreach (var type in selectedTypes)
+            // =========================================================
+            // 7. CREATE TEST REQUEST ITEMS
+            // =========================================================
+
+            foreach (var testType in selectedTypes)
             {
-                _context.TestRequestItems.Add(new TestRequestItem
+                var testItem = new TestRequestItem
                 {
                     RequestId = testRequest.RequestId,
-                    TestTypeId = type.Id,
-                    Status = "Submitted"
-                });
+                    TestTypeId = testType.Id,
+                    Status = "Submitted",
+                    AssignedTechnicianId = null,
+                    StartDateTime = null,
+                    CompletionDateTime = null
+                };
+
+                _context.TestRequestItems.Add(testItem);
             }
+
+
+            // =========================================================
+            // 8. SAVE TEST REQUEST ITEMS
+            // =========================================================
 
             await _context.SaveChangesAsync();
 
+            // ===== SEND EMAIL TO PATIENT =====
             string testListHtml = string.Join(", ", selectedTypes.Select(t => t.Name));
             string emailBody = $@"
                 <p>Dear {patient.Name},</p>
@@ -143,70 +274,125 @@ namespace LabDash.Controllers
 
             await _emailSender.SendEmailAsync(patient.Email, "New Test Request Submitted", emailBody);
 
-            TempData["Success"] = "Test request submitted successfully. The patient has been notified.";
-            return RedirectToAction("ManagePatients", "Doctor");
-        }
+            TempData["SuccessMessage"] = "Test request successfully sent to the lab!";
 
-        // GET: /TestRequest/Track
-        public async Task<IActionResult> Track()
-        {
-            var doctor = await _userManager.GetUserAsync(User);
+            // =========================================================
+            // 9. VERIFY THAT ITEMS WERE CREATED
+            // =========================================================
 
-            var folders = await _context.TestRequests
-                .Where(r => r.RequestingDoctorId == doctor.Id)
-                .GroupBy(r => r.Patient)
-                .Select(g => new PatientFolderSummaryViewModel
-                {
-                    PatientId = g.Key.PatientID,
-                    PatientName = g.Key.Name + " " + g.Key.Surname,
-                    PatientIDNumber = g.Key.IDNumber,
-                    RequestCount = g.Count()
-                })
-                .OrderBy(p => p.PatientName)
-                .ToListAsync();
+            var itemCount = await _context.TestRequestItems
+                .CountAsync(x =>
+                    x.RequestId == testRequest.RequestId);
 
-            var vm = new TrackRequestsViewModel { PatientFolders = folders };
-            return View(vm);
-        }
-
-        // POST: /TestRequest/UnlockFolder
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UnlockFolder(int patientId, string idNumber)
-        {
-            var doctor = await _userManager.GetUserAsync(User);
-
-            var patient = await _context.Patients.FindAsync(patientId);
-            if (patient == null) return NotFound();
-
-            if (patient.IDNumber != idNumber?.Trim())
+            if (itemCount == 0)
             {
-                TempData["Error"] = "Incorrect ID number. Folder remains locked.";
-                return RedirectToAction(nameof(Track));
+                TempData["Error"] =
+                    $"Request #{testRequest.RequestId} was created, " +
+                    "but no laboratory test items were created.";
+
+                return RedirectToAction(nameof(Index));
             }
 
-            var requests = await _context.TestRequests
-                .Where(r => r.PatientId == patientId && r.RequestingDoctorId == doctor.Id)
-                .OrderByDescending(r => r.RequestDate)
-                .Select(r => new TestRequestTrackViewModel
-                {
-                    RequestId = r.RequestId,
-                    RequestDate = r.RequestDate,
-                    Urgency = r.Urgency,
-                    Status = r.Status,
-                    TestTypeNames = r.TestRequestItems.Select(i => i.TestType.Name).ToList()
-                })
+
+            // =========================================================
+            // 10. SUCCESS
+            // =========================================================
+
+            TempData["SuccessMessage"] =
+                $"Test request #{testRequest.RequestId} created successfully " +
+                $"with {itemCount} laboratory test(s).";
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        // GET: /TestRequest/Edit/5
+        public async Task<IActionResult> Edit(int? id)
+        {
+            if (id == null) return NotFound();
+
+            var request = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
+                .FirstOrDefaultAsync(tr => tr.RequestId == id);
+
+            if (request == null) return NotFound();
+
+            ViewBag.RequestId = request.RequestId;
+            ViewBag.PatientName = $"{request.Patient.Name} {request.Patient.Surname}";
+            ViewBag.PatientIDNumber = request.Patient.IDNumber;
+
+            var barcodes = string.IsNullOrEmpty(request.SampleBarcodes)
+                ? new List<string>()
+                : request.SampleBarcodes.Split(',').ToList();
+
+            ViewBag.Barcode1 = barcodes.Count > 0 ? barcodes[0] : "";
+            ViewBag.Barcode2 = barcodes.Count > 1 ? barcodes[1] : "";
+
+            var testTypes = await _context.TestTypes
+                .OrderBy(t => t.Category).ThenBy(t => t.Name)
+                .ToListAsync();
+            ViewBag.TestTypes = testTypes;
+
+            ViewBag.SelectedTestTypeIds = request.TestRequestItems.Select(i => i.TestTypeId).ToList();
+
+            return View();
+        }
+
+        // POST: /TestRequest/Edit/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(
+            int requestId,
+            DateTime requestDate,
+            string urgency,
+            string? clinicalNotes,
+            int[] selectedTestTypeIds,
+            string? sampleBarcode1,
+            string? sampleBarcode2)
+        {
+            var request = await _context.TestRequests
+                .Include(tr => tr.TestRequestItems)
+                .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
+
+            if (request == null) return NotFound();
+
+            if (selectedTestTypeIds == null || !selectedTestTypeIds.Any())
+            {
+                TempData["Error"] = "Select at least one test type.";
+                return RedirectToAction(nameof(Edit), new { id = requestId });
+            }
+
+            request.RequestDate = requestDate;
+            request.Urgency = urgency;
+            request.ClinicalNotes = clinicalNotes;
+            request.SampleBarcodes = string.Join(",", new[] { sampleBarcode1, sampleBarcode2 }
+                .Where(b => !string.IsNullOrWhiteSpace(b))
+                .ToArray());
+
+            _context.TestRequestItems.RemoveRange(request.TestRequestItems);
+            await _context.SaveChangesAsync();
+
+            var selectedTypes = await _context.TestTypes
+                .Where(t => selectedTestTypeIds.Contains(t.Id))
                 .ToListAsync();
 
-            var vm = new PatientRequestsViewModel
+            foreach (var type in selectedTypes)
             {
-                PatientName = $"{patient.Name} {patient.Surname}",
-                PatientIDNumber = patient.IDNumber,
-                Requests = requests
-            };
+                _context.TestRequestItems.Add(new TestRequestItem
+                {
+                    RequestId = request.RequestId,
+                    TestTypeId = type.Id,
+                    Status = "Submitted"
+                });
+            }
 
-            return View("PatientRequests", vm);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Test request updated successfully!";
+            return RedirectToAction(nameof(Index));
         }
+
 
         // POST: /TestRequest/Cancel
         [HttpPost]
@@ -214,22 +400,21 @@ namespace LabDash.Controllers
         public async Task<IActionResult> Cancel(int requestId, string cancellationReason)
         {
             var doctor = await _userManager.GetUserAsync(User);
-
             var request = await _context.TestRequests.FindAsync(requestId);
-            if (request == null) return NotFound();
 
+            if (request == null) return NotFound();
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
 
             if (request.Status != "Submitted" && request.Status != "Samples Received")
             {
                 TempData["Error"] = "This request can no longer be cancelled.";
-                return RedirectToAction(nameof(Track));
+                return RedirectToAction(nameof(Index));
             }
 
             if (string.IsNullOrWhiteSpace(cancellationReason))
             {
                 TempData["Error"] = "A cancellation reason is required.";
-                return RedirectToAction(nameof(Track));
+                return RedirectToAction(nameof(Index));
             }
 
             request.Status = "Cancelled";
@@ -237,119 +422,34 @@ namespace LabDash.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Test request cancelled.";
-            return RedirectToAction(nameof(Track));
+            return RedirectToAction(nameof(Index));
         }
-
-        // GET: /TestRequest/Results
-        public async Task<IActionResult> Results()
+        // GET: /TestRequest/Track
+        public async Task<IActionResult> Track()
         {
             var doctor = await _userManager.GetUserAsync(User);
 
-            var folders = await _context.TestRequests
-                .Where(r => r.RequestingDoctorId == doctor.Id
-                         && (r.Status == "Completed" || r.Status == "Released"))
-                .GroupBy(r => r.Patient)
-                .Select(g => new ResultsFolderSummaryViewModel
+            // Fetch all requests for this doctor
+            var allRequests = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .Include(tr => tr.RequestingDoctor)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
+                .Where(r => r.RequestingDoctorId == doctor.Id)
+                .ToListAsync();
+
+            // Group by patient
+            var folders = allRequests
+                .GroupBy(tr => tr.PatientId)
+                .Select(g => new TrackRequestViewModel
                 {
-                    PatientId = g.Key.PatientID,
-                    PatientName = g.Key.Name + " " + g.Key.Surname,
-                    PatientIDNumber = g.Key.IDNumber,
-                    CompletedRequestCount = g.Count(),
-                    HasAbnormalResult = g.Any(r => r.TestRequestItems
-                        .Any(i => _context.TestResults
-                            .Any(res => res.TestRequestItemId == i.TestRequestItemId && res.IsAbnormal)))
+                    Patient = g.First().Patient,
+                    Requests = g.OrderByDescending(r => r.RequestDate).ToList()
                 })
-                .OrderBy(p => p.PatientName)
-                .ToListAsync();
+                .OrderBy(x => x.Patient.Name)
+                .ToList();
 
-            return View(new ResultsFolderListViewModel { PatientFolders = folders });
-        }
-
-        // POST: /TestRequest/UnlockResultsFolder
-        // POST: /TestRequest/UnlockResultsFolder
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UnlockResultsFolder(
-            int patientId,
-            string idNumber)
-        {
-            var doctor = await _userManager.GetUserAsync(User);
-
-            if (doctor == null)
-            {
-                return Unauthorized();
-            }
-
-            var patient = await _context.Patients.FindAsync(patientId);
-
-            if (patient == null)
-            {
-                return NotFound();
-            }
-
-            if (patient.IDNumber != idNumber?.Trim())
-            {
-                TempData["Error"] = "Incorrect ID number. Folder remains locked.";
-                return RedirectToAction(nameof(Results));
-            }
-
-            var requests = await _context.TestRequests
-                .Where(r =>
-                    r.PatientId == patientId &&
-                    r.RequestingDoctorId == doctor.Id &&
-                    (r.Status == "Completed" || r.Status == "Released"))
-                .OrderByDescending(r => r.RequestDate)
-                .ToListAsync();
-
-            var vm = new PatientResultsViewModel
-            {
-                PatientName = $"{patient.Name} {patient.Surname}",
-                PatientIDNumber = patient.IDNumber,
-                Requests = new List<TestRequestResultsViewModel>()
-            };
-
-            foreach (var r in requests)
-            {
-                var items = await _context.TestRequestItems
-                    .Include(i => i.TestType)
-                    .Where(i => i.RequestId == r.RequestId)
-                    .ToListAsync();
-
-                var results = new List<TestResultLineViewModel>();
-
-                foreach (var item in items)
-                {
-                    var result = await _context.TestResults
-                        .FirstOrDefaultAsync(
-                            res => res.TestRequestItemId == item.TestRequestItemId);
-
-                    if (result != null)
-                    {
-                        results.Add(new TestResultLineViewModel
-                        {
-                            TestTypeName = item.TestType.Name,
-                            ResultValue = result.ResultValue,
-                            Units = result.Units,
-                            ReferenceRange = result.ReferenceRange,
-                            IsAbnormal = result.IsAbnormal
-                        });
-                    }
-                }
-
-                vm.Requests.Add(new TestRequestResultsViewModel
-                {
-                    RequestId = r.RequestId,
-                    RequestDate = r.RequestDate,
-                    DoctorName = doctor.LastName,
-                    Urgency = r.Urgency,
-                    ClinicalNotes = r.ClinicalNotes,
-                    Status = r.Status,
-                    ReleaseNote = r.ReleaseNote,
-                    Results = results
-                });
-            }
-
-            return View("PatientResults", vm);
+            return View(folders);
         }
         // GET: TestRequest/Index
         public async Task<IActionResult> Index()
@@ -395,12 +495,12 @@ namespace LabDash.Controllers
             return View(viewModel);
         }
         // POST: /TestRequest/ReleaseResults
+        // POST: /TestRequest/ReleaseResults
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReleaseResults(int requestId, string releaseNote)
         {
             var doctor = await _userManager.GetUserAsync(User);
-
             var request = await _context.TestRequests
                 .Include(r => r.Patient)
                 .FirstOrDefaultAsync(r => r.RequestId == requestId);
@@ -414,25 +514,53 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Results));
             }
 
-            request.Status = "Released";
+            request.Status = "Released by doctor";
             request.ReleaseNote = releaseNote;
             request.ReleaseDate = DateTime.Now;
 
             await _context.SaveChangesAsync();
 
-            string emailBody = $@"
-                <p>Dear {request.Patient.Name},</p>
-                <p>Your test results from Dr. {doctor.LastName} are now available.</p>
-                {(string.IsNullOrWhiteSpace(releaseNote) ? "" : $"<p>{releaseNote}</p>")}
-                <p>Please contact the lab or your doctor if you have any questions.</p>";
-
-            await _emailSender.SendEmailAsync(request.Patient.Email, "Your test results are available", emailBody);
-
             TempData["Success"] = "Results released to patient.";
-            return RedirectToAction(nameof(Results));
+            return RedirectToAction(nameof(Track)); 
+        }
+        // GET: /TestRequest/Results
+        public async Task<IActionResult> Results()
+        {
+            var doctor = await _userManager.GetUserAsync(User);
 
+            var allRequests = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
+                .Where(r => r.RequestingDoctorId == doctor.Id && (r.Status == "Completed" || r.Status == "Released by doctor"))
+                .ToListAsync();
 
+            var folders = allRequests
+                .GroupBy(tr => tr.PatientId)
+                .Select(g => new
+                {
+                    Patient = g.First().Patient,
+                    Requests = g.OrderByDescending(r => r.RequestDate).ToList()
+                })
+                .OrderBy(x => x.Patient.Name)
+                .ToList();
 
+            return View(folders);
+        }
+        // GET: /TestRequest/ViewRequest/5
+        public async Task<IActionResult> ViewRequest(int id)
+        {
+            var request = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .Include(tr => tr.RequestingDoctor)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
+                .FirstOrDefaultAsync(tr => tr.RequestId == id);
+
+            if (request == null) return NotFound();
+
+            // Pass it as a list so it uses the exact same PatientRequests.cshtml view
+            return View("PatientRequests", new List<TestRequest> { request });
         }
     }
  }
