@@ -605,698 +605,299 @@
 
         }
 
-        else if (User.IsInRole("Doctor"))
-        {
-            <style>
-                    import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
-
-                    * {
-                        margin: 0;
-                        padding: 0;
-                        box-sizing: border-box;
-                    }
-
-                    body {
-                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                        background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
-                    }
-
-                    .dashboard-wrapper {
-                        padding: 20px 24px;
-                        animation: fadeInUp 0.5s ease-out;
-                    }
-
-                    keyframes fadeInUp {
-                        from {
-                            opacity: 0;
-                            transform: translateY(20px);
-                        }
-
-                        to {
-                            opacity: 1;
-                            transform: translateY(0);
-                        }
-                    }
-
-                    /* Welcome Section */
-                    .welcome-section {
-                        text-align: center;
-                        margin-bottom: 20px;
-                        padding: 8px 0;
-                    }
-
-                    .welcome-content {
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 10px;
-                        margin-bottom: 4px;
-                    }
-
-                    .doctor-icon {
-                        font-size: 28px;
-                        color: #0d6b63;
-                    }
-
-                    .welcome-title {
-                        font-size: 24px;
-                        font-weight: 700;
-                        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-                        -webkit-background-clip: text;
-                        -webkit-text-fill-color: transparent;
-                        background-clip: text;
-                        margin: 0;
-                    }
-
-                    .welcome-subtitle {
-                        color: #6c86a3;
-                        font-size: 12px;
-                        font-weight: 400;
-                    }
-
-                    /* Stats Cards */
-                    .dashboard-stats {
-                        display: grid;
-                        grid-template-columns: repeat(4, 1fr);
-                        gap: 12px;
-                        margin-bottom: 16px;
-                    }
-
-                    .stat-card {
-                        background: white;
-                        padding: 10px;
-                        border-radius: 12px;
-                        position: relative;
-                        overflow: hidden;
-                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                        cursor: pointer;
-                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-                        border: 1px solid rgba(13, 107, 99, 0.1);
-                        text-decoration: none;
-                        display: block;
-                    }
-
-                        .stat-card::before {
-                            content: '';
-                            position: absolute;
-                            top: 0;
-                            left: 0;
-                            right: 0;
-                            height: 2px;
-                            background: linear-gradient(90deg, #0d6b63, #1a8c82, #0d6b63);
-                            transform: scaleX(0);
-                            transition: transform 0.3s ease;
-                        }
-
-                        .stat-card:hover::before {
-                            transform: scaleX(1);
-                        }
-
-                        .stat-card:hover {
-                            transform: translateY(-2px);
-                            box-shadow: 0 4px 10px rgba(13, 107, 99, 0.12);
-                        }
-
-                    .stat-icon-wrapper {
-                        width: 32px;
-                        height: 32px;
-                        background: linear-gradient(135deg, rgba(13, 107, 99, 0.1) 0%, rgba(13, 107, 99, 0.05) 100%);
-                        border-radius: 8px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        margin-bottom: 6px;
-                    }
-
-                    .stat-icon {
-                        font-size: 16px;
-                        color: #0d6b63;
-                    }
-
-                    .stat-number {
-                        font-size: 22px;
-                        font-weight: 800;
-                        color: #1a2f4e;
-                        line-height: 1.2;
-                        margin-bottom: 2px;
-                    }
-
-                    .stat-label {
-                        color: #7a8da8;
-                        font-size: 10px;
-                        font-weight: 500;
-                        letter-spacing: 0.3px;
-                    }
-
-                    /* ========== SMALLER DASHBOARD CARDS ========== */
-                    .dashboard-grid {
-                        display: grid;
-                        grid-template-columns: repeat(2, 1fr);
-                        gap: 10px;
-                        margin-bottom: 16px;
-                    }
-
-                    .dashboard-card {
-                        background: white;
-                        border-radius: 10px;
-                        padding: 5px;
-                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-                        transition: all 0.3s ease;
-                        border: 1px solid rgba(0, 0, 0, 0.05);
-                        max-height: 180px;
-                        overflow: hidden;
-                    }
-
-                        .dashboard-card:hover {
-                            box-shadow: 0 2px 6px rgba(13, 107, 99, 0.08);
-                        }
-
-                    /* ========== SMALLER CARD HEADER ========== */
-                    .card-header {
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        margin-bottom: 3px;
-                        padding-bottom: 2px;
-                        border-bottom: 1px solid #f0f2f5;
-                    }
-
-                    .card-title {
-                        font-size: 8px;
-                        font-weight: 600;
-                        color: #1a2f4e;
-                        display: flex;
-                        align-items: center;
-                        gap: 3px;
-                    }
-
-                        .card-title i {
-                            font-size: 8px;
-                            color: #0d6b63;
-                        }
-
-                    .card-badge {
-                        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-                        color: white;
-                        padding: 1px 3px;
-                        border-radius: 6px;
-                        font-size: 6px;
-                        font-weight: 500;
-                    }
-
-                    /* ========== SMALLER CHART ========== */
-                    .chart-container {
-                        position: relative;
-                        min-height: 60px;
-                    }
-
-                    canvas {
-                        max-height: 50px;
-                        width: 100%;
-                    }
-
-                    /* ========== SMALLER CALENDAR ========== */
-                    .calendar-container {
-                        min-height: 70px;
-                        font-size: 7px;
-                    }
-
-                    .fc {
-                        font-family: 'Inter', sans-serif;
-                        font-size: 7px;
-                    }
-
-                        .fc .fc-toolbar-title {
-                            font-size: 0.6em;
-                            font-weight: 600;
-                            color: #1a2f4e;
-                        }
-
-                        .fc .fc-toolbar.fc-header-toolbar {
-                            margin-bottom: 2px;
-                        }
-
-                        .fc .fc-daygrid-day {
-                            height: 12px;
-                        }
-
-                        .fc .fc-daygrid-day-number {
-                            font-size: 6px;
-                            padding: 1px;
-                        }
-
-                        .fc .fc-daygrid-day-events {
-                            min-height: 0;
-                        }
-
-                        .fc .fc-event {
-                            border-radius: 2px;
-                            border: none;
-                            padding: 0px 2px;
-                            font-size: 4px;
-                            font-weight: 500;
-                            margin: 0px;
-                            cursor: pointer;
-                            line-height: 6px;
-                            white-space: nowrap;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                        }
-
-                        .fc .fc-daygrid-day-top {
-                            flex-direction: row;
-                        }
-
-                        .fc .fc-daygrid-day-frame {
-                            min-height: 0;
-                        }
-
-                        .fc .fc-button-primary {
-                            background: linear-gradient(135deg, #0d6b63, #1a8c82);
-                            border: none;
-                            border-radius: 3px;
-                            font-weight: 500;
-                            padding: 1px 3px;
-                            font-size: 6px;
-                            transition: all 0.2s;
-                        }
-
-                            .fc .fc-button-primary:hover {
-                                background: linear-gradient(135deg, #1a8c82, #0d6b63);
-                            }
-
-                    /* Recent Activity Table */
-                    .recent-section {
-                        margin-top: 16px;
-                    }
-
-                    .recent-title {
-                        font-size: 13px;
-                        font-weight: 600;
-                        color: #1a2f4e;
-                        margin-bottom: 8px;
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                    }
-
-                        .recent-title i {
-                            color: #0d6b63;
-                            font-size: 13px;
-                        }
-
-                    .table-container {
-                        overflow-x: auto;
-                        border-radius: 10px;
-                        background: white;
-                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-                    }
-
-                    .data-table {
-                        width: 100%;
-                        border-collapse: separate;
-                        border-spacing: 0;
-                    }
-
-                        .data-table thead tr {
-                            background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f8 100%);
-                        }
-
-                        .data-table th {
-                            padding: 6px 10px;
-                            text-align: left;
-                            font-weight: 600;
-                            font-size: 9px;
-                            color: #4a5c7c;
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
-                            border-bottom: 1px solid #e2e8f0;
-                        }
-
-                        .data-table td {
-                            padding: 6px 10px;
-                            border-bottom: 1px solid #eef2f6;
-                            color: #2d3a5e;
-                            font-size: 10px;
-                        }
-
-                        .data-table tbody tr {
-                            transition: all 0.2s ease;
-                        }
-
-                            .data-table tbody tr:hover {
-                                background: #f8fafd;
-                            }
-
-                    /* Status Badges */
-                    .status-badge {
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 3px;
-                        padding: 2px 5px;
-                        border-radius: 10px;
-                        font-size: 8px;
-                        font-weight: 600;
-                    }
-
-                    .status-completed {
-                        background: linear-gradient(135deg, #e8f5e9, #c8e6d9);
-                        color: #2e7d32;
-                    }
-
-                    .status-progress {
-                        background: linear-gradient(135deg, #e3f2fd, #bbdef5);
-                        color: #1565c0;
-                    }
-
-                    .status-submitted {
-                        background: linear-gradient(135deg, #fff3e0, #ffe0b2);
-                        color: #e65100;
-                    }
-
-                    .status-released {
-                        background: linear-gradient(135deg, #f3e5f5, #e1bee7);
-                        color: #6a1b9a;
-                    }
-
-                    .status-cancelled {
-                        background: linear-gradient(135deg, #ffebee, #ffcdd2);
-                        color: #c62828;
-                    }
-
-                    /* Urgency Badges */
-                    .urgency-badge {
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 3px;
-                        padding: 2px 5px;
-                        border-radius: 10px;
-                        font-size: 8px;
-                        font-weight: 600;
-                    }
-
-                    .urgency-stat {
-                        background: linear-gradient(135deg, #dc3545, #ff4757);
-                        color: white;
-                    }
-
-                    .urgency-urgent {
-                        background: linear-gradient(135deg, #f57c00, #ff9800);
-                        color: white;
-                    }
-
-                    .urgency-routine {
-                        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-                        color: white;
-                    }
-
-                    .empty-state {
-                        text-align: center;
-                        padding: 16px;
-                        color: #a0b0c8;
-                        font-size: 10px;
-                    }
-
-                        .empty-state i {
-                            font-size: 24px;
-                            margin-bottom: 6px;
-                            display: block;
-                        }
-
-                    /* Responsive */
-                    media (max-width: 1024px) {
-                        .dashboard-grid {
-                            grid-template-columns: 1fr;
-                            gap: 10px;
-                        }
-
-                        .welcome-title {
-                            font-size: 20px;
-                        }
-
-                        .doctor-icon {
-                            font-size: 24px;
-                        }
-                    }
-
-                    media (max-width: 768px) {
-                        .dashboard-stats {
-                            grid-template-columns: repeat(2, 1fr);
-                            gap: 10px;
-                        }
-
-                        .dashboard-wrapper {
-                            padding: 12px;
-                        }
-
-                        .welcome-title {
-                            font-size: 18px;
-                        }
-                    }
-            </style>
-            <div class="d-shell">
-
-                <!-- GREEN SIDEBAR - DOCTOR VERSION -->
-                <aside class="d-sidebar">
-
-                    <!-- Logo -->
-                    <div class="d-logo">
-                        <div class="d-logo-icon"><i class="fas fa-stethoscope"></i></div>
-                        <div class="d-logo-text">NMB<span>LAB</span></div>
-                    </div>
-
-                    <!-- Doctor identity strip -->
-                    <div class="d-user-strip" id="doctorProfileBtn">
-                        <div class="d-user-av">DM</div>
-                        <div>
-                            <div class="d-user-name">Dr. Makuwa</div>
-                            <div class="d-user-role"><i class="fas fa-circle"></i> Online</div>
-                        </div>
-                    </div>
-
-                    <!-- Navigation -->
-                    <nav class="d-nav">
-                        <div class="d-nav-label">Overview</div>
-                        <a href="@Url.Action("Index", "Dashboard")" class="d-nav-link @(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "d-active" : "")">
-                            <span class="d-nav-icon"><i class="fas fa-tachometer-alt"></i></span>
-                            <span>Dashboard</span>
-                        </a>
-
-                        <div class="d-nav-label">Patients</div>
-                        <a href="@Url.Action("ManagePatients", "Doctor")" class="d-nav-link @(ViewData["ActivePage"]?.ToString() == "ManagePatients" ? "d-active" : "")">
-                            <span class="d-nav-icon"><i class="fas fa-users"></i></span>
-                            <span>Manage Patients</span>
-                        </a>
-
-                        <div class="d-nav-label">Laboratory</div>
-                        <a href="@Url.Action("Index", "TestRequest")" class="d-nav-link">
-                            <span class="d-nav-icon"><i class="fas fa-flask"></i></span>
-                            <span>New Test Request</span>
-                        </a>
-                        <a href="@Url.Action("Track", "TestRequest")" class="d-nav-link">
-                            <span class="d-nav-icon"><i class="fas fa-chart-line"></i></span>
-                            <span>Track Requests</span>
-                        </a>
-                        <a href="@Url.Action("Results", "TestRequest")" class="d-nav-link">
-                            <span class="d-nav-icon"><i class="fas fa-file-medical"></i></span>
-                            <span>Results</span>
-                        </a>
-
-                        <div class="d-nav-label">Communication</div>
-                        <a href="@Url.Action("Alerts", "TestRequest")" class="d-nav-link">
-                            <span class="d-nav-icon"><i class="fas fa-bell"></i></span>
-                            <span>Alerts</span>
-                        </a>
-                    </nav>
-
-                    <!-- Footer - ONLY LOGOUT CHANGED TO FORM, STRUCTURE AND CSS UNCHANGED -->
-                    <div class="d-sidebar-footer">
-                        <a href="@Url.Action("Profile", "Doctor")" class="d-profile-link">
-                            <i class="fas fa-user-circle"></i> Profile
-                        </a>
-                        <form asp-controller="Doctor" asp-action="Logout" method="post" style="margin:0; padding:0;">
-                            <button type="submit" class="d-logout" style="background:none; border:none; width:100%; text-align:left; padding:8px 0; font-family:inherit; font-size:inherit; cursor:pointer;">
-                                <i class="fas fa-sign-out-alt"></i> Log Out
-                            </button>
-                        </form>
-                        <div class="d-footer-note">LabDASH &copy; 2026</div>
-                    </div>
-                </aside>
-
-                <!-- MAIN AREA -->
-                <div class="d-main">
-
-                    <!-- TOP BAR -->
-                    <div class="d-topbar">
-                        <div class="d-tb-left">
-                            <div class="d-tb-title">@(ViewData["Title"] ?? "Dashboard")</div>
-                            <div class="d-tb-sub">
-                                @DateTime.Now.ToString("dddd, dd MMMM yyyy") &nbsp;·&nbsp; Doctor Panel
-                            </div>
-                        </div>
-                        <div class="d-tb-right">
-                            <div class="d-notif" id="notificationBell">
-                                <button class="d-notif-btn" id="notifBtn">
-                                    <i class="fas fa-bell"></i>
-                                </button>
-                                <div class="d-ndot" id="notifDot" style="display: none;"></div>
-
-                                <div class="notif-dropdown" id="notifDropdown">
-                                    <div class="notif-header">
-                                        <h4><i class="fas fa-bell"></i> Notifications</h4>
-                                    </div>
-                                    <div class="notif-list" id="notifList">
-                                        <div class="notif-empty">
-                                            <i class="far fa-bell-slash"></i>
-                                            <h4>No New Notifications</h4>
-                                            <p>You're all caught up! We'll notify you when something needs your attention.</p>
-                                        </div>
-                                    </div>
-                                    <div class="notif-footer">
-                                        <a href="@Url.Action("Alerts", "TestRequest")">View all alerts →</a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- PAGE CONTENT -->
-                    <div class="d-content">
-                        @RenderBody()
-                    </div>
-
-                </div>
-
-            </div>
-
-            <!-- Profile Modal -->
-            <div id="profileModal" class="profile-modal">
-                <div class="profile-modal-content">
-                    <div class="profile-modal-header">
-                        <span class="profile-modal-close" onclick="closeProfileModal()">&times;</span>
-                        <div class="profile-modal-avatar">
-                            <i class="fas fa-user-md"></i>
-                        </div>
-                        <div class="profile-modal-name">Dr. Makuwa</div>
-                        <div class="profile-modal-role">General Practitioner</div>
-                    </div>
-                    <div class="profile-modal-body">
-                        <div class="profile-info-row">
-                            <span class="profile-info-label">Full Name</span>
-                            <span class="profile-info-value">MAKUWA KAMOGELO</span>
-                        </div>
-                        <div class="profile-info-row">
-                            <span class="profile-info-label">Employee Number</span>
-                            <span class="profile-info-value">DR001</span>
-                        </div>
-                        <div class="profile-info-row">
-                            <span class="profile-info-label">Email</span>
-                            <span class="profile-info-value">doctor@email.com</span>
-                        </div>
-                        <div class="profile-info-row">
-                            <span class="profile-info-label">Phone</span>
-                            <span class="profile-info-value">012 109 8765</span>
-                        </div>
-                        <div class="profile-info-row">
-                            <span class="profile-info-label">Department</span>
-                            <span class="profile-info-value">Health</span>
-                        </div>
-                        <div class="profile-info-row">
-                            <span class="profile-info-label">Role</span>
-                            <span class="profile-info-value">Doctor</span>
-                        </div>
-                        <div class="profile-info-row">
-                            <span class="profile-info-label">Status</span>
-                            <span class="profile-status-active">Active</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Toast -->
-            <div class="d-toast" id="d-toast"></div>
-
-            <script>
-                    function showToast(message, duration) {
-                        duration = duration || 3000;
-                        var t = document.getElementById('d-toast');
-                        t.textContent = message;
-                        t.classList.add('show');
-                        setTimeout(function() { t.classList.remove('show'); }, duration);
-                    }
-
-                    var profileModal = document.getElementById('profileModal');
-                    var doctorProfileBtn = document.getElementById('doctorProfileBtn');
-
-                    function openProfileModal() {
-                        profileModal.classList.add('show');
-                    }
-
-                    function closeProfileModal() {
-                        profileModal.classList.remove('show');
-                    }
-
-                    if (doctorProfileBtn) {
-                        doctorProfileBtn.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            openProfileModal();
-                        });
-                    }
-
-                    window.addEventListener('click', function(e) {
-                        if (e.target === profileModal) {
-                            closeProfileModal();
-                        }
-                    });
-
-                    document.addEventListener('DOMContentLoaded', function() {
-                        var notifBtn = document.getElementById('notifBtn');
-                        var notifDropdown = document.getElementById('notifDropdown');
-                        var notifDot = document.getElementById('notifDot');
-
-                        function checkForAlerts() {
-                            var testRequests = JSON.parse(localStorage.getItem('testRequests')) || [];
-                            var alertCount = 0;
-                            for (var i = 0; i < testRequests.length; i++) {
-                                if (testRequests[i].status === 'Completed' && testRequests[i].testResults) {
-                                    for (var j = 0; j < testRequests[i].testResults.length; j++) {
-                                        if (testRequests[i].testResults[j].isAbnormal) alertCount++;
-                                    }
-                                }
-                            }
-
-                            if (alertCount > 0) {
-                                notifDot.style.display = 'block';
-                            } else {
-                                notifDot.style.display = 'none';
-                            }
-                        }
-
-                        if (notifBtn) {
-                            notifBtn.addEventListener('click', function(e) {
-                                e.stopPropagation();
-                                notifDropdown.classList.toggle('show');
-                            });
-                        }
-
-                        document.addEventListener('click', function() {
-                            if (notifDropdown) notifDropdown.classList.remove('show');
-                        });
-
-                        if (notifDropdown) {
-                            notifDropdown.addEventListener('click', function(e) {
-                                e.stopPropagation();
-                            });
-                        }
-
-                        checkForAlerts();
-                    });
-            </script>
-
-            @await RenderSectionAsync("Scripts", required: false)
-
+        
+            else if (User.IsInRole("Doctor"))
+{
+    var currentUser = await UserManager.GetUserAsync(User);
+    var fullName = currentUser?.FullName ?? User.Identity?.Name ?? "Doctor";
+    var initials = string.Join("", fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                                            .Take(2)
+                                            .Select(n => n[0]))
+                                            .ToUpper();
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #eef3f7; font-family: 'Segoe UI', sans-serif; }
+
+        /* ========== DOCTOR CONTAINER ========== */
+        .doctor-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
         }
 
+        /* ========== SIDEBAR ========== */
+        .doctor-sidebar {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #0F5E56;
+            padding: 25px 0;
+            width: 280px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .doctor-sidebar::-webkit-scrollbar { width: 5px; }
+        .doctor-sidebar::-webkit-scrollbar-track { background: #0F5E56; }
+        .doctor-sidebar::-webkit-scrollbar-thumb { background: #5eead4; border-radius: 10px; }
+
+        .doctor-logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: white;
+            padding-left: 22px;
+            margin-bottom: 30px;
+        }
+        .doctor-logo span { color: #f3c04d; }
+
+        .doctor-user-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            background: #0F766E;
+            border-radius: 14px;
+            border: 1px solid #0B5A54;
+            margin: 0 22px 20px;
+            max-width: fit-content;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .doctor-user-card:hover {
+            box-shadow: 0 6px 16px rgba(16, 24, 40, 0.22);
+            transform: translateY(-1px);
+        }
+        .doctor-user-initials {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #E6FFFA;
+            color: #0F766E;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+        .doctor-user-card-text h4 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+            line-height: 1.3;
+        }
+        .doctor-user-online {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 2px;
+            font-size: 12.5px;
+            color: #B7EFE8;
+        }
+        .doctor-online-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ADE80;
+            animation: doctorPulseDot 2s infinite;
+        }
+        keyframes doctorPulseDot {
+            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); }
+            70% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+        }
+
+        .doctor-menu {
+            list-style: none;
+            margin: 0;
+            padding: 0 22px;
+            flex: 1;
+        }
+        .doctor-menu-title {
+            color: rgba(255,255,255,.5);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            padding: 22px 0 10px;
+        }
+        .doctor-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 4px;
+            color: rgba(255,255,255,.92);
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: background .2s ease, color .2s ease;
+        }
+        .doctor-menu li a i {
+            width: 20px;
+            font-size: 17px;
+            text-align: center;
+            color: rgba(255,255,255,.85);
+        }
+        .doctor-menu li a:hover { background: rgba(255,255,255,0.06); }
+        .doctor-menu li a.active {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            border-left: 3px solid #f3c04d;
+        }
+        .doctor-menu li a.active i { color: #fff; }
+
+        .doctor-sidebar-footer {
+            margin-top: auto;
+            padding: 20px 22px 10px;
+            border-top: 1px solid rgba(255,255,255,.15);
+        }
+        .doctor-sidebar-footer ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .doctor-sidebar-footer li a {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 4px;
+            color: rgba(255,255,255,.92);
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: background .2s ease;
+        }
+        .doctor-sidebar-footer li a i {
+            width: 20px;
+            font-size: 17px;
+            text-align: center;
+            color: rgba(255,255,255,.85);
+        }
+        .doctor-sidebar-footer li a:hover { background: rgba(255,255,255,0.06); }
+        .doctor-footer-copy {
+            color: rgba(255,255,255,.4);
+            font-size: 11.5px;
+            text-align: center;
+            padding: 14px 0 4px;
+            margin: 0;
+        }
+        .doctor-logout-link {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 4px;
+            width: 100%;
+            background: none;
+            border: none;
+            text-align: left;
+            color: rgba(255,255,255,.92);
+            font-size: 16px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background .2s ease;
+        }
+        .doctor-logout-link i {
+            width: 20px;
+            font-size: 17px;
+            text-align: center;
+            color: rgba(255,255,255,.85);
+        }
+        .doctor-logout-link:hover { background: rgba(255,255,255,0.06); }
+
+        /* ========== MAIN CONTENT ========== */
+        .doctor-main-content {
+            margin-left: 280px;
+            padding: 30px;
+            background: #F0F7F6;
+            min-height: 100vh;
+            width: calc(100% - 280px);
+            overflow-y: auto;
+        }
+
+        .doctor-page-content { padding: 0; }
+
+        media (max-width: 900px) {
+            .doctor-sidebar { width: 220px; }
+            .doctor-main-content { margin-left: 220px; width: calc(100% - 220px); }
+        }
+        media (max-width: 640px) {
+            .doctor-sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 15px 0;
+            }
+            .doctor-main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 15px;
+            }
+            .doctor-container { flex-direction: column; height: auto; }
+        }
+    </style>
+
+    <!-- =========================
+         DOCTOR LAYOUT
+    ========================== -->
+    <div class="doctor-container">
+        <aside class="doctor-sidebar">
+            <div class="doctor-logo">NMB<span>LAB</span></div>
+            <div class="doctor-user-card">
+                <div class="doctor-user-initials">@initials</div>
+                <div class="doctor-user-card-text">
+                    <h4>@fullName</h4>
+                    <div class="doctor-user-online">
+                        <span class="doctor-online-dot"></span>
+                        <span>Online</span>
+                    </div>
+                </div>
+            </div>
+
+            <ul class="doctor-menu">
+                <li class="doctor-menu-title">MAIN</li>
+                <li><a href="@Url.Action("DoctorIndex", "DoctorDashboard")" class="active"><i class="fa-solid fa-gauge"></i> Dashboard</a></li>
+                <li class="doctor-menu-title">PATIENTS</li>
+                <li><a href="@Url.Action("ManagePatients", "Doctor")"><i class="fa-solid fa-users"></i> Manage Patients</a></li>
+                <li class="doctor-menu-title">LABORATORY</li>
+                <li><a href="@Url.Action("Index", "TestRequest")"><i class="fa-solid fa-flask"></i> New Test Request</a></li>
+                <li><a href="@Url.Action("Track", "TestRequest")"><i class="fa-solid fa-chart-line"></i> Track Requests</a></li>
+                <li><a href="@Url.Action("Results", "TestRequest")"><i class="fa-solid fa-file-medical"></i> Results</a></li>
+            </ul>
+
+            <div class="doctor-sidebar-footer">
+                <ul>
+                    <li><a href="@Url.Action("Profile", "Doctor")"><i class="fa-solid fa-circle-user"></i> Profile</a></li>
+                    <li>
+                        <form asp-controller="Doctor" asp-action="Logout" method="post">
+                            <button type="submit" class="doctor-logout-link"><i class="fa-solid fa-right-from-bracket"></i> Log Out</button>
+                        </form>
+                    </li>
+                </ul>
+                <p class="doctor-footer-copy">LabDASH © 2026</p>
+            </div>
+        </aside>
+
+        <main class="doctor-main-content">
+            <section class="doctor-page-content">
+                <!-- ==========================================
+                     RENDER THE DASHBOARD CONTENT HERE
+                =========================================== -->
+                @RenderBody()
+                @await RenderSectionAsync("Scripts", required: false)
+            </section>
+        </main>
+    </div>
+}
+        
         else if (User.IsInRole("Lab_Technician"))
         {
             var currentUser = await UserManager.GetUserAsync(User);
