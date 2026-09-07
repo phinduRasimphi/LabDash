@@ -4,781 +4,1503 @@
     ViewData["Title"] = "Process Laboratory Test";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
-    var steps = new[] { "Submitted", "Samples received", "In progress", "Completed", "Verified" };
-    var statusIndex = Model.Status switch
+var testItem = ViewBag.TestItem as LabDash.Models.TestRequestItem;
+    var testType = ViewBag.TestType as LabDash.Models.TestType;
+    var patient = ViewBag.Patient as LabDash.Models.Patient;
+    var testRequest = ViewBag.TestRequest as LabDash.Models.TestRequest;
+
+    var isOverdue = ViewBag.IsOverdue is bool b && b;
+
+    int progress = 0;
+    if (ViewBag.ProgressPercentage != null)
+    {
+        progress = Convert.ToInt32(ViewBag.ProgressPercentage);
+    }
+
+    if (progress < 0)
+        progress = 0;
+
+    if (progress > 100)
+        progress = 100;
+
+    var status = Model?.Status ?? "In Progress";
+
+    var steps = new[]
+    {
+    "Submitted",
+    "Samples Received",
+    "In Progress",
+    "Completed",
+    "Verified"
+};
+
+    var statusIndex = status switch
     {
         "Verified" => 4,
         "Completed" => 3,
         "In Progress" => 2,
-        _ => 1
+        "Samples Received" => 1,
+        _ => 0
     };
+
+    string FormatDate(DateTime? date)
+    {
+        return date.HasValue
+            ? date.Value.ToString("dd MMM yyyy, HH:mm")
+            : "Not available";
+    }
+
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<div class="pt-wrap">
+<div class="pt-page">
 
-    <div class="pt-banner">
-        <div class="pt-banner-icon"><i class="fa-solid fa-flask-vial"></i></div>
-        <div class="pt-banner-text">
-            <h1>Process laboratory test</h1>
-            <p>View patient information, perform laboratory testing and monitor turnaround times.</p>
+    ```
+    <!-- =========================================================
+     PAGE HEADER
+     ========================================================= -->
+
+    <div class="pt-header">
+
+        <div class="pt-header-left">
+
+            <div class="pt-header-icon">
+                <i class="fa-solid fa-flask-vial"></i>
+            </div>
+
+            <div>
+                <div class="pt-header-kicker">
+                    LABORATORY TEST PROCESSING
+                </div>
+
+                <h1>Process Laboratory Test</h1>
+
+                <p>
+                    Perform and monitor the laboratory test assigned to you.
+                </p>
+            </div>
+
         </div>
 
-        @if ((bool)ViewBag.IsOverdue)
-        {
-            <span class="pt-status-flag overdue"><i class="fa-solid fa-clock"></i> Overdue</span>
-        }
-        else
-        {
-            <span class="pt-status-flag ontime"><i class="fa-solid fa-check-circle"></i> On time</span>
-        }
+        <div class="pt-header-status">
+            <span class="pt-live-dot"></span>
+            IN PROGRESS
+        </div>
+
     </div>
+
+
+    <!-- =========================================================
+     SELECTED TEST / SAMPLE - MAIN HIGHLIGHT
+     ========================================================= -->
+
+    <div class="pt-selected-test">
+
+        <div class="pt-selected-top">
+
+            <div class="pt-selected-title">
+
+                <div class="pt-sample-icon">
+                    <i class="fa-solid fa-vial"></i>
+                </div>
+
+                <div>
+                    <span class="pt-section-kicker">
+                        SAMPLE BEING TESTED
+                    </span>
+
+                    <h2>
+                        @(testType?.RequiredSampleType ?? "Sample not specified")
+                    </h2>
+
+                    <p>
+                        This is the sample currently being processed for this laboratory test.
+                    </p>
+                </div>
+
+            </div>
+
+            <div class="pt-processing-badge">
+                <span></span>
+                Currently being tested
+            </div>
+
+        </div>
+
+
+        <div class="pt-selected-divider"></div>
+
+
+        <div class="pt-test-details">
+
+            <div class="pt-test-detail primary">
+
+                <span class="pt-detail-label">
+                    <i class="fa-solid fa-flask"></i>
+                    TEST TYPE
+                </span>
+
+                <strong>
+                    @(testType?.Name ?? "Test type not specified")
+                </strong>
+
+            </div>
+
+
+            <div class="pt-test-detail">
+
+                <span class="pt-detail-label">
+                    <i class="fa-solid fa-layer-group"></i>
+                    CATEGORY
+                </span>
+
+                <strong>
+                    @(testType?.Category ?? "Not specified")
+                </strong>
+
+            </div>
+
+
+            <div class="pt-test-detail">
+
+                <span class="pt-detail-label">
+                    <i class="fa-solid fa-hashtag"></i>
+                    REQUEST NUMBER
+                </span>
+
+                <strong>
+                    #@(testItem?.RequestId.ToString() ?? "N/A")
+                </strong>
+
+            </div>
+
+
+            <div class="pt-test-detail">
+
+                <span class="pt-detail-label">
+                    <i class="fa-solid fa-barcode"></i>
+                    TEST ITEM
+                </span>
+
+                <strong>
+                    #@(testItem?.TestRequestItemId.ToString() ?? "N/A")
+                </strong>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+     QUICK STATUS CARDS
+     ========================================================= -->
 
     <div class="pt-stats">
-        <div class="pt-stat">
-            <div class="pt-stat-icon"><i class="fa-solid fa-vials"></i></div>
-            <div>
-                <small>Test status</small>
-                <div class="val">@Model.Status</div>
+
+        <div class="pt-stat-card">
+
+            <div class="pt-stat-icon">
+                <i class="fa-solid fa-user"></i>
             </div>
-        </div>
-        <div class="pt-stat">
-            <div class="pt-stat-icon"><i class="fa-solid fa-play"></i></div>
+
             <div>
-                <small>Started</small>
-                <div class="val">@Model.StartDateTime</div>
+                <span>Patient</span>
+                <strong>
+                    @(patient != null
+                        ? $"{patient.Name} {patient.Surname}"
+                        : "Not available")
+                </strong>
             </div>
+
         </div>
-        <div class="pt-stat">
-            <div class="pt-stat-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+
+
+        <div class="pt-stat-card">
+
+            <div class="pt-stat-icon">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+
             <div>
-                <small>Expected completion</small>
-                <div class="val">@ViewBag.ExpectedCompletion</div>
+                <span>Urgency</span>
+
+                @if (testRequest?.Urgency == "STAT" ||
+                     testRequest?.Urgency == "Urgent")
+                {
+                    <strong class="pt-danger-text">
+                        @(testRequest.Urgency)
+                    </strong>
+                }
+                else if (testRequest?.Urgency == "High")
+                {
+                    <strong class="pt-warning-text">
+                        High
+                    </strong>
+                }
+                else
+                {
+                    <strong>
+                        Normal
+                    </strong>
+                }
             </div>
+
         </div>
-        <div class="pt-stat">
-            <div class="pt-stat-icon"><i class="fa-solid fa-chart-line"></i></div>
+
+
+        <div class="pt-stat-card">
+
+            <div class="pt-stat-icon">
+                <i class="fa-solid fa-play"></i>
+            </div>
+
             <div>
-                <small>Progress</small>
-                <div class="val">@ViewBag.Progress%</div>
+                <span>Started</span>
+                <strong>
+                    @FormatDate(Model.StartDateTime)
+                </strong>
             </div>
+
         </div>
+
+
+        <div class="pt-stat-card">
+
+            <div class="pt-stat-icon">
+                <i class="fa-solid fa-user-nurse"></i>
+            </div>
+
+            <div>
+                <span>Technician</span>
+                <strong>
+                    @(Model.AssignedTechnician?.FullName ?? "Assigned technician")
+                </strong>
+            </div>
+
+        </div>
+
     </div>
 
-    <!-- PATIENT + TEST INFO -->
-    <div class="pt-panel">
-        <div class="pt-panel-head">
-            <i class="fa-solid fa-user-injured"></i> Patient information
-        </div>
-        <div class="pt-panel-body pt-info-grid">
-            <table class="pt-info-table">
-                <tr>
-                    <th>Patient name</th>
-                    <td>@Model.TestRequest.Patient.Name @Model.TestRequest.Patient.Surname</td>
-                </tr>
-                <tr>
-                    <th>ID number</th>
-                    <td>@Model.TestRequest.Patient.IDNumber</td>
-                </tr>
-                <tr>
-                    <th>Phone</th>
-                    <td>@Model.TestRequest.Patient.CellphoneNumber</td>
-                </tr>
-                <tr>
-                    <th>Email</th>
-                    <td>@Model.TestRequest.Patient.Email</td>
-                </tr>
-                <tr>
-                    <th>Date of birth</th>
-                    <td>@Model.TestRequest.Patient.DOB.ToShortDateString()</td>
-                </tr>
-            </table>
 
-            <table class="pt-info-table">
-                <tr>
-                    <th>Test type</th>
-                    <td>@Model.TestType.Name</td>
-                </tr>
-                <tr>
-                    <th>Category</th>
-                    <td>@Model.TestType.Category</td>
-                </tr>
-                <tr>
-                    <th>Sample required</th>
-                    <td>@Model.TestType.RequiredSampleType</td>
-                </tr>
-                <tr>
-                    <th>Urgency</th>
-                    <td>
-                        @if (Model.TestRequest.Urgency == "Urgent")
+    <!-- =========================================================
+     PATIENT INFORMATION
+     ========================================================= -->
+
+    <div class="pt-panel">
+
+        <div class="pt-panel-header">
+            <div>
+                <i class="fa-solid fa-user-injured"></i>
+                Patient Information
+            </div>
+        </div>
+
+        <div class="pt-panel-body">
+
+            <div class="pt-info-grid">
+
+                <div class="pt-info-item">
+                    <span>Patient name</span>
+                    <strong>
+                        @(patient != null
+                            ? $"{patient.Name} {patient.Surname}"
+                            : "Not available")
+                    </strong>
+                </div>
+
+                <div class="pt-info-item">
+                    <span>ID number</span>
+                    <strong>
+                        @(patient?.IDNumber ?? "Not available")
+                    </strong>
+                </div>
+
+                <div class="pt-info-item">
+                    <span>Cellphone</span>
+                    <strong>
+                        @(patient?.CellphoneNumber ?? "Not available")
+                    </strong>
+                </div>
+
+                <div class="pt-info-item">
+                    <span>Email</span>
+                    <strong>
+                        @(patient?.Email ?? "Not available")
+                    </strong>
+                </div>
+
+                <div class="pt-info-item">
+                    <span>Date of birth</span>
+                    <strong>
+                        @(patient?.DOB.ToString("dd MMM yyyy") ?? "Not available")
+                    </strong>
+                </div>
+
+                <div class="pt-info-item">
+                    <span>Request status</span>
+                    <strong>
+                        @(testRequest?.Status ?? "In Progress")
+                    </strong>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+     MEDICAL ALERTS
+     ========================================================= -->
+
+    <div class="pt-alert-grid">
+
+        <div class="pt-alert-card allergy">
+
+            <div class="pt-alert-heading">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Allergies</span>
+            </div>
+
+            @if (string.IsNullOrWhiteSpace(patient?.Allergies))
+            {
+                <div class="pt-clear">
+                    <i class="fa-solid fa-circle-check"></i>
+                    No recorded allergies
+                </div>
+            }
+            else
+            {
+                <div class="pt-alert-content">
+                    @patient.Allergies
+                </div>
+            }
+
+        </div>
+
+
+        <div class="pt-alert-card condition">
+
+            <div class="pt-alert-heading">
+                <i class="fa-solid fa-heart-pulse"></i>
+                <span>Medical Conditions</span>
+            </div>
+
+            @if (string.IsNullOrWhiteSpace(patient?.MedicalConditions))
+            {
+                <div class="pt-clear">
+                    <i class="fa-solid fa-circle-check"></i>
+                    No conditions recorded
+                </div>
+            }
+            else
+            {
+                <div class="pt-alert-content">
+                    @patient.MedicalConditions
+                </div>
+            }
+
+        </div>
+
+
+        <div class="pt-alert-card medication">
+
+            <div class="pt-alert-heading">
+                <i class="fa-solid fa-pills"></i>
+                <span>Current Medication</span>
+            </div>
+
+            @if (string.IsNullOrWhiteSpace(patient?.Medication))
+            {
+                <div class="pt-clear">
+                    <i class="fa-solid fa-circle-check"></i>
+                    No medication recorded
+                </div>
+            }
+            else
+            {
+                <div class="pt-alert-content">
+                    @patient.Medication
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+     CLINICAL NOTES
+     ========================================================= -->
+
+    <div class="pt-panel">
+
+        <div class="pt-panel-header">
+            <div>
+                <i class="fa-solid fa-notes-medical"></i>
+                Doctor's Clinical Notes
+            </div>
+        </div>
+
+        <div class="pt-panel-body">
+
+            @if (string.IsNullOrWhiteSpace(testRequest?.ClinicalNotes))
+            {
+                <div class="pt-empty">
+                    <i class="fa-solid fa-file-circle-check"></i>
+                    No clinical notes were supplied.
+                </div>
+            }
+            else
+            {
+                <div class="pt-notes">
+                    <i class="fa-solid fa-quote-left"></i>
+                    <span>@testRequest.ClinicalNotes</span>
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+     TURNAROUND TIME
+     ========================================================= -->
+
+    <div class="pt-panel">
+
+        <div class="pt-panel-header">
+            <div>
+                <i class="fa-solid fa-clock"></i>
+                Turnaround Time
+            </div>
+
+            @if (isOverdue)
+            {
+                <span class="pt-header-danger">
+                    <i class="fa-solid fa-clock"></i>
+                    OVERDUE
+                </span>
+            }
+            else
+            {
+                <span class="pt-header-success">
+                    <i class="fa-solid fa-check-circle"></i>
+                    ON TIME
+                </span>
+            }
+
+        </div>
+
+        <div class="pt-panel-body">
+
+            <div class="pt-turnaround-grid">
+
+                <div class="pt-time-card">
+                    <span>Started</span>
+                    <strong>
+                        @FormatDate(Model.StartDateTime)
+                    </strong>
+                </div>
+
+
+                <div class="pt-time-card">
+                    <span>Expected completion</span>
+                    <strong>
+                        @(ViewBag.DueDateTime != null
+                            ? ((DateTime)ViewBag.DueDateTime).ToString("dd MMM yyyy, HH:mm")
+                            : "Not available")
+                    </strong>
+                </div>
+
+
+                <div class="pt-time-card">
+
+                    <span>Time remaining</span>
+
+                    @if (isOverdue)
+                    {
+                        <strong class="pt-danger-text">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            Overdue
+                        </strong>
+                    }
+                    else if (ViewBag.TimeRemaining != null)
+                    {
+                        var remaining = (TimeSpan)ViewBag.TimeRemaining;
+
+                        if (remaining.TotalSeconds < 0)
                         {
-                            <span class="pt-badge urgent">Urgent</span>
-                        }
-                        else if (Model.TestRequest.Urgency == "High")
-                        {
-                            <span class="pt-badge high">High</span>
+                            <strong class="pt-danger-text">
+                                Overdue
+                            </strong>
                         }
                         else
                         {
-                            <span class="pt-badge routine">Normal</span>
+                            <strong class="pt-success-text">
+                                @($"{Math.Max(0, remaining.Days)}d {Math.Max(0, remaining.Hours)}h {Math.Max(0, remaining.Minutes)}m")
+                            </strong>
                         }
-                    </td>
-                </tr>
-                <tr>
-                    <th>Request status</th>
-                    <td><span class="pt-badge neutral">@Model.TestRequest.Status</span></td>
-                </tr>
-            </table>
+                    }
+                    else
+                    {
+                        <strong>
+                            Not available
+                        </strong>
+                    }
+
+                </div>
+
+            </div>
+
+
+            <div class="pt-progress-section">
+
+                <div class="pt-progress-heading">
+
+                    <span>Turnaround progress</span>
+
+                    <strong>
+                        @progress%
+                    </strong>
+
+                </div>
+
+                <div class="pt-progress-track">
+
+                    <div class="pt-progress-fill"
+                         style="width:@progress%;">
+                    </div>
+
+                </div>
+
+                <div class="pt-progress-caption">
+                    @progress% of the allocated turnaround time has elapsed.
+                </div>
+
+            </div>
+
         </div>
+
     </div>
 
-    <!-- MEDICAL ALERTS -->
-    <div class="pt-flags-row">
-        <div class="pt-flag-card allergy">
-            <h4><i class="fa-solid fa-triangle-exclamation"></i> Allergies</h4>
-            @if (string.IsNullOrWhiteSpace(Model.TestRequest.Patient.Allergies))
-            {
-                <div class="pt-flag-clear"><i class="fa-solid fa-circle-check"></i> No recorded allergies</div>
-            }
-            else
-            {
-                <p class="pt-flag-text">@Model.TestRequest.Patient.Allergies</p>
-            }
-        </div>
 
-        <div class="pt-flag-card condition">
-            <h4><i class="fa-solid fa-heart-pulse"></i> Medical conditions</h4>
-            @if (string.IsNullOrWhiteSpace(Model.TestRequest.Patient.MedicalConditions))
-            {
-                <div class="pt-flag-clear"><i class="fa-solid fa-circle-check"></i> No conditions recorded</div>
-            }
-            else
-            {
-                <p class="pt-flag-text">@Model.TestRequest.Patient.MedicalConditions</p>
-            }
-        </div>
+    <!-- =========================================================
+     TEST PROGRESS
+     ========================================================= -->
 
-        <div class="pt-flag-card med">
-            <h4><i class="fa-solid fa-pills"></i> Current medication</h4>
-            @if (string.IsNullOrWhiteSpace(Model.TestRequest.Patient.Medication))
-            {
-                <div class="pt-flag-clear"><i class="fa-solid fa-circle-check"></i> No medication recorded</div>
-            }
-            else
-            {
-                <p class="pt-flag-text">@Model.TestRequest.Patient.Medication</p>
-            }
-        </div>
-    </div>
-
-    <!-- CLINICAL NOTES -->
     <div class="pt-panel">
-        <div class="pt-panel-head">
-            <i class="fa-solid fa-notes-medical"></i> Doctor's clinical notes
+
+        <div class="pt-panel-header">
+            <div>
+                <i class="fa-solid fa-list-check"></i>
+                Test Progress
+            </div>
+
+            <span class="pt-progress-badge">
+                @progress% Complete
+            </span>
         </div>
+
         <div class="pt-panel-body">
-            @if (string.IsNullOrWhiteSpace(Model.TestRequest.ClinicalNotes))
-            {
-                <div class="pt-empty-inline"><i class="fa-solid fa-file-circle-check"></i> No clinical notes supplied</div>
-            }
-            else
-            {
-                <div class="pt-notes-block">@Model.TestRequest.ClinicalNotes</div>
-            }
+
+            <div class="pt-stepper">
+
+                @for (var i = 0; i < steps.Length; i++)
+                {
+                    var isDone = i < statusIndex;
+                    var isCurrent = i == statusIndex;
+
+                    <div class="pt-step @(isDone ? "done" : "") @(isCurrent ? "current" : "")">
+
+                        <div class="pt-step-circle">
+
+                            @if (isDone)
+                            {
+                                <i class="fa-solid fa-check"></i>
+                            }
+                            else if (isCurrent)
+                            {
+                                <i class="fa-solid fa-flask"></i>
+                            }
+                            else
+                            {
+                                <span>@(i + 1)</span>
+                            }
+
+                        </div>
+
+                        <span class="pt-step-label">
+                            @steps[i]
+                        </span>
+
+                    </div>
+                }
+
+            </div>
+
         </div>
+
     </div>
 
-    <!-- CONSUMABLES -->
+
+    <!-- =========================================================
+     CONSUMABLES
+     ========================================================= -->
+
     <div class="pt-panel">
-        <div class="pt-panel-head">
-            <i class="fa-solid fa-boxes-stacked"></i> Consumables used
+
+        <div class="pt-panel-header">
+            <div>
+                <i class="fa-solid fa-boxes-stacked"></i>
+                Consumables Used
+            </div>
         </div>
-        <div class="pt-table-wrap">
+
+        <div class="pt-table-wrapper">
+
             <table class="pt-table">
+
                 <thead>
                     <tr>
                         <th>Consumable</th>
                         <th>Description</th>
-                        <th>Quantity used</th>
-                        <th>Remaining stock</th>
+                        <th>Quantity Used</th>
+                        <th>Remaining Stock</th>
                     </tr>
                 </thead>
+
                 <tbody>
-                    @foreach (var item in ViewBag.Consumables)
+
+                    @if (ViewBag.Consumables != null &&
+                         ((IEnumerable<dynamic>)ViewBag.Consumables).Any())
+                    {
+                        foreach (var item in ViewBag.Consumables)
+                        {
+                            <tr>
+
+                                <td>
+                                    <strong>
+                                        @item.Consumable?.Name
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    @(item.Consumable?.Description ?? "—")
+                                </td>
+
+                                <td>
+                                    @item.QuantityRequired
+                                </td>
+
+                                <td>
+
+                                    @if (item.Consumable != null &&
+                                         item.Consumable.StockLevel <= item.Consumable.ReorderLevel)
+                                    {
+                                        <span class="pt-stock low">
+                                            <i class="fa-solid fa-triangle-exclamation"></i>
+                                            @item.Consumable.StockLevel
+                                        </span>
+                                    }
+                                    else if (item.Consumable != null)
+                                    {
+                                        <span class="pt-stock good">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                            @item.Consumable.StockLevel
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>—</span>
+                                    }
+
+                                </td>
+
+                            </tr>
+                        }
+                    }
+                    else
                     {
                         <tr>
-                            <td><strong>@item.Consumable.Name</strong></td>
-                            <td>@item.Consumable.Description</td>
-                            <td>@item.QuantityRequired</td>
-                            <td>
-                                @if (item.Consumable.StockLevel <= item.Consumable.ReorderLevel)
-                                {
-                                    <span class="pt-badge urgent">@item.Consumable.StockLevel</span>
-                                }
-                                else
-                                {
-                                    <span class="pt-badge routine">@item.Consumable.StockLevel</span>
-                                }
+                            <td colspan="4" class="pt-no-data">
+                                <i class="fa-solid fa-box-open"></i>
+                                No consumables recorded for this test.
                             </td>
                         </tr>
                     }
+
                 </tbody>
+
             </table>
+
         </div>
+
     </div>
 
-    <!-- TURNAROUND TIME -->
-    <div class="pt-panel">
-        <div class="pt-panel-head">
-            <i class="fa-solid fa-clock"></i> Turnaround time
-        </div>
-        <div class="pt-panel-body pt-turnaround-grid">
-            <div>
-                <small>Started</small>
-                <div class="pt-turn-val">@Model.StartDateTime</div>
-            </div>
-            <div>
-                <small>Expected completion</small>
-                <div class="pt-turn-val">@ViewBag.ExpectedCompletion</div>
-            </div>
-            <div>
-                <small>Time remaining</small>
-                @if ((bool)ViewBag.IsOverdue)
-                {
-                    <div class="pt-turn-val pt-turn-overdue">Overdue</div>
-                }
-                else
-                {
-                    <div class="pt-turn-val pt-turn-ontime">@ViewBag.TimeRemaining</div>
-                }
-            </div>
-        </div>
-    </div>
 
-    <!-- TEST PROGRESS -->
+    <!-- =========================================================
+     ACTIVITY SUMMARY
+     ========================================================= -->
+
     <div class="pt-panel">
-        <div class="pt-panel-head">
-            <i class="fa-solid fa-list-check"></i> Test progress
+
+        <div class="pt-panel-header">
+            <div>
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                Activity Summary
+            </div>
         </div>
+
         <div class="pt-panel-body">
-            <div class="pt-progress-track">
-                <div class="pt-progress-fill" style="width:@ViewBag.Progress%"></div>
+
+            <div class="pt-activity-grid">
+
+                <div>
+                    <span>Test started</span>
+                    <strong>
+                        @FormatDate(Model.StartDateTime)
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Technician</span>
+                    <strong>
+                        @(Model.AssignedTechnician?.FullName ?? "Not available")
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Current status</span>
+                    <strong class="pt-status-text">
+                        <span></span>
+                        @Model.Status
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Expected completion</span>
+                    <strong>
+                        @(ViewBag.DueDateTime != null
+                            ? ((DateTime)ViewBag.DueDateTime).ToString("dd MMM yyyy, HH:mm")
+                            : "Not available")
+                    </strong>
+                </div>
+
             </div>
-            <div class="pt-progress-pct">@ViewBag.Progress% complete</div>
 
-            <div class="pt-stepper">
-                @for (var i = 0; i < steps.Length; i++)
-                {
-                    <div class="pt-step @(i <= statusIndex ? "done" : "")">
-                        <div class="pt-step-dot">
-                            @if (i <= statusIndex)
-                            {
-                                <i class="fa-solid fa-check"></i>
-                            }
-                        </div>
-                        <span>@steps[i]</span>
-                    </div>
-                }
-            </div>
         </div>
+
     </div>
 
-    <!-- ACTIVITY SUMMARY -->
-    <div class="pt-panel">
-        <div class="pt-panel-head">
-            <i class="fa-solid fa-clock-rotate-left"></i> Activity summary
-        </div>
-        <div class="pt-panel-body">
-            <table class="pt-info-table pt-info-table-wide">
-                <tr>
-                    <th>Test started</th>
-                    <td>@Model.StartDateTime</td>
-                </tr>
-                <tr>
-                    <th>Technician</th>
-                    <td>@Model.AssignedTechnician?.FullName</td>
-                </tr>
-                <tr>
-                    <th>Current status</th>
-                    <td><span class="pt-badge neutral">@Model.Status</span></td>
-                </tr>
-                <tr>
-                    <th>Expected completion</th>
-                    <td>@ViewBag.ExpectedCompletion</td>
-                </tr>
-            </table>
-        </div>
-    </div>
 
-    <!-- ACTION BUTTONS -->
-    <div class="pt-actions-row">
-        <a asp-action="InProgress" class="pt-btn pt-btn-outline">
-            <i class="fa-solid fa-arrow-left"></i> Back
+    <!-- =========================================================
+     ACTIONS
+     ========================================================= -->
+
+    <div class="pt-actions">
+
+        <a asp-action="InProgress"
+           class="pt-btn pt-btn-back">
+
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to In Progress
+
         </a>
-        <a asp-controller="CaptureResults" asp-action="Capture" asp-route-id="@Model.TestRequestItemId" class="pt-btn pt-btn-solid">
-            <i class="fa-solid fa-vial-circle-check"></i> Capture results
-        </a>
+
+
+        <div class="pt-actions-right">
+
+            <form asp-action="CompleteTest"
+                  method="post"
+                  class="pt-complete-form">
+
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       name="id"
+                       value="@Model.TestRequestItemId" />
+
+                <button type="submit"
+                        class="pt-btn pt-btn-complete"
+                        onclick="return confirm('Are you sure you want to mark this laboratory test as completed?');">
+
+                    <i class="fa-solid fa-circle-check"></i>
+                    Complete Test
+
+                </button>
+
+            </form>
+
+
+            <a asp-controller="CaptureResults"
+               asp-action="Capture"
+               asp-route-id="@Model.TestRequestItemId"
+               class="pt-btn pt-btn-results">
+
+                <i class="fa-solid fa-vial-circle-check"></i>
+                Capture Results
+
+            </a>
+
+        </div>
+
     </div>
+    ```
 
 </div>
 
 <style>
+
+    /* =========================================================
+           ROOT
+           ========================================================= */
+
     :root {
-        --pt-paper: #F3F8F7;
-        --pt-raised: #FFFFFF;
-        --pt-ink: #14302C;
-        --pt-ink-soft: #55716C;
-        --pt-ink-faint: #90A9A4;
-        --pt-line: #E3EEEC;
-        --pt-line-strong: #CFE3DF;
-        --pt-teal: #0E8C7F;
-        --pt-teal-deep: #0A5850;
-        --pt-teal-dim: #E5F4F1;
-        --pt-teal-grad-start: #12988A;
-        --pt-teal-grad-end: #0A5850;
-        --pt-gold: #B4862A;
-        --pt-gold-dim: #FBF1DA;
-        --pt-red: #B0463F;
-        --pt-red-dim: #F7E8E7;
-        --pt-radius: 18px;
-        --pt-radius-sm: 12px;
-        --pt-shadow: 0 4px 18px rgba(10, 60, 55, 0.06);
-        --pt-shadow-sm: 0 2px 8px rgba(10, 60, 55, 0.05);
+        --pt-primary: #0E8C7F;
+        --pt-primary-dark: #075E56;
+        --pt-primary-deep: #064B45;
+        --pt-primary-light: #E5F5F2;
+        --pt-bg: #F4F8F7;
+        --pt-white: #FFFFFF;
+        --pt-text: #17332F;
+        --pt-muted: #6D8580;
+        --pt-faint: #91A7A3;
+        --pt-border: #DFECE9;
+        --pt-border-strong: #C8DEDA;
+        --pt-red: #C44740;
+        --pt-red-light: #F9E8E6;
+        --pt-orange: #B47720;
+        --pt-orange-light: #FBF1DE;
+        --pt-green: #16845D;
+        --pt-green-light: #E5F5ED;
+        --pt-shadow: 0 5px 20px rgba(8, 71, 65, .07);
+        --pt-shadow-small: 0 3px 12px rgba(8, 71, 65, .06);
+        --pt-radius: 17px;
+        --pt-radius-small: 11px;
     }
 
-    .pt-wrap {
-        max-width: 1180px;
+
+    /* =========================================================
+           PAGE
+           ========================================================= */
+
+    .pt-page {
+        max-width: 1200px;
         margin: 0 auto;
-        padding: 24px 0 60px;
-        color: var(--pt-ink);
+        padding: 28px 0 60px;
+        color: var(--pt-text);
         font-family: 'Inter', sans-serif;
     }
 
-    /* Banner header */
-    .pt-banner {
+
+    /* =========================================================
+           HEADER
+           ========================================================= */
+
+    .pt-header {
         display: flex;
+        justify-content: space-between;
         align-items: center;
         gap: 20px;
-        background: linear-gradient(120deg, var(--pt-teal-grad-start), var(--pt-teal-grad-end));
-        border-radius: var(--pt-radius);
         padding: 26px 30px;
-        margin-bottom: 26px;
+        margin-bottom: 20px;
+        border-radius: var(--pt-radius);
+        background: linear-gradient( 120deg, #12998B, #07564F );
         box-shadow: var(--pt-shadow);
     }
 
-    .pt-banner-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.16);
-        border: 2px solid rgba(255, 255, 255, 0.35);
+    .pt-header-left {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+    }
+
+    .pt-header-icon {
+        width: 58px;
+        height: 58px;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #fff;
-        font-size: 22px;
+        border-radius: 16px;
+        background: rgba(255,255,255,.14);
+        border: 1px solid rgba(255,255,255,.30);
+        color: white;
+        font-size: 23px;
         flex-shrink: 0;
     }
 
-    .pt-banner-text {
-        flex: 1;
-    }
-
-    .pt-banner h1 {
-        font-family: 'Poppins', sans-serif;
+    .pt-header-kicker {
+        margin-bottom: 3px;
+        color: rgba(255,255,255,.70);
+        font-size: 10px;
         font-weight: 700;
-        font-size: 26px;
-        margin: 0 0 4px;
-        color: #fff;
-        letter-spacing: -.01em;
+        letter-spacing: .13em;
     }
 
-    .pt-banner p {
+    .pt-header h1 {
         margin: 0;
-        color: rgba(255, 255, 255, 0.85);
-        font-size: 14.5px;
-        max-width: 520px;
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        font-size: 26px;
+        font-weight: 700;
     }
 
-    .pt-status-flag {
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        font-size: 13px;
-        letter-spacing: .02em;
-        padding: 10px 18px;
+    .pt-header p {
+        margin: 4px 0 0;
+        color: rgba(255,255,255,.82);
+        font-size: 13.5px;
+    }
+
+    .pt-header-status {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        white-space: nowrap;
+        padding: 10px 15px;
+        color: white;
+        border: 1px solid rgba(255,255,255,.32);
+        background: rgba(255,255,255,.12);
         border-radius: 999px;
-        flex-shrink: 0;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        white-space: nowrap;
     }
 
-        .pt-status-flag.overdue {
-            background: rgba(255, 255, 255, 0.16);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.4);
+    .pt-live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #8CF0C3;
+        box-shadow: 0 0 0 4px rgba(140,240,195,.13);
+    }
+
+
+    /* =========================================================
+           SELECTED TEST
+           ========================================================= */
+
+    .pt-selected-test {
+        position: relative;
+        margin-bottom: 20px;
+        padding: 25px 28px;
+        border-radius: var(--pt-radius);
+        background: white;
+        border: 2px solid #B9DDD7;
+        box-shadow: 0 8px 28px rgba(14,140,127,.10);
+        overflow: hidden;
+    }
+
+        .pt-selected-test::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 7px;
+            background: linear-gradient( 180deg, #13A694, #075E56 );
         }
 
-        .pt-status-flag.ontime {
-            background: rgba(255, 255, 255, 0.16);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.4);
+    .pt-selected-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .pt-selected-title {
+        display: flex;
+        align-items: center;
+        gap: 17px;
+    }
+
+    .pt-sample-icon {
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border-radius: 16px;
+        color: var(--pt-primary);
+        background: var(--pt-primary-light);
+        font-size: 26px;
+    }
+
+    .pt-section-kicker {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--pt-primary);
+        font-size: 10.5px;
+        font-weight: 800;
+        letter-spacing: .11em;
+    }
+
+    .pt-selected-title h2 {
+        margin: 0;
+        color: var(--pt-text);
+        font-family: 'Poppins', sans-serif;
+        font-size: 25px;
+        font-weight: 800;
+    }
+
+    .pt-selected-title p {
+        margin: 4px 0 0;
+        color: var(--pt-muted);
+        font-size: 12.5px;
+    }
+
+    .pt-processing-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        color: var(--pt-primary-dark);
+        background: var(--pt-primary-light);
+        border: 1px solid #C7E5E0;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+        .pt-processing-badge span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--pt-primary);
         }
+
+    .pt-selected-divider {
+        height: 1px;
+        margin: 21px 0 18px;
+        background: var(--pt-border);
+    }
+
+    .pt-test-details {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr 1fr;
+        gap: 0;
+    }
+
+    .pt-test-detail {
+        padding: 4px 22px;
+        border-right: 1px solid var(--pt-border);
+    }
+
+        .pt-test-detail:first-child {
+            padding-left: 0;
+        }
+
+        .pt-test-detail:last-child {
+            border-right: none;
+        }
+
+    .pt-detail-label {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--pt-faint);
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: .07em;
+    }
+
+        .pt-detail-label i {
+            margin-right: 5px;
+        }
+
+    .pt-test-detail strong {
+        display: block;
+        color: var(--pt-text);
+        font-family: 'Poppins', sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .pt-test-detail.primary strong {
+        color: var(--pt-primary-dark);
+        font-size: 16px;
+    }
+
+
+    /* =========================================================
+           STAT CARDS
+           ========================================================= */
 
     .pt-stats {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-        margin-bottom: 26px;
+        gap: 14px;
+        margin-bottom: 20px;
     }
 
-    .pt-stat {
-        background: var(--pt-raised);
-        border-radius: var(--pt-radius);
-        box-shadow: var(--pt-shadow-sm);
-        padding: 18px 20px;
+    .pt-stat-card {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 12px;
+        min-width: 0;
+        padding: 16px 17px;
+        background: white;
+        border: 1px solid var(--pt-border);
+        border-radius: var(--pt-radius-small);
+        box-shadow: var(--pt-shadow-small);
     }
 
     .pt-stat-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 13px;
-        background: var(--pt-teal-dim);
-        color: var(--pt-teal);
+        width: 40px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 17px;
         flex-shrink: 0;
-    }
-
-    .pt-stat small {
-        display: block;
-        font-family: 'Inter', sans-serif;
-        font-size: 11.5px;
-        font-weight: 600;
-        letter-spacing: .03em;
-        text-transform: uppercase;
-        color: var(--pt-ink-faint);
-        margin-bottom: 5px;
-    }
-
-    .pt-stat .val {
-        font-family: 'Poppins', sans-serif;
+        border-radius: 11px;
+        color: var(--pt-primary);
+        background: var(--pt-primary-light);
         font-size: 15px;
-        font-weight: 700;
-        color: var(--pt-ink);
-        line-height: 1.3;
     }
+
+    .pt-stat-card span {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--pt-faint);
+        font-size: 9.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+
+    .pt-stat-card strong {
+        display: block;
+        overflow: hidden;
+        color: var(--pt-text);
+        font-size: 12.5px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+
+    /* =========================================================
+           PANELS
+           ========================================================= */
 
     .pt-panel {
-        background: var(--pt-raised);
+        margin-bottom: 20px;
+        overflow: hidden;
+        background: white;
+        border: 1px solid var(--pt-border);
         border-radius: var(--pt-radius);
         box-shadow: var(--pt-shadow);
-        margin-bottom: 22px;
-        overflow: hidden;
     }
 
-    .pt-panel-head {
-        font-family: 'Inter', sans-serif;
-        font-weight: 700;
-        font-size: 13px;
-        letter-spacing: .02em;
-        color: #fff;
-        background: linear-gradient(120deg, var(--pt-teal-grad-start), var(--pt-teal-grad-end));
-        padding: 15px 22px;
+    .pt-panel-header {
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 10px;
+        min-height: 48px;
+        padding: 13px 20px;
+        color: white;
+        background: linear-gradient( 120deg, #12998B, #075E56 );
+        font-size: 12.5px;
+        font-weight: 700;
+        letter-spacing: .01em;
     }
+
+        .pt-panel-header > div {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .pt-panel-header i {
+            font-size: 14px;
+        }
 
     .pt-panel-body {
-        padding: 22px 24px;
+        padding: 20px 22px;
     }
+
+
+    /* =========================================================
+           PATIENT INFO
+           ========================================================= */
 
     .pt-info-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0 32px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0 30px;
     }
 
-    .pt-info-table {
-        width: 100%;
-        border-collapse: collapse;
+    .pt-info-item {
+        padding: 13px 0;
+        border-bottom: 1px solid var(--pt-border);
     }
 
-        .pt-info-table th {
-            text-align: left;
-            font-family: 'Inter', sans-serif;
-            font-size: 11.5px;
-            font-weight: 600;
-            letter-spacing: .03em;
-            text-transform: uppercase;
-            color: var(--pt-ink-faint);
-            padding: 11px 0;
-            border-bottom: 1px solid var(--pt-line);
-            width: 42%;
-            vertical-align: top;
-        }
-
-        .pt-info-table td {
-            padding: 11px 0;
-            border-bottom: 1px solid var(--pt-line);
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .pt-info-table tr:last-child th, .pt-info-table tr:last-child td {
+        .pt-info-item:nth-last-child(-n+3) {
             border-bottom: none;
         }
 
-    .pt-info-table-wide th {
-        width: 220px;
-    }
-
-    .pt-badge {
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        font-size: 11.5px;
-        letter-spacing: .02em;
-        padding: 6px 13px;
-        white-space: nowrap;
-        display: inline-flex;
-        border-radius: 999px;
-    }
-
-        .pt-badge.urgent {
-            background: var(--pt-red-dim);
-            color: var(--pt-red);
+        .pt-info-item span {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--pt-faint);
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
         }
 
-        .pt-badge.high {
-            background: var(--pt-gold-dim);
-            color: var(--pt-gold);
+        .pt-info-item strong {
+            color: var(--pt-text);
+            font-size: 13px;
+            font-weight: 600;
         }
 
-        .pt-badge.routine {
-            background: var(--pt-teal-dim);
-            color: var(--pt-teal-deep);
-        }
 
-        .pt-badge.neutral {
-            background: var(--pt-line);
-            color: var(--pt-ink-soft);
-        }
+    /* =========================================================
+           MEDICAL ALERTS
+           ========================================================= */
 
-    .pt-flags-row {
+    .pt-alert-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-        margin-bottom: 22px;
+        gap: 15px;
+        margin-bottom: 20px;
     }
 
-    .pt-flag-card {
-        background: var(--pt-raised);
+    .pt-alert-card {
+        min-height: 125px;
+        padding: 17px;
+        background: white;
+        border: 1px solid var(--pt-border);
         border-radius: var(--pt-radius);
-        box-shadow: var(--pt-shadow-sm);
-        padding: 18px 20px;
+        box-shadow: var(--pt-shadow-small);
     }
 
-        .pt-flag-card h4 {
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
-            font-size: 12.5px;
-            letter-spacing: .02em;
-            text-transform: uppercase;
-            margin: 0 0 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--pt-ink);
-        }
-
-        .pt-flag-card.allergy h4 i {
-            color: var(--pt-red);
-        }
-
-        .pt-flag-card.condition h4 i {
-            color: var(--pt-gold);
-        }
-
-        .pt-flag-card.med h4 i {
-            color: var(--pt-teal);
-        }
-
-    .pt-flag-text {
-        margin: 0;
-        font-size: 14px;
-        line-height: 1.55;
-        background: var(--pt-red-dim);
-        padding: 12px 14px;
-        border-radius: var(--pt-radius-sm);
-        color: #7A312C;
-    }
-
-    .pt-flag-card.condition .pt-flag-text {
-        background: var(--pt-gold-dim);
-        color: #7C5D1E;
-    }
-
-    .pt-flag-card.med .pt-flag-text {
-        background: var(--pt-teal-dim);
-        color: var(--pt-teal-deep);
-    }
-
-    .pt-flag-clear {
+    .pt-alert-heading {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        text-align: center;
         gap: 8px;
-        color: var(--pt-ink-faint);
-        padding: 14px 0;
-        font-size: 13.5px;
+        margin-bottom: 13px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .05em;
     }
 
-        .pt-flag-clear i {
-            font-size: 26px;
-            color: var(--pt-teal);
-        }
-
-    .pt-notes-block {
-        background: var(--pt-teal-dim);
-        border-radius: var(--pt-radius-sm);
-        padding: 16px 18px;
-        font-size: 14px;
-        line-height: 1.6;
-        color: var(--pt-ink);
+    .pt-alert-card.allergy .pt-alert-heading {
+        color: var(--pt-red);
     }
 
-    .pt-empty-inline {
+    .pt-alert-card.condition .pt-alert-heading {
+        color: var(--pt-orange);
+    }
+
+    .pt-alert-card.medication .pt-alert-heading {
+        color: var(--pt-primary);
+    }
+
+    .pt-alert-content {
+        padding: 11px 12px;
+        border-radius: var(--pt-radius-small);
+        color: var(--pt-text);
+        font-size: 12.5px;
+        line-height: 1.55;
+        background: var(--pt-bg);
+    }
+
+    .pt-alert-card.allergy .pt-alert-content {
+        color: #7B3530;
+        background: var(--pt-red-light);
+    }
+
+    .pt-alert-card.condition .pt-alert-content {
+        color: #765719;
+        background: var(--pt-orange-light);
+    }
+
+    .pt-alert-card.medication .pt-alert-content {
+        color: var(--pt-primary-dark);
+        background: var(--pt-primary-light);
+    }
+
+    .pt-clear {
         display: flex;
         align-items: center;
-        gap: 10px;
-        color: var(--pt-ink-faint);
-        font-size: 13.5px;
-        padding: 10px 0;
+        gap: 8px;
+        padding: 12px;
+        color: var(--pt-muted);
+        background: var(--pt-bg);
+        border-radius: var(--pt-radius-small);
+        font-size: 12px;
     }
 
-        .pt-empty-inline i {
-            font-size: 20px;
-            color: var(--pt-teal);
+        .pt-clear i {
+            color: var(--pt-green);
         }
 
-    .pt-table-wrap {
-        overflow-x: auto;
+
+    /* =========================================================
+           NOTES
+           ========================================================= */
+
+    .pt-notes {
+        display: flex;
+        gap: 13px;
+        padding: 16px 17px;
+        color: var(--pt-text);
+        background: var(--pt-primary-light);
+        border-left: 4px solid var(--pt-primary);
+        border-radius: var(--pt-radius-small);
+        font-size: 13px;
+        line-height: 1.65;
     }
 
-    .pt-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
+        .pt-notes > i {
+            color: var(--pt-primary);
+            font-size: 17px;
+        }
+
+    .pt-empty {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--pt-muted);
+        font-size: 12.5px;
     }
 
-        .pt-table thead th {
-            text-align: left;
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
-            font-size: 11.5px;
-            letter-spacing: .04em;
-            text-transform: uppercase;
-            color: var(--pt-ink-faint);
-            padding: 13px 22px;
-            background: var(--pt-teal-dim);
-            white-space: nowrap;
+        .pt-empty i {
+            color: var(--pt-green);
+            font-size: 17px;
         }
 
-        .pt-table tbody td {
-            padding: 14px 22px;
-            border-bottom: 1px solid var(--pt-line);
-        }
 
-        .pt-table tbody tr {
-            transition: background .12s;
-        }
+    /* =========================================================
+           TURNAROUND
+           ========================================================= */
 
-            .pt-table tbody tr:hover {
-                background: var(--pt-teal-dim);
-            }
+    .pt-header-success,
+    .pt-header-danger {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 9.5px;
+        font-weight: 800;
+    }
 
-            .pt-table tbody tr:last-child td {
-                border-bottom: none;
-            }
+    .pt-header-success {
+        color: #D8FFF0;
+        background: rgba(255,255,255,.13);
+    }
+
+    .pt-header-danger {
+        color: #FFE4E1;
+        background: rgba(255,255,255,.13);
+    }
 
     .pt-turnaround-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
+        gap: 15px;
     }
 
-        .pt-turnaround-grid small {
+    .pt-time-card {
+        padding: 16px;
+        background: var(--pt-bg);
+        border: 1px solid var(--pt-border);
+        border-radius: var(--pt-radius-small);
+    }
+
+        .pt-time-card span {
             display: block;
-            font-family: 'Inter', sans-serif;
-            font-size: 11.5px;
-            font-weight: 600;
+            margin-bottom: 7px;
+            color: var(--pt-faint);
+            font-size: 9.5px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: .03em;
-            color: var(--pt-ink-faint);
-            margin-bottom: 6px;
+            letter-spacing: .05em;
         }
 
-    .pt-turn-val {
-        font-family: 'Poppins', sans-serif;
-        font-size: 17px;
-        font-weight: 700;
+        .pt-time-card strong {
+            color: var(--pt-text);
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+        }
+
+    .pt-progress-section {
+        margin-top: 20px;
     }
 
-    .pt-turn-overdue {
-        color: var(--pt-red);
+    .pt-progress-heading {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--pt-muted);
     }
 
-    .pt-turn-ontime {
-        color: var(--pt-teal-deep);
-    }
+        .pt-progress-heading strong {
+            color: var(--pt-primary-dark);
+        }
 
     .pt-progress-track {
-        height: 12px;
-        background: var(--pt-line);
-        border-radius: 999px;
+        height: 10px;
         overflow: hidden;
-        margin-bottom: 8px;
+        background: var(--pt-border);
+        border-radius: 999px;
     }
 
     .pt-progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, var(--pt-teal), var(--pt-teal-deep));
+        min-width: 2px;
+        background: linear-gradient( 90deg, #12A391, #075E56 );
         border-radius: 999px;
         transition: width .3s ease;
     }
 
-    .pt-progress-pct {
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        font-size: 12.5px;
-        color: var(--pt-ink-soft);
-        margin-bottom: 26px;
+    .pt-progress-caption {
+        margin-top: 7px;
+        color: var(--pt-faint);
+        font-size: 10.5px;
+    }
+
+
+    /* =========================================================
+           STEPPER
+           ========================================================= */
+
+    .pt-progress-badge {
+        padding: 6px 10px;
+        color: white;
+        background: rgba(255,255,255,.13);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px;
+        font-size: 9.5px;
+        font-weight: 700;
     }
 
     .pt-stepper {
         display: flex;
-        justify-content: space-between;
         position: relative;
+        justify-content: space-between;
     }
 
         .pt-stepper::before {
             content: "";
             position: absolute;
-            top: 13px;
-            left: 26px;
-            right: 26px;
+            left: 8%;
+            right: 8%;
+            top: 17px;
             height: 2px;
-            background: var(--pt-line);
+            background: var(--pt-border);
             z-index: 0;
         }
 
@@ -788,102 +1510,375 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        width: 20%;
         gap: 8px;
-        flex: 1;
     }
 
-    .pt-step-dot {
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        background: var(--pt-raised);
-        border: 2px solid var(--pt-line-strong);
+    .pt-step-circle {
+        width: 35px;
+        height: 35px;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--pt-ink-faint);
+        border-radius: 50%;
+        background: white;
+        border: 2px solid var(--pt-border-strong);
+        color: var(--pt-faint);
         font-size: 11px;
+        font-weight: 700;
     }
 
-    .pt-step.done .pt-step-dot {
-        background: var(--pt-teal);
-        border-color: var(--pt-teal);
-        color: #fff;
+    .pt-step.done .pt-step-circle {
+        color: white;
+        background: var(--pt-primary);
+        border-color: var(--pt-primary);
     }
 
-    .pt-step span {
-        font-family: 'Inter', sans-serif;
+    .pt-step.current .pt-step-circle {
+        color: white;
+        background: var(--pt-primary-dark);
+        border: 3px solid #A9DED7;
+        box-shadow: 0 0 0 4px var(--pt-primary-light);
+    }
+
+    .pt-step-label {
+        color: var(--pt-faint);
+        font-size: 10px;
         font-weight: 600;
-        font-size: 11.5px;
         text-align: center;
-        color: var(--pt-ink-faint);
     }
 
-    .pt-step.done span {
-        color: var(--pt-ink);
+    .pt-step.done .pt-step-label,
+    .pt-step.current .pt-step-label {
+        color: var(--pt-text);
+        font-weight: 700;
     }
 
-    .pt-actions-row {
+
+    /* =========================================================
+           TABLE
+           ========================================================= */
+
+    .pt-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .pt-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+    }
+
+        .pt-table th {
+            padding: 12px 20px;
+            color: var(--pt-faint);
+            background: var(--pt-primary-light);
+            font-size: 9.5px;
+            font-weight: 800;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        .pt-table td {
+            padding: 14px 20px;
+            color: var(--pt-text);
+            border-bottom: 1px solid var(--pt-border);
+        }
+
+        .pt-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .pt-table tbody tr:hover {
+            background: #F8FCFB;
+        }
+
+    .pt-stock {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+        .pt-stock.good {
+            color: var(--pt-green);
+            background: var(--pt-green-light);
+        }
+
+        .pt-stock.low {
+            color: var(--pt-red);
+            background: var(--pt-red-light);
+        }
+
+    .pt-no-data {
+        padding: 25px !important;
+        color: var(--pt-muted) !important;
+        text-align: center;
+    }
+
+        .pt-no-data i {
+            margin-right: 6px;
+            color: var(--pt-primary);
+        }
+
+
+    /* =========================================================
+           ACTIVITY
+           ========================================================= */
+
+    .pt-activity-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0;
+    }
+
+        .pt-activity-grid > div {
+            padding: 3px 20px;
+            border-right: 1px solid var(--pt-border);
+        }
+
+            .pt-activity-grid > div:first-child {
+                padding-left: 0;
+            }
+
+            .pt-activity-grid > div:last-child {
+                border-right: none;
+            }
+
+        .pt-activity-grid span {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--pt-faint);
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        .pt-activity-grid strong {
+            color: var(--pt-text);
+            font-size: 12.5px;
+        }
+
+    .pt-status-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+        .pt-status-text span {
+            width: 7px;
+            height: 7px;
+            margin: 0;
+            border-radius: 50%;
+            background: var(--pt-primary);
+        }
+
+
+    /* =========================================================
+           TEXT STATES
+           ========================================================= */
+
+    .pt-danger-text {
+        color: var(--pt-red) !important;
+    }
+
+    .pt-warning-text {
+        color: var(--pt-orange) !important;
+    }
+
+    .pt-success-text {
+        color: var(--pt-green) !important;
+    }
+
+
+    /* =========================================================
+           ACTIONS
+           ========================================================= */
+
+    .pt-actions {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        gap: 15px;
         margin-top: 8px;
-        margin-bottom: 20px;
+    }
+
+    .pt-actions-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .pt-complete-form {
+        margin: 0;
     }
 
     .pt-btn {
-        font-family: 'Inter', sans-serif;
-        font-size: 13.5px;
-        font-weight: 600;
-        padding: 12px 22px;
-        cursor: pointer;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
+        min-height: 44px;
+        padding: 11px 18px;
+        border-radius: 10px;
+        font-family: 'Inter', sans-serif;
+        font-size: 12.5px;
+        font-weight: 700;
         text-decoration: none;
-        transition: .15s;
-        border-radius: 999px;
+        cursor: pointer;
+        transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
     }
 
-    .pt-btn-outline {
-        border: 1px solid var(--pt-line-strong);
-        background: var(--pt-raised);
-        color: var(--pt-ink-soft);
-        box-shadow: var(--pt-shadow-sm);
-    }
-
-        .pt-btn-outline:hover {
-            background: var(--pt-teal-dim);
-            color: var(--pt-teal-deep);
+        .pt-btn:hover {
+            transform: translateY(-1px);
         }
 
-    .pt-btn-solid {
-        border: 1px solid var(--pt-teal);
-        background: var(--pt-teal);
-        color: #fff;
+    .pt-btn-back {
+        color: var(--pt-text);
+        background: white;
+        border: 1px solid var(--pt-border-strong);
+        box-shadow: var(--pt-shadow-small);
     }
 
-        .pt-btn-solid:hover {
-            background: var(--pt-teal-deep);
-            border-color: var(--pt-teal-deep);
+        .pt-btn-back:hover {
+            color: var(--pt-primary-dark);
+            background: var(--pt-primary-light);
         }
 
-    @@media (max-width: 900px) {
-        .pt-banner {
+    .pt-btn-complete {
+        color: white;
+        background: var(--pt-green);
+        border: 1px solid var(--pt-green);
+        box-shadow: 0 4px 12px rgba(22,132,93,.18);
+    }
+
+        .pt-btn-complete:hover {
+            background: #116D4E;
+        }
+
+    .pt-btn-results {
+        color: white;
+        background: var(--pt-primary);
+        border: 1px solid var(--pt-primary);
+        box-shadow: 0 4px 12px rgba(14,140,127,.18);
+    }
+
+        .pt-btn-results:hover {
+            color: white;
+            background: var(--pt-primary-dark);
+        }
+
+
+    /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+
+    @@media (max-width: 1050px) {
+
+        .pt-page {
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+
+        .pt-test-details {
+            grid-template-columns: repeat(2, 1fr);
+            row-gap: 15px;
+        }
+
+        .pt-test-detail:nth-child(2) {
+            border-right: none;
+        }
+
+        .pt-test-detail:nth-child(3) {
+            padding-left: 0;
+        }
+
+        .pt-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .pt-info-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .pt-info-item:nth-last-child(-n+3) {
+            border-bottom: 1px solid var(--pt-border);
+        }
+
+        .pt-info-item:nth-last-child(-n+2) {
+            border-bottom: none;
+        }
+
+        .pt-alert-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .pt-activity-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+        }
+
+            .pt-activity-grid > div {
+                border-right: none;
+                padding: 0;
+            }
+    }
+
+
+    @@media (max-width: 750px) {
+
+        .pt-header {
             flex-direction: column;
             align-items: flex-start;
         }
 
+        .pt-header-status {
+            align-self: flex-start;
+        }
+
+        .pt-selected-top {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .pt-processing-badge {
+            margin-left: 81px;
+        }
+
+        .pt-test-details {
+            grid-template-columns: 1fr;
+        }
+
+        .pt-test-detail,
+        .pt-test-detail:nth-child(3) {
+            padding: 10px 0;
+            border-right: none;
+            border-bottom: 1px solid var(--pt-border);
+        }
+
+            .pt-test-detail:last-child {
+                border-bottom: none;
+            }
+
         .pt-stats {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
         }
 
         .pt-info-grid {
             grid-template-columns: 1fr;
-            gap: 10px;
         }
 
-        .pt-flags-row {
-            grid-template-columns: 1fr;
+        .pt-info-item:nth-last-child(-n+2) {
+            border-bottom: 1px solid var(--pt-border);
+        }
+
+        .pt-info-item:last-child {
+            border-bottom: none;
         }
 
         .pt-turnaround-grid {
@@ -892,16 +1887,32 @@
 
         .pt-stepper {
             flex-wrap: wrap;
-            row-gap: 16px;
+            gap: 20px 0;
         }
 
             .pt-stepper::before {
                 display: none;
             }
 
-        .pt-actions-row {
+        .pt-step {
+            width: 33.333%;
+        }
+
+        .pt-actions {
             flex-direction: column;
-            gap: 12px;
+            align-items: stretch;
+        }
+
+        .pt-actions-right {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .pt-btn,
+        .pt-complete-form {
+            width: 100%;
         }
     }
+
 </style>
+

@@ -1379,773 +1379,2309 @@
                 
      }
     else if (User.IsInRole("Lab_Technician"))
-   {
-    @* ViewData["Title"] = "Laboratory Technician Dashboard";
-} *@
+{
+    ViewData["Title"] = "Laboratory Technician Dashboard";
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 
-<div class="db-wrap">
+    <div class="db-wrap">
 
-    <!-- ==========================================
-        HEADER
-    =========================================== -->
-    <div class="db-banner">
-        <div class="db-banner-pattern"></div>
+        <!-- HEADER -->
+        <div class="db-banner">
+            <div class="db-banner-pattern"></div>
 
-        <div class="db-banner-left">
-            <div class="db-banner-icon">
-                <span class="db-icon-ring"></span>
+            <div class="db-banner-left">
+                <div class="db-banner-icon">
+                    <span class="db-icon-ring"></span>
+                    <i class="fa-solid fa-flask-vial"></i>
+                </div>
+
+                <div class="db-banner-text">
+                    <h1>
+                        Welcome,
+                        <span>@User.Identity?.Name</span>
+                    </h1>
+
+                    <p>Laboratory Technician Dashboard</p>
+
+                    <div class="db-pills">
+                        <span class="db-pill">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            Daily work queue
+                        </span>
+
+                        <span class="db-pill">
+                            <i class="fa-solid fa-vials"></i>
+                            Laboratory information system
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="db-clock">
+                <small>Today's date</small>
+                <div id="currentDate"></div>
+                <div id="currentTime"></div>
+            </div>
+        </div>
+
+
+        <!-- WORKFLOW -->
+        <div class="db-pulse">
+
+            <div class="db-pulse-label">
+                <i class="fa-solid fa-timeline"></i>
+                Today's specimen pipeline
+            </div>
+
+            <div class="db-flow">
+
+                <div class="db-flow-node">
+                    <div class="db-flow-circle n-teal">
+                        <i class="fa-solid fa-vials"></i>
+                    </div>
+
+                    <div class="db-flow-count" id="flowInProgress">
+                        0
+                    </div>
+
+                    <div class="db-flow-label">
+                        Selected / In Progress
+                    </div>
+                </div>
+
+                <div class="db-flow-line">
+                    <span class="db-flow-line-fill"></span>
+                </div>
+
+
+                <div class="db-flow-node">
+                    <div class="db-flow-circle n-blue">
+                        <i class="fa-solid fa-hourglass-half"></i>
+                    </div>
+
+                    <div class="db-flow-count" id="flowAvailable">
+                        0
+                    </div>
+
+                    <div class="db-flow-label">
+                        Waiting selection
+                    </div>
+                </div>
+
+                <div class="db-flow-line">
+                    <span class="db-flow-line-fill"></span>
+                </div>
+
+
+                <div class="db-flow-node">
+                    <div class="db-flow-circle n-green">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+
+                    <div class="db-flow-count" id="flowVerified">
+                        0
+                    </div>
+
+                    <div class="db-flow-label">
+                        Waiting verification
+                    </div>
+                </div>
+
+                <div class="db-flow-line">
+                    <span class="db-flow-line-fill"></span>
+                </div>
+
+
+                <div class="db-flow-node">
+                    <div class="db-flow-circle n-purple">
+                        <i class="fa-solid fa-file-medical"></i>
+                    </div>
+
+                    <div class="db-flow-count" id="flowReview">
+                        0
+                    </div>
+
+                    <div class="db-flow-label">
+                        Waiting review
+                    </div>
+                </div>
+
+            </div>
+
+
+            <div class="db-pulse-chips">
+
+                <span class="db-chip chip-stat">
+                    <i class="fa-solid fa-bolt"></i>
+
+                    <span id="urgentChip">
+                        0 STAT tests
+                    </span>
+                </span>
+
+                <span class="db-chip chip-overdue">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+
+                    <span id="overdueChip">
+                        0 overdue tests
+                    </span>
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <!-- WORKLOAD -->
+        <div class="db-section-head">
+
+            <div>
+                <h3>Today's workload</h3>
+                <p>
+                    Overview of your current laboratory workload.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="db-grid db-grid-4">
+
+            <!-- IN PROGRESS -->
+            <div class="db-stat">
+
+                <div class="db-stat-icon c-teal">
+                    <i class="fa-solid fa-vials"></i>
+                </div>
+
+                <div class="db-stat-body">
+
+                    <div class="num counter" id="inProgressCount">
+                        0
+                    </div>
+
+                    <h5>Selected tests</h5>
+
+                    <small>
+                        Currently assigned to you
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <!-- AVAILABLE -->
+            <div class="db-stat">
+
+                <div class="db-stat-icon c-blue">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+
+                <div class="db-stat-body">
+
+                    <div class="num counter" id="availableCount">
+                        0
+                    </div>
+
+                    <h5>Waiting selection</h5>
+
+                    <small>
+                        Awaiting technician
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <!-- VERIFICATION -->
+            <div class="db-stat">
+
+                <div class="db-stat-icon c-green">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+
+                <div class="db-stat-body">
+
+                    <div class="num counter" id="verifiedCount">
+                        0
+                    </div>
+
+                    <h5>Waiting verification</h5>
+
+                    <small>
+                        Pending validation
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <!-- REVIEW -->
+            <div class="db-stat">
+
+                <div class="db-stat-icon c-purple">
+                    <i class="fa-solid fa-file-medical"></i>
+                </div>
+
+                <div class="db-stat-body">
+
+                    <div class="num counter" id="reviewCount">
+                        0
+                    </div>
+
+                    <h5>Waiting review</h5>
+
+                    <small>
+                        Requires review
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- SECOND ROW -->
+        <div class="db-grid db-grid-4 db-grid-mt">
+
+            <!-- STAT -->
+            <div class="db-stat db-stat-urgent">
+
+                <div class="db-stat-icon c-red">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+
+                <div class="db-stat-body">
+
+                    <div class="num counter" id="urgentCount">
+                        0
+                    </div>
+
+                    <h5>STAT tests</h5>
+
+                    <small>
+                        Immediate attention
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <!-- OVERDUE -->
+            <div class="db-stat db-stat-urgent">
+
+                <div class="db-stat-icon c-orange">
+                    <i class="fa-solid fa-hourglass-end"></i>
+                </div>
+
+                <div class="db-stat-body">
+
+                    <div class="num counter" id="overdueCount">
+                        0
+                    </div>
+
+                    <h5>Overdue tests</h5>
+
+                    <small>
+                        Past turnaround time
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <!-- NEAR DEADLINE -->
+            <div class="db-stat">
+
+                <div class="db-stat-icon c-gold">
+                    <i class="fa-solid fa-stopwatch"></i>
+                </div>
+
+                <div class="db-stat-body">
+
+                    <div class="num">
+                        —
+                    </div>
+
+                    <h5>Near deadline</h5>
+
+                    <small>
+                        Approaching TAT limit
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <!-- COMPLETED -->
+            <div class="db-stat">
+
+                <div class="db-stat-icon c-teal-deep">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+
+                <div class="db-stat-body">
+
+                    <div class="num counter" id="completedCount">
+                        0
+                    </div>
+
+                    <h5>Completed tests</h5>
+
+                    <small>
+                        Tests finalised
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- QUICK ACTIONS -->
+        <div class="db-section-head db-mt-lg">
+
+            <div>
+                <h3>Quick actions</h3>
+
+                <p>
+                    Access your laboratory functions.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="db-grid db-grid-4">
+
+            <a asp-controller="AvailableTests"
+               asp-action="Index"
+               class="db-action">
+
+                <div class="db-action-icon">
+                    <i class="fa-solid fa-vials"></i>
+                </div>
+
+                <h5>Available tests</h5>
+
+                <p>
+                    View laboratory tests waiting to be selected.
+                </p>
+
+                <span class="db-action-go">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </span>
+
+            </a>
+
+
+            <a asp-controller="AvailableTests"
+               asp-action="InProgress"
+               class="db-action">
+
+                <div class="db-action-icon">
+                    <i class="fa-solid fa-flask"></i>
+                </div>
+
+                <h5>Tests in progress</h5>
+
+                <p>
+                    Continue working on your assigned tests.
+                </p>
+
+                <span class="db-action-go">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </span>
+
+            </a>
+
+
+            <a asp-controller="CaptureResults"
+               asp-action="Index"
+               class="db-action">
+
+                <div class="db-action-icon">
+                    <i class="fa-solid fa-flask"></i>
+                </div>
+
+                <h5>Capture results</h5>
+
+                <p>
+                    Record laboratory findings and observations.
+                </p>
+
+                <span class="db-action-go">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </span>
+
+            </a>
+
+
+            <a asp-controller="Verification"
+               asp-action="Index"
+               class="db-action">
+
+                <div class="db-action-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+
+                <h5>Verification</h5>
+
+                <p>
+                    Verify captured laboratory results.
+                </p>
+
+                <span class="db-action-go">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </span>
+
+            </a>
+
+        </div>
+
+
+        <!-- FILTER -->
+        <div class="db-section-head db-mt-lg">
+
+            <div>
+                <h3>Work queue</h3>
+
+                <p>
+                    Search and filter your laboratory workload.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="db-panel db-mb-lg">
+
+            <div class="db-panel-head">
+
+                <span>
+                    <i class="fa-solid fa-filter"></i>
+                    Filter work queue
+                </span>
+
+                <span class="db-panel-tag">
+                    Laboratory requests
+                </span>
+
+            </div>
+
+
+            <div class="db-panel-body">
+
+                <div class="db-filter-grid">
+
+                    <div class="db-field">
+
+                        <label>Urgency</label>
+
+                        <select id="filterUrgency"
+                                class="db-select">
+
+                            <option value="">All</option>
+                            <option value="Routine">Routine</option>
+                            <option value="Urgent">Urgent</option>
+                            <option value="STAT">STAT</option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="db-field">
+
+                        <label>Category</label>
+
+                        <select id="filterCategory"
+                                class="db-select">
+
+                            <option value="">
+                                All categories
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="db-field">
+
+                        <label>Due time</label>
+
+                        <input type="datetime-local"
+                               id="filterDue"
+                               class="db-input" />
+
+                    </div>
+
+
+                    <div class="db-field">
+
+                        <label>Request number</label>
+
+                        <input type="text"
+                               id="filterRequest"
+                               class="db-input"
+                               placeholder="Request number" />
+
+                    </div>
+
+
+                    <div class="db-field db-field-btn">
+
+                        <button type="button"
+                                id="applyFilter"
+                                class="db-btn-apply">
+
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            Apply
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- QUEUE -->
+        <div class="db-panel">
+
+            <div class="db-panel-head">
+
+                <div>
+
+                    <span>
+                        <i class="fa-solid fa-list-check"></i>
+                        Technician test queue
+                    </span>
+
+                    <small>
+                        Tests currently assigned to you.
+                    </small>
+
+                </div>
+
+                <span class="db-panel-count"
+                      id="queueCount">
+
+                    0 tests
+
+                </span>
+
+            </div>
+
+
+            <div class="db-table-wrap">
+
+                <table class="db-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Request #</th>
+                            <th>Patient</th>
+                            <th>Category</th>
+                            <th>Urgency</th>
+                            <th>Status</th>
+                            <th>Due time</th>
+                            <th>Action</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="queueBody">
+
+                        <tr>
+
+                            <td colspan="7">
+
+                                <div class="db-empty">
+
+                                    <i class="fa-solid fa-microscope"></i>
+
+                                    <h3>
+                                        Loading laboratory workload...
+                                    </h3>
+
+                                    <p>
+                                        Please wait while your current
+                                        laboratory tests are loaded.
+                                    </p>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+
+        <!-- FOOTER -->
+        <div class="db-footer">
+
+            <hr />
+
+            <div class="db-footer-content">
+
                 <i class="fa-solid fa-flask-vial"></i>
+
+                <span>
+                    Laboratory Information Management System
+                </span>
+
+                <span class="db-footer-divider">|</span>
+
+                <span>
+                    Technician Dashboard
+                </span>
+
+                <span class="db-footer-divider">|</span>
+
+                <span>
+                    @DateTime.Now.Year
+                </span>
+
             </div>
-            <div class="db-banner-text">
-                <h1>Welcome, <span>@User.Identity?.Name</span></h1>
-                <p>Laboratory Technician Dashboard</p>
-                <div class="db-pills">
-                    <span class="db-pill"><i class="fa-solid fa-calendar-days"></i> Daily work queue</span>
-                    <span class="db-pill"><i class="fa-solid fa-vials"></i> Laboratory information system</span>
-                </div>
-            </div>
-        </div>
 
-        <div class="db-clock">
-            <small>Today's date</small>
-            <div id="currentDate"></div>
-            <div id="currentTime"></div>
-        </div>
-    </div>
-
-    <!-- ==========================================
-        WORKFLOW PIPELINE (signature element)
-        A connected stepper showing where today's
-        specimens sit across the testing lifecycle.
-    =========================================== -->
-    <div class="db-pulse">
-        <div class="db-pulse-label">
-            <i class="fa-solid fa-timeline"></i> Today's specimen pipeline
-        </div>
-
-        <div class="db-flow">
-            <div class="db-flow-node">
-                <div class="db-flow-circle n-teal"><i class="fa-solid fa-vial-circle-check"></i></div>
-                <div class="db-flow-count">0</div>
-                <div class="db-flow-label">Selected</div>
-            </div>
-            <div class="db-flow-line"><span class="db-flow-line-fill" style="width:0%"></span></div>
-
-            <div class="db-flow-node">
-                <div class="db-flow-circle n-blue"><i class="fa-solid fa-hourglass-half"></i></div>
-                <div class="db-flow-count">0</div>
-                <div class="db-flow-label">Waiting selection</div>
-            </div>
-            <div class="db-flow-line"><span class="db-flow-line-fill" style="width:0%"></span></div>
-
-            <div class="db-flow-node">
-                <div class="db-flow-circle n-green"><i class="fa-solid fa-circle-check"></i></div>
-                <div class="db-flow-count">0</div>
-                <div class="db-flow-label">Waiting verification</div>
-            </div>
-            <div class="db-flow-line"><span class="db-flow-line-fill" style="width:0%"></span></div>
-
-            <div class="db-flow-node">
-                <div class="db-flow-circle n-purple"><i class="fa-solid fa-file-medical"></i></div>
-                <div class="db-flow-count">0</div>
-                <div class="db-flow-label">Waiting review</div>
-            </div>
-        </div>
-
-        <div class="db-pulse-chips">
-            <span class="db-chip chip-stat"><i class="fa-solid fa-bolt"></i> 0 STAT tests</span>
-            <span class="db-chip chip-overdue"><i class="fa-solid fa-triangle-exclamation"></i> 0 overdue requests</span>
-        </div>
-    </div>
-
-    <!-- ==========================================
-        TODAY'S WORKLOAD
-    =========================================== -->
-    <div class="db-section-head">
-        <div>
-            <h3>Today's workload</h3>
-            <p>Overview of your current laboratory workload.</p>
-        </div>
-    </div>
-
-    <div class="db-grid db-grid-4">
-
-        <div class="db-stat">
-            <div class="db-stat-icon c-teal"><i class="fa-solid fa-vials"></i></div>
-            <div class="db-stat-body">
-                <div class="num counter" data-value="0">0</div>
-                <h5>Selected tests</h5>
-                <small>Currently assigned</small>
-            </div>
-        </div>
-
-        <div class="db-stat">
-            <div class="db-stat-icon c-blue"><i class="fa-solid fa-clock"></i></div>
-            <div class="db-stat-body">
-                <div class="num counter" data-value="0">0</div>
-                <h5>Waiting selection</h5>
-                <small>Awaiting technician</small>
-            </div>
-        </div>
-
-        <div class="db-stat">
-            <div class="db-stat-icon c-green"><i class="fa-solid fa-circle-check"></i></div>
-            <div class="db-stat-body">
-                <div class="num counter" data-value="0">0</div>
-                <h5>Waiting verification</h5>
-                <small>Pending validation</small>
-            </div>
-        </div>
-
-        <div class="db-stat">
-            <div class="db-stat-icon c-purple"><i class="fa-solid fa-file-medical"></i></div>
-            <div class="db-stat-body">
-                <div class="num counter" data-value="0">0</div>
-                <h5>Waiting review</h5>
-                <small>Ready for review</small>
-            </div>
         </div>
 
     </div>
 
-    <div class="db-grid db-grid-4 db-grid-mt">
 
-        <div class="db-stat db-stat-urgent">
-            <div class="db-stat-icon c-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
-            <div class="db-stat-body">
-                <div class="num counter" data-value="0">0</div>
-                <h5>STAT tests</h5>
-                <small>Immediate attention</small>
-            </div>
-        </div>
+    @section Scripts {
 
-        <div class="db-stat db-stat-urgent">
-            <div class="db-stat-icon c-orange"><i class="fa-solid fa-hourglass-end"></i></div>
-            <div class="db-stat-body">
-                <div class="num counter" data-value="0">0</div>
-                <h5>Overdue tests</h5>
-                <small>Past turnaround time</small>
-            </div>
-        </div>
+        <script>
 
-        <div class="db-stat">
-            <div class="db-stat-icon c-gold"><i class="fa-solid fa-stopwatch"></i></div>
-            <div class="db-stat-body">
-                <div class="num counter" data-value="0">0</div>
-                <h5>Near deadline</h5>
-                <small>Approaching TAT limit</small>
-            </div>
-        </div>
+            // =====================================================
+            // CLOCK
+            // =====================================================
 
-        <div class="db-stat">
-            <div class="db-stat-icon c-teal-deep"><i class="fa-solid fa-award"></i></div>
-            <div class="db-stat-body">
-                <div class="num counter" data-value="0">0</div>
-                <h5>Completed today</h5>
-                <small>Tests finalised</small>
-            </div>
-        </div>
+            function updateClock() {
 
-    </div>
+                const now = new Date();
 
-    <!-- ==========================================
-        QUICK ACTIONS
-    =========================================== -->
-    <div class="db-section-head db-mt-lg">
-        <div>
-            <h3>Quick actions</h3>
-            <p>Access your most frequently used laboratory functions.</p>
-        </div>
-    </div>
+                document.getElementById("currentDate").innerHTML =
+                    now.toLocaleDateString("en-ZA", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric"
+                    });
 
-    <div class="db-grid db-grid-4">
+                document.getElementById("currentTime").innerHTML =
+                    now.toLocaleTimeString("en-ZA", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit"
+                    });
+            }
 
-        <a asp-controller="AvailableTests" asp-action="Index" class="db-action">
-            <div class="db-action-icon"><i class="fa-solid fa-vials"></i></div>
-            <h5>Available tests</h5>
-            <p>View test requests waiting to be selected.</p>
-            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-        </a>
+            updateClock();
 
-        <a asp-controller="CaptureResults" asp-action="Index" class="db-action">
-            <div class="db-action-icon"><i class="fa-solid fa-flask"></i></div>
-            <h5>Capture results</h5>
-            <p>Record laboratory findings and observations.</p>
-            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-        </a>
+            setInterval(updateClock, 1000);
 
-        <a asp-controller="Verification" asp-action="Index" class="db-action">
-            <div class="db-action-icon"><i class="fa-solid fa-circle-check"></i></div>
-            <h5>Verification</h5>
-            <p>Verify captured results before review.</p>
-            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-        </a>
 
-        <a asp-controller="ToBeReviewed" asp-action="Index" class="db-action">
-            <div class="db-action-icon"><i class="fa-solid fa-file-medical"></i></div>
-            <h5>Review results</h5>
-            <p>Review and approve laboratory reports.</p>
-            <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-        </a>
+            // =====================================================
+            // LOAD REAL DASHBOARD DATA
+            // =====================================================
 
-    </div>
+            async function loadDashboardSummary() {
 
-    <!-- ==========================================
-        PERFORMANCE STRIP
-    =========================================== -->
-    <div class="db-section-head db-mt-lg">
-        <div>
-            <h3>Today's performance</h3>
-            <p>Daily laboratory productivity overview.</p>
-        </div>
-    </div>
+                try {
 
-    <div class="db-perf-strip db-mb-lg">
-        <div class="db-perf-item">
-            <div class="db-perf-icon"><i class="fa-solid fa-microscope"></i></div>
-            <div>
-                <h4>36</h4>
-                <span>Completed tests</span>
-            </div>
-        </div>
-        <div class="db-perf-div"></div>
-        <div class="db-perf-item">
-            <div class="db-perf-icon"><i class="fa-solid fa-stopwatch"></i></div>
-            <div>
-                <h4>2h 18m</h4>
-                <span>Average TAT</span>
-            </div>
-        </div>
-        <div class="db-perf-div"></div>
-        <div class="db-perf-item">
-            <div class="db-perf-icon"><i class="fa-solid fa-vials"></i></div>
-            <div>
-                <h4>12</h4>
-                <span>Pending tests</span>
-            </div>
-        </div>
-        <div class="db-perf-div"></div>
-        <div class="db-perf-item">
-            <div class="db-perf-icon"><i class="fa-solid fa-chart-line"></i></div>
-            <div>
-                <h4>98%</h4>
-                <span>Completion rate</span>
-            </div>
-        </div>
-    </div>
+                    const response =
+                        await fetch(
+                            '@Url.Action("DashboardSummary", "AvailableTests")'
+                        );
 
-    <!-- ==========================================
-        FILTER PANEL
-    =========================================== -->
-    <div class="db-panel db-mb-lg">
-        <div class="db-panel-head">
-            <span><i class="fa-solid fa-filter"></i> Filter work queue</span>
-            <span class="db-panel-tag">Search laboratory requests</span>
-        </div>
-        <div class="db-panel-body">
-            <div class="db-filter-grid">
+                    if (!response.ok) {
 
-                <div class="db-field">
-                    <label>Urgency</label>
-                    <select class="db-select">
-                        <option>All</option>
-                        <option>Routine</option>
-                        <option>Urgent</option>
-                        <option>STAT</option>
-                    </select>
-                </div>
+                        throw new Error(
+                            "DashboardSummary request failed."
+                        );
+                    }
 
-                <div class="db-field">
-                    <label>Category</label>
-                    <select class="db-select">
-                        <option>All categories</option>
-                    </select>
-                </div>
+                    const data =
+                        await response.json();
 
-                <div class="db-field db-field-wide">
-                    <label>Due time</label>
-                    <input type="datetime-local" class="db-input" />
-                </div>
 
-                <div class="db-field db-field-wide">
-                    <label>Request number</label>
-                    <input type="text" class="db-input" placeholder="LAB000123" />
-                </div>
+                    // =============================================
+                    // UPDATE COUNTERS
+                    // =============================================
 
-                <div class="db-field db-field-btn">
-                    <button class="db-btn-apply">
-                        <i class="fa-solid fa-magnifying-glass"></i> Apply
-                    </button>
-                </div>
+                    setValue(
+                        "availableCount",
+                        data.available
+                    );
 
-            </div>
-        </div>
-    </div>
+                    setValue(
+                        "inProgressCount",
+                        data.inProgress
+                    );
 
-    <!-- ==========================================
-        TECHNICIAN TEST QUEUE
-    =========================================== -->
-    <div class="db-panel">
-        <div class="db-panel-head">
-            <div>
-                <span><i class="fa-solid fa-list-check"></i> Technician test queue</span>
-                <small>Laboratory requests currently assigned to you.</small>
-            </div>
-            <span class="db-panel-count">0 tests</span>
-        </div>
+                    setValue(
+                        "completedCount",
+                        data.completed
+                    );
 
-        <div class="db-table-wrap">
-            <table class="db-table">
-                <thead>
-                    <tr>
-                        <th>Request #</th>
-                        <th>Patient</th>
-                        <th>Category</th>
-                        <th>Urgency</th>
-                        <th>Status</th>
-                        <th>Due time</th>
-                        <th class="db-text-center">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Replace with Model later -->
-                    <tr>
-                        <td colspan="7">
-                            <div class="db-empty">
-                                <i class="fa-solid fa-microscope"></i>
-                                <h3>You're all caught up!</h3>
-                                <p>There are currently no laboratory requests assigned to you.<br />New requests will appear here once available.</p>
-                                <a asp-controller="AvailableTests" asp-action="Index" class="db-btn-solid">
-                                    <i class="fa-solid fa-vials"></i> View available tests
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+                    setValue(
+                        "verifiedCount",
+                        data.verified
+                    );
 
-    <!-- ==========================================
-        FOOTER
-    =========================================== -->
-    <div class="db-footer">
-        <hr />
-        <div class="db-footer-content">
-            <i class="fa-solid fa-flask-vial"></i>
-            <span>Laboratory Information Management System</span>
-            <span class="db-footer-divider">|</span>
-            <span>Technician Dashboard</span>
-            <span class="db-footer-divider">|</span>
-            <span>@DateTime.Now.Year</span>
-        </div>
-    </div>
+                    setValue(
+                        "reviewCount",
+                        data.toBeReviewed
+                    );
 
-</div>
+                    setValue(
+                        "urgentCount",
+                        data.urgent
+                    );
 
-@section Scripts {
-    <script>
-        function updateClock() {
-            const now = new Date();
-            document.getElementById("currentDate").innerHTML = now.toLocaleDateString("en-ZA", {
-                weekday: "long", day: "numeric", month: "long", year: "numeric"
-            });
-            document.getElementById("currentTime").innerHTML = now.toLocaleTimeString("en-ZA", {
-                hour: "2-digit", minute: "2-digit", second: "2-digit"
-            });
-        }
-        updateClock();
-        setInterval(updateClock, 1000);
 
-        // Animated counters
-        document.querySelectorAll(".counter").forEach(counter => {
-            let target = Number(counter.dataset.value);
-            let current = 0;
-            let increment = target > 0 ? Math.ceil(target / 40) : 1;
-            const timer = setInterval(() => {
-                current += increment;
-                if (current >= target) {
-                    counter.innerHTML = target;
-                    clearInterval(timer);
-                } else {
-                    counter.innerHTML = current;
+                    // =============================================
+                    // PIPELINE
+                    // =============================================
+
+                    setValue(
+                        "flowAvailable",
+                        data.available
+                    );
+
+                    setValue(
+                        "flowInProgress",
+                        data.inProgress
+                    );
+
+                    setValue(
+                        "flowVerified",
+                        data.verified
+                    );
+
+                    setValue(
+                        "flowReview",
+                        data.toBeReviewed
+                    );
+
+
+                    // =============================================
+                    // CHIPS
+                    // =============================================
+
+                    document.getElementById("urgentChip")
+                        .textContent =
+                        data.urgent + " STAT tests";
+
+
+                    // Your current controller does not return
+                    // overdue yet, so don't pretend that it does.
+
+                    document.getElementById("overdueChip")
+                        .textContent =
+                        "0 overdue tests";
+
+
+                    document.getElementById("overdueCount")
+                        .textContent = "0";
+
+
+                    // =============================================
+                    // QUEUE COUNT
+                    // =============================================
+
+                    const total =
+                        Number(data.inProgress) +
+                        Number(data.available);
+
+                    document.getElementById("queueCount")
+                        .textContent =
+                        total + " tests";
+
                 }
-            }, 30);
-        });
-    </script>
+                catch (error) {
+
+                    console.error(
+                        "Dashboard loading error:",
+                        error
+                    );
+
+                    showDashboardError();
+                }
+            }
+
+
+            // =====================================================
+            // SET VALUE
+            // =====================================================
+
+            function setValue(id, value) {
+
+                const element =
+                    document.getElementById(id);
+
+                if (!element)
+                    return;
+
+                element.textContent =
+                    value ?? 0;
+            }
+
+
+            // =====================================================
+            // ERROR
+            // =====================================================
+
+            function showDashboardError() {
+
+                document.getElementById("queueBody").innerHTML = `
+
+                    <tr>
+
+                        <td colspan="7">
+
+                            <div class="db-empty">
+
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+
+                                <h3>
+                                    Dashboard data could not be loaded
+                                </h3>
+
+                                <p>
+                                    The dashboard could not retrieve the
+                                    laboratory workload.
+                                    Please refresh the page.
+                                </p>
+
+                                <button
+                                    type="button"
+                                    class="db-btn-solid"
+                                    onclick="loadDashboardSummary()">
+
+                                    <i class="fa-solid fa-rotate-right"></i>
+                                    Try again
+
+                                </button>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                `;
+            }
+
+
+            // =====================================================
+            // START DASHBOARD
+            // =====================================================
+
+            document.addEventListener(
+                "DOMContentLoaded",
+                function () {
+
+                    loadDashboardSummary();
+
+                }
+            );
+
+        </script>
+
+    }
+
+
+    <style>
+
+        /* =========================================================
+           DASHBOARD VARIABLES
+           ========================================================= */
+
+        :root {
+
+            --db-paper: #F0F7F6;
+            --db-raised: #FFFFFF;
+
+            --db-ink: #102C27;
+            --db-ink-soft: #52716C;
+            --db-ink-faint: #8FA9A3;
+
+            --db-line: #E1EEEC;
+            --db-line-strong: #CCE3DF;
+
+            --db-teal: #0E8C7F;
+            --db-teal-deep: #0A5850;
+            --db-teal-dim: #E3F4F1;
+
+            --db-blue: #2C6E9E;
+            --db-blue-dim: #E4F0F9;
+
+            --db-green: #2E8B57;
+            --db-green-dim: #E4F5EB;
+
+            --db-purple: #6D4EA8;
+            --db-purple-dim: #EEE8F9;
+
+            --db-red: #B0463F;
+            --db-red-dim: #F7E8E7;
+
+            --db-orange: #B76A2C;
+            --db-orange-dim: #FBEEE1;
+
+            --db-gold: #B4862A;
+            --db-gold-dim: #FBF1DA;
+
+            --db-radius: 20px;
+            --db-radius-sm: 13px;
+
+            --db-shadow:
+                0 6px 24px rgba(10,60,55,.08);
+
+            --db-shadow-sm:
+                0 3px 10px rgba(10,60,55,.06);
+        }
+
+
+        body {
+            background: var(--db-paper);
+        }
+
+
+        .db-wrap {
+
+            max-width: 1280px;
+
+            margin: 0 auto;
+
+            padding:
+                26px 24px 60px;
+
+            color: var(--db-ink);
+
+            font-family:
+                'Inter',
+                sans-serif;
+        }
+
+
+        /* =========================================================
+           BANNER
+           ========================================================= */
+
+        .db-banner {
+
+            position: relative;
+
+            display: flex;
+
+            justify-content:
+                space-between;
+
+            align-items:
+                center;
+
+            gap: 24px;
+
+            background:
+                linear-gradient(
+                    125deg,
+                    #12A392,
+                    #0A4F48
+                );
+
+            border-radius:
+                var(--db-radius);
+
+            padding:
+                32px 36px;
+
+            margin-bottom:
+                22px;
+
+            box-shadow:
+                0 18px 40px
+                rgba(10,90,80,.20);
+
+            overflow: hidden;
+        }
+
+
+        .db-banner-pattern {
+
+            position: absolute;
+
+            inset: 0;
+
+            background:
+                radial-gradient(
+                    circle at 85% 20%,
+                    rgba(255,255,255,.10),
+                    transparent 45%
+                ),
+                radial-gradient(
+                    circle at 95% 85%,
+                    rgba(255,255,255,.08),
+                    transparent 40%
+                );
+        }
+
+
+        .db-banner-left {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 22px;
+
+            position: relative;
+
+            z-index: 1;
+        }
+
+
+        .db-banner-icon {
+
+            width: 76px;
+            height: 76px;
+
+            border-radius: 50%;
+
+            background:
+                rgba(255,255,255,.16);
+
+            border:
+                2px solid
+                rgba(255,255,255,.32);
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            color: #fff;
+
+            font-size: 30px;
+
+            flex-shrink: 0;
+        }
+
+
+        .db-banner-text h1 {
+
+            font-family:
+                'Poppins',
+                sans-serif;
+
+            font-weight: 700;
+
+            font-size: 26px;
+
+            margin:
+                0 0 4px;
+
+            color: #fff;
+        }
+
+
+        .db-banner-text h1 span {
+
+            color: #E9FFFB;
+        }
+
+
+        .db-banner-text p {
+
+            margin:
+                0 0 14px;
+
+            color:
+                rgba(255,255,255,.85);
+
+            font-size:
+                14.5px;
+        }
+
+
+        .db-pills {
+
+            display: flex;
+
+            gap: 10px;
+
+            flex-wrap: wrap;
+        }
+
+
+        .db-pill {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding:
+                7px 15px;
+
+            border-radius:
+                999px;
+
+            background:
+                rgba(255,255,255,.16);
+
+            color: #fff;
+
+            font-size:
+                12.5px;
+        }
+
+
+        .db-clock {
+
+            position: relative;
+
+            z-index: 1;
+
+            min-width: 230px;
+
+            border-left:
+                1px solid
+                rgba(255,255,255,.28);
+
+            padding-left: 28px;
+        }
+
+
+        .db-clock small {
+
+            color: #DFF9F8;
+
+            font-size: 11px;
+
+            font-weight: 600;
+
+            text-transform: uppercase;
+        }
+
+
+        #currentDate {
+
+            margin-top: 6px;
+
+            color: #fff;
+
+            font-size: 14px;
+        }
+
+
+        #currentTime {
+
+            margin-top: 2px;
+
+            color: #fff;
+
+            font-family:
+                'IBM Plex Mono',
+                monospace;
+
+            font-size: 26px;
+
+            font-weight: 600;
+        }
+
+
+        /* =========================================================
+           PIPELINE
+           ========================================================= */
+
+        .db-pulse {
+
+            background:
+                var(--db-raised);
+
+            border-radius:
+                var(--db-radius);
+
+            box-shadow:
+                var(--db-shadow);
+
+            padding:
+                26px 30px;
+
+            margin-bottom:
+                28px;
+        }
+
+
+        .db-pulse-label {
+
+            color:
+                var(--db-teal-deep);
+
+            font-size:
+                12.5px;
+
+            font-weight:
+                700;
+
+            text-transform:
+                uppercase;
+
+            margin-bottom:
+                22px;
+        }
+
+
+        .db-flow {
+
+            display: flex;
+
+            align-items:
+                flex-start;
+        }
+
+
+        .db-flow-node {
+
+            width: 130px;
+
+            flex:
+                0 0 auto;
+
+            display: flex;
+
+            flex-direction:
+                column;
+
+            align-items:
+                center;
+        }
+
+
+        .db-flow-circle {
+
+            width: 48px;
+
+            height: 48px;
+
+            border-radius: 50%;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            color: #fff;
+
+            margin-bottom: 10px;
+
+            box-shadow:
+                0 4px 10px
+                rgba(0,0,0,.12);
+        }
+
+
+        .n-teal {
+            background: var(--db-teal);
+        }
+
+        .n-blue {
+            background: var(--db-blue);
+        }
+
+        .n-green {
+            background: var(--db-green);
+        }
+
+        .n-purple {
+            background: var(--db-purple);
+        }
+
+
+        .db-flow-count {
+
+            font-family:
+                'Poppins',
+                sans-serif;
+
+            font-size: 20px;
+
+            font-weight: 700;
+        }
+
+
+        .db-flow-label {
+
+            font-size: 12px;
+
+            color:
+                var(--db-ink-soft);
+
+            text-align: center;
+        }
+
+
+        .db-flow-line {
+
+            flex: 1;
+
+            height: 3px;
+
+            background:
+                var(--db-line);
+
+            margin-top: 24px;
+
+            border-radius: 3px;
+        }
+
+
+        .db-flow-line-fill {
+
+            display: block;
+
+            height: 100%;
+
+            width: 0%;
+
+            background:
+                var(--db-teal);
+
+            border-radius: 3px;
+        }
+
+
+        .db-pulse-chips {
+
+            display: flex;
+
+            gap: 10px;
+
+            margin-top: 24px;
+
+            flex-wrap: wrap;
+        }
+
+
+        .db-chip {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding:
+                8px 16px;
+
+            border-radius:
+                999px;
+
+            font-size:
+                12.5px;
+
+            font-weight:
+                600;
+        }
+
+
+        .chip-stat {
+
+            background:
+                var(--db-red-dim);
+
+            color:
+                var(--db-red);
+        }
+
+
+        .chip-overdue {
+
+            background:
+                var(--db-orange-dim);
+
+            color:
+                var(--db-orange);
+        }
+
+
+        /* =========================================================
+           HEADINGS
+           ========================================================= */
+
+        .db-section-head {
+
+            display: flex;
+
+            justify-content:
+                space-between;
+
+            align-items:
+                center;
+
+            margin-bottom:
+                18px;
+        }
+
+
+        .db-section-head h3 {
+
+            font-family:
+                'Poppins',
+                sans-serif;
+
+            font-size:
+                20px;
+
+            margin:
+                0 0 3px;
+        }
+
+
+        .db-section-head p {
+
+            margin: 0;
+
+            color:
+                var(--db-ink-soft);
+
+            font-size:
+                13.5px;
+        }
+
+
+        .db-mt-lg {
+
+            margin-top:
+                44px;
+        }
+
+
+        .db-mb-lg {
+
+            margin-bottom:
+                30px;
+        }
+
+
+        /* =========================================================
+           GRID
+           ========================================================= */
+
+        .db-grid {
+
+            display: grid;
+
+            gap: 18px;
+        }
+
+
+        .db-grid-4 {
+
+            grid-template-columns:
+                repeat(4,1fr);
+        }
+
+
+        .db-grid-mt {
+
+            margin-top:
+                18px;
+        }
+
+
+        /* =========================================================
+           STAT CARDS
+           ========================================================= */
+
+        .db-stat {
+
+            background:
+                var(--db-raised);
+
+            border-radius:
+                var(--db-radius);
+
+            box-shadow:
+                var(--db-shadow-sm);
+
+            padding:
+                22px;
+
+            display: flex;
+
+            align-items:
+                center;
+
+            gap: 16px;
+
+            border-top:
+                3px solid
+                var(--db-teal);
+
+            transition:
+                .2s;
+        }
+
+
+        .db-stat:hover {
+
+            transform:
+                translateY(-5px);
+
+            box-shadow:
+                var(--db-shadow);
+        }
+
+
+        .db-stat-urgent {
+
+            border-top-color:
+                var(--db-red);
+        }
+
+
+        .db-stat-icon {
+
+            width: 54px;
+
+            height: 54px;
+
+            border-radius: 15px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 21px;
+
+            flex-shrink: 0;
+        }
+
+
+        .c-teal {
+
+            background:
+                var(--db-teal-dim);
+
+            color:
+                var(--db-teal);
+        }
+
+
+        .c-teal-deep {
+
+            background:
+                var(--db-teal-dim);
+
+            color:
+                var(--db-teal-deep);
+        }
+
+
+        .c-blue {
+
+            background:
+                var(--db-blue-dim);
+
+            color:
+                var(--db-blue);
+        }
+
+
+        .c-green {
+
+            background:
+                var(--db-green-dim);
+
+            color:
+                var(--db-green);
+        }
+
+
+        .c-purple {
+
+            background:
+                var(--db-purple-dim);
+
+            color:
+                var(--db-purple);
+        }
+
+
+        .c-red {
+
+            background:
+                var(--db-red-dim);
+
+            color:
+                var(--db-red);
+        }
+
+
+        .c-orange {
+
+            background:
+                var(--db-orange-dim);
+
+            color:
+                var(--db-orange);
+        }
+
+
+        .c-gold {
+
+            background:
+                var(--db-gold-dim);
+
+            color:
+                var(--db-gold);
+        }
+
+
+        .db-stat .num {
+
+            font-family:
+                'Poppins',
+                sans-serif;
+
+            font-size:
+                27px;
+
+            font-weight:
+                700;
+        }
+
+
+        .db-stat h5 {
+
+            margin:
+                2px 0 0;
+
+            font-size:
+                13.5px;
+        }
+
+
+        .db-stat small {
+
+            color:
+                var(--db-ink-faint);
+
+            font-size:
+                12px;
+        }
+
+
+        /* =========================================================
+           ACTION CARDS
+           ========================================================= */
+
+        .db-action {
+
+            display: block;
+
+            text-decoration: none;
+
+            color:
+                var(--db-ink);
+
+            background:
+                var(--db-raised);
+
+            border-radius:
+                var(--db-radius);
+
+            padding:
+                28px 24px;
+
+            box-shadow:
+                var(--db-shadow-sm);
+
+            position: relative;
+
+            transition:
+                .25s;
+        }
+
+
+        .db-action:hover {
+
+            transform:
+                translateY(-6px);
+
+            box-shadow:
+                var(--db-shadow);
+
+            color:
+                var(--db-ink);
+
+            text-decoration:
+                none;
+        }
+
+
+        .db-action-icon {
+
+            width: 54px;
+
+            height: 54px;
+
+            margin-bottom: 16px;
+
+            border-radius: 16px;
+
+            background:
+                var(--db-teal-dim);
+
+            color:
+                var(--db-teal);
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 23px;
+        }
+
+
+        .db-action h5 {
+
+            font-weight: 700;
+
+            margin:
+                0 0 8px;
+        }
+
+
+        .db-action p {
+
+            color:
+                var(--db-ink-soft);
+
+            font-size:
+                13px;
+
+            line-height:
+                1.6;
+        }
+
+
+        .db-action-go {
+
+            color:
+                var(--db-teal);
+        }
+
+
+        /* =========================================================
+           PANEL
+           ========================================================= */
+
+        .db-panel {
+
+            background:
+                var(--db-raised);
+
+            border-radius:
+                var(--db-radius);
+
+            box-shadow:
+                var(--db-shadow);
+
+            overflow:
+                hidden;
+        }
+
+
+        .db-panel-head {
+
+            display: flex;
+
+            justify-content:
+                space-between;
+
+            align-items:
+                center;
+
+            padding:
+                18px 26px;
+
+            border-bottom:
+                1px solid
+                var(--db-line);
+        }
+
+
+        .db-panel-head span:first-child {
+
+            font-family:
+                'Poppins',
+                sans-serif;
+
+            font-weight:
+                700;
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap: 10px;
+        }
+
+
+        .db-panel-head span:first-child i {
+
+            color:
+                var(--db-teal);
+        }
+
+
+        .db-panel-head small {
+
+            display:
+                block;
+
+            color:
+                var(--db-ink-faint);
+
+            font-size:
+                12.5px;
+
+            margin-top:
+                3px;
+        }
+
+
+        .db-panel-tag {
+
+            background:
+                var(--db-teal-dim);
+
+            color:
+                var(--db-teal-deep);
+
+            padding:
+                6px 13px;
+
+            border-radius:
+                999px;
+
+            font-size:
+                11.5px;
+
+            font-weight:
+                600;
+        }
+
+
+        .db-panel-count {
+
+            background:
+                var(--db-teal);
+
+            color:
+                white;
+
+            padding:
+                7px 15px;
+
+            border-radius:
+                999px;
+
+            font-size:
+                12.5px;
+
+            font-weight:
+                700;
+        }
+
+
+        .db-panel-body {
+
+            padding:
+                26px;
+        }
+
+
+        /* =========================================================
+           FILTER
+           ========================================================= */
+
+        .db-filter-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                1fr 1fr 1.4fr 1.4fr auto;
+
+            gap: 16px;
+
+            align-items:
+                end;
+        }
+
+
+        .db-field {
+
+            display: flex;
+
+            flex-direction:
+                column;
+
+            gap: 7px;
+        }
+
+
+        .db-field label {
+
+            font-size:
+                12px;
+
+            font-weight:
+                600;
+
+            color:
+                var(--db-ink-soft);
+        }
+
+
+        .db-select,
+        .db-input {
+
+            height:
+                46px;
+
+            border:
+                1px solid
+                var(--db-line-strong);
+
+            border-radius:
+                var(--db-radius-sm);
+
+            padding:
+                0 14px;
+
+            font-size:
+                13.5px;
+
+            color:
+                var(--db-ink);
+
+            background:
+                white;
+        }
+
+
+        .db-btn-apply {
+
+            height:
+                46px;
+
+            border:
+                none;
+
+            border-radius:
+                999px;
+
+            padding:
+                0 24px;
+
+            background:
+                var(--db-teal);
+
+            color:
+                white;
+
+            font-weight:
+                600;
+
+            cursor:
+                pointer;
+        }
+
+
+        /* =========================================================
+           TABLE
+           ========================================================= */
+
+        .db-table-wrap {
+
+            overflow-x:
+                auto;
+        }
+
+
+        .db-table {
+
+            width:
+                100%;
+
+            border-collapse:
+                collapse;
+        }
+
+
+        .db-table th {
+
+            text-align:
+                left;
+
+            padding:
+                15px 22px;
+
+            background:
+                var(--db-teal-dim);
+
+            color:
+                var(--db-ink-faint);
+
+            font-size:
+                11.5px;
+
+            text-transform:
+                uppercase;
+        }
+
+
+        .db-table td {
+
+            padding:
+                16px 22px;
+
+            border-bottom:
+                1px solid
+                var(--db-line);
+        }
+
+
+        .db-empty {
+
+            padding:
+                60px 24px;
+
+            text-align:
+                center;
+        }
+
+
+        .db-empty i {
+
+            width:
+                96px;
+
+            height:
+                96px;
+
+            margin:
+                0 auto 20px;
+
+            border-radius:
+                50%;
+
+            background:
+                var(--db-teal-dim);
+
+            color:
+                var(--db-teal);
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            justify-content:
+                center;
+
+            font-size:
+                42px;
+        }
+
+
+        .db-empty h3 {
+
+            margin:
+                0 0 10px;
+
+            font-family:
+                'Poppins',
+                sans-serif;
+        }
+
+
+        .db-empty p {
+
+            color:
+                var(--db-ink-soft);
+
+            line-height:
+                1.7;
+        }
+
+
+        /* =========================================================
+           FOOTER
+           ========================================================= */
+
+        .db-footer {
+
+            margin-top:
+                50px;
+
+            text-align:
+                center;
+        }
+
+
+        .db-footer hr {
+
+            border:
+                none;
+
+            border-top:
+                1px solid
+                var(--db-line);
+        }
+
+
+        .db-footer-content {
+
+            display:
+                flex;
+
+            justify-content:
+                center;
+
+            align-items:
+                center;
+
+            flex-wrap:
+                wrap;
+
+            gap:
+                12px;
+
+            color:
+                var(--db-ink-faint);
+
+            font-size:
+                13px;
+        }
+
+
+        .db-footer-content i {
+
+            color:
+                var(--db-teal);
+        }
+
+
+        /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+
+        @@media(max-width:1100px) {
+
+            .db-grid-4 {
+
+                grid-template-columns:
+                    repeat(2,1fr);
+            }
+
+            .db-filter-grid {
+
+                grid-template-columns:
+                    1fr 1fr;
+            }
+        }
+
+
+        @@media(max-width:700px) {
+
+            .db-banner {
+
+                flex-direction:
+                    column;
+
+                align-items:
+                    flex-start;
+            }
+
+            .db-clock {
+
+                width:
+                    100%;
+
+                border-left:
+                    none;
+
+                border-top:
+                    1px solid
+                    rgba(255,255,255,.3);
+
+                padding:
+                    18px 0 0;
+            }
+
+            .db-grid-4 {
+
+                grid-template-columns:
+                    1fr;
+            }
+
+            .db-filter-grid {
+
+                grid-template-columns:
+                    1fr;
+            }
+
+            .db-flow {
+
+                overflow-x:
+                    auto;
+            }
+        }
+
+    </style>
 }
-
-<style>
-    :root {
-        --db-paper: #F0F7F6;
-        --db-raised: #FFFFFF;
-        --db-ink: #102C27;
-        --db-ink-soft: #52716C;
-        --db-ink-faint: #8FA9A3;
-        --db-line: #E1EEEC;
-        --db-line-strong: #CCE3DF;
-
-        --db-teal: #0E8C7F;
-        --db-teal-deep: #0A5850;
-        --db-teal-dim: #E3F4F1;
-        --db-teal-grad-start: #12A392;
-        --db-teal-grad-end: #0A4F48;
-
-        --db-blue: #2C6E9E; --db-blue-dim: #E4F0F9;
-        --db-green: #2E8B57; --db-green-dim: #E4F5EB;
-        --db-purple: #6D4EA8; --db-purple-dim: #EEE8F9;
-        --db-red: #B0463F; --db-red-dim: #F7E8E7;
-        --db-orange: #B76A2C; --db-orange-dim: #FBEEE1;
-        --db-gold: #B4862A; --db-gold-dim: #FBF1DA;
-
-        --db-radius: 20px;
-        --db-radius-sm: 13px;
-        --db-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
-        --db-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
-    }
-
-    body { background: var(--db-paper); }
-
-    .db-wrap {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 26px 24px 60px;
-        color: var(--db-ink);
-        font-family: 'Inter', sans-serif;
-        animation: dbFadeIn .5s ease;
-    }
-
-    @@keyframes dbFadeIn {
-        from { opacity: 0; transform: translateY(12px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ============ BANNER ============ */
-    .db-banner {
-        position: relative;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 24px;
-        background: linear-gradient(125deg, var(--db-teal-grad-start), var(--db-teal-grad-end));
-        border-radius: var(--db-radius);
-        padding: 32px 36px;
-        margin-bottom: 22px;
-        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
-        overflow: hidden;
-    }
-    .db-banner-pattern {
-        position: absolute; inset: 0;
-        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%),
-                           radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
-        pointer-events: none;
-    }
-
-    .db-banner-left { display: flex; align-items: center; gap: 22px; position: relative; z-index: 1; }
-
-    .db-banner-icon {
-        position: relative;
-        width: 76px; height: 76px; border-radius: 50%;
-        background: rgba(255,255,255,.16);
-        border: 2px solid rgba(255,255,255,.32);
-        display: flex; align-items: center; justify-content: center;
-        color: #fff; font-size: 30px; flex-shrink: 0;
-    }
-    .db-icon-ring {
-        position: absolute; inset: -6px; border-radius: 50%;
-        border: 1.5px solid rgba(255,255,255,.4);
-        animation: dbRingPulse 2.4s ease-out infinite;
-    }
-    @@keyframes dbRingPulse {
-        0% { transform: scale(0.9); opacity: .8; }
-        100% { transform: scale(1.35); opacity: 0; }
-    }
-
-    .db-banner-text { position: relative; z-index: 1; }
-    .db-banner-text h1 {
-        font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 26px;
-        margin: 0 0 4px; color: #fff; letter-spacing: -.01em;
-    }
-    .db-banner-text h1 span { color: #E9FFFB; }
-    .db-banner-text p { margin: 0 0 14px; color: rgba(255,255,255,.85); font-size: 14.5px; }
-
-    .db-pills { display: flex; gap: 10px; flex-wrap: wrap; }
-    .db-pill {
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 7px 15px; border-radius: 999px;
-        background: rgba(255,255,255,.16); color: #fff;
-        font-size: 12.5px; font-weight: 500;
-    }
-
-    .db-clock {
-        position: relative; z-index: 1;
-        min-width: 230px; text-align: left;
-        border-left: 1px solid rgba(255,255,255,.28);
-        padding-left: 28px; flex-shrink: 0;
-    }
-    .db-clock small {
-        font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
-        color: #DFF9F8; font-size: 11px;
-    }
-    #currentDate { margin-top: 6px; font-size: 14px; color: #fff; }
-    #currentTime {
-        font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 600;
-        letter-spacing: .02em; color: #fff; margin-top: 2px;
-    }
-
-    /* ============ WORKFLOW PIPELINE (signature) ============ */
-    .db-pulse {
-        background: var(--db-raised);
-        border-radius: var(--db-radius);
-        box-shadow: var(--db-shadow);
-        padding: 26px 30px;
-        margin-bottom: 28px;
-    }
-    .db-pulse-label {
-        font-family: 'Inter', sans-serif; font-weight: 700; font-size: 12.5px;
-        letter-spacing: .03em; text-transform: uppercase; color: var(--db-teal-deep);
-        display: flex; align-items: center; gap: 8px; margin-bottom: 22px;
-    }
-
-    .db-flow { display: flex; align-items: flex-start; }
-    .db-flow-node { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; width: 130px; }
-    .db-flow-circle {
-        width: 48px; height: 48px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 18px; color: #fff; margin-bottom: 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,.12);
-    }
-    .db-flow-circle.n-teal { background: var(--db-teal); }
-    .db-flow-circle.n-blue { background: var(--db-blue); }
-    .db-flow-circle.n-green { background: var(--db-green); }
-    .db-flow-circle.n-purple { background: var(--db-purple); }
-    .db-flow-count { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 20px; color: var(--db-ink); }
-    .db-flow-label { font-size: 12px; color: var(--db-ink-soft); text-align: center; margin-top: 2px; }
-
-    .db-flow-line {
-        flex: 1 1 auto; height: 3px; background: var(--db-line);
-        border-radius: 3px; margin-top: 24px; position: relative; overflow: hidden;
-    }
-    .db-flow-line-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--db-teal); border-radius: 3px; }
-
-    .db-pulse-chips { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
-    .db-chip {
-        display: inline-flex; align-items: center; gap: 8px;
-        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12.5px;
-        padding: 8px 16px; border-radius: 999px;
-    }
-    .db-chip.chip-stat { background: var(--db-red-dim); color: var(--db-red); }
-    .db-chip.chip-overdue { background: var(--db-orange-dim); color: var(--db-orange); }
-
-    /* ============ SECTION HEADS ============ */
-    .db-section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-    .db-section-head h3 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 20px; margin: 0 0 3px; }
-    .db-section-head p { margin: 0; color: var(--db-ink-soft); font-size: 13.5px; }
-    .db-mt-lg { margin-top: 44px; }
-    .db-mb-lg { margin-bottom: 30px; }
-
-    /* ============ GRIDS ============ */
-    .db-grid { display: grid; gap: 18px; }
-    .db-grid-4 { grid-template-columns: repeat(4, 1fr); }
-    .db-grid-mt { margin-top: 18px; }
-
-    /* ============ STAT CARDS ============ */
-    .db-stat {
-        background: var(--db-raised);
-        border-radius: var(--db-radius);
-        box-shadow: var(--db-shadow-sm);
-        padding: 22px;
-        display: flex; align-items: center; gap: 16px;
-        border-top: 3px solid var(--db-teal);
-        transition: transform .2s, box-shadow .2s;
-    }
-    .db-stat:hover { transform: translateY(-5px); box-shadow: var(--db-shadow); }
-    .db-stat-urgent { border-top-color: var(--db-red); }
-
-    .db-stat-icon {
-        width: 54px; height: 54px; border-radius: 15px; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center; font-size: 21px;
-    }
-    .db-stat-icon.c-teal { background: var(--db-teal-dim); color: var(--db-teal); }
-    .db-stat-icon.c-teal-deep { background: var(--db-teal-dim); color: var(--db-teal-deep); }
-    .db-stat-icon.c-blue { background: var(--db-blue-dim); color: var(--db-blue); }
-    .db-stat-icon.c-green { background: var(--db-green-dim); color: var(--db-green); }
-    .db-stat-icon.c-purple { background: var(--db-purple-dim); color: var(--db-purple); }
-    .db-stat-icon.c-red { background: var(--db-red-dim); color: var(--db-red); }
-    .db-stat-icon.c-orange { background: var(--db-orange-dim); color: var(--db-orange); }
-    .db-stat-icon.c-gold { background: var(--db-gold-dim); color: var(--db-gold); }
-
-    .db-stat .num { font-family: 'Poppins', sans-serif; font-size: 27px; font-weight: 700; color: var(--db-ink); }
-    .db-stat h5 { margin: 2px 0 0; font-size: 13.5px; font-weight: 600; }
-    .db-stat small { color: var(--db-ink-faint); font-size: 12px; }
-
-    /* ============ QUICK ACTION CARDS ============ */
-    .db-action {
-        display: block; text-decoration: none; color: var(--db-ink);
-        background: var(--db-raised); border-radius: var(--db-radius);
-        padding: 28px 24px; text-align: left;
-        box-shadow: var(--db-shadow-sm);
-        position: relative; overflow: hidden;
-        transition: transform .25s, box-shadow .25s;
-    }
-    .db-action::before {
-        content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
-        background: linear-gradient(90deg, var(--db-teal), var(--db-teal-deep));
-    }
-    .db-action:hover { transform: translateY(-6px); box-shadow: var(--db-shadow); color: var(--db-ink); text-decoration: none; }
-    .db-action:hover .db-action-go { transform: translateX(4px); opacity: 1; }
-    .db-action-icon {
-        width: 54px; height: 54px; margin-bottom: 16px; border-radius: 16px;
-        background: var(--db-teal-dim); color: var(--db-teal);
-        display: flex; align-items: center; justify-content: center; font-size: 23px;
-    }
-    .db-action h5 { font-weight: 700; margin: 0 0 8px; font-size: 15px; }
-    .db-action p { color: var(--db-ink-soft); margin: 0; font-size: 13px; line-height: 1.6; }
-    .db-action-go {
-        display: inline-flex; margin-top: 14px; color: var(--db-teal);
-        opacity: .5; transition: transform .2s, opacity .2s; font-size: 13px;
-    }
-
-    /* ============ PERFORMANCE STRIP ============ */
-    .db-perf-strip {
-        background: var(--db-raised); border-radius: var(--db-radius);
-        box-shadow: var(--db-shadow-sm); display: flex; align-items: center;
-        padding: 22px 10px;
-    }
-    .db-perf-item { flex: 1; display: flex; align-items: center; gap: 14px; justify-content: center; }
-    .db-perf-icon {
-        width: 46px; height: 46px; border-radius: 50%;
-        background: var(--db-teal-dim); color: var(--db-teal);
-        display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
-    }
-    .db-perf-item h4 { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 700; margin: 0; text-align: left; }
-    .db-perf-item span { color: var(--db-ink-soft); font-size: 12.5px; }
-    .db-perf-div { width: 1px; align-self: stretch; background: var(--db-line); margin: 0 4px; }
-
-    /* ============ PANELS (filter / queue) ============ */
-    .db-panel {
-        background: var(--db-raised); border-radius: var(--db-radius);
-        box-shadow: var(--db-shadow); overflow: hidden;
-    }
-    .db-panel-head {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 18px 26px; border-bottom: 1px solid var(--db-line);
-    }
-    .db-panel-head span:first-child {
-        font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15.5px; color: var(--db-ink);
-        display: flex; align-items: center; gap: 10px;
-    }
-    .db-panel-head span:first-child i { color: var(--db-teal); }
-    .db-panel-head small { display: block; color: var(--db-ink-faint); font-size: 12.5px; margin-top: 2px; }
-    .db-panel-tag {
-        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11.5px;
-        background: var(--db-teal-dim); color: var(--db-teal-deep);
-        padding: 6px 13px; border-radius: 999px;
-    }
-    .db-panel-count {
-        font-family: 'Inter', sans-serif; font-weight: 700; font-size: 12.5px;
-        background: var(--db-teal); color: #fff; padding: 7px 15px; border-radius: 999px;
-    }
-    .db-panel-body { padding: 26px; }
-
-    /* ============ FILTER FORM ============ */
-    .db-filter-grid { display: grid; grid-template-columns: 1fr 1fr 1.4fr 1.4fr auto; gap: 16px; align-items: end; }
-    .db-field { display: flex; flex-direction: column; gap: 7px; }
-    .db-field label {
-        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px;
-        letter-spacing: .02em; color: var(--db-ink-soft);
-    }
-    .db-select, .db-input {
-        height: 46px; border-radius: var(--db-radius-sm); border: 1px solid var(--db-line-strong);
-        padding: 0 14px; font-family: 'Inter', sans-serif; font-size: 13.5px; color: var(--db-ink);
-        background: var(--db-raised); outline: none; transition: border-color .15s, box-shadow .15s;
-    }
-    .db-select:focus, .db-input:focus { border-color: var(--db-teal); box-shadow: 0 0 0 3px var(--db-teal-dim); }
-    .db-btn-apply {
-        height: 46px; border: none; border-radius: 999px; padding: 0 24px;
-        background: var(--db-teal); color: #fff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13.5px;
-        display: inline-flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; transition: .15s;
-    }
-    .db-btn-apply:hover { background: var(--db-teal-deep); }
-
-    /* ============ TABLE ============ */
-    .db-table-wrap { overflow-x: auto; }
-    .db-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    .db-table thead th {
-        text-align: left; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 11.5px;
-        letter-spacing: .04em; text-transform: uppercase; color: var(--db-ink-faint);
-        padding: 15px 22px; background: var(--db-teal-dim); white-space: nowrap;
-    }
-    .db-table tbody td { padding: 16px 22px; border-bottom: 1px solid var(--db-line); }
-    .db-table tbody tr:hover { background: var(--db-teal-dim); }
-    .db-table tbody tr:last-child td { border-bottom: none; }
-    .db-text-center { text-align: center; }
-
-    /* Urgency / status badges (for use once bound to Model) */
-    .db-badge {
-        display: inline-flex; align-items: center; gap: 6px;
-        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11.5px;
-        padding: 5px 12px; border-radius: 999px;
-    }
-    .db-badge.b-stat { background: var(--db-red-dim); color: var(--db-red); }
-    .db-badge.b-urgent { background: var(--db-orange-dim); color: var(--db-orange); }
-    .db-badge.b-routine { background: var(--db-teal-dim); color: var(--db-teal-deep); }
-
-    .db-empty { padding: 60px 24px; text-align: center; }
-    .db-empty i {
-        width: 96px; height: 96px; margin: 0 auto 20px; border-radius: 50%;
-        background: var(--db-teal-dim); color: var(--db-teal);
-        display: flex; align-items: center; justify-content: center; font-size: 42px;
-    }
-    .db-empty h3 { font-family: 'Poppins', sans-serif; font-weight: 700; margin: 0 0 10px; }
-    .db-empty p { color: var(--db-ink-soft); margin: 0 0 22px; line-height: 1.7; }
-
-    .db-btn-solid {
-        display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
-        background: var(--db-teal); color: #fff; border-radius: 999px; padding: 11px 22px;
-        font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13.5px; transition: .15s;
-    }
-    .db-btn-solid:hover { background: var(--db-teal-deep); color: #fff; }
-
-    /* ============ FOOTER ============ */
-    .db-footer { margin-top: 50px; text-align: center; }
-    .db-footer hr { border: none; border-top: 1px solid var(--db-line); margin-bottom: 22px; }
-    .db-footer-content {
-        display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px;
-        color: var(--db-ink-faint); font-size: 13px;
-    }
-    .db-footer-content i { color: var(--db-teal); }
-    .db-footer-divider { color: var(--db-line-strong); }
-
-    /* ============ RESPONSIVE ============ */
-    @@media (max-width: 1100px) {
-        .db-grid-4 { grid-template-columns: repeat(2, 1fr); }
-        .db-filter-grid { grid-template-columns: 1fr 1fr; }
-        .db-perf-strip { flex-wrap: wrap; gap: 16px; }
-        .db-perf-div { display: none; }
-    }
-
-    @@media (max-width: 900px) {
-        .db-banner { flex-direction: column; align-items: flex-start; gap: 24px; }
-        .db-clock { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.28); padding-left: 0; padding-top: 18px; }
-        .db-banner-left { flex-direction: column; text-align: center; width: 100%; }
-        .db-flow { overflow-x: auto; }
-    }
-
-    @@media (max-width: 640px) {
-        .db-wrap { padding: 20px 16px 50px; }
-        .db-grid-4 { grid-template-columns: 1fr; }
-        .db-filter-grid { grid-template-columns: 1fr; }
-        .db-panel-head { flex-direction: column; align-items: flex-start; gap: 10px; }
-        .db-flow-node { width: 100px; }
-        .db-flow-label { font-size: 10.5px; }
-    }
-</style>
-
-    }
 
     
     else if (User.IsInRole("Lab_Manager"))
