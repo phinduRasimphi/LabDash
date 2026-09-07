@@ -67,6 +67,100 @@
         </div>
     </div>
 
+        <!-- CURRENT TEST BEING PROCESSED -->
+    @if (Model.Any())
+    {
+        var currentTest = Model.FirstOrDefault(x => x.Status == "In Progress")
+                           ?? Model.FirstOrDefault();
+
+        if (currentTest != null)
+        {
+            <div class="current-test-card">
+
+                <div class="current-test-header">
+
+                    <div class="current-test-title">
+
+                        <div class="current-test-icon">
+                            <i class="fa-solid fa-flask"></i>
+                        </div>
+
+                        <div>
+                            <span class="current-test-label">
+                                CURRENT TEST BEING PROCESSED
+                            </span>
+
+                            <h2>@currentTest.TestType.Name</h2>
+
+                            <p>@currentTest.TestType.Category</p>
+                        </div>
+
+                    </div>
+
+                    <div class="current-test-status">
+                        <i class="fa-solid fa-circle"></i>
+                        IN PROGRESS
+                    </div>
+
+                </div>
+
+                <div class="current-test-body">
+
+                    <div class="current-test-item">
+                        <span>TEST TYPE</span>
+                        <strong>
+                            <i class="fa-solid fa-flask"></i>
+                            @currentTest.TestType.Name
+                        </strong>
+                    </div>
+
+                    <div class="current-test-item">
+                        <span>SAMPLE</span>
+                        <strong>
+                            <i class="fa-solid fa-vial"></i>
+                            @currentTest.TestType.RequiredSampleType
+                        </strong>
+                    </div>
+
+                    <div class="current-test-item">
+                        <span>PATIENT</span>
+                        <strong>
+                            @currentTest.TestRequest.Patient.Name
+                            @currentTest.TestRequest.Patient.Surname
+                        </strong>
+                    </div>
+
+                    <div class="current-test-item">
+                        <span>STARTED</span>
+                        <strong>
+                            @(currentTest.StartDateTime?.ToString("dd MMM yyyy HH:mm") ?? "Not started")
+                        </strong>
+                    </div>
+
+                </div>
+
+                <div class="current-test-footer">
+
+                    <div>
+                        <i class="fa-solid fa-circle-info"></i>
+                        You are currently processing this laboratory test.
+                    </div>
+
+                    <a asp-action="ProcessTest"
+                       asp-route-id="@currentTest.TestRequestItemId"
+                       class="current-test-button">
+
+                        <i class="fa-solid fa-arrow-right"></i>
+                        Continue Test
+
+                    </a>
+
+                </div>
+
+            </div>
+        }
+    }
+
     <div class="pg-search-row">
         <i class="fa-solid fa-magnifying-glass"></i>
         <input type="text" id="searchInput" class="pg-search" placeholder="Search patient or laboratory test..." />
@@ -274,6 +368,155 @@
     .pg-stat small { display: block; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--pg-ink-faint); margin-bottom: 4px; }
     .pg-stat .num { font-family: 'Poppins', sans-serif; font-size: 26px; font-weight: 700; color: var(--pg-ink); }
 
+    /* =========================================================
+       CURRENT TEST BEING PROCESSED
+       ========================================================= */
+
+    .current-test-card {
+        background: var(--pg-raised);
+        border-radius: var(--pg-radius);
+        margin-bottom: 26px;
+        border: 2px solid var(--pg-teal);
+        box-shadow: 0 6px 22px rgba(10, 88, 80, 0.10);
+        overflow: hidden;
+    }
+
+    .current-test-header {
+        background: linear-gradient( 120deg, var(--pg-teal-grad-start), var(--pg-teal-grad-end) );
+        color: #fff;
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+    }
+
+    .current-test-title {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .current-test-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.16);
+        border: 2px solid rgba(255,255,255,.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 21px;
+    }
+
+    .current-test-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        opacity: .85;
+        margin-bottom: 4px;
+    }
+
+    .current-test-header h2 {
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        font-size: 24px;
+        font-weight: 800;
+        color: #fff;
+    }
+
+    .current-test-header p {
+        margin: 3px 0 0;
+        font-size: 13px;
+        color: rgba(255,255,255,.85);
+    }
+
+    .current-test-status {
+        padding: 9px 15px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.14);
+        border: 1px solid rgba(255,255,255,.4);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+        .current-test-status i {
+            font-size: 8px;
+            margin-right: 6px;
+        }
+
+    .current-test-body {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        padding: 6px 20px;
+    }
+
+    .current-test-item {
+        padding: 17px 15px;
+        border-right: 1px solid var(--pg-line);
+    }
+
+        .current-test-item:last-child {
+            border-right: none;
+        }
+
+        .current-test-item span {
+            display: block;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: .05em;
+            color: var(--pg-ink-faint);
+            margin-bottom: 7px;
+        }
+
+        .current-test-item strong {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--pg-ink);
+        }
+
+            .current-test-item strong i {
+                color: var(--pg-teal);
+                margin-right: 6px;
+            }
+
+    .current-test-footer {
+        padding: 12px 20px;
+        background: var(--pg-teal-dim);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        color: var(--pg-teal-deep);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+        .current-test-footer i {
+            margin-right: 5px;
+        }
+
+    .current-test-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 15px;
+        border-radius: 999px;
+        background: var(--pg-teal);
+        color: #fff;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+        transition: .15s;
+    }
+
+        .current-test-button:hover {
+            background: var(--pg-teal-deep);
+            color: #fff;
+        }
     /* Search */
     .pg-search-row { margin-bottom: 22px; position: relative; }
     .pg-search-row i { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--pg-ink-faint); font-size: 14px; }
@@ -336,6 +579,23 @@
         .pg-banner { flex-direction: column; align-items: flex-start; gap: 16px; }
         .pg-stats { grid-template-columns: 1fr; }
         .pg-actions { flex-direction: column; }
+            .current-test-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .current-test-body {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .current-test-item:nth-child(2) {
+        border-right: none;
+    }
+
+    .current-test-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
     }
 </style>
 
