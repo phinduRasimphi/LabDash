@@ -292,7 +292,7 @@
 
 
     /* =========================================================
-           REQUIRED FIELD ERROR
+           INPUT ERROR
         ========================================================= */
 
     .form-control-custom.input-error {
@@ -306,6 +306,10 @@
             box-shadow: 0 0 0 3px rgba(217,45,32,.08);
         }
 
+
+    /* =========================================================
+           CUSTOM REQUIRED MESSAGE
+        ========================================================= */
 
     .required-error-message {
         display: none;
@@ -323,7 +327,7 @@
 
 
     /* =========================================================
-           SERVER VALIDATION MESSAGE
+           SERVER VALIDATION
         ========================================================= */
 
     .field-validation-error {
@@ -415,7 +419,7 @@
 
 
     /* =========================================================
-           ACTION BUTTONS
+           ACTIONS
         ========================================================= */
 
     .patient-actions {
@@ -424,6 +428,10 @@
         gap: 10px;
     }
 
+
+    /* =========================================================
+           CANCEL BUTTON
+        ========================================================= */
 
     .btn-cancel {
         min-width: 92px;
@@ -451,6 +459,10 @@
         }
 
 
+    /* =========================================================
+           REGISTER BUTTON
+        ========================================================= */
+
     .btn-save {
         min-width: 150px;
         height: 40px;
@@ -472,15 +484,62 @@
     }
 
 
-        .btn-save:hover {
+        .btn-save:hover:not(:disabled) {
             transform: translateY(-1px);
             box-shadow: 0 5px 13px rgba(18,107,101,.24);
         }
 
 
-        .btn-save:active {
+        .btn-save:active:not(:disabled) {
             transform: translateY(0);
         }
+
+
+        /* =========================================================
+           DISABLED REGISTER BUTTON
+        ========================================================= */
+
+        .btn-save:disabled {
+            background: #b7c7c5;
+            color: #f4f7f6;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+            opacity: 0.75;
+        }
+
+
+            .btn-save:disabled:hover {
+                transform: none;
+                box-shadow: none;
+            }
+
+
+        /* =========================================================
+           LOADING STATE
+        ========================================================= */
+
+        .btn-save.loading {
+            pointer-events: none;
+            opacity: .85;
+        }
+
+
+            .btn-save.loading i {
+                animation: buttonSpin 0.8s linear infinite;
+            }
+
+
+    keyframes buttonSpin {
+
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
 
 
     /* =========================================================
@@ -574,7 +633,7 @@
         border-radius: 7px;
         background: linear-gradient(135deg,#126b65,#1a8179);
         color: #ffffff;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter',sans-serif;
         font-size: 12px;
         font-weight: 600;
         cursor: pointer;
@@ -777,8 +836,9 @@
 
 <div class="patient-page">
 
+
     <!-- =====================================================
-         PAGE TITLE
+         TITLE
     ====================================================== -->
 
     <div class="patient-title-bar">
@@ -805,16 +865,14 @@
 
     <div class="patient-form-card">
 
-        <form asp-action="CreatePatient"
+        <form asp-controller="Doctor"
+              asp-action="CreatePatient"
               method="post"
+              id="createPatientForm"
               novalidate>
 
             @Html.AntiForgeryToken()
 
-
-            <!-- =================================================
-                 FORM BODY
-            ================================================== -->
 
             <div class="patient-form-body">
 
@@ -839,9 +897,7 @@
                     <div class="section-heading">
 
                         <div class="section-icon">
-
                             <i class="fas fa-user"></i>
-
                         </div>
 
                         <h2>Personal Details</h2>
@@ -856,9 +912,7 @@
                     <div class="patient-form-grid">
 
 
-                        <!-- =================================================
-                             FIRST NAME
-                        ================================================== -->
+                        <!-- FIRST NAME -->
 
                         <div class="form-group">
 
@@ -878,6 +932,12 @@
                                    autocomplete="given-name"
                                    required />
 
+
+                            <span class="required-error-message">
+                                This field is required.
+                            </span>
+
+
                             <span asp-validation-for="Name"
                                   class="field-validation-error">
                             </span>
@@ -885,9 +945,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             SURNAME
-                        ================================================== -->
+                        <!-- SURNAME -->
 
                         <div class="form-group">
 
@@ -907,6 +965,12 @@
                                    autocomplete="family-name"
                                    required />
 
+
+                            <span class="required-error-message">
+                                This field is required.
+                            </span>
+
+
                             <span asp-validation-for="Surname"
                                   class="field-validation-error">
                             </span>
@@ -914,9 +978,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             SOUTH AFRICAN ID
-                        ================================================== -->
+                        <!-- ID NUMBER -->
 
                         <div class="form-group">
 
@@ -934,9 +996,16 @@
                                    class="form-control-custom"
                                    placeholder="Enter 13-digit ID number"
                                    maxlength="13"
+                                   minlength="13"
                                    inputmode="numeric"
                                    autocomplete="off"
                                    required />
+
+
+                            <span class="required-error-message">
+                                This field is required.
+                            </span>
+
 
                             <span asp-validation-for="IDNumber"
                                   class="field-validation-error">
@@ -945,9 +1014,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             DATE OF BIRTH
-                        ================================================== -->
+                        <!-- DOB -->
 
                         <div class="form-group">
 
@@ -966,6 +1033,12 @@
                                    class="form-control-custom"
                                    required />
 
+
+                            <span class="required-error-message">
+                                This field is required.
+                            </span>
+
+
                             <span asp-validation-for="DOB"
                                   class="field-validation-error">
                             </span>
@@ -973,9 +1046,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             CELLPHONE
-                        ================================================== -->
+                        <!-- CELLPHONE -->
 
                         <div class="form-group">
 
@@ -996,6 +1067,12 @@
                                    autocomplete="tel"
                                    required />
 
+
+                            <span class="required-error-message">
+                                This field is required.
+                            </span>
+
+
                             <span asp-validation-for="CellphoneNumber"
                                   class="field-validation-error">
                             </span>
@@ -1003,9 +1080,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             EMAIL
-                        ================================================== -->
+                        <!-- EMAIL -->
 
                         <div class="form-group">
 
@@ -1026,6 +1101,12 @@
                                    autocomplete="email"
                                    required />
 
+
+                            <span class="required-error-message">
+                                This field is required.
+                            </span>
+
+
                             <span asp-validation-for="Email"
                                   class="field-validation-error">
                             </span>
@@ -1033,9 +1114,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             HOME ADDRESS
-                        ================================================== -->
+                        <!-- HOME ADDRESS -->
 
                         <div class="form-group full-width">
 
@@ -1055,6 +1134,12 @@
                                       rows="3"
                                       autocomplete="street-address"
                                       required></textarea>
+
+
+                            <span class="required-error-message">
+                                This field is required.
+                            </span>
+
 
                             <span asp-validation-for="HomeAddress"
                                   class="field-validation-error">
@@ -1093,9 +1178,7 @@
                     <div class="patient-form-grid">
 
 
-                        <!-- =================================================
-                             MEDICAL CONDITIONS
-                        ================================================== -->
+                        <!-- MEDICAL CONDITIONS -->
 
                         <div class="form-group">
 
@@ -1112,6 +1195,7 @@
                                       placeholder="Enter known medical conditions, if applicable"
                                       rows="4"></textarea>
 
+
                             <span asp-validation-for="MedicalConditions"
                                   class="field-validation-error">
                             </span>
@@ -1119,9 +1203,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             ALLERGIES
-                        ================================================== -->
+                        <!-- ALLERGIES -->
 
                         <div class="form-group">
 
@@ -1138,6 +1220,7 @@
                                       placeholder="Enter known allergies, if applicable"
                                       rows="4"></textarea>
 
+
                             <span asp-validation-for="Allergies"
                                   class="field-validation-error">
                             </span>
@@ -1145,9 +1228,7 @@
                         </div>
 
 
-                        <!-- =================================================
-                             MEDICATION
-                        ================================================== -->
+                        <!-- MEDICATION -->
 
                         <div class="form-group full-width">
 
@@ -1163,6 +1244,7 @@
                                       class="form-control-custom"
                                       placeholder="Enter current medication, if applicable"
                                       rows="3"></textarea>
+
 
                             <span asp-validation-for="Medication"
                                   class="field-validation-error">
@@ -1188,13 +1270,16 @@
 
                         <div class="patient-info-text">
 
-                            <strong>Patient Account Information</strong>
+                            <strong>
+                                Patient Account Information
+                            </strong>
 
                             <span>
-                                Once the patient is successfully registered,
-                                their laboratory account will be created.
-                                Any automatically generated login credentials
-                                will be handled securely by the system.
+                                A secure patient account will be created
+                                after registration. The patient will receive
+                                their login information by email and will be
+                                required to change their temporary password
+                                when logging in for the first time.
                             </span>
 
                         </div>
@@ -1208,7 +1293,7 @@
 
 
             <!-- =====================================================
-                 FORM FOOTER
+                 FOOTER
             ====================================================== -->
 
             <div class="patient-form-footer">
@@ -1218,7 +1303,7 @@
 
                     <span class="required">*</span>
 
-                    Required fields must be completed before registration.
+                    Required fields
 
                 </div>
 
@@ -1228,7 +1313,8 @@
 
                     <!-- CANCEL -->
 
-                    <a asp-action="ManagePatients"
+                    <a asp-controller="Doctor"
+                       asp-action="ManagePatients"
                        class="btn-cancel">
 
                         <i class="fas fa-arrow-left"
@@ -1244,7 +1330,8 @@
 
                     <button type="submit"
                             class="btn-save"
-                            id="registerPatientBtn">
+                            id="registerPatientBtn"
+                            disabled>
 
                         <i class="fas fa-user-plus"></i>
 
@@ -1264,49 +1351,6 @@
 
 
 <!-- =========================================================
-     SUCCESS MODAL
-========================================================= -->
-
-<div class="patient-success-overlay"
-     id="patientSuccessModal">
-
-    <div class="patient-success-modal">
-
-
-        <div class="success-icon">
-
-            <i class="fas fa-check"></i>
-
-        </div>
-
-
-        <h2>
-            Patient Registered Successfully
-        </h2>
-
-
-        <p>
-            The patient has been successfully registered
-            and their account has been created.
-        </p>
-
-
-        <button type="button"
-                class="success-modal-btn"
-                onclick="closeSuccessModal()">
-
-            <i class="fas fa-check"></i>
-
-            Continue
-
-        </button>
-
-    </div>
-
-</div>
-
-
-<!-- =========================================================
      JAVASCRIPT
 ========================================================= -->
 
@@ -1316,12 +1360,18 @@
 
 
         /* =====================================================
-           FORM
+           GET FORM ELEMENTS
         ===================================================== */
 
-        const form = document.querySelector('form');
+        const form =
+            document.getElementById('createPatientForm');
 
-        if (!form) {
+
+        const registerButton =
+            document.getElementById('registerPatientBtn');
+
+
+        if (!form || !registerButton) {
             return;
         }
 
@@ -1354,77 +1404,7 @@
 
 
         /* =====================================================
-           CREATE CUSTOM ERROR MESSAGE
-        ===================================================== */
-
-        requiredFields.forEach(function (field) {
-
-
-            let errorMessage =
-                field.parentElement.querySelector(
-                    '.required-error-message'
-                );
-
-
-            if (!errorMessage) {
-
-                errorMessage =
-                    document.createElement('span');
-
-                errorMessage.className =
-                    'required-error-message';
-
-                errorMessage.textContent =
-                    'This field is required.';
-
-                field.parentElement.appendChild(
-                    errorMessage
-                );
-
-            }
-
-
-            /* =================================================
-               USER TYPES
-            ================================================= */
-
-            field.addEventListener('input', function () {
-
-                if (field.value.trim() !== '') {
-
-                    clearFieldError(field);
-
-                }
-
-            });
-
-
-            /* =================================================
-               USER LEAVES FIELD
-            ================================================= */
-
-            field.addEventListener('blur', function () {
-
-                validateField(field);
-
-            });
-
-
-            /* =================================================
-               CHANGE EVENT
-            ================================================= */
-
-            field.addEventListener('change', function () {
-
-                validateField(field);
-
-            });
-
-        });
-
-
-        /* =====================================================
-           VALIDATE SINGLE FIELD
+           VALIDATE FIELD
         ===================================================== */
 
         function validateField(field) {
@@ -1448,19 +1428,25 @@
 
 
                 return false;
+            }
+
+
+            field.classList.remove('input-error');
+
+
+            if (errorMessage) {
+
+                errorMessage.classList.remove('show');
 
             }
 
 
-            clearFieldError(field);
-
             return true;
-
         }
 
 
         /* =====================================================
-           CLEAR FIELD ERROR
+           CLEAR ERROR
         ===================================================== */
 
         function clearFieldError(field) {
@@ -1479,12 +1465,267 @@
                 errorMessage.classList.remove('show');
 
             }
+        }
+
+
+        /* =====================================================
+           CHECK ALL REQUIRED FIELDS
+        ===================================================== */
+
+        function allRequiredFieldsFilled() {
+
+            return requiredFields.every(function (field) {
+
+                return field.value.trim() !== '';
+
+            });
 
         }
 
 
         /* =====================================================
-           VALIDATE ENTIRE FORM
+           ENABLE / DISABLE REGISTER BUTTON
+        ===================================================== */
+
+        function updateRegisterButton() {
+
+            const allFilled =
+                allRequiredFieldsFilled();
+
+
+            registerButton.disabled =
+                !allFilled;
+
+        }
+
+
+        /* =====================================================
+           FIELD EVENTS
+        ===================================================== */
+
+        requiredFields.forEach(function (field) {
+
+
+            /* -------------------------------------------------
+               WHEN USER TYPES
+            ------------------------------------------------- */
+
+            field.addEventListener('input', function () {
+
+                if (field.value.trim() !== '') {
+
+                    clearFieldError(field);
+
+                }
+
+
+                updateRegisterButton();
+
+            });
+
+
+            /* -------------------------------------------------
+               WHEN USER LEAVES FIELD
+            ------------------------------------------------- */
+
+            field.addEventListener('blur', function () {
+
+                if (field.value.trim() === '') {
+
+                    validateField(field);
+
+                }
+
+
+                updateRegisterButton();
+
+            });
+
+
+            /* -------------------------------------------------
+               CHANGE EVENT
+            ------------------------------------------------- */
+
+            field.addEventListener('change', function () {
+
+                if (field.value.trim() === '') {
+
+                    validateField(field);
+
+                }
+                else {
+
+                    clearFieldError(field);
+
+                }
+
+
+                updateRegisterButton();
+
+            });
+
+        });
+
+
+        /* =====================================================
+           SOUTH AFRICAN ID → DATE OF BIRTH
+        ===================================================== */
+
+        const idInput =
+            document.querySelector('[name="IDNumber"]');
+
+
+        const dobInput =
+            document.querySelector('[name="DOB"]');
+
+
+        if (idInput && dobInput) {
+
+
+            idInput.addEventListener('input', function () {
+
+
+                const id =
+                    idInput.value.trim();
+
+
+                /* Only allow numbers */
+
+                idInput.value =
+                    id.replace(/\D/g, '').substring(0, 13);
+
+
+                const cleanID =
+                    idInput.value;
+
+
+                /* -------------------------------------------------
+                   Need first six digits
+                ------------------------------------------------- */
+
+                if (cleanID.length < 6) {
+
+                    updateRegisterButton();
+
+                    return;
+                }
+
+
+                const yy =
+                    cleanID.substring(0, 2);
+
+
+                const mm =
+                    cleanID.substring(2, 4);
+
+
+                const dd =
+                    cleanID.substring(4, 6);
+
+
+                const month =
+                    parseInt(mm, 10);
+
+
+                const day =
+                    parseInt(dd, 10);
+
+
+                /* -------------------------------------------------
+                   Validate month
+                ------------------------------------------------- */
+
+                if (
+                    month < 1 ||
+                    month > 12
+                ) {
+
+                    updateRegisterButton();
+
+                    return;
+                }
+
+
+                /* -------------------------------------------------
+                   Validate day
+                ------------------------------------------------- */
+
+                if (
+                    day < 1 ||
+                    day > 31
+                ) {
+
+                    updateRegisterButton();
+
+                    return;
+                }
+
+
+                /* -------------------------------------------------
+                   Determine century
+                ------------------------------------------------- */
+
+                const currentYY =
+                    new Date().getFullYear() % 100;
+
+
+                const century =
+                    parseInt(yy, 10) > currentYY
+                        ? 1900
+                        : 2000;
+
+
+                const fullYear =
+                    century + parseInt(yy, 10);
+
+
+                const isoDate =
+                    `${fullYear}-${mm}-${dd}`;
+
+
+                /* -------------------------------------------------
+                   Validate actual date
+                ------------------------------------------------- */
+
+                const testDate =
+                    new Date(
+                        fullYear,
+                        month - 1,
+                        day
+                    );
+
+
+                if (
+                    testDate.getFullYear() !== fullYear ||
+                    testDate.getMonth() !== month - 1 ||
+                    testDate.getDate() !== day
+                ) {
+
+                    updateRegisterButton();
+
+                    return;
+                }
+
+
+                /* -------------------------------------------------
+                   Populate DOB
+                ------------------------------------------------- */
+
+                dobInput.value = isoDate;
+
+
+                clearFieldError(dobInput);
+
+
+                updateRegisterButton();
+
+            });
+
+        }
+
+
+        /* =====================================================
+           SUBMIT
         ===================================================== */
 
         form.addEventListener('submit', function (event) {
@@ -1518,13 +1759,16 @@
             });
 
 
-            /* =================================================
-               STOP SUBMISSION IF REQUIRED FIELD IS MISSING
-            ================================================= */
+            /* -------------------------------------------------
+               PREVENT SUBMISSION IF SOMETHING IS MISSING
+            ------------------------------------------------- */
 
             if (!formIsValid) {
 
                 event.preventDefault();
+
+
+                updateRegisterButton();
 
 
                 if (firstInvalidField) {
@@ -1547,215 +1791,43 @@
                 }
 
 
-                return false;
+                return;
             }
 
 
+            /* -------------------------------------------------
+               ALL REQUIRED INFORMATION IS PRESENT
+            ------------------------------------------------- */
+
+            registerButton.classList.add('loading');
+
+
+            registerButton.disabled = true;
+
+
+            registerButton.innerHTML = `
+                <i class="fas fa-spinner"></i>
+                <span>Registering...</span>
+            `;
+
+
             /*
-             * All required fields are completed.
+             * DO NOT preventDefault().
              *
-             * The form is allowed to submit to:
-             *
-             * CreatePatient
+             * The form will now be submitted normally
+             * to DoctorController.CreatePatient.
              */
+
         });
 
 
         /* =====================================================
-           SOUTH AFRICAN ID → DOB
+           INITIAL BUTTON STATE
         ===================================================== */
 
-        const idInput =
-            document.querySelector('[name="IDNumber"]');
-
-        const dobInput =
-            document.querySelector('[name="DOB"]');
-
-
-        if (idInput && dobInput) {
-
-
-            idInput.addEventListener('input', function () {
-
-
-                const id =
-                    idInput.value.trim();
-
-
-                /* ---------------------------------------------
-                   Need at least 6 digits
-                --------------------------------------------- */
-
-                if (
-                    id.length < 6 ||
-                    !/^\d{6,}/.test(id)
-                ) {
-
-                    return;
-
-                }
-
-
-                const yy =
-                    id.substring(0, 2);
-
-                const mm =
-                    id.substring(2, 4);
-
-                const dd =
-                    id.substring(4, 6);
-
-
-                const month =
-                    parseInt(mm, 10);
-
-                const day =
-                    parseInt(dd, 10);
-
-
-                /* ---------------------------------------------
-                   Validate month and day
-                --------------------------------------------- */
-
-                if (
-                    month < 1 ||
-                    month > 12 ||
-                    day < 1 ||
-                    day > 31
-                ) {
-
-                    return;
-
-                }
-
-
-                /* ---------------------------------------------
-                   Determine century
-                --------------------------------------------- */
-
-                const currentYY =
-                    new Date().getFullYear() % 100;
-
-
-                const century =
-                    parseInt(yy, 10) > currentYY
-                        ? 1900
-                        : 2000;
-
-
-                const fullYear =
-                    century + parseInt(yy, 10);
-
-
-                const isoDate =
-                    `${fullYear}-${mm}-${dd}`;
-
-
-                /* ---------------------------------------------
-                   Validate actual date
-                --------------------------------------------- */
-
-                const testDate =
-                    new Date(isoDate);
-
-
-                if (
-                    testDate.getFullYear() !== fullYear ||
-                    testDate.getMonth() + 1 !== month ||
-                    testDate.getDate() !== day
-                ) {
-
-                    return;
-
-                }
-
-
-                /* ---------------------------------------------
-                   Automatically populate DOB
-                --------------------------------------------- */
-
-                dobInput.value = isoDate;
-
-
-                /* ---------------------------------------------
-                   Clear DOB required error
-                --------------------------------------------- */
-
-                clearFieldError(dobInput);
-
-            });
-
-        }
-
+        updateRegisterButton();
 
     });
-
-
-    /* =========================================================
-       SHOW SUCCESS MODAL
-    ========================================================= */
-
-    function showSuccessModal() {
-
-        const modal =
-            document.getElementById(
-                'patientSuccessModal'
-            );
-
-
-        if (modal) {
-
-            modal.classList.add('show');
-
-        }
-
-    }
-
-
-    /* =========================================================
-       CLOSE SUCCESS MODAL
-    ========================================================= */
-
-    function closeSuccessModal() {
-
-        const modal =
-            document.getElementById(
-                'patientSuccessModal'
-            );
-
-
-        if (modal) {
-
-            modal.classList.remove('show');
-
-        }
-
-
-        window.location.href =
-            '@Url.Action("ManagePatients")';
-
-    }
-
-
-    /* =========================================================
-       SHOW SUCCESS MODAL AFTER SUCCESSFUL REGISTRATION
-    ========================================================= */
-
-    @if (TempData["PatientRegistered"] != null)
-    {
-            <text>
-
-                    document.addEventListener(
-                        'DOMContentLoaded',
-                        function () {
-
-                            showSuccessModal();
-
-                        }
-                    );
-
-            </text>
-    }
 
 </script>
 
