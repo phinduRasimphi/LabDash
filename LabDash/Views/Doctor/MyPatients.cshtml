@@ -1,0 +1,889 @@
+﻿@model IEnumerable<LabDash.Models.Patient>
+
+@{
+    ViewData["Title"] = "My Patients";
+    ViewData["ActivePage"] = "MyPatients";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+}
+
+<style>
+    /* =========================================================
+           MY PATIENTS PAGE
+           ========================================================= */
+
+    .patients-page {
+        width: 100%;
+        padding: 30px 35px 50px;
+        box-sizing: border-box;
+    }
+
+    /* =========================================================
+           PAGE HEADER
+           ========================================================= */
+
+    .patients-header {
+        text-align: center;
+        margin-bottom: 35px;
+    }
+
+    .patients-header-icon {
+        width: 70px;
+        height: 70px;
+        margin: 0 auto 15px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        font-size: 28px;
+        box-shadow: 0 10px 25px rgba(13, 107, 99, 0.20);
+    }
+
+    .patients-header h1 {
+        margin: 0;
+        color: #1a2f4e;
+        font-size: 38px;
+        font-weight: 800;
+        letter-spacing: -0.8px;
+    }
+
+    .patients-header p {
+        margin: 10px auto 0;
+        max-width: 650px;
+        color: #64748b;
+        font-size: 15px;
+        line-height: 1.6;
+    }
+
+    .header-line {
+        width: 65px;
+        height: 4px;
+        margin: 18px auto 0;
+        border-radius: 20px;
+        background: linear-gradient(90deg, #0d6b63, #1a8c82);
+    }
+
+    /* =========================================================
+           TOP ACTIONS
+           ========================================================= */
+
+    .patients-actions {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 30px;
+    }
+
+    .patient-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        padding: 12px 20px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 700;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+
+    .patient-action-primary {
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        box-shadow: 0 5px 15px rgba(13, 107, 99, 0.18);
+    }
+
+        .patient-action-primary:hover {
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(13, 107, 99, 0.25);
+        }
+
+    .patient-action-secondary {
+        background: white;
+        color: #1a2f4e;
+        border-color: #dce4eb;
+    }
+
+        .patient-action-secondary:hover {
+            color: #0d6b63;
+            border-color: #0d6b63;
+            transform: translateY(-2px);
+        }
+
+    /* =========================================================
+           SUMMARY BAR
+           ========================================================= */
+
+    .patients-summary {
+        max-width: 1200px;
+        margin: 0 auto 25px;
+        background: white;
+        border: 1px solid #e5eaf0;
+        border-radius: 14px;
+        padding: 18px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        box-shadow: 0 4px 15px rgba(15, 23, 42, 0.04);
+    }
+
+    .summary-left {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+    }
+
+    .summary-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: #e8f5f3;
+        color: #0d6b63;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+
+    .summary-text strong {
+        display: block;
+        color: #1a2f4e;
+        font-size: 15px;
+        font-weight: 800;
+    }
+
+    .summary-text span {
+        display: block;
+        margin-top: 3px;
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .patient-count {
+        min-width: 45px;
+        height: 45px;
+        padding: 0 12px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    /* =========================================================
+           PATIENT GRID
+           ========================================================= */
+
+    .patients-grid {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 22px;
+    }
+
+    /* =========================================================
+           PATIENT FOLDER
+           ========================================================= */
+
+    .patient-folder {
+        background: white;
+        border: 1px solid #e3e8ee;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 7px 20px rgba(15, 23, 42, 0.05);
+        transition: all 0.25s ease;
+        position: relative;
+    }
+
+        .patient-folder:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.10);
+            border-color: #b9dcd7;
+        }
+
+    /* Folder top strip */
+
+    .folder-strip {
+        height: 7px;
+        background: linear-gradient(90deg, #0d6b63, #1a8c82);
+    }
+
+    /* Folder header */
+
+    .folder-header {
+        padding: 22px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .patient-avatar {
+        width: 58px;
+        height: 58px;
+        min-width: 58px;
+        border-radius: 15px;
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 800;
+        text-transform: uppercase;
+        box-shadow: 0 5px 14px rgba(13, 107, 99, 0.18);
+    }
+
+    .patient-main-info {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .patient-name {
+        margin: 0;
+        color: #1a2f4e;
+        font-size: 18px;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .patient-id {
+        margin-top: 5px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+        .patient-id i {
+            margin-right: 4px;
+            color: #0d6b63;
+        }
+
+    .folder-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 9px;
+        border-radius: 20px;
+        background: #e8f5f3;
+        color: #0d6b63;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    /* =========================================================
+           PATIENT INFORMATION
+           ========================================================= */
+
+    .patient-details {
+        padding: 0 22px 22px;
+    }
+
+    .details-divider {
+        height: 1px;
+        background: #edf1f4;
+        margin-bottom: 18px;
+    }
+
+    .patient-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .patient-info-item {
+        padding: 12px;
+        background: #f8fafb;
+        border: 1px solid #edf1f4;
+        border-radius: 10px;
+    }
+
+        .patient-info-item label {
+            display: block;
+            margin-bottom: 5px;
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .patient-info-item span {
+            display: block;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .patient-info-item i {
+            color: #0d6b63;
+            margin-right: 5px;
+        }
+
+    /* =========================================================
+           MEDICAL SUMMARY
+           ========================================================= */
+
+    .medical-summary {
+        margin-top: 16px;
+        padding: 15px;
+        border-radius: 12px;
+        background: #f8fafb;
+        border: 1px solid #edf1f4;
+    }
+
+    .medical-summary-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        color: #1a2f4e;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+        .medical-summary-title i {
+            color: #0d6b63;
+        }
+
+    .medical-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 7px 0;
+        border-bottom: 1px solid #e9eef2;
+        font-size: 12px;
+    }
+
+        .medical-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+    .medical-label {
+        color: #64748b;
+        font-weight: 600;
+        min-width: 100px;
+    }
+
+    .medical-value {
+        color: #334155;
+        text-align: right;
+        font-weight: 600;
+        word-break: break-word;
+    }
+
+    /* =========================================================
+           FOLDER FOOTER
+           ========================================================= */
+
+    .folder-footer {
+        padding: 15px 22px;
+        background: #fafcfd;
+        border-top: 1px solid #edf1f4;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .open-folder-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 17px;
+        border-radius: 9px;
+        background: #0d6b63;
+        color: white;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 800;
+        transition: all 0.2s ease;
+    }
+
+        .open-folder-btn:hover {
+            background: #09564f;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+    /* =========================================================
+           EMPTY STATE
+           ========================================================= */
+
+    .empty-state {
+        max-width: 650px;
+        margin: 30px auto;
+        padding: 60px 30px;
+        background: white;
+        border: 1px solid #e5eaf0;
+        border-radius: 18px;
+        text-align: center;
+        box-shadow: 0 7px 20px rgba(15, 23, 42, 0.05);
+    }
+
+    .empty-icon {
+        width: 75px;
+        height: 75px;
+        margin: 0 auto 18px;
+        border-radius: 20px;
+        background: #e8f5f3;
+        color: #0d6b63;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+    }
+
+    .empty-state h3 {
+        margin: 0;
+        color: #1a2f4e;
+        font-size: 21px;
+        font-weight: 800;
+    }
+
+    .empty-state p {
+        margin: 8px auto 22px;
+        max-width: 450px;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+
+    media (max-width: 1000px) {
+
+        .patients-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .patients-page {
+            padding: 25px 20px 40px;
+        }
+    }
+
+    media (max-width: 650px) {
+
+        .patients-header h1 {
+            font-size: 30px;
+        }
+
+        .patients-header p {
+            font-size: 13px;
+        }
+
+        .patients-summary {
+            padding: 15px;
+        }
+
+        .patients-actions {
+            flex-direction: column;
+        }
+
+        .patient-action-btn {
+            width: 100%;
+        }
+
+        .folder-header {
+            padding: 18px;
+        }
+
+        .patient-details {
+            padding: 0 18px 18px;
+        }
+
+        .folder-footer {
+            padding: 13px 18px;
+        }
+
+        .patient-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .patient-name {
+            font-size: 16px;
+        }
+
+        .folder-badge {
+            display: none;
+        }
+    }
+
+    media (max-width: 420px) {
+
+        .patients-page {
+            padding: 20px 12px 35px;
+        }
+
+        .patients-header-icon {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+        }
+
+        .patients-header h1 {
+            font-size: 27px;
+        }
+
+        .patient-avatar {
+            width: 50px;
+            height: 50px;
+            min-width: 50px;
+            font-size: 15px;
+        }
+
+        .medical-item {
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .medical-value {
+            text-align: left;
+        }
+    }
+</style>
+
+
+<div class="patients-page">
+
+    <!-- =====================================================
+         PAGE HEADER
+         ===================================================== -->
+
+    <div class="patients-header">
+
+        <div class="patients-header-icon">
+            <i class="fas fa-users"></i>
+        </div>
+
+        <h1>My Patients</h1>
+
+        <p>
+            View and manage the patient folders registered in the
+            NMB Haematology Laboratory system.
+        </p>
+
+        <div class="header-line"></div>
+
+    </div>
+
+
+    <!-- =====================================================
+         ACTION BUTTONS
+         ===================================================== -->
+
+    <div class="patients-actions">
+
+        <a href="@Url.Action("ManagePatients", "Doctor")"
+           class="patient-action-btn patient-action-secondary">
+
+            <i class="fas fa-search"></i>
+
+            Search Patient
+
+        </a>
+
+
+        <a href="@Url.Action("CreatePatient", "Doctor")"
+           class="patient-action-btn patient-action-primary">
+
+            <i class="fas fa-user-plus"></i>
+
+            Register Patient
+
+        </a>
+
+    </div>
+
+
+    <!-- =====================================================
+         PATIENT COUNT
+         ===================================================== -->
+
+    <div class="patients-summary">
+
+        <div class="summary-left">
+
+            <div class="summary-icon">
+                <i class="fas fa-folder-open"></i>
+            </div>
+
+            <div class="summary-text">
+
+                <strong>Registered Patient Folders</strong>
+
+                <span>
+                    Patient records currently available to you
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="patient-count">
+            @Model.Count()
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         PATIENT FOLDERS
+         ===================================================== -->
+    @if (Model != null && Model.Any())
+    {
+        <div class="patients-grid">
+
+            @foreach (var patient in Model)
+            {
+                string firstInitial =
+                    !string.IsNullOrWhiteSpace(patient.Name)
+                        ? patient.Name.Substring(0, 1).ToUpper()
+                        : "?";
+
+                string surnameInitial =
+                    !string.IsNullOrWhiteSpace(patient.Surname)
+                        ? patient.Surname.Substring(0, 1).ToUpper()
+                        : "?";
+
+                <div class="patient-folder">
+
+                    <!-- Folder strip -->
+                    <div class="folder-strip"></div>
+
+
+                    <!-- Patient header -->
+                    <div class="folder-header">
+
+                        <div class="patient-avatar">
+                            @firstInitial@surnameInitial
+                        </div>
+
+                        <div class="patient-main-info">
+
+                            <h2 class="patient-name">
+                                @patient.Name @patient.Surname
+                            </h2>
+
+                            <div class="patient-id">
+                                <i class="fas fa-id-card"></i>
+                                @patient.IDNumber
+                            </div>
+
+                        </div>
+
+                        <div class="folder-badge">
+                            <i class="fas fa-check-circle"></i>
+                            Registered
+                        </div>
+
+                    </div>
+
+
+                    <!-- Patient details -->
+                    <div class="patient-details">
+
+                        <div class="details-divider"></div>
+
+
+                        <div class="patient-info-grid">
+
+                            <div class="patient-info-item">
+
+                                <label>
+                                    <i class="fas fa-calendar"></i>
+                                    Date of Birth
+                                </label>
+
+                                <span>
+                                    @patient.DOB.ToString("dd MMM yyyy")
+                                </span>
+
+                            </div>
+
+
+                            <div class="patient-info-item">
+
+                                <label>
+                                    <i class="fas fa-phone"></i>
+                                    Cellphone
+                                </label>
+
+                                <span>
+                                    @(string.IsNullOrWhiteSpace(patient.CellphoneNumber)
+                                        ? "Not provided"
+                                        : patient.CellphoneNumber)
+                                </span>
+
+                            </div>
+
+
+                            <div class="patient-info-item">
+
+                                <label>
+                                    <i class="fas fa-envelope"></i>
+                                    Email
+                                </label>
+
+                                <span>
+                                    @(string.IsNullOrWhiteSpace(patient.Email)
+                                        ? "Not provided"
+                                        : patient.Email)
+                                </span>
+
+                            </div>
+
+
+                            <div class="patient-info-item">
+
+                                <label>
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    Address
+                                </label>
+
+                                <span>
+                                    @(string.IsNullOrWhiteSpace(patient.HomeAddress)
+                                        ? "Not provided"
+                                        : patient.HomeAddress)
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- Medical summary -->
+
+                        <div class="medical-summary">
+
+                            <div class="medical-summary-title">
+
+                                <i class="fas fa-notes-medical"></i>
+
+                                Medical Summary
+
+                            </div>
+
+
+                            <div class="medical-item">
+
+                                <span class="medical-label">
+                                    Conditions
+                                </span>
+
+                                <span class="medical-value">
+
+                                    @(string.IsNullOrWhiteSpace(patient.MedicalConditions)
+                                        ? "None recorded"
+                                        : patient.MedicalConditions)
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="medical-item">
+
+                                <span class="medical-label">
+                                    Allergies
+                                </span>
+
+                                <span class="medical-value">
+
+                                    @(string.IsNullOrWhiteSpace(patient.Allergies)
+                                        ? "None recorded"
+                                        : patient.Allergies)
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="medical-item">
+
+                                <span class="medical-label">
+                                    Medication
+                                </span>
+
+                                <span class="medical-value">
+
+                                    @(string.IsNullOrWhiteSpace(patient.Medication)
+                                        ? "None recorded"
+                                        : patient.Medication)
+
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Folder footer -->
+
+                    <div class="folder-footer">
+
+                        <a href="@Url.Action("ManagePatients", "Doctor", new { searchIDNumber = patient.IDNumber })"
+                           class="open-folder-btn">
+
+                            <i class="fas fa-folder-open"></i>
+
+                            Open Patient Folder
+
+                        </a>
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+    }
+    else
+    {
+        <!-- =================================================
+             EMPTY STATE
+             ================================================== -->
+
+        <div class="empty-state">
+
+            <div class="empty-icon">
+                <i class="fas fa-folder-open"></i>
+            </div>
+
+            <h3>No Patients Registered</h3>
+
+            <p>
+                There are currently no patient records available.
+                Register a new patient to create their patient folder.
+            </p>
+
+            <a href="@Url.Action("CreatePatient", "Doctor")"
+               class="patient-action-btn patient-action-primary">
+
+                <i class="fas fa-user-plus"></i>
+
+                Register First Patient
+
+            </a>
+
+        </div>
+    }
+
+</div>

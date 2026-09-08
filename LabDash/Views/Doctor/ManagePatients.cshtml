@@ -1,4 +1,6 @@
-﻿@model LabDash.ViewModels.ManagePatientsViewModel
+﻿
+@model LabDash.ViewModels.ManagePatientsViewModel
+
 @{
     ViewData["Title"] = "Manage Patients";
     ViewData["ActivePage"] = "ManagePatients";
@@ -6,404 +8,1449 @@
 }
 
 <style>
-    .mp-page-header {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-bottom: 20px;
+
+    /* =========================================================
+           MANAGE PATIENTS PAGE
+           ========================================================= */
+
+    .mp-wrapper {
+        width: 100%;
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 5px 0 45px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #1e293b;
     }
 
-    .mp-header-actions {
+
+    /* =========================================================
+           CENTERED PAGE HEADER
+           ========================================================= */
+
+    .mp-page-header {
+        width: 100%;
+        text-align: center;
+        margin: 5px 0 32px;
+        padding: 20px 20px 8px;
+    }
+
+    .mp-title-area {
         display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         gap: 10px;
     }
 
-    .mp-action-btn {
-        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 18px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
+    .mp-title-icon {
+        width: 66px;
+        height: 66px;
+        border-radius: 18px;
+        background: linear-gradient( 135deg, #0d6b63, #159d91 );
+        color: #ffffff;
+        display: flex;
         align-items: center;
-        gap: 7px;
-        box-shadow: 0 2px 6px rgba(13, 107, 99, 0.25);
-        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        justify-content: center;
+        font-size: 28px;
+        box-shadow: 0 8px 25px rgba(13, 107, 99, 0.22);
+        margin-bottom: 5px;
     }
 
-        .mp-action-btn:hover {
-            background: linear-gradient(135deg, #1a8c82, #0d6b63);
+    .mp-page-title {
+        margin: 0;
+        font-size: 36px;
+        line-height: 1.15;
+        font-weight: 800;
+        letter-spacing: -1px;
+        color: #172b4d;
+    }
+
+    .mp-page-subtitle {
+        margin: 8px 0 0;
+        font-size: 14px;
+        color: #7a8da8;
+        font-weight: 400;
+        line-height: 1.5;
+    }
+
+    .mp-page-header::after {
+        content: "";
+        display: block;
+        width: 58px;
+        height: 4px;
+        margin: 18px auto 0;
+        border-radius: 10px;
+        background: linear-gradient( 90deg, #0d6b63, #159d91 );
+    }
+
+
+    /* =========================================================
+           HEADER BUTTONS
+           ========================================================= */
+
+    .mp-header-actions {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .mp-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 41px;
+        padding: 9px 17px;
+        border-radius: 9px;
+        font-size: 12.5px;
+        font-weight: 650;
+        text-decoration: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all .2s ease;
+        white-space: nowrap;
+    }
+
+    .mp-btn-primary {
+        color: #ffffff;
+        background: linear-gradient( 135deg, #0d6b63, #159d91 );
+        box-shadow: 0 4px 12px rgba(13, 107, 99, .18);
+    }
+
+        .mp-btn-primary:hover {
+            color: #ffffff;
             transform: translateY(-1px);
-            box-shadow: 0 4px 10px rgba(13, 107, 99, 0.32);
-            color: white;
+            box-shadow: 0 7px 18px rgba(13, 107, 99, .25);
+            background: linear-gradient( 135deg, #095c55, #118c81 );
         }
 
-        .mp-action-btn.mp-action-secondary {
-            background: white;
+    .mp-btn-outline {
+        color: #0d6b63;
+        background: #ffffff;
+        border-color: #d5e4e2;
+    }
+
+        .mp-btn-outline:hover {
             color: #0d6b63;
-            border: 1px solid #0d6b63;
-            box-shadow: none;
+            background: #f1f8f7;
+            border-color: #0d6b63;
         }
 
-            .mp-action-btn.mp-action-secondary:hover {
-                background: rgba(13, 107, 99, 0.08);
-                color: #0d6b63;
-                box-shadow: none;
-            }
+
+    /* =========================================================
+           SEARCH CARD
+           ========================================================= */
+
+    .mp-search-card {
+        background: #ffffff;
+        border: 1px solid #e8edf2;
+        border-radius: 14px;
+        padding: 19px;
+        margin-bottom: 23px;
+        box-shadow: 0 3px 14px rgba(15, 23, 42, .045);
+    }
+
+    .mp-search-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 13px;
+    }
+
+    .mp-search-heading-icon {
+        width: 35px;
+        height: 35px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #eaf6f4;
+        color: #0d6b63;
+        font-size: 14px;
+    }
+
+    .mp-search-heading h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: #243b53;
+    }
+
+    .mp-search-heading span {
+        display: block;
+        margin-top: 2px;
+        font-size: 11px;
+        color: #8795a8;
+    }
 
     .mp-search-bar {
         display: flex;
         gap: 10px;
-        margin-bottom: 20px;
+        width: 100%;
     }
 
-        .mp-search-bar input {
-            flex: 1;
-            padding: 10px 14px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: 'Inter', sans-serif;
+    .mp-search-input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+        .mp-search-input-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8b9aaf;
+            font-size: 13px;
+            pointer-events: none;
+        }
+
+    .mp-search-input {
+        width: 100%;
+        height: 45px;
+        padding: 0 14px 0 40px;
+        border: 1px solid #dfe6ed;
+        border-radius: 9px;
+        background: #f9fbfc;
+        color: #26384d;
+        font-size: 13px;
+        outline: none;
+        transition: all .2s ease;
+        box-sizing: border-box;
+    }
+
+        .mp-search-input::placeholder {
+            color: #9aa8b8;
+        }
+
+        .mp-search-input:focus {
+            border-color: #0d6b63;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(13, 107, 99, .09);
         }
 
     .mp-search-btn {
-        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        color: white;
+        height: 45px;
+        padding: 0 23px;
         border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        font-size: 13px;
-        font-weight: 600;
+        border-radius: 9px;
+        background: linear-gradient( 135deg, #0d6b63, #159d91 );
+        color: #ffffff;
+        font-size: 12.5px;
+        font-weight: 650;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all .2s ease;
+        box-shadow: 0 4px 10px rgba(13, 107, 99, .16);
+    }
+
+        .mp-search-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(13, 107, 99, .22);
+        }
+
+
+    /* =========================================================
+           PATIENT CARD
+           ========================================================= */
+
+    .mp-patient-card {
+        background: #ffffff;
+        border: 1px solid #e5ebf0;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 5px 22px rgba(15, 23, 42, .055);
+        animation: mpFadeIn .25s ease;
+    }
+
+    keyframes mpFadeIn {
+
+        from {
+            opacity: 0;
+            transform: translateY(5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+
+    /* =========================================================
+           PATIENT HEADER
+           ========================================================= */
+
+    .mp-patient-header {
+        background: linear-gradient( 135deg, #0b5f58 0%, #0d6b63 55%, #159d91 100% );
+        color: #ffffff;
+        padding: 22px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: relative;
         cursor: pointer;
     }
 
-    .mp-folder {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(13, 107, 99, 0.1);
-        overflow: hidden;
-    }
+        .mp-patient-header::after {
+            content: "";
+            position: absolute;
+            width: 190px;
+            height: 190px;
+            right: -75px;
+            top: -105px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.06);
+            pointer-events: none;
+        }
 
-    .mp-folder-header {
-        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        color: white;
-        padding: 18px 22px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-    }
-
-    .mp-folder-avatar {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
+    .mp-patient-avatar {
+        width: 58px;
+        height: 58px;
+        min-width: 58px;
+        border-radius: 15px;
+        background: rgba(255,255,255,.16);
+        border: 1px solid rgba(255,255,255,.25);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
-        font-size: 16px;
+        font-size: 18px;
+        font-weight: 750;
+        letter-spacing: .5px;
     }
 
-    .mp-folder-name {
-        font-size: 17px;
-        font-weight: 700;
+    .mp-patient-main {
+        flex: 1;
+        min-width: 0;
     }
 
-    .mp-folder-sub {
-        font-size: 12px;
-        opacity: 0.85;
+    .mp-patient-name {
+        margin: 0 0 4px;
+        font-size: 18px;
+        font-weight: 750;
+        letter-spacing: -.2px;
     }
 
-    .mp-folder-body {
-        padding: 20px 22px;
-    }
-
-    .mp-info-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-bottom: 18px;
-    }
-
-    .mp-info-item label {
-        display: block;
-        font-size: 10px;
-        font-weight: 600;
-        color: #7a8da8;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        margin-bottom: 3px;
-    }
-
-    .mp-info-item span {
-        font-size: 13px;
-        color: #1a2f4e;
-        font-weight: 500;
-    }
-
-    .mp-section-title {
-        font-size: 12px;
-        font-weight: 700;
-        color: #1a2f4e;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        margin: 18px 0 10px;
-        padding-top: 14px;
-        border-top: 1px solid #f0f2f5;
-    }
-
-    .mp-form-group label {
-        display: block;
-        font-size: 11px;
-        font-weight: 600;
-        color: #4a5c7c;
-        margin-bottom: 4px;
-    }
-
-    .mp-form-group textarea {
-        width: 100%;
-        border: 1px solid #e2e8f0;
-        border-radius: 7px;
-        padding: 8px 10px;
-        font-size: 13px;
-        font-family: 'Inter', sans-serif;
-        min-height: 60px;
-        resize: vertical;
-        margin-bottom: 12px;
-    }
-
-    .mp-btn-save {
-        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        color: white;
-        border: none;
-        border-radius: 7px;
-        padding: 10px 18px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .mp-not-found {
-        background: white;
-        border-radius: 12px;
-        padding: 40px 24px;
-        text-align: center;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-        .mp-not-found i {
-            font-size: 32px;
-            color: #dc3545;
-            margin-bottom: 10px;
-            display: block;
-        }
-
-        .mp-not-found h3 {
-            font-size: 15px;
-            color: #1a2f4e;
-            margin-bottom: 6px;
-        }
-
-        .mp-not-found p {
-            font-size: 13px;
-            color: #7a8da8;
-            margin-bottom: 16px;
-        }
-
-    .mp-register-btn {
-        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        font-size: 13px;
-        font-weight: 600;
-        text-decoration: none;
-        display: inline-block;
-    }
-
-    .mp-folder-header {
-        cursor: pointer;
-    }
-
-    .mp-open-btn {
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        border-radius: 7px;
-        padding: 7px 14px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
+    .mp-patient-id {
+        margin: 0;
+        color: rgba(255,255,255,.78);
+        font-size: 11.5px;
         display: flex;
         align-items: center;
         gap: 6px;
+    }
+
+    .mp-patient-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 11px;
+        background: rgba(255,255,255,.13);
+        border: 1px solid rgba(255,255,255,.20);
+        border-radius: 20px;
+        font-size: 10.5px;
+        font-weight: 600;
         white-space: nowrap;
     }
 
-    .mp-folder-actions {
-        display: flex;
-        gap: 10px;
+    .mp-status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #8ff0c9;
+        box-shadow: 0 0 0 3px rgba(143,240,201,.13);
     }
 
-    .mp-btn-newtest {
-        background: white;
-        color: #0d6b63;
-        border: 1px solid #0d6b63;
-        border-radius: 7px;
-        padding: 10px 18px;
-        font-size: 13px;
-        font-weight: 600;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .mp-btn-newtest {
-        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        color: white;
-        border: none;
-        border-radius: 7px;
-        padding: 10px 18px;
-        font-size: 13px;
-        font-weight: 600;
+    .mp-open-btn {
+        position: relative;
+        z-index: 2;
+        height: 38px;
+        padding: 0 15px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,.32);
+        background: rgba(255,255,255,.12);
+        color: #ffffff;
+        font-size: 11.5px;
+        font-weight: 650;
         cursor: pointer;
-        text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        justify-content: center;
+        gap: 7px;
+        transition: all .2s ease;
+        white-space: nowrap;
     }
 
-        .mp-btn-newtest:hover {
-            background: linear-gradient(135deg, #1a8c82, #0d6b63);
+        .mp-open-btn:hover {
+            background: rgba(255,255,255,.22);
+            border-color: rgba(255,255,255,.5);
         }
 
 
-    .mp-open-btn:hover {
-        background: rgba(255, 255, 255, 0.3);
+    /* =========================================================
+           PATIENT BODY
+           ========================================================= */
+
+    .mp-patient-body {
+        padding: 25px;
+        background: #ffffff;
     }
+
+
+    /* =========================================================
+           SECTION HEADINGS
+           ========================================================= */
+
+    .mp-info-section {
+        margin-bottom: 25px;
+    }
+
+    .mp-section-heading {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 14px;
+    }
+
+    .mp-section-heading-icon {
+        width: 31px;
+        height: 31px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef7f6;
+        color: #0d6b63;
+        font-size: 12px;
+    }
+
+    .mp-section-heading h3 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+        color: #243b53;
+    }
+
+    .mp-section-heading p {
+        margin: 2px 0 0;
+        font-size: 10.5px;
+        color: #8997a9;
+    }
+
+
+    /* =========================================================
+           PATIENT INFORMATION GRID
+           ========================================================= */
+
+    .mp-info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 11px;
+    }
+
+    .mp-info-item {
+        min-width: 0;
+        padding: 14px;
+        background: #f8fafb;
+        border: 1px solid #edf1f4;
+        border-radius: 9px;
+        transition: all .18s ease;
+    }
+
+        .mp-info-item:hover {
+            border-color: #d8e8e6;
+            background: #fbfdfd;
+        }
+
+        .mp-info-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #8291a5;
+            text-transform: uppercase;
+            letter-spacing: .55px;
+        }
+
+        .mp-info-item span {
+            display: block;
+            color: #26384d;
+            font-size: 12px;
+            font-weight: 550;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+
+
+    /* =========================================================
+           MEDICAL INFORMATION
+           ========================================================= */
+
+    .mp-medical-section {
+        padding-top: 23px;
+        border-top: 1px solid #edf1f4;
+    }
+
+    .mp-medical-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+    }
+
+    .mp-form-group {
+        min-width: 0;
+    }
+
+    .mp-form-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 7px;
+        font-size: 11px;
+        font-weight: 650;
+        color: #40536b;
+    }
+
+        .mp-form-label i {
+            color: #0d6b63;
+            font-size: 10px;
+        }
+
+    .mp-form-textarea {
+        width: 100%;
+        min-height: 105px;
+        padding: 11px 12px;
+        border: 1px solid #dfe6ed;
+        border-radius: 9px;
+        background: #fafcfd;
+        color: #293c51;
+        font-family: inherit;
+        font-size: 12px;
+        line-height: 1.5;
+        resize: vertical;
+        outline: none;
+        transition: all .2s ease;
+        box-sizing: border-box;
+    }
+
+        .mp-form-textarea::placeholder {
+            color: #a4afbc;
+        }
+
+        .mp-form-textarea:focus {
+            border-color: #0d6b63;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(13,107,99,.08);
+        }
+
+
+    /* =========================================================
+           FOOTER / ACTIONS
+           ========================================================= */
+
+    .mp-card-footer {
+        margin-top: 23px;
+        padding-top: 18px;
+        border-top: 1px solid #edf1f4;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .mp-footer-note {
+        color: #8997a9;
+        font-size: 10.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .mp-footer-note i {
+            color: #0d6b63;
+        }
+
+    .mp-action-group {
+        display: flex;
+        gap: 9px;
+        flex-wrap: wrap;
+    }
+
+    .mp-save-btn {
+        height: 40px;
+        padding: 0 18px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient( 135deg, #0d6b63, #159d91 );
+        color: #ffffff;
+        font-size: 11.5px;
+        font-weight: 650;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        transition: all .2s ease;
+        box-shadow: 0 4px 10px rgba(13,107,99,.15);
+    }
+
+        .mp-save-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(13,107,99,.22);
+        }
+
+    .mp-test-btn {
+        height: 40px;
+        padding: 0 18px;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #0d6b63;
+        border: 1px solid #cfe0de;
+        text-decoration: none;
+        font-size: 11.5px;
+        font-weight: 650;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        transition: all .2s ease;
+    }
+
+        .mp-test-btn:hover {
+            color: #0d6b63;
+            background: #f1f8f7;
+            border-color: #0d6b63;
+        }
+
+
+    /* =========================================================
+           PATIENT NOT FOUND
+           ========================================================= */
+
+    .mp-not-found {
+        background: #ffffff;
+        border: 1px solid #e8edf2;
+        border-radius: 16px;
+        padding: 55px 25px;
+        text-align: center;
+        box-shadow: 0 4px 18px rgba(15,23,42,.045);
+        animation: mpFadeIn .25s ease;
+    }
+
+    .mp-not-found-icon {
+        width: 65px;
+        height: 65px;
+        margin: 0 auto 16px;
+        border-radius: 17px;
+        background: #fff1f1;
+        color: #dc4b4b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 23px;
+    }
+
+    .mp-not-found h3 {
+        margin: 0 0 7px;
+        font-size: 17px;
+        font-weight: 700;
+        color: #243b53;
+    }
+
+    .mp-not-found p {
+        margin: 0 auto 21px;
+        max-width: 480px;
+        color: #8492a6;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .mp-register-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 40px;
+        padding: 0 18px;
+        border-radius: 8px;
+        background: linear-gradient( 135deg, #0d6b63, #159d91 );
+        color: #ffffff;
+        text-decoration: none;
+        font-size: 11.5px;
+        font-weight: 650;
+        box-shadow: 0 4px 11px rgba(13,107,99,.16);
+        transition: all .2s ease;
+    }
+
+        .mp-register-btn:hover {
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(13,107,99,.22);
+        }
+
+
+    /* =========================================================
+           RESPONSIVE - TABLET
+           ========================================================= */
+
+    media (max-width: 1100px) {
+
+        .mp-info-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .mp-medical-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+
+    /* =========================================================
+           RESPONSIVE - MOBILE
+           ========================================================= */
+
+    media (max-width: 768px) {
+
+        .mp-wrapper {
+            padding: 0 0 30px;
+        }
+
+        .mp-page-header {
+            margin-top: 5px;
+            margin-bottom: 25px;
+            padding: 15px 10px 5px;
+        }
+
+        .mp-title-icon {
+            width: 57px;
+            height: 57px;
+            border-radius: 15px;
+            font-size: 23px;
+        }
+
+        .mp-page-title {
+            font-size: 29px;
+        }
+
+        .mp-page-subtitle {
+            font-size: 12px;
+        }
+
+        .mp-header-actions {
+            width: 100%;
+            flex-direction: column;
+        }
+
+            .mp-header-actions .mp-btn {
+                width: 100%;
+            }
+
+        .mp-search-bar {
+            flex-direction: column;
+        }
+
+        .mp-search-btn {
+            width: 100%;
+        }
+
+        .mp-patient-header {
+            padding: 18px;
+            flex-wrap: wrap;
+        }
+
+        .mp-patient-status {
+            display: none;
+        }
+
+        .mp-open-btn {
+            margin-left: auto;
+        }
+
+        .mp-patient-body {
+            padding: 19px;
+        }
+
+        .mp-info-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .mp-card-footer {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .mp-action-group {
+            width: 100%;
+        }
+
+            .mp-action-group > * {
+                flex: 1;
+            }
+    }
+
+
+    /* =========================================================
+           RESPONSIVE - SMALL MOBILE
+           ========================================================= */
+
+    media (max-width: 520px) {
+
+        .mp-page-title {
+            font-size: 25px;
+        }
+
+        .mp-page-subtitle {
+            font-size: 11.5px;
+        }
+
+        .mp-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .mp-patient-header {
+            gap: 11px;
+        }
+
+        .mp-patient-avatar {
+            width: 50px;
+            height: 50px;
+            min-width: 50px;
+        }
+
+        .mp-patient-name {
+            font-size: 16px;
+        }
+
+        .mp-open-btn {
+            width: 100%;
+            margin-left: 0;
+        }
+
+        .mp-patient-main {
+            width: calc(100% - 65px);
+        }
+
+        .mp-action-group {
+            flex-direction: column;
+        }
+
+            .mp-action-group > * {
+                width: 100%;
+                flex: none;
+            }
+    }
+
 </style>
 
-<div class="mp-page-header">
-    <div>
-        <h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:4px;">Manage Patients</h1>
-        <p style="font-size:12px;color:#7a8da8;margin:0;">Search for a patient by South African ID number</p>
+
+<!-- =========================================================
+     MAIN PAGE
+     ========================================================= -->
+
+<div class="mp-wrapper">
+
+
+    <!-- =====================================================
+         CENTERED PAGE HEADER
+         ====================================================== -->
+
+    <div class="mp-page-header">
+
+        <div class="mp-title-area">
+
+            <div class="mp-title-icon">
+
+                <i class="fas fa-user-injured"></i>
+
+            </div>
+
+
+            <div>
+
+                <h1 class="mp-page-title">
+                    Manage Patients
+                </h1>
+
+
+                <p class="mp-page-subtitle">
+                    Search, review and manage patient medical information
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================================================
+             HEADER ACTIONS
+             ================================================= -->
+
+        <div class="mp-header-actions">
+
+            <a href="@Url.Action("MyPatients")"
+               class="mp-btn mp-btn-outline">
+
+                <i class="fas fa-users"></i>
+
+                View My Patients
+
+            </a>
+
+
+            <a href="@Url.Action("CreatePatient")"
+               class="mp-btn mp-btn-primary">
+
+                <i class="fas fa-user-plus"></i>
+
+                Add Patient
+
+            </a>
+
+        </div>
+
     </div>
-    <div class="mp-header-actions">
-        <a href="@Url.Action("Index")" class="mp-action-btn mp-action-secondary">
-            <i class="fas fa-users"></i> View My Patients
-        </a>
-        <a href="@Url.Action("CreatePatient")" class="mp-action-btn">
-            <i class="fas fa-user-plus"></i> Add Patient
-        </a>
+
+
+
+    <!-- =====================================================
+         SEARCH PATIENT
+         ====================================================== -->
+
+    <div class="mp-search-card">
+
+
+        <div class="mp-search-heading">
+
+            <div class="mp-search-heading-icon">
+
+                <i class="fas fa-search"></i>
+
+            </div>
+
+
+            <div>
+
+                <h3>
+                    Find Patient
+                </h3>
+
+                <span>
+                    Search using the patient's South African ID number
+                </span>
+
+            </div>
+
+        </div>
+
+
+
+        <form method="get"
+              asp-action="ManagePatients"
+              class="mp-search-bar">
+
+
+            <div class="mp-search-input-wrapper">
+
+                <i class="fas fa-id-card"></i>
+
+
+                <input type="text"
+                       name="searchIDNumber"
+                       value="@Model.SearchIDNumber"
+                       placeholder="Enter 13-digit SA ID number..."
+                       maxlength="13"
+                       class="mp-search-input"
+                       autocomplete="off" />
+
+            </div>
+
+
+            <button type="submit"
+                    class="mp-search-btn">
+
+                <i class="fas fa-search"></i>
+
+                Search Patient
+
+            </button>
+
+        </form>
+
     </div>
+
+
+
+    <!-- =====================================================
+         SEARCH RESULT
+         ====================================================== -->
+    @if (Model.HasSearched)
+    {
+
+        @if (Model.SearchResult != null)
+        {
+
+            var p = Model.SearchResult;
+
+
+            <!-- =================================================
+                 PATIENT FOLDER
+                 ================================================== -->
+
+            <div class="mp-patient-card"
+                 id="patientFolder">
+
+
+                <!-- =============================================
+                     PATIENT HEADER
+                     ============================================== -->
+
+                <div class="mp-patient-header"
+                     onclick="toggleFolder()">
+
+
+                    <div class="mp-patient-avatar">
+
+                        @p.Name[0]@p.Surname[0]
+
+                    </div>
+
+
+                    <div class="mp-patient-main">
+
+                        <h2 class="mp-patient-name">
+
+                            @p.Name @p.Surname
+
+                        </h2>
+
+
+                        <p class="mp-patient-id">
+
+                            <i class="fas fa-id-card"></i>
+
+                            Patient ID: @p.IDNumber
+
+                        </p>
+
+                    </div>
+
+
+                    <div class="mp-patient-status">
+
+                        <span class="mp-status-dot"></span>
+
+                        Patient Record
+
+                    </div>
+
+
+                    <button type="button"
+                            class="mp-open-btn"
+                            id="folderToggleBtn">
+
+                        <i class="fas fa-folder-open"></i>
+
+                        Open Folder
+
+                    </button>
+
+                </div>
+
+
+
+                <!-- =============================================
+                     PATIENT FOLDER CONTENT
+                     ============================================== -->
+
+                <div class="mp-patient-body"
+                     id="folderBody"
+                     style="display:none;">
+
+
+                    <!-- =========================================
+                         PATIENT INFORMATION
+                         ========================================== -->
+
+                    <div class="mp-info-section">
+
+
+                        <div class="mp-section-heading">
+
+                            <div class="mp-section-heading-icon">
+
+                                <i class="fas fa-address-card"></i>
+
+                            </div>
+
+
+                            <div>
+
+                                <h3>
+                                    Patient Information
+                                </h3>
+
+                                <p>
+                                    Personal and contact details
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <div class="mp-info-grid">
+
+
+                            <!-- Date of Birth -->
+
+                            <div class="mp-info-item">
+
+                                <label>
+                                    Date of Birth
+                                </label>
+
+                                <span>
+                                    @p.DOB.ToString("dd MMM yyyy")
+                                </span>
+
+                            </div>
+
+
+                            <!-- Cellphone -->
+
+                            <div class="mp-info-item">
+
+                                <label>
+                                    Cellphone
+                                </label>
+
+                                <span>
+                                    @p.CellphoneNumber
+                                </span>
+
+                            </div>
+
+
+                            <!-- Email -->
+
+                            <div class="mp-info-item">
+
+                                <label>
+                                    Email Address
+                                </label>
+
+                                <span>
+                                    @p.Email
+                                </span>
+
+                            </div>
+
+
+                            <!-- Address -->
+
+                            <div class="mp-info-item">
+
+                                <label>
+                                    Home Address
+                                </label>
+
+                                <span>
+                                    @p.HomeAddress
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- =========================================
+                         MEDICAL INFORMATION
+                         ========================================== -->
+
+                    <form asp-action="UpdatePatient"
+                          method="post">
+
+
+                        <input type="hidden"
+                               asp-for="SearchResult!.PatientID" />
+
+
+
+                        <div class="mp-medical-section">
+
+
+                            <div class="mp-section-heading">
+
+                                <div class="mp-section-heading-icon">
+
+                                    <i class="fas fa-heartbeat"></i>
+
+                                </div>
+
+
+                                <div>
+
+                                    <h3>
+                                        Medical Information
+                                    </h3>
+
+                                    <p>
+                                        Review and update the patient's medical record
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+
+                            <div class="mp-medical-grid">
+
+
+                                <!-- =================================
+                                     MEDICAL CONDITIONS
+                                     ================================== -->
+
+                                <div class="mp-form-group">
+
+
+                                    <label class="mp-form-label">
+
+                                        <i class="fas fa-notes-medical"></i>
+
+                                        Known Medical Conditions
+
+                                    </label>
+
+
+                                    <textarea asp-for="SearchResult!.MedicalConditions"
+                                              class="mp-form-textarea"
+                                              placeholder="Enter known medical conditions..."></textarea>
+
+                                </div>
+
+
+
+                                <!-- =================================
+                                     ALLERGIES
+                                     ================================== -->
+
+                                <div class="mp-form-group">
+
+
+                                    <label class="mp-form-label">
+
+                                        <i class="fas fa-exclamation-triangle"></i>
+
+                                        Allergies
+
+                                    </label>
+
+
+                                    <textarea asp-for="SearchResult!.Allergies"
+                                              class="mp-form-textarea"
+                                              placeholder="Enter known allergies..."></textarea>
+
+                                </div>
+
+
+
+                                <!-- =================================
+                                     CURRENT MEDICATION
+                                     ================================== -->
+
+                                <div class="mp-form-group">
+
+
+                                    <label class="mp-form-label">
+
+                                        <i class="fas fa-pills"></i>
+
+                                        Current Medication
+
+                                    </label>
+
+
+                                    <textarea asp-for="SearchResult!.Medication"
+                                              class="mp-form-textarea"
+                                              placeholder="Enter current medication..."></textarea>
+
+                                </div>
+
+                            </div>
+
+
+
+                            <!-- =====================================
+                                 ACTION FOOTER
+                                 ====================================== -->
+
+                            <div class="mp-card-footer">
+
+
+                                <div class="mp-footer-note">
+
+                                    <i class="fas fa-shield-alt"></i>
+
+                                    Patient information is securely managed
+
+                                </div>
+
+
+
+                                <div class="mp-action-group">
+
+
+                                    <!-- SAVE -->
+
+                                    <button type="submit"
+                                            class="mp-save-btn">
+
+                                        <i class="fas fa-save"></i>
+
+                                        Save Changes
+
+                                    </button>
+
+
+
+                                    <!-- CREATE TEST REQUEST -->
+
+                                    <a href="@Url.Action("Create", "TestRequest", new { patientId = p.PatientID })"
+                                       class="mp-test-btn">
+
+                                        <i class="fas fa-vial"></i>
+
+                                        Create Test Request
+
+                                    </a>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+        }
+
+        else
+        {
+
+            <!-- =================================================
+                 PATIENT NOT FOUND
+                 ================================================== -->
+
+            <div class="mp-not-found">
+
+
+                <div class="mp-not-found-icon">
+
+                    <i class="fas fa-user-slash"></i>
+
+                </div>
+
+
+                <h3>
+                    Patient Not Found
+                </h3>
+
+
+                <p>
+
+                    No patient record could be found using ID number
+
+                    <strong>
+                        @Model.SearchIDNumber
+                    </strong>.
+
+                    Please verify the ID number or register the patient.
+
+                </p>
+
+
+                <a href="@Url.Action("CreatePatient")"
+                   class="mp-register-btn">
+
+                    <i class="fas fa-user-plus"></i>
+
+                    Register New Patient
+
+                </a>
+
+            </div>
+
+        }
+
+    }
+
 </div>
 
-<form method="get" asp-action="ManagePatients" class="mp-search-bar">
-    <input type="text"
-           name="searchIDNumber"
-           value="@Model.SearchIDNumber"
-           placeholder="Enter 13-digit SA ID number..."
-           maxlength="13" />
-    <button type="submit" class="mp-search-btn"><i class="fas fa-search"></i> Search</button>
-</form>
 
-@if (Model.HasSearched)
-{
-    if (Model.SearchResult != null)
-    {
-        var p = Model.SearchResult;
-        <div class="mp-folder" id="patientFolder">
-            <div class="mp-folder-header" onclick="toggleFolder()">
-                <div class="mp-folder-avatar">@p.Name[0]@p.Surname[0]</div>
-                <div style="flex:1;">
-                    <div class="mp-folder-name">@p.Name @p.Surname</div>
-                    <div class="mp-folder-sub">ID: @p.IDNumber</div>
-                </div>
-                <button type="button" class="mp-open-btn" id="folderToggleBtn">
-                    <i class="fas fa-folder-open"></i> Open Folder
-                </button>
-            </div>
 
-            <div class="mp-folder-body" id="folderBody" style="display:none;">
-                <div class="mp-info-grid">
-                    <div class="mp-info-item">
-                        <label>Date of Birth</label>
-                        <span>@p.DOB.ToString("dd MMM yyyy")</span>
-                    </div>
-                    <div class="mp-info-item">
-                        <label>Cellphone</label>
-                        <span>@p.CellphoneNumber</span>
-                    </div>
-                    <div class="mp-info-item">
-                        <label>Email</label>
-                        <span>@p.Email</span>
-                    </div>
-                    <div class="mp-info-item">
-                        <label>Home Address</label>
-                        <span>@p.HomeAddress</span>
-                    </div>
-                </div>
-
-                <form asp-action="UpdatePatient" method="post">
-                    <input type="hidden" asp-for="SearchResult!.PatientID" />
-
-                    <div class="mp-section-title">Medical Information</div>
-
-                    <div class="mp-form-group">
-                        <label>Known Medical Conditions</label>
-                        <textarea asp-for="SearchResult!.MedicalConditions"></textarea>
-                    </div>
-                    <div class="mp-form-group">
-                        <label>Allergies</label>
-                        <textarea asp-for="SearchResult!.Allergies"></textarea>
-                    </div>
-                    <div class="mp-form-group">
-                        <label>Current Medication</label>
-                        <textarea asp-for="SearchResult!.Medication"></textarea>
-                    </div>
-
-                    <button type="submit" class="mp-btn-save">Save Changes</button>
-                    <a href="@Url.Action("Create", "TestRequest", new { patientId = p.PatientID })" class="mp-btn-newtest">
-                        Create New Test Request
-                    </a>
-                </form>
-            </div>
-        </div>
-    }
-    else
-    {
-        <div class="mp-not-found">
-            <i class="fas fa-user-slash"></i>
-            <h3>Patient doesn't exist</h3>
-            <p>No patient found with ID number "@Model.SearchIDNumber"</p>
-            <a href="@Url.Action("CreatePatient")" class="mp-register-btn">
-                <i class="fas fa-user-plus"></i> Register New Patient
-            </a>
-        </div>
-    }
-}
+<!-- =========================================================
+     JAVASCRIPT
+     ========================================================= -->
 @section Scripts {
-    <script>
-        function toggleFolder() {
-            const body = document.getElementById('folderBody');
-            const btn = document.getElementById('folderToggleBtn');
-            const isOpen = body.style.display === 'block';
 
-            body.style.display = isOpen ? 'none' : 'block';
-            btn.innerHTML = isOpen
-                ? '<i class="fas fa-folder-open"></i> Open Folder'
-                : '<i class="fas fa-folder"></i> Close Folder';
+    <script>
+
+        function toggleFolder() {
+
+            const body =
+                document.getElementById('folderBody');
+
+            const btn =
+                document.getElementById('folderToggleBtn');
+
+
+            if (!body || !btn) {
+
+                return;
+
+            }
+
+
+            const isOpen =
+                body.style.display === 'block';
+
+
+            if (isOpen) {
+
+                body.style.display = 'none';
+
+                btn.innerHTML =
+                    '<i class="fas fa-folder-open"></i> Open Folder';
+
+            }
+
+            else {
+
+                body.style.display = 'block';
+
+                btn.innerHTML =
+                    '<i class="fas fa-folder"></i> Close Folder';
+
+            }
+
         }
+
     </script>
+
 }
+

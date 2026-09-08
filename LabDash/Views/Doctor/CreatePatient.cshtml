@@ -1,245 +1,1767 @@
 ﻿@model LabDash.ViewModels.PatientCreateViewModel
+
 @{
-    ViewData["Title"] = "Register New Patient";
+    ViewData["Title"] = "Create New Patient";
     ViewData["ActivePage"] = "ManagePatients";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
 <style>
-    .cp-card {
-        background: white;
+
+    /* =========================================================
+           PAGE CONTAINER
+        ========================================================= */
+
+    .patient-page {
+        width: 100%;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 12px 22px 45px;
+        font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
+    }
+
+
+    /* =========================================================
+           TITLE BAR
+        ========================================================= */
+
+    .patient-title-bar {
+        width: 100%;
+        min-height: 82px;
+        background: linear-gradient(135deg, #126b65, #1a8179);
         border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        padding: 24px 28px;
-        max-width: 720px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 24px;
+        box-shadow: 0 5px 18px rgba(18, 107, 101, 0.18);
     }
 
-    .cp-form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
+
+        .patient-title-bar::before {
+            content: "";
+            position: absolute;
+            width: 230px;
+            height: 230px;
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 50%;
+            right: -80px;
+            top: -90px;
+        }
+
+
+        .patient-title-bar::after {
+            content: "";
+            position: absolute;
+            width: 170px;
+            height: 170px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 50%;
+            left: -70px;
+            bottom: -95px;
+        }
+
+
+    .patient-title-content {
+        text-align: center;
+        position: relative;
+        z-index: 2;
     }
 
-    .cp-form-group {
+
+        .patient-title-content h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+
+
+            .patient-title-content h1 i {
+                font-size: 19px;
+                margin-right: 7px;
+            }
+
+
+        .patient-title-content p {
+            margin: 6px 0 0;
+            color: rgba(255,255,255,0.82);
+            font-size: 11.5px;
+            font-weight: 400;
+        }
+
+
+    /* =========================================================
+           FORM CARD
+        ========================================================= */
+
+    .patient-form-card {
+        background: #ffffff;
+        border: 1px solid #e3e8ee;
+        border-radius: 12px;
+        box-shadow: 0 4px 22px rgba(15, 35, 55, 0.07);
+        overflow: hidden;
+    }
+
+
+    .patient-form-body {
+        padding: 32px 38px 30px;
+    }
+
+
+    /* =========================================================
+           VALIDATION SUMMARY
+        ========================================================= */
+
+    .validation-summary-errors {
+        background: #fff6f6;
+        border: 1px solid #f0caca;
+        border-left: 4px solid #d92d20;
+        border-radius: 7px;
+        padding: 12px 15px;
+        margin-bottom: 26px;
+        color: #b42318;
+        font-size: 12px;
+    }
+
+
+        .validation-summary-errors ul {
+            margin: 0;
+            padding-left: 17px;
+        }
+
+
+    /* =========================================================
+           FORM SECTION
+        ========================================================= */
+
+    .form-section {
+        margin-bottom: 36px;
+    }
+
+
+        .form-section:last-of-type {
+            margin-bottom: 0;
+        }
+
+
+    /* =========================================================
+           SECTION HEADING
+        ========================================================= */
+
+    .section-heading {
+        width: 100%;
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 8px;
+        margin-bottom: 24px;
+        padding-bottom: 17px;
+        border-bottom: 1px solid #e9edf2;
     }
 
-        .cp-form-group.full {
+
+    .section-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #e8f5f3;
+        color: #126b65;
+        font-size: 16px;
+        box-shadow: 0 2px 6px rgba(18,107,101,0.08);
+    }
+
+
+    .section-heading h2 {
+        margin: 0;
+        color: #18324f;
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: 0.15px;
+    }
+
+
+    .section-heading span {
+        display: block;
+        margin-top: -2px;
+        color: #8995a5;
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+
+    /* =========================================================
+           FORM GRID
+        ========================================================= */
+
+    .patient-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 24px;
+        row-gap: 20px;
+    }
+
+
+    .form-group {
+        min-width: 0;
+    }
+
+
+        .form-group.full-width {
             grid-column: 1 / -1;
         }
 
-        .cp-form-group label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #4a5c7c;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
 
-        .cp-form-group input,
-        .cp-form-group textarea {
-            border: 1px solid #e2e8f0;
-            border-radius: 7px;
-            padding: 9px 11px;
-            font-size: 13px;
-            font-family: 'Inter', sans-serif;
-        }
+    /* =========================================================
+           LABELS
+        ========================================================= */
 
-        .cp-form-group textarea {
-            resize: vertical;
-            min-height: 60px;
-        }
-
-        .cp-form-group span.text-danger {
-            font-size: 11px;
-            color: #dc3545;
-        }
-
-    .cp-section-title {
-        font-size: 12px;
-        font-weight: 700;
-        color: #1a2f4e;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        margin: 20px 0 12px;
-        padding-top: 16px;
-        border-top: 1px solid #f0f2f5;
-    }
-
-        .cp-section-title:first-of-type {
-            margin-top: 0;
-            padding-top: 0;
-            border-top: none;
-        }
-
-    .cp-note {
-        grid-column: 1 / -1;
-        background: #f0f7f6;
-        border: 1px solid #cde8e4;
-        border-radius: 8px;
-        padding: 12px 14px;
-        font-size: 12px;
-        color: #0d6b63;
+    .form-label {
         display: flex;
-        gap: 8px;
-        align-items: flex-start;
-        margin-top: 18px;
+        align-items: center;
+        gap: 3px;
+        margin-bottom: 7px;
+        color: #344054;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05px;
     }
 
-    .cp-actions {
+
+    .required {
+        color: #d92d20;
+        font-weight: 700;
+    }
+
+
+    /* =========================================================
+           INPUTS
+        ========================================================= */
+
+    .form-control-custom {
+        width: 100%;
+        height: 43px;
+        padding: 0 13px;
+        border: 1px solid #d8e0e8;
+        border-radius: 7px;
+        background: #ffffff;
+        color: #26384d;
+        font-family: 'Inter', sans-serif;
+        font-size: 12.5px;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+
+
+        .form-control-custom:hover {
+            border-color: #b9c5d1;
+            background: #fefefe;
+        }
+
+
+        .form-control-custom:focus {
+            border-color: #126b65;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(18,107,101,0.09);
+        }
+
+
+        .form-control-custom::placeholder {
+            color: #a4afbb;
+            font-size: 12px;
+        }
+
+
+    textarea.form-control-custom {
+        height: auto;
+        min-height: 88px;
+        padding: 11px 13px;
+        resize: vertical;
+        line-height: 1.5;
+    }
+
+
+    /* =========================================================
+           REQUIRED FIELD ERROR
+        ========================================================= */
+
+    .form-control-custom.input-error {
+        border-color: #d92d20 !important;
+        background: #fffafa;
+    }
+
+
+        .form-control-custom.input-error:focus {
+            border-color: #d92d20 !important;
+            box-shadow: 0 0 0 3px rgba(217,45,32,.08);
+        }
+
+
+    .required-error-message {
+        display: none;
+        margin-top: 5px;
+        color: #d92d20;
+        font-size: 10.5px;
+        font-weight: 500;
+        line-height: 1.4;
+    }
+
+
+        .required-error-message.show {
+            display: block;
+        }
+
+
+    /* =========================================================
+           SERVER VALIDATION MESSAGE
+        ========================================================= */
+
+    .field-validation-error {
+        display: block;
+        margin-top: 5px;
+        color: #d92d20;
+        font-size: 10.5px;
+    }
+
+
+    /* =========================================================
+           INFORMATION BOX
+        ========================================================= */
+
+    .patient-info-box {
         margin-top: 22px;
         display: flex;
-        justify-content: flex-end;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+        border: 1px solid #cce5e1;
+        background: #f3faf9;
+        border-radius: 8px;
+    }
+
+
+    .patient-info-icon {
+        width: 30px;
+        height: 30px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: #dcefeb;
+        color: #126b65;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+    }
+
+
+    .patient-info-text {
+        padding-top: 1px;
+    }
+
+
+        .patient-info-text strong {
+            display: block;
+            color: #145c57;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+
+        .patient-info-text span {
+            color: #52736f;
+            font-size: 11px;
+            line-height: 1.55;
+        }
+
+
+    /* =========================================================
+           FORM FOOTER
+        ========================================================= */
+
+    .patient-form-footer {
+        min-height: 70px;
+        border-top: 1px solid #e9edf2;
+        background: #fafbfc;
+        padding: 15px 38px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        box-sizing: border-box;
+    }
+
+
+    .footer-required-note {
+        color: #8a97a8;
+        font-size: 10.5px;
+    }
+
+
+        .footer-required-note .required {
+            font-size: 12px;
+            margin-right: 2px;
+        }
+
+
+    /* =========================================================
+           ACTION BUTTONS
+        ========================================================= */
+
+    .patient-actions {
+        display: flex;
+        align-items: center;
         gap: 10px;
     }
 
-    .cp-btn-cancel {
-        background: #f0f2f5;
-        color: #4a5c7c;
-        border: none;
+
+    .btn-cancel {
+        min-width: 92px;
+        height: 40px;
+        padding: 0 17px;
+        border: 1px solid #d5dde6;
         border-radius: 7px;
-        padding: 10px 18px;
-        font-size: 13px;
-        font-weight: 600;
-        text-decoration: none;
+        background: #ffffff;
+        color: #475467;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all .2s ease;
     }
 
-    .cp-btn-save {
-        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        color: white;
+
+        .btn-cancel:hover {
+            background: #f4f6f8;
+            border-color: #c5ced8;
+            color: #344054;
+            text-decoration: none;
+        }
+
+
+    .btn-save {
+        min-width: 150px;
+        height: 40px;
+        padding: 0 20px;
         border: none;
         border-radius: 7px;
-        padding: 10px 20px;
-        font-size: 13px;
+        background: linear-gradient(135deg, #126b65, #1a8179);
+        color: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
         font-weight: 600;
         cursor: pointer;
+        box-shadow: 0 3px 8px rgba(18,107,101,.18);
+        transition: all .2s ease;
     }
 
-    .validation-summary-errors ul {
-        list-style: none;
-        color: #dc3545;
-        font-size: 12px;
-        margin-bottom: 14px;
+
+        .btn-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 13px rgba(18,107,101,.24);
+        }
+
+
+        .btn-save:active {
+            transform: translateY(0);
+        }
+
+
+    /* =========================================================
+           SUCCESS MODAL
+        ========================================================= */
+
+    .patient-success-overlay {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15,31,45,.55);
+        backdrop-filter: blur(3px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 20px;
+        box-sizing: border-box;
     }
+
+
+        .patient-success-overlay.show {
+            display: flex;
+        }
+
+
+    .patient-success-modal {
+        width: 100%;
+        max-width: 420px;
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 34px 32px 30px;
+        text-align: center;
+        box-shadow: 0 20px 55px rgba(0,0,0,.18);
+        animation: successModalAppear .25s ease-out;
+    }
+
+
+    keyframes successModalAppear {
+
+        from {
+            opacity: 0;
+            transform: translateY(15px) scale(.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+
+    .success-icon {
+        width: 68px;
+        height: 68px;
+        margin: 0 auto 18px;
+        border-radius: 50%;
+        background: #e6f5f1;
+        color: #126b65;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        border: 6px solid #f2faf8;
+    }
+
+
+    .patient-success-modal h2 {
+        margin: 0 0 9px;
+        color: #18324f;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+
+    .patient-success-modal p {
+        margin: 0 auto 23px;
+        max-width: 330px;
+        color: #7b8797;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+
+    .success-modal-btn {
+        min-width: 125px;
+        height: 40px;
+        padding: 0 20px;
+        border: none;
+        border-radius: 7px;
+        background: linear-gradient(135deg,#126b65,#1a8179);
+        color: #ffffff;
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 3px 8px rgba(18,107,101,.18);
+        transition: all .2s ease;
+    }
+
+
+        .success-modal-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 13px rgba(18,107,101,.24);
+        }
+
+
+        .success-modal-btn i {
+            margin-right: 6px;
+        }
+
+
+    /* =========================================================
+           TABLET
+        ========================================================= */
+
+    media (max-width: 768px) {
+
+        .patient-page {
+            padding: 8px 14px 30px;
+        }
+
+
+        .patient-title-bar {
+            min-height: 72px;
+            margin-bottom: 18px;
+        }
+
+
+        .patient-title-content h1 {
+            font-size: 19px;
+        }
+
+
+        .patient-title-content p {
+            font-size: 10.5px;
+        }
+
+
+        .patient-form-body {
+            padding: 25px 22px;
+        }
+
+
+        .patient-form-grid {
+            grid-template-columns: 1fr;
+            gap: 17px;
+        }
+
+
+        .form-group.full-width {
+            grid-column: auto;
+        }
+
+
+        .section-heading {
+            margin-bottom: 21px;
+        }
+
+
+            .section-heading h2 {
+                font-size: 16px;
+            }
+
+
+        .patient-form-footer {
+            padding: 16px 22px;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+
+        .footer-required-note {
+            text-align: center;
+        }
+
+
+        .patient-actions {
+            width: 100%;
+        }
+
+
+        .btn-cancel,
+        .btn-save {
+            flex: 1;
+        }
+    }
+
+
+    /* =========================================================
+           MOBILE
+        ========================================================= */
+
+    media (max-width: 480px) {
+
+        .patient-page {
+            padding: 5px 8px 25px;
+        }
+
+
+        .patient-title-bar {
+            min-height: 68px;
+            border-radius: 9px;
+        }
+
+
+        .patient-title-content h1 {
+            font-size: 17px;
+        }
+
+
+            .patient-title-content h1 i {
+                font-size: 15px;
+            }
+
+
+        .patient-title-content p {
+            font-size: 10px;
+            padding: 0 10px;
+        }
+
+
+        .patient-form-card {
+            border-radius: 9px;
+        }
+
+
+        .patient-form-body {
+            padding: 22px 15px;
+        }
+
+
+        .section-heading {
+            margin-bottom: 19px;
+            padding-bottom: 15px;
+        }
+
+
+        .section-icon {
+            width: 39px;
+            height: 39px;
+            font-size: 14px;
+        }
+
+
+        .section-heading h2 {
+            font-size: 15px;
+        }
+
+
+        .section-heading span {
+            font-size: 10px;
+        }
+
+
+        .patient-form-footer {
+            padding: 15px;
+        }
+
+
+        .patient-actions {
+            gap: 8px;
+        }
+
+
+        .btn-cancel,
+        .btn-save {
+            min-width: 0;
+            height: 39px;
+        }
+
+
+        .patient-success-modal {
+            max-width: 340px;
+            padding: 28px 22px 25px;
+        }
+
+
+        .success-icon {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+        }
+
+
+        .patient-success-modal h2 {
+            font-size: 16px;
+        }
+    }
+
 </style>
 
-<h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:4px;">Register New Patient</h1>
 
-<div class="cp-card">
-    <form asp-action="CreatePatient" method="post">
-        <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+<div class="patient-page">
 
-        <div class="cp-section-title">Personal Details</div>
-        <div class="cp-form-grid">
-            <div class="cp-form-group">
-                <label>Name</label>
-                <input asp-for="Name" />
-                <span asp-validation-for="Name" class="text-danger"></span>
-            </div>
-            <div class="cp-form-group">
-                <label>Surname</label>
-                <input asp-for="Surname" />
-                <span asp-validation-for="Surname" class="text-danger"></span>
-            </div>
-            <div class="cp-form-group">
-                <label>South African ID Number</label>
-                <input asp-for="IDNumber" maxlength="13" />
-                <span asp-validation-for="IDNumber" class="text-danger"></span>
-            </div>
-            <div class="cp-form-group">
-                <label>Date of Birth</label>
-                <input asp-for="DOB" />
-                <span asp-validation-for="DOB" class="text-danger"></span>
-            </div>
-            <div class="cp-form-group">
-                <label>Cellphone Number</label>
-                <input asp-for="CellphoneNumber" />
-                <span asp-validation-for="CellphoneNumber" class="text-danger"></span>
-            </div>
-            <div class="cp-form-group">
-                <label>Email Address (Username)</label>
-                <input asp-for="Email" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
-            <div class="cp-form-group full">
-                <label>Home Address</label>
-                <input asp-for="HomeAddress" />
-                <span asp-validation-for="HomeAddress" class="text-danger"></span>
-            </div>
+    <!-- =====================================================
+         PAGE TITLE
+    ====================================================== -->
+
+    <div class="patient-title-bar">
+
+        <div class="patient-title-content">
+
+            <h1>
+                <i class="fas fa-user-plus"></i>
+                Create New Patient
+            </h1>
+
+            <p>
+                Register a new patient and create their laboratory profile
+            </p>
+
         </div>
 
-        <div class="cp-section-title">Medical Information</div>
-        <div class="cp-form-grid">
-            <div class="cp-form-group full">
-                <label>Known Medical Conditions</label>
-                <textarea asp-for="MedicalConditions" placeholder="e.g. Type 2 Diabetes, Hypertension"></textarea>
-            </div>
-            <div class="cp-form-group full">
-                <label>Allergies</label>
-                <textarea asp-for="Allergies" placeholder="e.g. Penicillin"></textarea>
-            </div>
-            <div class="cp-form-group full">
-                <label>Current Medication</label>
-                <textarea asp-for="Medication" placeholder="e.g. Metformin 500mg twice daily"></textarea>
-            </div>
+    </div>
 
-            <div class="cp-note">
-                <i class="fas fa-info-circle"></i>
-                <span>A temporary password will be generated automatically and e-mailed to the patient. They'll be required to change it on first login.</span>
-            </div>
-        </div>
 
-        <div class="cp-actions">
-            <a href="@Url.Action("ManagePatients")" class="cp-btn-cancel">Cancel</a>
-            <button type="submit" class="cp-btn-save">Register Patient</button>
-        </div>
-    </form>
-</div>
+    <!-- =====================================================
+         FORM CARD
+    ====================================================== -->
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <div class="patient-form-card">
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const idInput = document.querySelector('[name="IDNumber"]');
-            const dobInput = document.querySelector('[name="DOB"]');
+        <form asp-action="CreatePatient"
+              method="post"
+              novalidate>
 
-            if (!idInput || !dobInput) return;
+            @Html.AntiForgeryToken()
 
-            idInput.addEventListener('input', function () {
-                const id = idInput.value.trim();
 
-                if (id.length < 6 || !/^\d{6,}/.test(id)) return;
+            <!-- =================================================
+                 FORM BODY
+            ================================================== -->
 
-                const yy = id.substring(0, 2);
-                const mm = id.substring(2, 4);
-                const dd = id.substring(4, 6);
+            <div class="patient-form-body">
 
-                const month = parseInt(mm, 10);
-                const day = parseInt(dd, 10);
 
-                if (month < 1 || month > 12 || day < 1 || day > 31) return;
-
-                const currentYY = new Date().getFullYear() % 100;
-                const century = parseInt(yy, 10) > currentYY ? 1900 : 2000;
-                const fullYear = century + parseInt(yy, 10);
-
-                const isoDate = `${fullYear}-${mm}-${dd}`;
-
-                const testDate = new Date(isoDate);
-                if (testDate.getFullYear() != fullYear ||
-                    (testDate.getMonth() + 1) != month ||
-                    testDate.getDate() != day) {
-                    return;
+                <!-- =================================================
+                     SERVER VALIDATION SUMMARY
+                ================================================== -->
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div asp-validation-summary="ModelOnly"
+                         class="validation-summary-errors">
+                    </div>
                 }
 
-                dobInput.value = isoDate;
-            });
+
+                <!-- =================================================
+                     PERSONAL DETAILS
+                ================================================== -->
+
+                <div class="form-section">
+
+                    <div class="section-heading">
+
+                        <div class="section-icon">
+
+                            <i class="fas fa-user"></i>
+
+                        </div>
+
+                        <h2>Personal Details</h2>
+
+                        <span>
+                            Enter the patient's basic identification and contact information
+                        </span>
+
+                    </div>
+
+
+                    <div class="patient-form-grid">
+
+
+                        <!-- =================================================
+                             FIRST NAME
+                        ================================================== -->
+
+                        <div class="form-group">
+
+                            <label asp-for="Name"
+                                   class="form-label">
+
+                                First Name
+
+                                <span class="required">*</span>
+
+                            </label>
+
+
+                            <input asp-for="Name"
+                                   class="form-control-custom"
+                                   placeholder="Enter first name"
+                                   autocomplete="given-name"
+                                   required />
+
+                            <span asp-validation-for="Name"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             SURNAME
+                        ================================================== -->
+
+                        <div class="form-group">
+
+                            <label asp-for="Surname"
+                                   class="form-label">
+
+                                Surname
+
+                                <span class="required">*</span>
+
+                            </label>
+
+
+                            <input asp-for="Surname"
+                                   class="form-control-custom"
+                                   placeholder="Enter surname"
+                                   autocomplete="family-name"
+                                   required />
+
+                            <span asp-validation-for="Surname"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             SOUTH AFRICAN ID
+                        ================================================== -->
+
+                        <div class="form-group">
+
+                            <label asp-for="IDNumber"
+                                   class="form-label">
+
+                                South African ID Number
+
+                                <span class="required">*</span>
+
+                            </label>
+
+
+                            <input asp-for="IDNumber"
+                                   class="form-control-custom"
+                                   placeholder="Enter 13-digit ID number"
+                                   maxlength="13"
+                                   inputmode="numeric"
+                                   autocomplete="off"
+                                   required />
+
+                            <span asp-validation-for="IDNumber"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             DATE OF BIRTH
+                        ================================================== -->
+
+                        <div class="form-group">
+
+                            <label asp-for="DOB"
+                                   class="form-label">
+
+                                Date of Birth
+
+                                <span class="required">*</span>
+
+                            </label>
+
+
+                            <input asp-for="DOB"
+                                   type="date"
+                                   class="form-control-custom"
+                                   required />
+
+                            <span asp-validation-for="DOB"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             CELLPHONE
+                        ================================================== -->
+
+                        <div class="form-group">
+
+                            <label asp-for="CellphoneNumber"
+                                   class="form-label">
+
+                                Cellphone Number
+
+                                <span class="required">*</span>
+
+                            </label>
+
+
+                            <input asp-for="CellphoneNumber"
+                                   class="form-control-custom"
+                                   placeholder="e.g. 082 123 4567"
+                                   inputmode="tel"
+                                   autocomplete="tel"
+                                   required />
+
+                            <span asp-validation-for="CellphoneNumber"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             EMAIL
+                        ================================================== -->
+
+                        <div class="form-group">
+
+                            <label asp-for="Email"
+                                   class="form-label">
+
+                                Email Address
+
+                                <span class="required">*</span>
+
+                            </label>
+
+
+                            <input asp-for="Email"
+                                   type="email"
+                                   class="form-control-custom"
+                                   placeholder="patient@example.com"
+                                   autocomplete="email"
+                                   required />
+
+                            <span asp-validation-for="Email"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             HOME ADDRESS
+                        ================================================== -->
+
+                        <div class="form-group full-width">
+
+                            <label asp-for="HomeAddress"
+                                   class="form-label">
+
+                                Home Address
+
+                                <span class="required">*</span>
+
+                            </label>
+
+
+                            <textarea asp-for="HomeAddress"
+                                      class="form-control-custom"
+                                      placeholder="Enter patient's residential address"
+                                      rows="3"
+                                      autocomplete="street-address"
+                                      required></textarea>
+
+                            <span asp-validation-for="HomeAddress"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     MEDICAL INFORMATION
+                ================================================== -->
+
+                <div class="form-section">
+
+                    <div class="section-heading">
+
+                        <div class="section-icon">
+
+                            <i class="fas fa-notes-medical"></i>
+
+                        </div>
+
+                        <h2>Medical Information</h2>
+
+                        <span>
+                            Record relevant medical information for the patient's laboratory profile
+                        </span>
+
+                    </div>
+
+
+                    <div class="patient-form-grid">
+
+
+                        <!-- =================================================
+                             MEDICAL CONDITIONS
+                        ================================================== -->
+
+                        <div class="form-group">
+
+                            <label asp-for="MedicalConditions"
+                                   class="form-label">
+
+                                Known Medical Conditions
+
+                            </label>
+
+
+                            <textarea asp-for="MedicalConditions"
+                                      class="form-control-custom"
+                                      placeholder="Enter known medical conditions, if applicable"
+                                      rows="4"></textarea>
+
+                            <span asp-validation-for="MedicalConditions"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             ALLERGIES
+                        ================================================== -->
+
+                        <div class="form-group">
+
+                            <label asp-for="Allergies"
+                                   class="form-label">
+
+                                Allergies
+
+                            </label>
+
+
+                            <textarea asp-for="Allergies"
+                                      class="form-control-custom"
+                                      placeholder="Enter known allergies, if applicable"
+                                      rows="4"></textarea>
+
+                            <span asp-validation-for="Allergies"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+
+                        <!-- =================================================
+                             MEDICATION
+                        ================================================== -->
+
+                        <div class="form-group full-width">
+
+                            <label asp-for="Medication"
+                                   class="form-label">
+
+                                Current Medication
+
+                            </label>
+
+
+                            <textarea asp-for="Medication"
+                                      class="form-control-custom"
+                                      placeholder="Enter current medication, if applicable"
+                                      rows="3"></textarea>
+
+                            <span asp-validation-for="Medication"
+                                  class="field-validation-error">
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =================================================
+                         INFORMATION BOX
+                    ================================================== -->
+
+                    <div class="patient-info-box">
+
+                        <div class="patient-info-icon">
+
+                            <i class="fas fa-info"></i>
+
+                        </div>
+
+
+                        <div class="patient-info-text">
+
+                            <strong>Patient Account Information</strong>
+
+                            <span>
+                                Once the patient is successfully registered,
+                                their laboratory account will be created.
+                                Any automatically generated login credentials
+                                will be handled securely by the system.
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+
+            <!-- =====================================================
+                 FORM FOOTER
+            ====================================================== -->
+
+            <div class="patient-form-footer">
+
+
+                <div class="footer-required-note">
+
+                    <span class="required">*</span>
+
+                    Required fields must be completed before registration.
+
+                </div>
+
+
+                <div class="patient-actions">
+
+
+                    <!-- CANCEL -->
+
+                    <a asp-action="ManagePatients"
+                       class="btn-cancel">
+
+                        <i class="fas fa-arrow-left"
+                           style="margin-right:6px;">
+                        </i>
+
+                        Cancel
+
+                    </a>
+
+
+                    <!-- REGISTER -->
+
+                    <button type="submit"
+                            class="btn-save"
+                            id="registerPatientBtn">
+
+                        <i class="fas fa-user-plus"></i>
+
+                        <span>Register Patient</span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     SUCCESS MODAL
+========================================================= -->
+
+<div class="patient-success-overlay"
+     id="patientSuccessModal">
+
+    <div class="patient-success-modal">
+
+
+        <div class="success-icon">
+
+            <i class="fas fa-check"></i>
+
+        </div>
+
+
+        <h2>
+            Patient Registered Successfully
+        </h2>
+
+
+        <p>
+            The patient has been successfully registered
+            and their account has been created.
+        </p>
+
+
+        <button type="button"
+                class="success-modal-btn"
+                onclick="closeSuccessModal()">
+
+            <i class="fas fa-check"></i>
+
+            Continue
+
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================= -->
+
+<script>
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+
+        /* =====================================================
+           FORM
+        ===================================================== */
+
+        const form = document.querySelector('form');
+
+        if (!form) {
+            return;
+        }
+
+
+        /* =====================================================
+           REQUIRED FIELDS
+        ===================================================== */
+
+        const requiredFields = [
+
+            document.querySelector('[name="Name"]'),
+
+            document.querySelector('[name="Surname"]'),
+
+            document.querySelector('[name="IDNumber"]'),
+
+            document.querySelector('[name="DOB"]'),
+
+            document.querySelector('[name="CellphoneNumber"]'),
+
+            document.querySelector('[name="Email"]'),
+
+            document.querySelector('[name="HomeAddress"]')
+
+        ].filter(function (field) {
+
+            return field !== null;
+
         });
-    </script>
+
+
+        /* =====================================================
+           CREATE CUSTOM ERROR MESSAGE
+        ===================================================== */
+
+        requiredFields.forEach(function (field) {
+
+
+            let errorMessage =
+                field.parentElement.querySelector(
+                    '.required-error-message'
+                );
+
+
+            if (!errorMessage) {
+
+                errorMessage =
+                    document.createElement('span');
+
+                errorMessage.className =
+                    'required-error-message';
+
+                errorMessage.textContent =
+                    'This field is required.';
+
+                field.parentElement.appendChild(
+                    errorMessage
+                );
+
+            }
+
+
+            /* =================================================
+               USER TYPES
+            ================================================= */
+
+            field.addEventListener('input', function () {
+
+                if (field.value.trim() !== '') {
+
+                    clearFieldError(field);
+
+                }
+
+            });
+
+
+            /* =================================================
+               USER LEAVES FIELD
+            ================================================= */
+
+            field.addEventListener('blur', function () {
+
+                validateField(field);
+
+            });
+
+
+            /* =================================================
+               CHANGE EVENT
+            ================================================= */
+
+            field.addEventListener('change', function () {
+
+                validateField(field);
+
+            });
+
+        });
+
+
+        /* =====================================================
+           VALIDATE SINGLE FIELD
+        ===================================================== */
+
+        function validateField(field) {
+
+            const errorMessage =
+                field.parentElement.querySelector(
+                    '.required-error-message'
+                );
+
+
+            if (field.value.trim() === '') {
+
+                field.classList.add('input-error');
+
+
+                if (errorMessage) {
+
+                    errorMessage.classList.add('show');
+
+                }
+
+
+                return false;
+
+            }
+
+
+            clearFieldError(field);
+
+            return true;
+
+        }
+
+
+        /* =====================================================
+           CLEAR FIELD ERROR
+        ===================================================== */
+
+        function clearFieldError(field) {
+
+            const errorMessage =
+                field.parentElement.querySelector(
+                    '.required-error-message'
+                );
+
+
+            field.classList.remove('input-error');
+
+
+            if (errorMessage) {
+
+                errorMessage.classList.remove('show');
+
+            }
+
+        }
+
+
+        /* =====================================================
+           VALIDATE ENTIRE FORM
+        ===================================================== */
+
+        form.addEventListener('submit', function (event) {
+
+
+            let formIsValid = true;
+
+            let firstInvalidField = null;
+
+
+            requiredFields.forEach(function (field) {
+
+
+                const valid =
+                    validateField(field);
+
+
+                if (!valid) {
+
+                    formIsValid = false;
+
+
+                    if (!firstInvalidField) {
+
+                        firstInvalidField = field;
+
+                    }
+
+                }
+
+            });
+
+
+            /* =================================================
+               STOP SUBMISSION IF REQUIRED FIELD IS MISSING
+            ================================================= */
+
+            if (!formIsValid) {
+
+                event.preventDefault();
+
+
+                if (firstInvalidField) {
+
+                    firstInvalidField.scrollIntoView({
+
+                        behavior: 'smooth',
+
+                        block: 'center'
+
+                    });
+
+
+                    setTimeout(function () {
+
+                        firstInvalidField.focus();
+
+                    }, 300);
+
+                }
+
+
+                return false;
+            }
+
+
+            /*
+             * All required fields are completed.
+             *
+             * The form is allowed to submit to:
+             *
+             * CreatePatient
+             */
+        });
+
+
+        /* =====================================================
+           SOUTH AFRICAN ID → DOB
+        ===================================================== */
+
+        const idInput =
+            document.querySelector('[name="IDNumber"]');
+
+        const dobInput =
+            document.querySelector('[name="DOB"]');
+
+
+        if (idInput && dobInput) {
+
+
+            idInput.addEventListener('input', function () {
+
+
+                const id =
+                    idInput.value.trim();
+
+
+                /* ---------------------------------------------
+                   Need at least 6 digits
+                --------------------------------------------- */
+
+                if (
+                    id.length < 6 ||
+                    !/^\d{6,}/.test(id)
+                ) {
+
+                    return;
+
+                }
+
+
+                const yy =
+                    id.substring(0, 2);
+
+                const mm =
+                    id.substring(2, 4);
+
+                const dd =
+                    id.substring(4, 6);
+
+
+                const month =
+                    parseInt(mm, 10);
+
+                const day =
+                    parseInt(dd, 10);
+
+
+                /* ---------------------------------------------
+                   Validate month and day
+                --------------------------------------------- */
+
+                if (
+                    month < 1 ||
+                    month > 12 ||
+                    day < 1 ||
+                    day > 31
+                ) {
+
+                    return;
+
+                }
+
+
+                /* ---------------------------------------------
+                   Determine century
+                --------------------------------------------- */
+
+                const currentYY =
+                    new Date().getFullYear() % 100;
+
+
+                const century =
+                    parseInt(yy, 10) > currentYY
+                        ? 1900
+                        : 2000;
+
+
+                const fullYear =
+                    century + parseInt(yy, 10);
+
+
+                const isoDate =
+                    `${fullYear}-${mm}-${dd}`;
+
+
+                /* ---------------------------------------------
+                   Validate actual date
+                --------------------------------------------- */
+
+                const testDate =
+                    new Date(isoDate);
+
+
+                if (
+                    testDate.getFullYear() !== fullYear ||
+                    testDate.getMonth() + 1 !== month ||
+                    testDate.getDate() !== day
+                ) {
+
+                    return;
+
+                }
+
+
+                /* ---------------------------------------------
+                   Automatically populate DOB
+                --------------------------------------------- */
+
+                dobInput.value = isoDate;
+
+
+                /* ---------------------------------------------
+                   Clear DOB required error
+                --------------------------------------------- */
+
+                clearFieldError(dobInput);
+
+            });
+
+        }
+
+
+    });
+
+
+    /* =========================================================
+       SHOW SUCCESS MODAL
+    ========================================================= */
+
+    function showSuccessModal() {
+
+        const modal =
+            document.getElementById(
+                'patientSuccessModal'
+            );
+
+
+        if (modal) {
+
+            modal.classList.add('show');
+
+        }
+
+    }
+
+
+    /* =========================================================
+       CLOSE SUCCESS MODAL
+    ========================================================= */
+
+    function closeSuccessModal() {
+
+        const modal =
+            document.getElementById(
+                'patientSuccessModal'
+            );
+
+
+        if (modal) {
+
+            modal.classList.remove('show');
+
+        }
+
+
+        window.location.href =
+            '@Url.Action("ManagePatients")';
+
+    }
+
+
+    /* =========================================================
+       SHOW SUCCESS MODAL AFTER SUCCESSFUL REGISTRATION
+    ========================================================= */
+
+    @if (TempData["PatientRegistered"] != null)
+    {
+            <text>
+
+                    document.addEventListener(
+                        'DOMContentLoaded',
+                        function () {
+
+                            showSuccessModal();
+
+                        }
+                    );
+
+            </text>
+    }
+
+</script>
+
+
+@section Scripts {
+
+    <partial name="_ValidationScriptsPartial" />
+
 }

@@ -65,7 +65,16 @@ namespace LabDash.Controllers
 
             return View(vm);
         }
+        // GET: /Doctor/MyPatients
+        public async Task<IActionResult> MyPatients()
+        {
+            var patients = await _context.Patients
+                .OrderBy(p => p.Surname)
+                .ThenBy(p => p.Name)
+                .ToListAsync();
 
+            return View(patients);
+        }
         // GET: /Doctor/CreatePatient          ← ADD THIS
         public IActionResult CreatePatient(string? idNumber)
         {
