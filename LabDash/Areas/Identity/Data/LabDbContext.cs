@@ -38,7 +38,12 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<Consumable> Consumables { get; set; }
     public DbSet<Supplier> Suppliers { get; set; }
     public DbSet<ConsumableOrder> ConsumableOrders { get; set; }
-
+    public DbSet<PatientDoctorConsent> PatientDoctorConsents { get; set; }
+    public DbSet<ConsentRequestAccess> ConsentRequestAccess { get; set; }
+    
+    public DbSet<PatientAllergy> PatientAllergies { get; set; }
+    public DbSet<PatientMedication> PatientMedications { get; set; }
+    public DbSet<PatientMedicalCondition> PatientMedicalConditions { get; set; }
     public DbSet<ConsumableOrderItem> ConsumableOrderItems { get; set; }
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -47,8 +52,13 @@ public class LabDbContext : IdentityDbContext<LabUser>
         builder.Entity<LabUser>()
          .HasIndex(u => u.HPCSANumber)
          .IsUnique()
-         .HasFilter("[HPCSANumber] IS NOT NULL AND [HPCSANumber] <> ''");
+         .HasFilter("[HPCSANumber] IS NOT NULL AND [HPCSANumber] <> ''"); 
 
+        builder.Entity<ConsentRequestAccess>()
+      .HasOne(a => a.TestRequest)
+      .WithMany()
+      .HasForeignKey(a => a.RequestID)
+      .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<LabUser>()
             .HasIndex(u => u.EmployeeNumber)
@@ -130,8 +140,10 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .HasMaxLength(100);
 
         builder.Entity<Allergy>()
-            .Property(x => x.Category)
-            .HasMaxLength(50);
+    .HasOne(a => a.Category)
+    .WithMany(c => c.Allergies)
+    .HasForeignKey(a => a.CategoryId)
+    .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<Medication>()
             .Property(x => x.MedicationName)
@@ -154,14 +166,14 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .HasMaxLength(50);
 
         builder.Entity<MedicalCondition>()
-    .HasOne(m => m.Category)
-    .WithMany()
-    .HasForeignKey(m => m.CategoryId)
-    .OnDelete(DeleteBehavior.Restrict); // categories are soft-deleted, never hard-deleted
-        // Customize the ASP.NET Identity model and override the defaults if needed.
-        // For example, you can rename the ASP.NET Identity table names and more.
-        // Add your customizations after calling base.OnModelCreating(builder);
+       .HasOne(m => m.Category)
+       .WithMany(c => c.MedicalConditions)
+       .HasForeignKey(m => m.CategoryId)
+       .OnDelete(DeleteBehavior.Restrict); // categories are soft-deleted, never hard-deleted
+                                           // Customize the ASP.NET Identity model and override the defaults if needed.
+                                           // For example, you can rename the ASP.NET Identity table names and more.
+                                           // Add your customizations after calling base.OnModelCreating(builder);
 
-        
+
     }
 }

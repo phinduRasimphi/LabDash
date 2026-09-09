@@ -1,5 +1,4 @@
 ﻿
-
 using System.ComponentModel.DataAnnotations;
 
 namespace LabDash.Models
@@ -85,21 +84,92 @@ namespace LabDash.Models
         public string NormalRange => $"{NormalMin} – {NormalMax} {Unit}";
     }
 
-    // ── 4. Medical History ───────────────────────────────────
     public class MedicalHistoryViewModel
     {
-        public List<string> Conditions { get; set; } = new();
-        public List<string> Allergies { get; set; } = new();
-        public List<string> Medication { get; set; } = new();
+        public List<ConditionRecordViewModel> Conditions { get; set; } = new();
+        public List<AllergyRecordViewModel> Allergies { get; set; } = new();
+        public List<MedicationRecordViewModel> Medications { get; set; } = new();
+    }
+
+    public class ConditionRecordViewModel
+    {
+        public string Name { get; set; } = "";
+        public string? CategoryName { get; set; }
+        public DateTime? DiagnosisDate { get; set; }
+        public string? Severity { get; set; }       // Mild | Moderate | Severe
+        public string? RecordedByDoctorName { get; set; }
+        public string? Notes { get; set; }
+
+        public string SeverityCssClass => (Severity ?? "").ToLower() switch
+        {
+            "severe" => "mh-sev-severe",
+            "moderate" => "mh-sev-moderate",
+            "mild" => "mh-sev-mild",
+            _ => "mh-sev-unknown"
+        };
+    }
+
+    public class AllergyRecordViewModel
+    {
+        public string Name { get; set; } = "";
+        public string? CategoryName { get; set; }
+        public DateTime? RecordedDate { get; set; }
+        public string? Severity { get; set; }
+        public string? RecordedByDoctorName { get; set; }
+        public string? Notes { get; set; }
+
+        public string SeverityCssClass => (Severity ?? "").ToLower() switch
+        {
+            "severe" => "mh-sev-severe",
+            "moderate" => "mh-sev-moderate",
+            "mild" => "mh-sev-mild",
+            _ => "mh-sev-unknown"
+        };
+    }
+
+    public class MedicationRecordViewModel
+    {
+        public string Name { get; set; } = "";
+        public string? CategoryName { get; set; }
+        public string? Dosage { get; set; }
+        public string? Frequency { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? RecordedByDoctorName { get; set; }
+        public string? Notes { get; set; }
+
+        public bool IsActive => EndDate == null || EndDate >= DateTime.Today;
     }
 
     // ── 5. Consent ───────────────────────────────────────────
+    // Doctors here are LabUser accounts in the "Doctor" role (Identity
+    // string IDs) — there is no separate Doctor table in this project.
     public class ConsentViewModel
     {
+        public List<ActiveConsentViewModel> ActiveGrants { get; set; } = new();
+        public List<TestRequestOptionViewModel> AvailableRequests { get; set; } = new();
+    }
+
+    public class ActiveConsentViewModel
+    {
+        public int ConsentID { get; set; }
+        public string DoctorId { get; set; } = "";
         public string DoctorName { get; set; } = "";
         public string HPCSANumber { get; set; } = "";
-        public bool AccessGranted { get; set; }
-        public DateTime? GrantedDate { get; set; }
+        public DateTime GrantedDate { get; set; }
+    }
+
+    public class TestRequestOptionViewModel
+    {
+        public int RequestID { get; set; }
+        public string Label { get; set; } = "";   // e.g. "Blood Work, Lipid Panel"
+    }
+
+    public class DoctorSearchResultViewModel
+    {
+        public string DoctorId { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string HPCSANumber { get; set; } = "";
     }
 
     // ── 6. Reports ───────────────────────────────────────────

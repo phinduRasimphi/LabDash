@@ -11,9 +11,8 @@ namespace LabDash.Models
         [Display(Name = "Allergy Name")]
         public string AllergyName { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(50)]
-        public string Category { get; set; } = string.Empty;
+        public int CategoryId { get; set; }
+        public Category? Category { get; set; }   // navigation property, matches MedicalCondition
 
         [StringLength(250)]
         public string? Description { get; set; }

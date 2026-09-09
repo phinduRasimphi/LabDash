@@ -37,6 +37,14 @@
         </div>
     }
 
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="cs-toast" style="background:#FDEDEC; color:#922B21; border-left-color:#C0392B;">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span>@TempData["ErrorMessage"]</span>
+        </div>
+    }
+
     <!-- ==========================================
         REASSURANCE STRIP
     =========================================== -->
@@ -56,17 +64,45 @@
         <div class="cs-panel">
             <div class="cs-panel-head">
                 <span><i class="fa-solid fa-id-badge"></i> Doctor Access</span>
-                <span class="cs-panel-tag">0 active</span>
+                <span class="cs-panel-tag">@Model.ActiveGrants.Count active</span>
             </div>
 
             <div class="cs-panel-body">
-                <div class="cs-badge-slot">
-                    <div class="cs-badge-outline">
-                        <i class="fa-solid fa-user-lock"></i>
+                @if (!Model.ActiveGrants.Any())
+                {
+                    <div class="cs-badge-slot">
+                        <div class="cs-badge-outline">
+                            <i class="fa-solid fa-user-lock"></i>
+                        </div>
+                        <h5>No active access grants</h5>
+                        <p>No doctors currently have access to your medical records. Grant access from the panel to the right, and their access badge will appear here.</p>
                     </div>
-                    <h5>No active access grants</h5>
-                    <p>No doctors currently have access to your medical records. Grant access from the panel to the right, and their access badge will appear here.</p>
-                </div>
+                }
+                else
+                {
+                    @foreach (var grant in Model.ActiveGrants)
+                    {
+                        <div class="cs-grant-card">
+                            <div class="cs-grant-info">
+                                <h5>@grant.DoctorName</h5>
+                                <p>
+                                    @if (!string.IsNullOrEmpty(grant.HPCSANumber))
+                                    {
+                                        <span>HPCSA @grant.HPCSANumber &middot; </span>
+                                    }
+                                    Granted @grant.GrantedDate.ToString("dd MMM yyyy")
+                                </p>
+                            </div>
+                            <form asp-action="RevokeConsent" method="post" onsubmit="return confirm('Revoke this doctor\'s access?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="consentId" value="@grant.ConsentID" />
+                                <button type="submit" class="cs-revoke-btn">
+                                    <i class="fa-solid fa-ban"></i> Revoke
+                                </button>
+                            </form>
+                        </div>
+                    }
+                }
             </div>
         </div>
 
@@ -88,53 +124,50 @@
                     <div class="cs-step-item"><span class="cs-step-num">3</span> Grant access</div>
                 </div>
 
-                <div class="cs-field">
-                    <label>Doctor Search</label>
-                    <div class="cs-input-wrap">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" class="cs-input" placeholder="Enter doctor name or HPCSA number..." />
-                    </div>
-                </div>
+                <form id="consentForm" asp-action="GrantConsent" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="doctorId" id="selectedDoctorId" />
 
-                <div class="cs-field">
-                    <label>Select Test Requests to Share</label>
-
-                    <div class="cs-chip-grid">
-                        <input type="checkbox" id="cs-req-1041" class="cs-chip-input" />
-                        <label for="cs-req-1041" class="cs-chip">
-                            <span class="cs-chip-id">REQ-1041</span>
-                            <span class="cs-chip-type">Blood Work</span>
-                            <i class="fa-solid fa-check cs-chip-check"></i>
-                        </label>
-
-                        <input type="checkbox" id="cs-req-0987" class="cs-chip-input" />
-                        <label for="cs-req-0987" class="cs-chip">
-                            <span class="cs-chip-id">REQ-0987</span>
-                            <span class="cs-chip-type">X-Ray</span>
-                            <i class="fa-solid fa-check cs-chip-check"></i>
-                        </label>
-
-                        <input type="checkbox" id="cs-req-0921" class="cs-chip-input" />
-                        <label for="cs-req-0921" class="cs-chip">
-                            <span class="cs-chip-id">REQ-0921</span>
-                            <span class="cs-chip-type">MRI Results</span>
-                            <i class="fa-solid fa-check cs-chip-check"></i>
-                        </label>
-
-                        <input type="checkbox" id="cs-req-0870" class="cs-chip-input" />
-                        <label for="cs-req-0870" class="cs-chip">
-                            <span class="cs-chip-id">REQ-0870</span>
-                            <span class="cs-chip-type">Lipid Panel</span>
-                            <i class="fa-solid fa-check cs-chip-check"></i>
-                        </label>
+                    <div class="cs-field">
+                        <label>Doctor Search</label>
+                        <div class="cs-input-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="doctorSearch" class="cs-input"
+                                   placeholder="Enter doctor name or HPCSA number..." autocomplete="off" />
+                        </div>
+                        <div id="doctorResults" class="cs-doctor-results"></div>
+                        <small class="cs-hint" id="selectedDoctorHint" style="display:none;"></small>
                     </div>
 
-                    <small class="cs-hint">Tap a request to include it. You can select more than one.</small>
-                </div>
+                    <div class="cs-field">
+                        <label>Select Test Requests to Share</label>
 
-                <button type="button" class="cs-submit">
-                    <i class="fas fa-check"></i> Grant Access &amp; Notify Doctor
-                </button>
+                        @if (!Model.AvailableRequests.Any())
+                        {
+                            <small class="cs-hint">You don't have any test requests yet, so there's nothing to share.</small>
+                        }
+                        else
+                        {
+                            <div class="cs-chip-grid">
+                                @foreach (var req in Model.AvailableRequests)
+                                {
+                                    <input type="checkbox" id="cs-req-@req.RequestID" name="requestIds"
+                                           value="@req.RequestID" class="cs-chip-input" />
+                                    <label for="cs-req-@req.RequestID" class="cs-chip">
+                                        <span class="cs-chip-id">REQ-@req.RequestID</span>
+                                        <span class="cs-chip-type">@(string.IsNullOrEmpty(req.Label) ? "Test Request" : req.Label)</span>
+                                        <i class="fa-solid fa-check cs-chip-check"></i>
+                                    </label>
+                                }
+                            </div>
+                            <small class="cs-hint">Tap a request to include it. You can select more than one.</small>
+                        }
+                    </div>
+
+                    <button type="submit" class="cs-submit" id="grantBtn" disabled>
+                        <i class="fas fa-check"></i> Grant Access &amp; Notify Doctor
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -432,6 +465,59 @@
         margin: 0 auto;
     }
 
+    /* ============ GRANT CARD (active access) ============ */
+    .cs-grant-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        background: var(--cs-paper);
+        border: 1.5px solid var(--cs-line-strong);
+        border-radius: var(--cs-radius-sm);
+        padding: 14px 16px;
+        margin-bottom: 12px;
+    }
+
+        .cs-grant-card:last-child {
+            margin-bottom: 0;
+        }
+
+    .cs-grant-info h5 {
+        margin: 0 0 3px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--cs-ink);
+    }
+
+    .cs-grant-info p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--cs-ink-soft);
+    }
+
+    .cs-revoke-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 1.5px solid #E4B8B4;
+        background: #FDF3F2;
+        color: #B3413B;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .2s, border-color .2s;
+    }
+
+        .cs-revoke-btn:hover {
+            background: #FBE5E3;
+            border-color: #D89A95;
+        }
+
     /* ============ STEP TRACKER ============ */
     .cs-steps {
         display: flex;
@@ -522,6 +608,48 @@
         font-family: 'Inter', sans-serif;
         font-size: 14px;
         color: var(--cs-ink);
+    }
+
+    /* ============ DOCTOR SEARCH RESULTS ============ */
+    .cs-doctor-results {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .cs-doctor-result {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--cs-paper);
+        border: 1.5px solid var(--cs-line-strong);
+        border-radius: var(--cs-radius-sm);
+        padding: 10px 14px;
+        cursor: pointer;
+        transition: border-color .15s, background .15s;
+    }
+
+        .cs-doctor-result:hover {
+            border-color: var(--cs-teal);
+            background: var(--cs-teal-dim);
+        }
+
+        .cs-doctor-result .cs-dr-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--cs-ink);
+        }
+
+        .cs-doctor-result .cs-dr-hpcsa {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11.5px;
+            color: var(--cs-ink-soft);
+        }
+
+    .cs-doctor-result.selected {
+        border-color: var(--cs-teal);
+        background: var(--cs-teal-dim);
     }
 
     /* ============ CHIP MULTISELECT ============ */
@@ -615,12 +743,19 @@
         font-size: 14.5px;
         cursor: pointer;
         box-shadow: 0 10px 24px rgba(10, 90, 80, 0.22);
-        transition: transform .2s, box-shadow .2s;
+        transition: transform .2s, box-shadow .2s, opacity .2s;
     }
 
         .cs-submit:hover {
             transform: translateY(-2px);
             box-shadow: 0 14px 28px rgba(10, 90, 80, 0.28);
+        }
+
+        .cs-submit:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
     /* ============ FOOTER ============ */
@@ -680,3 +815,70 @@
         }
     }
 </style>
+
+<script>
+    (function () {
+        const searchInput = document.getElementById('doctorSearch');
+        const resultsBox = document.getElementById('doctorResults');
+        const hiddenDoctorId = document.getElementById('selectedDoctorId');
+        const selectedHint = document.getElementById('selectedDoctorHint');
+        const grantBtn = document.getElementById('grantBtn');
+        let debounceTimer = null;
+
+        function clearSelection() {
+            hiddenDoctorId.value = '';
+            selectedHint.style.display = 'none';
+            grantBtn.disabled = true;
+        }
+
+        searchInput.addEventListener('input', function () {
+            clearSelection();
+            clearTimeout(debounceTimer);
+
+            const query = searchInput.value.trim();
+            if (query.length < 2) {
+                resultsBox.innerHTML = '';
+                return;
+            }
+
+            debounceTimer = setTimeout(function () {
+                fetch('/Patient/SearchDoctors?query=' + encodeURIComponent(query))
+                    .then(function (res) { return res.json(); })
+                    .then(function (doctors) {
+                        if (!doctors || doctors.length === 0) {
+                            resultsBox.innerHTML = '<small class="cs-hint">No matching doctors found.</small>';
+                            return;
+                        }
+
+                        resultsBox.innerHTML = doctors.map(function (d) {
+                            return '<div class="cs-doctor-result" data-id="' + d.doctorId + '" data-name="' + d.fullName + '">' +
+                                '<span class="cs-dr-name">' + d.fullName + '</span>' +
+                                (d.hpcsaNumber ? '<span class="cs-dr-hpcsa">HPCSA ' + d.hpcsaNumber + '</span>' : '') +
+                                '</div>';
+                        }).join('');
+
+                        resultsBox.querySelectorAll('.cs-doctor-result').forEach(function (el) {
+                            el.addEventListener('click', function () {
+                                hiddenDoctorId.value = el.dataset.id;
+                                searchInput.value = el.dataset.name;
+                                resultsBox.innerHTML = '';
+                                selectedHint.textContent = 'Selected: ' + el.dataset.name;
+                                selectedHint.style.display = 'block';
+                                grantBtn.disabled = false;
+                            });
+                        });
+                    })
+                    .catch(function () {
+                        resultsBox.innerHTML = '<small class="cs-hint">Something went wrong searching for doctors.</small>';
+                    });
+            }, 300);
+        });
+
+        document.getElementById('consentForm').addEventListener('submit', function (e) {
+            if (!hiddenDoctorId.value) {
+                e.preventDefault();
+                alert('Please select a doctor from the search results first.');
+            }
+        });
+    })();
+</script>

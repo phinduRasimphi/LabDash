@@ -48,18 +48,18 @@ namespace LabDash.Models
         public string NewName { get; set; } = "";
         public int NewCategory { get; set; }
         public string NewDescription { get; set; } = "";
+        public List<Category> InactiveCategories { get; set; } = new();
     }
 
     public class AllergyListViewModel
     {
         public string PageTitle { get; set; } = "";
-        public List<string> Categories { get; set; } = new();
+        public List<Category> Categories { get; set; } = new();
+        public List<Category> InactiveCategories { get; set; } = new();
         public List<Allergy> Allergies { get; set; } = new();
         public List<Allergy> InactiveAllergies { get; set; } = new();
-        public string NewName { get; set; } = "";
-        public string NewCategory { get; set; } = "";
-        public string NewDescription { get; set; } = "";
     }
+
 
     public class MedicationListViewModel
     {
@@ -70,6 +70,7 @@ namespace LabDash.Models
         public string NewName { get; set; } = "";
         public string NewCategory { get; set; } = "";
         public string NewDescription { get; set; } = "";
+        public List<Category> InactiveCategories { get; set; } = new();
     }
 
     public class SystemTablesViewModel

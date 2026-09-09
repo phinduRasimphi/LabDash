@@ -1,39 +1,18 @@
 ﻿@model LabDash.Models.AllergyListViewModel
+
 @{
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
     ViewData["Title"] = "Allergies";
     ViewData["ActivePage"] = "Allergies";
 
     var breakdown = Model.Allergies
-        .GroupBy(a => string.IsNullOrWhiteSpace(a.Category) ? "Uncategorized" : a.Category)
+        .GroupBy(a => a.Category?.Name ?? "Uncategorized")
         .Select(g => new { Name = g.Key, Count = g.Count() })
         .OrderByDescending(g => g.Count)
         .ToList();
+
     var breakdownMax = breakdown.Any() ? breakdown.Max(b => b.Count) : 0;
 }
-
-@*
-    ============================================================================
-    Same treatment as Conditions.cshtml, plus a couple of bugs I found while
-    porting this one over that would have bitten the same way the modal bug
-    did on Conditions:
-
-      1. openModal/closeModal were missing here too (same fix — defined
-         below, with click-outside + Escape to close).
-      2. The search/filter JS referenced row.dataset.name / row.dataset.cat
-         and a tbody with id="allergy-tbody" — but the rows never had those
-         data-* attributes and the tbody never had that id. Search would
-         have thrown immediately on the first keystroke. Fixed.
-      3. "Add Category" (the chip input with the ✕ remove button) only ever
-         edited the DOM — it wasn't wired to a form or asp-action anywhere,
-         so nothing typed there was ever saved. That's because Allergy
-         categories look like a free-text field on the Allergy itself
-         (Model.Categories is a list of distinct strings, not a table with
-         IDs like Conditions has). I've kept it purely as a convenience that
-         pre-fills the dropdowns in the Add/Edit modals — worth deciding if
-         you want it removed entirely or wired to something real.
-    ============================================================================
-*@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -43,19 +22,21 @@
     @if (TempData["Success"] != null)
     {
         <div class="adm-alert">
-            <i class="fas fa-circle-check"></i> @TempData["Success"]
+            <i class="fas fa-circle-check"></i>
+            @TempData["Success"]
         </div>
     }
 
     @if (TempData["Error"] != null)
     {
         <div class="adm-alert adm-alert-error">
-            <i class="fas fa-circle-exclamation"></i> @TempData["Error"]
+            <i class="fas fa-circle-exclamation"></i>
+            @TempData["Error"]
         </div>
     }
 
     <!-- ==========================================
-        PAGE BANNER
+         PAGE BANNER
     =========================================== -->
     <div class="adm-page-banner">
         <div class="adm-page-banner-pattern"></div>
@@ -83,47 +64,124 @@
                     <span class="label">Categories</span>
                 </div>
             </div>
-            <button class="adm-btn adm-btn-light" onclick="openModal('modal-add')">
-                <i class="fas fa-plus"></i> Add Allergy
+
+            <button type="button" class="adm-btn adm-btn-light" onclick="openModal('modal-add')">
+                <i class="fas fa-plus"></i>
+                Add Allergy
             </button>
         </div>
     </div>
 
     <!-- ==========================================
-        CATEGORIES PANEL
+         ALLERGY CATEGORIES
     =========================================== -->
     <div class="adm-panel">
+
         <div class="adm-panel-head">
             <span><i class="fas fa-folder"></i> Allergy Categories</span>
             <span class="adm-panel-tag">@Model.Categories.Count categories</span>
         </div>
+
+        <div class="adm-tabs">
+            <button type="button" class="adm-tab is-active" data-target="cat-chips-active" onclick="switchCatTab(this)">
+                Active <span class="adm-tab-count">@Model.Categories.Count</span>
+            </button>
+            <button type="button" class="adm-tab" data-target="cat-chips-archived" onclick="switchCatTab(this)">
+                Archived <span class="adm-tab-count">@Model.InactiveCategories.Count</span>
+            </button>
+        </div>
+
         <div class="adm-panel-body">
-            <div class="adm-chips-row" id="cat-chips">
-                @foreach (var cat in Model.Categories)
+
+            <div class="adm-search-box adm-cat-search">
+                <i class="fas fa-magnifying-glass"></i>
+                <input id="cat-search" placeholder="Search categories..." oninput="filterCatChips()" />
+            </div>
+
+            <!-- ACTIVE CATEGORY CHIPS -->
+            <div class="adm-chips-container" id="cat-chips-active">
+                @if (Model.Categories.Any())
                 {
-                    <span class="adm-chip">
-                        @cat
-                        <span class="adm-chip-rm" onclick="removeChip(this)"><i class="fas fa-xmark"></i></span>
-                    </span>
+                    <div class="adm-chips-row">
+                        @foreach (var cat in Model.Categories)
+                        {
+                            <form asp-action="DeactivateCategory" method="post" class="adm-chip-form" data-name="@cat.Name.ToLower()">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@cat.CategoryId" />
+                                <span class="adm-chip">
+                                    <span class="adm-chip-name">@cat.Name</span>
+                                    <button type="submit" class="adm-chip-rm" title="Archive category">
+                                        <i class="fas fa-box-archive"></i>
+                                    </button>
+                                </span>
+                            </form>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="adm-hint">No categories yet — add one below.</p>
                 }
             </div>
-            <div class="adm-inline-form">
-                <input id="new-cat" placeholder="New category name" />
-                <button class="adm-btn adm-btn-sm" type="button" onclick="addChip('cat-chips','new-cat')">
-                    <i class="fas fa-plus"></i> Add Category
+
+            <!-- ARCHIVED CATEGORY CHIPS -->
+            <div class="adm-chips-container" id="cat-chips-archived" style="display:none;">
+                @if (Model.InactiveCategories.Any())
+                {
+                    <div class="adm-chips-row">
+                        @foreach (var cat in Model.InactiveCategories)
+                        {
+                            <form asp-action="ReactivateCategory" method="post" class="adm-chip-form" data-name="@cat.Name.ToLower()">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@cat.CategoryId" />
+                                <span class="adm-chip adm-chip-muted">
+                                    <span class="adm-chip-name">@cat.Name</span>
+                                    <button type="submit" class="adm-chip-rm" title="Restore category">
+                                        <i class="fas fa-rotate-left"></i>
+                                    </button>
+                                </span>
+                            </form>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="adm-hint">Nothing archived yet.</p>
+                }
+            </div>
+
+            <!-- CATEGORY PAGINATION -->
+            <div class="adm-pagination" id="category-pagination">
+                <button type="button" class="adm-page-btn" id="cat-prev" onclick="changeCategoryPage(-1)">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="adm-page-info" id="cat-page-info">Page 1</span>
+                <button type="button" class="adm-page-btn" id="cat-next" onclick="changeCategoryPage(1)">
+                    <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
-            <p class="adm-hint">Categories added here only pre-fill the dropdowns below — they aren't saved on their own.</p>
+
+            <!-- ADD CATEGORY -->
+            <form asp-action="AddCategory" method="post" class="adm-inline-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="type" value="Allergy" />
+                <input name="name" placeholder="New category name" required />
+                <button class="adm-btn adm-btn-sm" type="submit">
+                    <i class="fas fa-plus"></i> Add Category
+                </button>
+            </form>
+
         </div>
     </div>
 
     <!-- ==========================================
-        ALLERGIES TABLE + CATEGORY BREAKDOWN
+         ALLERGIES + BREAKDOWN
     =========================================== -->
     <div class="adm-split">
 
-        <!-- Allergies table (tabbed: Active / Archived) -->
+        <!-- ALLERGIES TABLE -->
         <div class="adm-panel">
+
             <div class="adm-panel-head">
                 <span><i class="fas fa-allergies"></i> All Allergies</span>
                 <span class="adm-panel-tag">@Model.Allergies.Count items</span>
@@ -141,93 +199,126 @@
             <div class="adm-toolbar">
                 <div class="adm-search-box">
                     <i class="fas fa-magnifying-glass"></i>
-                    <input id="allergy-search" placeholder="Search allergies…" oninput="filterActiveTable()" />
+                    <input id="allergy-search" placeholder="Search allergies..." oninput="filterActiveTable()" />
                 </div>
+
                 <select id="allergy-cat-filter" onchange="filterActiveTable()">
                     <option value="">All Categories</option>
                     @foreach (var cat in Model.Categories)
                     {
-                        <option value="@cat">@cat</option>
+                        <option value="@cat.Name">@cat.Name</option>
                     }
                 </select>
+
+                <div class="adm-show-control" id="show-control">
+                    <span>Show</span>
+                    <select id="allergy-page-size" onchange="changePageSize()">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="25">25</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
             </div>
 
             <div class="adm-table-wrap">
-                <table class="adm-table">
-                    <thead>
-                        <tr>
-                            <th>Allergy Name</th>
-                            <th>Category</th>
-                            <th>Description</th>
-                            <th>Status</th>
-                            <th class="adm-th-actions">Actions</th>
-                        </tr>
-                    </thead>
-
-                    <!-- ACTIVE ROWS -->
-                    <tbody id="allergy-tbody">
-                        @foreach (var item in Model.Allergies)
-                        {
-                            <tr data-name="@item.AllergyName.ToLower()" data-cat="@(item.Category ?? "")">
-                                <td class="adm-td-strong">@item.AllergyName</td>
-                                <td><span class="adm-badge">@item.Category</span></td>
-                                <td class="adm-td-muted">@item.Description</td>
-                                <td>
-                                    <span class="adm-status-pill adm-status-active">
-                                        <span class="adm-status-dot"></span> Active
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="adm-row-actions">
-                                        <button type="button" class="adm-icon-btn adm-icon-btn-edit"
-                                                data-id="@item.AllergyId"
-                                                data-name="@item.AllergyName"
-                                                data-category="@item.Category"
-                                                onclick="openEditModalFromButton(this)">
-                                            <i class="fas fa-pen"></i> Edit
-                                        </button>
-
-                                        <form asp-action="DeleteAllergy" method="post" class="adm-inline-form-tight">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="id" value="@item.AllergyId" />
-                                            <button type="submit" class="adm-icon-btn adm-icon-btn-danger">
-                                                <i class="fas fa-box-archive"></i> Deactivate
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
+                <div class="adm-table-scroll">
+                    <table class="adm-table">
+                        <thead>
+                            <tr>
+                                <th>Allergy Name</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th class="adm-th-actions">Actions</th>
                             </tr>
-                        }
-                    </tbody>
+                        </thead>
 
-                    <!-- ARCHIVED ROWS -->
-                    <tbody id="allergy-tbody-archived" style="display:none;">
-                        @foreach (var item in Model.InactiveAllergies)
-                        {
-                            <tr data-name="@item.AllergyName.ToLower()" data-cat="@(item.Category ?? "")">
-                                <td class="adm-td-strong">@item.AllergyName</td>
-                                <td><span class="adm-badge adm-badge-muted">@item.Category</span></td>
-                                <td class="adm-td-muted">@item.Description</td>
-                                <td>
-                                    <span class="adm-status-pill adm-status-inactive">
-                                        <span class="adm-status-dot"></span> Archived
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="adm-row-actions">
-                                        <form asp-action="ReactivateAllergy" method="post" class="adm-inline-form-tight">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="id" value="@item.AllergyId" />
-                                            <button type="submit" class="adm-icon-btn adm-icon-btn-restore">
-                                                <i class="fas fa-rotate-left"></i> Reactivate
+                        <!-- ACTIVE ALLERGIES -->
+                        <tbody id="allergy-tbody">
+                            @foreach (var item in Model.Allergies)
+                            {
+                                <tr data-name="@item.AllergyName.ToLower()" data-cat="@item.Category?.Name">
+                                    <td class="adm-td-strong">@item.AllergyName</td>
+                                    <td>
+                                        @if (item.Category != null)
+                                        {
+                                            <span class="adm-badge">@item.Category.Name</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="adm-badge adm-badge-muted">Uncategorized</span>
+                                        }
+                                    </td>
+                                    <td class="adm-td-muted">@item.Description</td>
+                                    <td>
+                                        <span class="adm-status-pill adm-status-active">
+                                            <span class="adm-status-dot"></span> Active
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="adm-row-actions">
+                                            <button type="button" class="adm-icon-btn adm-icon-btn-edit"
+                                                    data-id="@item.AllergyId"
+                                                    data-name="@item.AllergyName"
+                                                    data-category="@item.CategoryId"
+                                                    data-description="@item.Description"
+                                                    onclick="openEditModalFromButton(this)">
+                                                <i class="fas fa-pen"></i> Edit
                                             </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+
+                                            <form asp-action="DeleteAllergy" method="post" class="adm-inline-form-tight">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@item.AllergyId" />
+                                                <button type="submit" class="adm-icon-btn adm-icon-btn-danger">
+                                                    <i class="fas fa-box-archive"></i> Deactivate
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+
+                        <!-- ARCHIVED ALLERGIES -->
+                        <tbody id="allergy-tbody-archived" style="display:none;">
+                            @foreach (var item in Model.InactiveAllergies)
+                            {
+                                <tr data-name="@item.AllergyName.ToLower()" data-cat="@item.Category?.Name">
+                                    <td class="adm-td-strong">@item.AllergyName</td>
+                                    <td>
+                                        @if (item.Category != null)
+                                        {
+                                            <span class="adm-badge adm-badge-muted">@item.Category.Name</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="adm-badge adm-badge-muted">Uncategorized</span>
+                                        }
+                                    </td>
+                                    <td class="adm-td-muted">@item.Description</td>
+                                    <td>
+                                        <span class="adm-status-pill adm-status-inactive">
+                                            <span class="adm-status-dot"></span> Archived
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="adm-row-actions">
+                                            <form asp-action="ReactivateAllergy" method="post" class="adm-inline-form-tight">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@item.AllergyId" />
+                                                <button type="submit" class="adm-icon-btn adm-icon-btn-restore">
+                                                    <i class="fas fa-rotate-left"></i> Reactivate
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
 
                 @if (!Model.Allergies.Any())
                 {
@@ -246,10 +337,33 @@
                         <p>Allergies you deactivate will appear here and can be reactivated any time.</p>
                     </div>
                 }
+
+                <div class="adm-empty-state" id="allergy-no-results" style="display:none;">
+                    <div class="adm-empty-icon"><i class="fas fa-magnifying-glass"></i></div>
+                    <h5>No matching allergies</h5>
+                    <p>Try changing your search or category filter.</p>
+                </div>
             </div>
+
+            <!-- ALLERGY PAGINATION -->
+            <div class="adm-condition-pagination" id="allergy-pagination">
+                <div class="adm-pagination-left">
+                    <span id="allergy-results-info">Showing 0 of 0</span>
+                </div>
+                <div class="adm-pagination-right">
+                    <button type="button" class="adm-page-btn" id="allergy-prev" onclick="changeAllergyPage(-1)">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="adm-page-info" id="allergy-page-info">Page 1</span>
+                    <button type="button" class="adm-page-btn" id="allergy-next" onclick="changeAllergyPage(1)">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
         </div>
 
-        <!-- Category breakdown -->
+        <!-- CATEGORY BREAKDOWN -->
         <div class="adm-panel">
             <div class="adm-panel-head">
                 <span><i class="fas fa-chart-simple"></i> By category</span>
@@ -285,34 +399,39 @@
     </div>
 
     <!-- ==========================================
-        ADD MODAL
+         ADD ALLERGY MODAL
     =========================================== -->
     <div class="adm-modal-overlay" id="modal-add">
         <div class="adm-modal">
             <div class="adm-modal-title">
-                <span><i class="fas fa-circle-plus adm-modal-icon"></i>Add New Allergy</span>
+                <span><i class="fas fa-circle-plus adm-modal-icon"></i> Add New Allergy</span>
                 <span class="adm-modal-close" onclick="closeModal('modal-add')"><i class="fas fa-xmark"></i></span>
             </div>
+
             <form asp-action="AddAllergy" method="post">
                 @Html.AntiForgeryToken()
+
                 <div class="adm-form-group">
                     <label>Allergy Name</label>
                     <input name="name" placeholder="e.g. Penicillin" required />
                 </div>
+
                 <div class="adm-form-group">
                     <label>Category</label>
-                    <select name="category" required>
+                    <select name="categoryId" required>
                         <option value="">-- Select Category --</option>
                         @foreach (var cat in Model.Categories)
                         {
-                            <option value="@cat">@cat</option>
+                            <option value="@cat.CategoryId">@cat.Name</option>
                         }
                     </select>
                 </div>
+
                 <div class="adm-form-group">
                     <label>Description (optional)</label>
                     <input name="description" placeholder="Short description" />
                 </div>
+
                 <div class="adm-modal-actions">
                     <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-add')">Cancel</button>
                     <button type="submit" class="adm-btn">
@@ -324,35 +443,39 @@
     </div>
 
     <!-- ==========================================
-        EDIT MODAL
+         EDIT ALLERGY MODAL
     =========================================== -->
     <div class="adm-modal-overlay" id="modal-edit">
         <div class="adm-modal">
             <div class="adm-modal-title">
-                <span><i class="fas fa-pen adm-modal-icon"></i>Edit Allergy</span>
+                <span><i class="fas fa-pen adm-modal-icon"></i> Edit Allergy</span>
                 <span class="adm-modal-close" onclick="closeModal('modal-edit')"><i class="fas fa-xmark"></i></span>
             </div>
+
             <form asp-action="EditAllergy" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" id="edit-id" />
+
                 <div class="adm-form-group">
                     <label>Allergy Name</label>
                     <input name="name" id="edit-name" placeholder="e.g. Penicillin" required />
                 </div>
+
                 <div class="adm-form-group">
                     <label>Category</label>
-                    <select name="category" id="edit-category" required>
-                        <option value="">-- Select Category --</option>
+                    <select name="categoryId" id="edit-category" required>
                         @foreach (var cat in Model.Categories)
                         {
-                            <option value="@cat">@cat</option>
+                            <option value="@cat.CategoryId">@cat.Name</option>
                         }
                     </select>
                 </div>
+
                 <div class="adm-form-group">
                     <label>Description (optional)</label>
                     <input name="description" id="edit-description" placeholder="Short description" />
                 </div>
+
                 <div class="adm-modal-actions">
                     <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-edit')">Cancel</button>
                     <button type="submit" class="adm-btn">
@@ -363,854 +486,604 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         EDIT CATEGORY MODAL
+    =========================================== -->
+    <div class="adm-modal-overlay" id="modal-edit-category">
+        <div class="adm-modal">
+            <div class="adm-modal-title">
+                <span><i class="fas fa-pen adm-modal-icon"></i> Edit Category</span>
+                <span class="adm-modal-close" onclick="closeModal('modal-edit-category')"><i class="fas fa-xmark"></i></span>
+            </div>
+
+            <form asp-action="EditCategory" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" id="edit-cat-id" />
+
+                <div class="adm-form-group">
+                    <label>Category Name</label>
+                    <input name="name" id="edit-cat-name" required />
+                </div>
+
+                <div class="adm-modal-actions">
+                    <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-edit-category')">Cancel</button>
+                    <button type="submit" class="adm-btn">
+                        <i class="fas fa-floppy-disk"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 
+
 @section Scripts {
-    <script>
-        function openModal(id) {
-            var el = document.getElementById(id);
-            if (!el) return;
-            el.classList.add('is-open');
-            document.body.style.overflow = 'hidden';
-        }
+<script>
 
-        function closeModal(id) {
-            var el = document.getElementById(id);
-            if (!el) return;
-            el.classList.remove('is-open');
-            document.body.style.overflow = '';
-        }
+    /* ==========================================================
+       GLOBAL STATE
+    ========================================================== */
 
-        document.querySelectorAll('.adm-modal-overlay').forEach(function(overlay) {
-            overlay.addEventListener('click', function(e) {
-                if (e.target === overlay) closeModal(overlay.id);
-            });
+    var allergyPages = { active: 1, archived: 1 };
+    var categoryPages = { active: 1, archived: 1 };
+    var categoryPageSize = 6;
+
+
+    /* ==========================================================
+       MODALS
+    ========================================================== */
+
+    function openModal(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.classList.remove('is-open');
+        document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('.adm-modal-overlay').forEach(function (overlay) {
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeModal(overlay.id);
         });
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.adm-modal-overlay.is-open').forEach(function(o) {
-                    closeModal(o.id);
-                });
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.adm-modal-overlay.is-open').forEach(function (o) {
+                closeModal(o.id);
+            });
+        }
+    });
+
+
+    /* ==========================================================
+       EDIT ALLERGY
+    ========================================================== */
+
+    function openEditModalFromButton(btn) {
+        document.getElementById('edit-id').value = btn.dataset.id;
+        document.getElementById('edit-name').value = btn.dataset.name;
+        document.getElementById('edit-description').value = btn.dataset.description || '';
+
+        var select = document.getElementById('edit-category');
+        for (var i = 0; i < select.options.length; i++) {
+            if (select.options[i].value === String(btn.dataset.category)) {
+                select.selectedIndex = i;
+                break;
             }
+        }
+
+        openModal('modal-edit');
+    }
+
+
+    /* ==========================================================
+       EDIT CATEGORY (defined for parity — wire a button to this
+       if you add inline category editing later)
+    ========================================================== */
+
+    function openEditCategoryModal(btn) {
+        document.getElementById('edit-cat-id').value = btn.dataset.id;
+        document.getElementById('edit-cat-name').value = btn.dataset.name;
+        openModal('modal-edit-category');
+    }
+
+
+    /* ==========================================================
+       ALLERGY TABS
+    ========================================================== */
+
+    function switchTab(tabBtn) {
+        document
+            .querySelectorAll('.adm-split > .adm-panel:first-child .adm-tabs .adm-tab')
+            .forEach(function (tab) { tab.classList.remove('is-active'); });
+
+        tabBtn.classList.add('is-active');
+
+        var activeBody = document.getElementById('allergy-tbody');
+        var archivedBody = document.getElementById('allergy-tbody-archived');
+        activeBody.style.display = 'none';
+        archivedBody.style.display = 'none';
+
+        var target = document.getElementById(tabBtn.dataset.tbody);
+        if (target) target.style.display = '';
+
+        var activeEmpty = document.getElementById('allergy-empty-active');
+        var archivedEmpty = document.getElementById('allergy-empty-archived');
+
+        if (activeEmpty) {
+            activeEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody' ? '' : 'none';
+        }
+        if (archivedEmpty) {
+            archivedEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody-archived' ? '' : 'none';
+        }
+
+        document.getElementById('allergy-search').value = '';
+        document.getElementById('allergy-cat-filter').value = '';
+
+        allergyPages.active = 1;
+        allergyPages.archived = 1;
+
+        filterActiveTable();
+    }
+
+
+    /* ==========================================================
+       ALLERGY FILTER + PAGINATION
+    ========================================================== */
+
+    function getCurrentAllergyBody() {
+        var selectedTab = document.querySelector(
+            '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active'
+        );
+        if (!selectedTab) return null;
+        return document.getElementById(selectedTab.dataset.tbody);
+    }
+
+    function getCurrentAllergyType() {
+        var activeTab = document.querySelector(
+            '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active'
+        );
+        if (!activeTab) return 'active';
+        return activeTab.dataset.tbody === 'allergy-tbody-archived' ? 'archived' : 'active';
+    }
+
+    function filterActiveTable() {
+        var tbody = getCurrentAllergyBody();
+        if (!tbody) return;
+
+        var type = getCurrentAllergyType();
+        allergyPages[type] = 1;
+
+        renderAllergies();
+    }
+
+    function renderAllergies() {
+        var tbody = getCurrentAllergyBody();
+        if (!tbody) return;
+
+        var type = getCurrentAllergyType();
+
+        var query = document.getElementById('allergy-search').value.toLowerCase().trim();
+        var category = document.getElementById('allergy-cat-filter').value;
+
+        var rows = Array.from(tbody.querySelectorAll('tr'));
+
+        var matchingRows = rows.filter(function (row) {
+            var name = row.dataset.name || '';
+            var rowCategory = row.dataset.cat || '';
+            var nameMatch = name.includes(query);
+            var categoryMatch = !category || rowCategory === category;
+            return nameMatch && categoryMatch;
         });
 
-        function openEditModalFromButton(btn) {
-            document.getElementById('edit-id').value = btn.dataset.id;
-            document.getElementById('edit-name').value = btn.dataset.name;
+        var pageSizeValue = document.getElementById('allergy-page-size').value;
+        var allResults = pageSizeValue === 'all';
+        var pageSize = allResults ? matchingRows.length : parseInt(pageSizeValue);
+        if (pageSize < 1) pageSize = 5;
 
-            var sel = document.getElementById('edit-category');
-            for (var i = 0; i < sel.options.length; i++) {
-                if (sel.options[i].value === btn.dataset.category) { sel.selectedIndex = i; break; }
-            }
-            openModal('modal-edit');
+        var totalPages = allResults
+            ? 1
+            : Math.max(1, Math.ceil(matchingRows.length / pageSize));
+
+        if (allergyPages[type] > totalPages) {
+            allergyPages[type] = totalPages;
         }
 
-        function switchTab(tabBtn) {
-            document.querySelectorAll('.adm-tab').forEach(t => t.classList.remove('is-active'));
-            tabBtn.classList.add('is-active');
+        var currentPage = allergyPages[type];
+        var start = allResults ? 0 : (currentPage - 1) * pageSize;
+        var end = allResults ? matchingRows.length : start + pageSize;
 
-            document.getElementById('allergy-tbody').style.display = 'none';
-            document.getElementById('allergy-tbody-archived').style.display = 'none';
-            document.getElementById(tabBtn.dataset.tbody).style.display = '';
+        rows.forEach(function (row) { row.style.display = 'none'; });
 
-            var activeEmpty = document.getElementById('allergy-empty-active');
-            var archivedEmpty = document.getElementById('allergy-empty-archived');
-            if (activeEmpty) activeEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody' ? '' : 'none';
-            if (archivedEmpty) archivedEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody-archived' ? '' : 'none';
+        matchingRows.slice(start, end).forEach(function (row) {
+            row.style.display = '';
+        });
 
-            document.getElementById('allergy-search').value = '';
-            document.getElementById('allergy-cat-filter').value = '';
-            filterActiveTable();
+        updateAllergyPagination(matchingRows.length, currentPage, totalPages, allResults, start, end);
+    }
+
+    function updateAllergyPagination(total, currentPage, totalPages, allResults, start, end) {
+        var pagination = document.getElementById('allergy-pagination');
+        var noResults = document.getElementById('allergy-no-results');
+
+        if (total === 0) {
+            if (pagination) pagination.style.display = 'none';
+            if (noResults) noResults.style.display = '';
+            return;
         }
 
-        function filterActiveTable() {
-            var activeTab = document.querySelector('.adm-tab.is-active');
-            var tbody = document.getElementById(activeTab.dataset.tbody);
-            var q = document.getElementById('allergy-search').value.toLowerCase();
-            var cat = document.getElementById('allergy-cat-filter').value;
+        if (noResults) noResults.style.display = 'none';
 
-            tbody.querySelectorAll('tr').forEach(function(row) {
-                var nameMatch = row.dataset.name.includes(q);
-                var catMatch = !cat || row.dataset.cat === cat;
-                row.style.display = (nameMatch && catMatch) ? '' : 'none';
-            });
+        if (allResults) {
+            start = 0;
+            end = total;
         }
 
-        // Cosmetic only — see note at the top of the file. Pre-fills the
-        // dropdowns in this session; does not persist a new category.
-        function addChip(rowId, inputId) {
-            var input = document.getElementById(inputId);
-            var value = input.value.trim();
-            if (!value) return;
+        var showingStart = total === 0 ? 0 : start + 1;
+        var showingEnd = Math.min(end, total);
 
-            var row = document.getElementById(rowId);
-            var chip = document.createElement('span');
-            chip.className = 'adm-chip';
-            chip.innerHTML = value + ' <span class="adm-chip-rm" onclick="removeChip(this)"><i class="fas fa-xmark"></i></span>';
-            row.appendChild(chip);
+        document.getElementById('allergy-results-info').textContent =
+            'Showing ' + showingStart + '–' + showingEnd + ' of ' + total;
 
-            document.querySelectorAll('#allergy-cat-filter, select[name="category"]').forEach(function(sel) {
-                var opt = document.createElement('option');
-                opt.value = value;
-                opt.textContent = value;
-                sel.appendChild(opt);
-            });
+        document.getElementById('allergy-page-info').textContent =
+            allResults ? 'All' : 'Page ' + currentPage + ' of ' + totalPages;
 
-            input.value = '';
-        }
+        var previous = document.getElementById('allergy-prev');
+        var next = document.getElementById('allergy-next');
 
-        function removeChip(el) {
-            el.closest('.adm-chip').remove();
-        }
-    </script>
+        previous.disabled = allResults || currentPage <= 1;
+        next.disabled = allResults || currentPage >= totalPages;
+
+        pagination.style.display = totalPages <= 1 ? 'none' : 'flex';
+    }
+
+    function changeAllergyPage(direction) {
+        var type = getCurrentAllergyType();
+        allergyPages[type] += direction;
+        if (allergyPages[type] < 1) allergyPages[type] = 1;
+        renderAllergies();
+    }
+
+    function changePageSize() {
+        allergyPages.active = 1;
+        allergyPages.archived = 1;
+        renderAllergies();
+    }
+
+
+    /* ==========================================================
+       CATEGORY TABS
+    ========================================================== */
+
+    function switchCatTab(tabBtn) {
+        var panel = tabBtn.closest('.adm-panel');
+
+        panel.querySelectorAll('.adm-tabs .adm-tab').forEach(function (tab) {
+            tab.classList.remove('is-active');
+        });
+        tabBtn.classList.add('is-active');
+
+        var active = panel.querySelector('#cat-chips-active');
+        var archived = panel.querySelector('#cat-chips-archived');
+        active.style.display = 'none';
+        archived.style.display = 'none';
+
+        document.getElementById(tabBtn.dataset.target).style.display = '';
+        document.getElementById('cat-search').value = '';
+
+        categoryPages.active = 1;
+        categoryPages.archived = 1;
+
+        filterCatChips();
+    }
+
+
+    /* ==========================================================
+       CATEGORY FILTER + PAGINATION
+    ========================================================== */
+
+    function filterCatChips() {
+        var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
+        if (!activeTab) return;
+
+        var container = document.getElementById(activeTab.dataset.target);
+        if (!container) return;
+
+        var search = document.getElementById('cat-search').value.toLowerCase().trim();
+        var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
+
+        var forms = Array.from(container.querySelectorAll('.adm-chip-form'));
+        var matching = forms.filter(function (form) {
+            return (form.dataset.name || '').includes(search);
+        });
+
+        categoryPages[type] = Math.min(
+            categoryPages[type],
+            Math.max(1, Math.ceil(matching.length / categoryPageSize))
+        );
+
+        var currentPage = categoryPages[type];
+        var start = (currentPage - 1) * categoryPageSize;
+        var end = start + categoryPageSize;
+
+        forms.forEach(function (form) { form.style.display = 'none'; });
+        matching.slice(start, end).forEach(function (form) { form.style.display = ''; });
+
+        updateCategoryPagination(matching.length, currentPage, type);
+    }
+
+    function updateCategoryPagination(total, currentPage, type) {
+        var pagination = document.getElementById('category-pagination');
+
+        pagination.style.display = total === 0 ? 'none' : 'flex';
+
+        var totalPages = Math.max(1, Math.ceil(total / categoryPageSize));
+
+        document.getElementById('cat-page-info').textContent =
+            'Page ' + currentPage + ' of ' + totalPages;
+
+        document.getElementById('cat-prev').disabled = currentPage <= 1;
+        document.getElementById('cat-next').disabled = currentPage >= totalPages;
+    }
+
+    function changeCategoryPage(direction) {
+        var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
+        if (!activeTab) return;
+
+        var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
+
+        categoryPages[type] += direction;
+        if (categoryPages[type] < 1) categoryPages[type] = 1;
+
+        filterCatChips();
+    }
+
+
+    /* ==========================================================
+       INITIALISE
+    ========================================================== */
+
+    document.addEventListener('DOMContentLoaded', function () {
+        filterCatChips();
+        renderAllergies();
+    });
+
+</script>
 }
 
+
 <style>
+
+    /* ==========================================================
+       VARIABLES — purple stays fixed for allergies, everything
+       else matches the shared admin page look.
+    ========================================================== */
+
     :root {
         --adm-paper: #F0F7F6;
         --adm-raised: #FFFFFF;
+
         --adm-ink: #102C27;
         --adm-ink-soft: #52716C;
         --adm-ink-faint: #8FA9A3;
+
         --adm-line: #E1EEEC;
         --adm-line-strong: #CCE3DF;
+
         --adm-teal: #0E8C7F;
         --adm-teal-deep: #0A5850;
         --adm-teal-dim: #E3F4F1;
         --adm-teal-grad-start: #12A392;
         --adm-teal-grad-end: #0A4F48;
+
         --adm-red: #B0463F;
         --adm-red-dim: #F7E8E7;
+
         --adm-purple: #6D4EA8;
         --adm-purple-dim: #EEE8F9;
-        --adm-radius: 20px;
-        --adm-radius-sm: 13px;
-        --adm-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
-        --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
-        /* Category accent for THIS page — allergies get purple, matching
-               the purple used for Allergies on the main dashboard. */
         --adm-allergy-accent: var(--adm-purple);
         --adm-allergy-accent-dim: var(--adm-purple-dim);
+
+        --adm-radius: 20px;
+        --adm-radius-sm: 13px;
+
+        --adm-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+        --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
     }
 
-    .adm-page {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 26px 24px 60px;
-        color: var(--adm-ink);
-        font-family: 'Inter', sans-serif;
-    }
 
-    /* ============ ALERTS ============ */
-    .adm-alert {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: var(--adm-teal-dim);
-        color: var(--adm-teal-deep);
-        border-left: 4px solid var(--adm-teal);
-        border-radius: var(--adm-radius-sm);
-        padding: 14px 18px;
-        font-size: 13.5px;
-        font-weight: 600;
-        margin-bottom: 18px;
-    }
+    /* PAGE */
+    .adm-page { max-width: 1280px; margin: 0 auto; padding: 26px 24px 60px; color: var(--adm-ink); font-family: 'Inter', sans-serif; }
 
-    .adm-alert-error {
-        background: var(--adm-red-dim);
-        color: var(--adm-red);
-        border-left-color: var(--adm-red);
-    }
+    /* ALERTS */
+    .adm-alert { display: flex; align-items: center; gap: 10px; background: var(--adm-teal-dim); color: var(--adm-teal-deep); border-left: 4px solid var(--adm-teal); border-radius: var(--adm-radius-sm); padding: 14px 18px; font-size: 13.5px; font-weight: 600; margin-bottom: 18px; }
+    .adm-alert-error { background: var(--adm-red-dim); color: var(--adm-red); border-left-color: var(--adm-red); }
 
-    /* ============ PAGE BANNER ============ */
-    .adm-page-banner {
-        position: relative;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 24px;
-        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
-        border-radius: var(--adm-radius);
-        padding: 26px 32px;
-        margin-bottom: 22px;
-        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
-        overflow: hidden;
-        flex-wrap: wrap;
-    }
+    /* PAGE BANNER */
+    .adm-page-banner { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 24px; background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end)); border-radius: var(--adm-radius); padding: 26px 32px; margin-bottom: 22px; box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2); overflow: hidden; flex-wrap: wrap; }
+    .adm-page-banner-pattern { position: absolute; inset: 0; background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%); pointer-events: none; }
+    .adm-page-banner-left { display: flex; align-items: center; gap: 18px; position: relative; z-index: 1; }
+    .adm-page-banner-icon { width: 58px; height: 58px; border-radius: 16px; background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.32); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; flex-shrink: 0; }
+    .adm-page-banner-left h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 21px; margin: 0 0 3px; color: #fff; }
+    .adm-page-banner-left p { margin: 0; color: rgba(255,255,255,.85); font-size: 13px; }
+    .adm-page-banner-right { display: flex; align-items: center; gap: 20px; position: relative; z-index: 1; flex-wrap: wrap; }
+    .adm-mini-stats { display: flex; gap: 18px; }
+    .adm-mini-stat { display: flex; flex-direction: column; align-items: center; min-width: 58px; }
+    .adm-mini-stat .num { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 20px; color: #fff; }
+    .adm-mini-stat .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: rgba(255,255,255,.75); margin-top: 2px; }
 
-    .adm-page-banner-pattern {
-        position: absolute;
-        inset: 0;
-        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
-        pointer-events: none;
-    }
+    /* BUTTONS */
+    .adm-btn { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end)); color: #fff; border: none; border-radius: var(--adm-radius-sm); padding: 11px 20px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13.5px; cursor: pointer; box-shadow: 0 8px 20px rgba(10, 90, 80, 0.22); transition: transform .15s, box-shadow .15s; }
+    .adm-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(10, 90, 80, 0.28); }
+    .adm-btn-sm { padding: 9px 16px; font-size: 12.5px; flex-shrink: 0; }
+    .adm-btn-light { background: #fff; color: var(--adm-teal-deep); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+    .adm-btn-light:hover { box-shadow: 0 12px 24px rgba(0,0,0,0.16); }
+    .adm-btn-cancel { background: var(--adm-paper); color: var(--adm-ink-soft); border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 11px 20px; font-weight: 600; font-size: 13.5px; cursor: pointer; }
 
-    .adm-page-banner-left {
-        display: flex;
-        align-items: center;
-        gap: 18px;
-        position: relative;
-        z-index: 1;
-    }
+    /* PANELS */
+    .adm-panel { background: var(--adm-raised); border-radius: var(--adm-radius); box-shadow: var(--adm-shadow); overflow: hidden; margin-bottom: 22px; }
+    .adm-panel-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 26px; border-bottom: 1px solid var(--adm-line); }
+    .adm-panel-head span:first-child { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15.5px; display: flex; align-items: center; gap: 10px; }
+    .adm-panel-head span:first-child i { color: var(--adm-teal); }
+    .adm-panel-tag { font-weight: 600; font-size: 11.5px; background: var(--adm-teal-dim); color: var(--adm-teal-deep); padding: 6px 13px; border-radius: 999px; }
+    .adm-panel-body { padding: 20px 26px 24px; }
 
-    .adm-page-banner-icon {
-        width: 58px;
-        height: 58px;
-        border-radius: 16px;
-        background: rgba(255,255,255,.16);
-        border: 2px solid rgba(255,255,255,.32);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-size: 22px;
-        flex-shrink: 0;
-    }
+    /* SPLIT */
+    .adm-split { display: grid; grid-template-columns: 1.7fr 1fr; gap: 18px; align-items: start; }
 
-    .adm-page-banner-left h1 {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 700;
-        font-size: 21px;
-        margin: 0 0 3px;
-        color: #fff;
-    }
+    /* CATEGORY CHIPS — fixed purple */
+    .adm-chips-container { margin-bottom: 12px; min-height: 54px; }
+    .adm-chips-row { display: flex; flex-wrap: wrap; gap: 10px; min-height: 48px; }
+    .adm-chip-form { display: inline-flex; }
+    .adm-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); border: 1px solid transparent; padding: 8px 10px 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; transition: transform .18s, box-shadow .18s; animation: admGlowPulsePurple 2.8s ease-in-out infinite; }
+    .adm-chip:hover { transform: translateY(-2px); }
+    .adm-chip-name { white-space: nowrap; }
+    .adm-chip-rm { background: transparent; border: none; padding: 3px 4px; margin-left: 4px; cursor: pointer; color: inherit; opacity: .55; display: inline-flex; align-items: center; justify-content: center; }
+    .adm-chip-rm:hover { opacity: 1; }
+    .adm-chip-muted { opacity: .55; animation: none; }
+    .adm-chip-muted:hover { opacity: .8; }
+    .adm-cat-search { margin-bottom: 14px; }
+    .adm-hint { color: var(--adm-ink-faint); font-size: 13px; margin: 12px 0; }
 
-    .adm-page-banner-left p {
-        margin: 0;
-        color: rgba(255,255,255,.85);
-        font-size: 13px;
-    }
+    /* TABS */
+    .adm-tabs { display: flex; gap: 6px; padding: 16px 26px 0; }
+    .adm-tab { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--adm-ink-soft); font-weight: 600; font-size: 13.5px; padding: 10px 6px; cursor: pointer; margin-right: 18px; }
+    .adm-tab.is-active { color: var(--adm-teal-deep); border-bottom-color: var(--adm-teal); }
+    .adm-tab-count { background: var(--adm-paper); color: var(--adm-ink-faint); font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+    .adm-tab.is-active .adm-tab-count { background: var(--adm-teal-dim); color: var(--adm-teal-deep); }
 
-    .adm-page-banner-right {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        position: relative;
-        z-index: 1;
-        flex-wrap: wrap;
-    }
+    /* TOOLBAR */
+    .adm-toolbar { display: flex; align-items: center; gap: 12px; padding: 16px 26px 0; flex-wrap: wrap; }
+    .adm-search-box { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 10px; background: var(--adm-paper); border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 10px 14px; }
+    .adm-search-box i { color: var(--adm-ink-faint); font-size: 13px; }
+    .adm-search-box input { border: none; background: transparent; outline: none; font-size: 13px; font-family: 'Inter', sans-serif; width: 100%; }
+    .adm-toolbar select { border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 10px 14px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--adm-ink); background: var(--adm-raised); }
+    .adm-show-control { display: flex; align-items: center; gap: 7px; color: var(--adm-ink-soft); font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .adm-show-control select { padding: 9px 10px; min-width: 64px; }
 
-    .adm-mini-stats {
-        display: flex;
-        gap: 18px;
-    }
+    /* TABLE */
+    .adm-table-wrap { padding: 16px 0 6px; width: 100%; box-sizing: border-box; overflow: visible; }
+    .adm-table-scroll { width: 100%; max-width: 100%; max-height: 430px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--adm-line-strong) var(--adm-paper); }
+    .adm-table-scroll::-webkit-scrollbar { width: 8px; }
+    .adm-table-scroll::-webkit-scrollbar-track { background: var(--adm-paper); border-radius: 10px; }
+    .adm-table-scroll::-webkit-scrollbar-thumb { background: var(--adm-line-strong); border-radius: 10px; }
+    .adm-table-scroll::-webkit-scrollbar-thumb:hover { background: var(--adm-teal); }
+    .adm-table { width: 100%; max-width: 100%; table-layout: auto; border-collapse: collapse; font-size: 13px; }
+    .adm-table th:nth-child(1), .adm-table td:nth-child(1) { width: 20%; }
+    .adm-table th:nth-child(2), .adm-table td:nth-child(2) { width: 17%; }
+    .adm-table th:nth-child(3), .adm-table td:nth-child(3) { width: 27%; }
+    .adm-table th:nth-child(4), .adm-table td:nth-child(4) { width: 13%; }
+    .adm-table th:nth-child(5), .adm-table td:nth-child(5) { width: 23%; }
+    .adm-table th { text-align: left; padding: 13px 18px; font-weight: 600; font-size: 11px; letter-spacing: .03em; text-transform: uppercase; color: var(--adm-ink-faint); background: var(--adm-paper); border-bottom: 1px solid var(--adm-line); position: sticky; top: 0; z-index: 5; }
+    .adm-th-actions { text-align: left; }
+    .adm-table td { padding: 15px 18px; border-bottom: 1px solid var(--adm-line); vertical-align: middle; overflow-wrap: break-word; word-break: normal; white-space: normal; line-height: 1.45; }
+    .adm-table tbody tr:last-child td { border-bottom: none; }
+    .adm-table tbody tr:hover { background: var(--adm-paper); }
+    .adm-td-strong { font-weight: 600; color: var(--adm-ink); overflow-wrap: anywhere; }
+    .adm-td-muted { color: var(--adm-ink-soft); overflow-wrap: anywhere; }
 
-    .adm-mini-stat {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-width: 58px;
-    }
+    /* BADGES — fixed purple */
+    .adm-badge { display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 1.3; text-align: center; background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); max-width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; animation: admGlowPulsePurple 2.6s ease-in-out infinite; }
+    .adm-badge-muted { background: var(--adm-line); color: var(--adm-ink-faint); animation: none; }
 
-        .adm-mini-stat .num {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 700;
-            font-size: 20px;
-            color: #fff;
-        }
+    /* STATUS */
+    .adm-status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; box-sizing: border-box; }
+    .adm-status-active { background: var(--adm-teal-dim); color: var(--adm-teal-deep); }
+    .adm-status-inactive { background: var(--adm-line); color: var(--adm-ink-faint); }
+    .adm-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .adm-status-active .adm-status-dot { background: var(--adm-teal); animation: admGlowPulse 2s ease-in-out infinite; }
+    .adm-status-inactive .adm-status-dot { background: var(--adm-ink-faint); box-shadow: 0 0 0 3px var(--adm-line); }
 
-        .adm-mini-stat .label {
-            font-size: 10.5px;
-            text-transform: uppercase;
-            letter-spacing: .04em;
-            color: rgba(255,255,255,.75);
-            margin-top: 2px;
-        }
+    /* ROW ACTIONS */
+    .adm-row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; width: 100%; }
+    .adm-inline-form-tight { display: inline-flex; max-width: 100%; }
+    .adm-icon-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--adm-line-strong); background: var(--adm-raised); color: var(--adm-ink-soft); border-radius: var(--adm-radius-sm); padding: 7px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, border-color .15s; max-width: 100%; }
+    .adm-icon-btn-edit:hover { background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); border-color: var(--adm-allergy-accent-dim); }
+    .adm-icon-btn-danger:hover { background: var(--adm-red-dim); color: var(--adm-red); border-color: var(--adm-red-dim); }
+    .adm-icon-btn-restore:hover { background: var(--adm-teal-dim); color: var(--adm-teal-deep); border-color: var(--adm-teal-dim); }
 
-    /* ============ BUTTONS ============ */
-    .adm-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
-        color: #fff;
-        border: none;
-        border-radius: var(--adm-radius-sm);
-        padding: 11px 20px;
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        font-size: 13.5px;
-        cursor: pointer;
-        box-shadow: 0 8px 20px rgba(10, 90, 80, 0.22);
-        transition: transform .15s, box-shadow .15s;
-    }
+    /* INLINE FORM */
+    .adm-inline-form { display: flex; gap: 10px; margin-top: 14px; }
+    .adm-inline-form input { flex: 1; min-width: 0; border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 10px 14px; font-size: 13px; font-family: 'Inter', sans-serif; }
+    .adm-inline-form input:focus { outline: none; border-color: var(--adm-allergy-accent); box-shadow: 0 0 0 3px var(--adm-allergy-accent-dim); }
 
-        .adm-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 26px rgba(10, 90, 80, 0.28);
-        }
+    /* PAGINATION */
+    .adm-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 12px 0 14px; }
+    .adm-page-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--adm-line-strong); background: var(--adm-raised); color: var(--adm-ink-soft); border-radius: 10px; cursor: pointer; transition: all .15s; }
+    .adm-page-btn:hover:not(:disabled) { background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); border-color: var(--adm-allergy-accent); }
+    .adm-page-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .adm-page-info { min-width: 90px; text-align: center; font-size: 12px; color: var(--adm-ink-soft); font-weight: 600; }
+    .adm-condition-pagination { display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 18px; border-top: 1px solid var(--adm-line); }
+    .adm-pagination-left { color: var(--adm-ink-faint); font-size: 12px; font-weight: 600; }
+    .adm-pagination-right { display: flex; align-items: center; gap: 10px; }
 
-    .adm-btn-sm {
-        padding: 9px 16px;
-        font-size: 12.5px;
-        flex-shrink: 0;
-    }
+    /* CATEGORY BREAKDOWN — fixed purple bars */
+    .adm-breakdown { padding: 20px 26px 26px; display: flex; flex-direction: column; gap: 16px; }
+    .adm-breakdown-row { display: flex; flex-direction: column; gap: 6px; }
+    .adm-breakdown-label { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--adm-ink); }
+    .adm-breakdown-label span { overflow-wrap: anywhere; }
+    .adm-breakdown-label strong { color: var(--adm-ink-faint); font-weight: 700; flex-shrink: 0; }
+    .adm-breakdown-track { height: 8px; border-radius: 999px; background: var(--adm-paper); overflow: hidden; }
+    .adm-breakdown-fill { height: 100%; border-radius: 999px; background: var(--adm-allergy-accent); opacity: .85; transition: width .3s ease; }
 
-    .adm-btn-light {
-        background: #fff;
-        color: var(--adm-teal-deep);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-    }
+    /* EMPTY STATE */
+    .adm-empty-state { padding: 48px 30px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .adm-empty-icon { width: 58px; height: 58px; border-radius: 50%; background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .adm-empty-state h5 { margin: 0; font-size: 14.5px; font-weight: 700; }
+    .adm-empty-state p { margin: 0 auto; max-width: 340px; font-size: 13px; color: var(--adm-ink-soft); line-height: 1.6; }
 
-        .adm-btn-light:hover {
-            box-shadow: 0 12px 24px rgba(0,0,0,0.16);
-        }
+    /* MODALS */
+    .adm-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 44, 39, 0.45); align-items: center; justify-content: center; z-index: 1000; }
+    .adm-modal-overlay.is-open { display: flex; }
+    .adm-modal { background: var(--adm-raised); border-radius: var(--adm-radius); box-shadow: var(--adm-shadow); width: 100%; max-width: 440px; padding: 26px; }
+    .adm-modal-title { display: flex; justify-content: space-between; align-items: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 16px; margin-bottom: 20px; }
+    .adm-modal-icon { margin-right: 8px; color: var(--adm-allergy-accent); }
+    .adm-modal-close { cursor: pointer; color: var(--adm-ink-faint); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .adm-modal-close:hover { background: var(--adm-paper); color: var(--adm-ink); }
+    .adm-form-group { margin-bottom: 16px; }
+    .adm-form-group label { display: block; font-size: 12.5px; font-weight: 600; color: var(--adm-ink-soft); margin-bottom: 6px; }
+    .adm-form-group input, .adm-form-group select { width: 100%; border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 10px 14px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--adm-ink); box-sizing: border-box; }
+    .adm-form-group input:focus, .adm-form-group select:focus { outline: none; border-color: var(--adm-allergy-accent); box-shadow: 0 0 0 3px var(--adm-allergy-accent-dim); }
+    .adm-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 
-    .adm-btn-cancel {
-        background: var(--adm-paper);
-        color: var(--adm-ink-soft);
-        border: 1px solid var(--adm-line-strong);
-        border-radius: var(--adm-radius-sm);
-        padding: 11px 20px;
-        font-weight: 600;
-        font-size: 13.5px;
-        cursor: pointer;
-    }
-
-    /* ============ PANELS ============ */
-    .adm-panel {
-        background: var(--adm-raised);
-        border-radius: var(--adm-radius);
-        box-shadow: var(--adm-shadow);
-        overflow: hidden;
-        margin-bottom: 22px;
-    }
-
-    .adm-panel-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 18px 26px;
-        border-bottom: 1px solid var(--adm-line);
-    }
-
-        .adm-panel-head span:first-child {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 700;
-            font-size: 15.5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-            .adm-panel-head span:first-child i {
-                color: var(--adm-teal);
-            }
-
-    .adm-panel-tag {
-        font-weight: 600;
-        font-size: 11.5px;
-        background: var(--adm-teal-dim);
-        color: var(--adm-teal-deep);
-        padding: 6px 13px;
-        border-radius: 999px;
-    }
-
-    .adm-panel-body {
-        padding: 20px 26px 24px;
-    }
-
-    .adm-hint {
-        margin: 12px 0 0;
-        font-size: 12px;
-        color: var(--adm-ink-faint);
-    }
-
-    /* ============ SPLIT LAYOUT ============ */
-    .adm-split {
-        display: grid;
-        grid-template-columns: 1.7fr 1fr;
-        gap: 18px;
-        align-items: start;
-    }
-
-    /* ============ CHIPS (category accent = purple, glowing) ============ */
-    .adm-chips-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 16px;
-    }
-
-    .adm-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: var(--adm-allergy-accent-dim);
-        color: var(--adm-allergy-accent);
-        padding: 6px 14px;
-        border-radius: 999px;
-        font-size: 12.5px;
-        font-weight: 600;
-        animation: admGlowPulsePurple 2.6s ease-in-out infinite;
-    }
-
-    .adm-chip-rm {
-        display: inline-flex;
-        cursor: pointer;
-        opacity: .6;
-        font-size: 10px;
-    }
-
-        .adm-chip-rm:hover {
-            opacity: 1;
-        }
-
-    .adm-inline-form {
-        display: flex;
-        gap: 10px;
-    }
-
-        .adm-inline-form input {
-            flex: 1;
-            border: 1px solid var(--adm-line-strong);
-            border-radius: var(--adm-radius-sm);
-            padding: 10px 14px;
-            font-size: 13px;
-            font-family: 'Inter', sans-serif;
-        }
-
-    .adm-inline-form-tight {
-        display: inline-flex;
-    }
-
-    /* ============ TABS ============ */
-    .adm-tabs {
-        display: flex;
-        gap: 6px;
-        padding: 16px 26px 0;
-    }
-
-    .adm-tab {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: transparent;
-        border: none;
-        border-bottom: 2px solid transparent;
-        color: var(--adm-ink-soft);
-        font-weight: 600;
-        font-size: 13.5px;
-        padding: 10px 6px;
-        cursor: pointer;
-        margin-right: 18px;
-    }
-
-        .adm-tab.is-active {
-            color: var(--adm-teal-deep);
-            border-bottom-color: var(--adm-teal);
-        }
-
-    .adm-tab-count {
-        background: var(--adm-paper);
-        color: var(--adm-ink-faint);
-        font-size: 11px;
-        padding: 2px 8px;
-        border-radius: 999px;
-    }
-
-    .adm-tab.is-active .adm-tab-count {
-        background: var(--adm-teal-dim);
-        color: var(--adm-teal-deep);
-    }
-
-    /* ============ TOOLBAR ============ */
-    .adm-toolbar {
-        display: flex;
-        gap: 12px;
-        padding: 16px 26px 0;
-        flex-wrap: wrap;
-    }
-
-    .adm-search-box {
-        flex: 1;
-        min-width: 200px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: var(--adm-paper);
-        border: 1px solid var(--adm-line-strong);
-        border-radius: var(--adm-radius-sm);
-        padding: 10px 14px;
-    }
-
-        .adm-search-box i {
-            color: var(--adm-ink-faint);
-            font-size: 13px;
-        }
-
-        .adm-search-box input {
-            border: none;
-            background: transparent;
-            outline: none;
-            font-size: 13px;
-            font-family: 'Inter', sans-serif;
-            width: 100%;
-        }
-
-    .adm-toolbar select {
-        border: 1px solid var(--adm-line-strong);
-        border-radius: var(--adm-radius-sm);
-        padding: 10px 14px;
-        font-size: 13px;
-        font-family: 'Inter', sans-serif;
-        color: var(--adm-ink);
-        background: var(--adm-raised);
-    }
-
-    /* ============ TABLE ============ */
-    .adm-table-wrap {
-        padding: 16px 0 6px;
-        overflow-x: auto;
-    }
-
-    .adm-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13.5px;
-    }
-
-        .adm-table th {
-            text-align: left;
-            padding: 12px 26px;
-            font-weight: 600;
-            font-size: 11.5px;
-            letter-spacing: .03em;
-            text-transform: uppercase;
-            color: var(--adm-ink-faint);
-            background: var(--adm-paper);
-            border-bottom: 1px solid var(--adm-line);
-        }
-
-    .adm-th-actions {
-        width: 210px;
-    }
-
-    .adm-table td {
-        padding: 14px 26px;
-        border-bottom: 1px solid var(--adm-line);
-        vertical-align: middle;
-    }
-
-    .adm-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    .adm-table tbody tr:hover {
-        background: var(--adm-paper);
-    }
-
-    .adm-td-strong {
-        font-weight: 600;
-    }
-
-    .adm-td-muted {
-        color: var(--adm-ink-soft);
-    }
-
-    .adm-badge {
-        display: inline-flex;
-        padding: 4px 12px;
-        border-radius: 999px;
-        font-size: 11.5px;
-        font-weight: 600;
-        background: var(--adm-allergy-accent-dim);
-        color: var(--adm-allergy-accent);
-        animation: admGlowPulsePurple 2.6s ease-in-out infinite;
-    }
-
-    /* Archived rows stay muted/flat on purpose — glow means "active" */
-    .adm-badge-muted {
-        background: var(--adm-line);
-        color: var(--adm-ink-faint);
-        animation: none;
-    }
-
-    /* ============ STATUS PILLS (glowing) ============ */
-    .adm-status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 5px 14px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    .adm-status-active {
-        background: var(--adm-teal-dim);
-        color: var(--adm-teal-deep);
-    }
-
-    .adm-status-inactive {
-        background: var(--adm-line);
-        color: var(--adm-ink-faint);
-    }
-
-    .adm-status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    .adm-status-active .adm-status-dot {
-        background: var(--adm-teal);
-        animation: admGlowPulse 2s ease-in-out infinite;
-    }
-
-    .adm-status-inactive .adm-status-dot {
-        background: var(--adm-ink-faint);
-        box-shadow: 0 0 0 3px var(--adm-line);
+    /* ANIMATIONS */
+    @@keyframes admGlowPulsePurple {
+        0%, 100% { box-shadow: 0 0 6px 0px rgba(109, 78, 168, .25); }
+        50% { box-shadow: 0 0 10px 2px rgba(109, 78, 168, .45); }
     }
 
     @@keyframes admGlowPulse {
-        0%, 100% {
-            box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 6px 1px rgba(14, 140, 127, .45);
-        }
-
-        50% {
-            box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 14px 4px rgba(14, 140, 127, .75);
-        }
+        0%, 100% { box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 6px 1px rgba(14, 140, 127, .45); }
+        50% { box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 14px 4px rgba(14, 140, 127, .75); }
     }
 
-    @@keyframes admGlowPulsePurple {
-        0%, 100% {
-            box-shadow: 0 0 6px 0px rgba(109, 78, 168, .25);
-        }
-
-        50% {
-            box-shadow: 0 0 10px 2px rgba(109, 78, 168, .45);
-        }
-    }
-
-    /* ============ ROW ACTIONS ============ */
-    .adm-row-actions {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .adm-icon-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border: 1px solid var(--adm-line-strong);
-        background: var(--adm-raised);
-        color: var(--adm-ink-soft);
-        border-radius: var(--adm-radius-sm);
-        padding: 7px 12px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background .15s, color .15s, border-color .15s;
-    }
-
-    .adm-icon-btn-edit:hover {
-        background: var(--adm-teal-dim);
-        color: var(--adm-teal-deep);
-        border-color: var(--adm-teal-dim);
-    }
-
-    .adm-icon-btn-danger:hover {
-        background: var(--adm-red-dim);
-        color: var(--adm-red);
-        border-color: var(--adm-red-dim);
-    }
-
-    .adm-icon-btn-restore:hover {
-        background: var(--adm-teal-dim);
-        color: var(--adm-teal-deep);
-        border-color: var(--adm-teal-dim);
-    }
-
-    /* ============ CATEGORY BREAKDOWN ============ */
-    .adm-breakdown {
-        padding: 20px 26px 26px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .adm-breakdown-row {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .adm-breakdown-label {
-        display: flex;
-        justify-content: space-between;
-        font-size: 13px;
-        color: var(--adm-ink);
-    }
-
-        .adm-breakdown-label strong {
-            color: var(--adm-ink-faint);
-            font-weight: 700;
-        }
-
-    .adm-breakdown-track {
-        height: 8px;
-        border-radius: 999px;
-        background: var(--adm-paper);
-        overflow: hidden;
-    }
-
-    .adm-breakdown-fill {
-        height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(90deg, var(--adm-allergy-accent), var(--adm-allergy-accent));
-        opacity: .85;
-    }
-
-    /* ============ EMPTY STATE ============ */
-    .adm-empty-state {
-        padding: 48px 30px;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .adm-empty-icon {
-        width: 58px;
-        height: 58px;
-        border-radius: 50%;
-        background: var(--adm-teal-dim);
-        color: var(--adm-teal);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-    }
-
-    .adm-empty-state h5 {
-        margin: 0;
-        font-size: 14.5px;
-        font-weight: 700;
-    }
-
-    .adm-empty-state p {
-        margin: 0;
-        max-width: 340px;
-        font-size: 13px;
-        color: var(--adm-ink-soft);
-        line-height: 1.6;
-    }
-
-    /* ============ MODALS ============ */
-    .adm-modal-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(10, 44, 39, 0.45);
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    }
-
-        .adm-modal-overlay.is-open {
-            display: flex;
-        }
-
-    .adm-modal {
-        background: var(--adm-raised);
-        border-radius: var(--adm-radius);
-        box-shadow: var(--adm-shadow);
-        width: 100%;
-        max-width: 440px;
-        padding: 26px;
-    }
-
-    .adm-modal-title {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 700;
-        font-size: 16px;
-        margin-bottom: 20px;
-    }
-
-    .adm-modal-icon {
-        margin-right: 8px;
-        color: var(--adm-teal);
-    }
-
-    .adm-modal-close {
-        cursor: pointer;
-        color: var(--adm-ink-faint);
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-        .adm-modal-close:hover {
-            background: var(--adm-paper);
-            color: var(--adm-ink);
-        }
-
-    .adm-form-group {
-        margin-bottom: 16px;
-    }
-
-        .adm-form-group label {
-            display: block;
-            font-size: 12.5px;
-            font-weight: 600;
-            color: var(--adm-ink-soft);
-            margin-bottom: 6px;
-        }
-
-        .adm-form-group input,
-        .adm-form-group select {
-            width: 100%;
-            border: 1px solid var(--adm-line-strong);
-            border-radius: var(--adm-radius-sm);
-            padding: 10px 14px;
-            font-size: 13px;
-            font-family: 'Inter', sans-serif;
-            color: var(--adm-ink);
-            box-sizing: border-box;
-        }
-
-    .adm-modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        margin-top: 6px;
-    }
-
-    /* ============ RESPONSIVE ============ */
+    /* RESPONSIVE */
     @@media (max-width: 1000px) {
-        .adm-split {
-            grid-template-columns: 1fr;
-        }
+        .adm-split { grid-template-columns: 1fr; }
     }
 
     @@media (max-width: 640px) {
-        .adm-page {
-            padding: 20px 16px 50px;
-        }
-
-        .adm-page-banner {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .adm-page-banner-right {
-            width: 100%;
-            justify-content: space-between;
-        }
-
-        .adm-row-actions {
-            flex-wrap: wrap;
-        }
+        .adm-page { padding: 20px 16px 50px; }
+        .adm-page-banner { flex-direction: column; align-items: flex-start; }
+        .adm-page-banner-right { width: 100%; justify-content: space-between; }
+        .adm-row-actions { flex-wrap: wrap; }
+        .adm-toolbar { align-items: stretch; }
+        .adm-show-control { width: 100%; justify-content: flex-end; }
+        .adm-condition-pagination { flex-direction: column; gap: 12px; }
+        .adm-inline-form { flex-direction: column; }
+        .adm-table th, .adm-table td { padding: 12px 10px; }
+        .adm-table { font-size: 12px; }
+        .adm-table th { font-size: 10px; }
+        .adm-icon-btn { font-size: 10.5px; padding: 6px 8px; }
+        .adm-badge { font-size: 10px; padding: 4px 8px; }
     }
+
 </style>

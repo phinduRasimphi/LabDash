@@ -4,6 +4,7 @@ using LabDash.Areas.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    partial class LabDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260905090111_ffd")]
+    partial class ffd
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -145,8 +148,10 @@ namespace LabDash.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("CategoryId")
-                        .HasColumnType("int");
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(250)
@@ -156,8 +161,6 @@ namespace LabDash.Migrations
                         .HasColumnType("bit");
 
                     b.HasKey("AllergyId");
-
-                    b.HasIndex("CategoryId");
 
                     b.ToTable("Allergies");
                 });
@@ -1251,17 +1254,6 @@ namespace LabDash.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("LabDash.Models.Allergy", b =>
-                {
-                    b.HasOne("LabDash.Models.Category", "Category")
-                        .WithMany("Allergies")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-                });
-
             modelBuilder.Entity("LabDash.Models.ConsentRequestAccess", b =>
                 {
                     b.HasOne("LabDash.Models.PatientDoctorConsent", "Consent")
@@ -1655,8 +1647,6 @@ namespace LabDash.Migrations
 
             modelBuilder.Entity("LabDash.Models.Category", b =>
                 {
-                    b.Navigation("Allergies");
-
                     b.Navigation("MedicalConditions");
                 });
 

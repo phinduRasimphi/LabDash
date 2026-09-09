@@ -29,13 +29,11 @@ namespace LabDash.Controllers
         public IActionResult Dashboard()
         {
             SetSidebarData("Dashboard");
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var vm = new AdminDashboardViewModel
             {
-                // ==============================================
-                // ✅ YOUR EXISTING ADMIN DATA — UNCHANGED
-                // ==============================================
                 ConditionCount = _context.MedicalConditions.Count(x => x.IsActive),
                 AllergyCount = _context.Allergies.Count(x => x.IsActive),
                 MedicationCount = _context.Medications.Count(x => x.IsActive),
@@ -55,12 +53,10 @@ namespace LabDash.Controllers
                     .ToList()
             };
 
-            // ==============================================
-            // ✅ PATIENT DATA — NOW INSIDE THE METHOD!
-            // ==============================================
             if (!string.IsNullOrEmpty(userId))
             {
-                var patient = _context.Patients.FirstOrDefault(p => p.UserId == userId);
+                var patient = _context.Patients
+                    .FirstOrDefault(p => p.UserId == userId);
 
                 if (patient != null)
                 {
@@ -70,8 +66,7 @@ namespace LabDash.Controllers
                         Name = patient.Name ?? "",
                         Surname = patient.Surname ?? "",
                         IDNumber = patient.IDNumber ?? "",
-                        DateOfBirth = patient.DOB 
-,
+                        DateOfBirth = patient.DOB,
                         Cellphone = patient.CellphoneNumber ?? "",
                         Email = patient.Email ?? "",
                         HomeAddress = patient.HomeAddress ?? ""
@@ -83,15 +78,26 @@ namespace LabDash.Controllers
                         .ToList();
 
                     vm.PatientTotalRequests = patientRequests.Count;
-                    vm.PatientPendingRequests = patientRequests.Count(r =>
-                        r.Status == "Submitted" || r.Status == "Samples Received");
-                    vm.PatientResultsReady = patientRequests.Count(r =>
-                        r.Status == "Completed" || r.Status == "Released");
 
-                    var patientRequestIds = patientRequests.Select(r => r.PatientId).ToList();
+                    vm.PatientPendingRequests = patientRequests.Count(r =>
+                        r.Status == "Submitted" ||
+                        r.Status == "Samples Received");
+
+                    vm.PatientResultsReady = patientRequests.Count(r =>
+                        r.Status == "Completed" ||
+                        r.Status == "Released");
+
+                    var patientRequestIds = patientRequests
+                        .Select(r => r.RequestId)
+                        .ToList();
+
                     vm.PatientAbnormalCount = _context.TestResults
                         .Include(r => r.TestRequestItem)
-                        .Where(r => patientRequestIds.Contains(r.TestRequestItem.RequestId) && r.IsAbnormal)
+                        .Where(r =>
+                            patientRequestIds.Contains(
+                                r.TestRequestItem.RequestId
+                            )
+                            && r.IsAbnormal)
                         .Count();
 
                     vm.PatientRecentRequests = patientRequests
@@ -112,9 +118,10 @@ namespace LabDash.Controllers
             return View(vm);
         }
 
-        // ===========================
+
+        // ==========================================================
         // CONDITIONS
-        // ===========================
+        // ==========================================================
 
         public IActionResult Conditions()
         {
@@ -124,27 +131,46 @@ namespace LabDash.Controllers
             {
                 PageTitle = "Conditions",
 
+                // ACTIVE CATEGORIES
                 Categories = _context.Categories
-                    .Where(c => c.Type == "Condition" && c.IsActive)
+                    .Where(c =>
+                        c.Type == "MedicalCondition" &&
+                        c.IsActive)
                     .OrderBy(c => c.Name)
                     .ToList(),
 
+                // ARCHIVED CATEGORIES
+                InactiveCategories = _context.Categories
+                    .Where(c =>
+                        c.Type == "MedicalCondition" &&
+                        !c.IsActive)
+                    .OrderBy(c => c.Name)
+                    .ToList(),
+
+                // ACTIVE CONDITIONS
                 Conditions = _context.MedicalConditions
                     .Include(x => x.Category)
                     .Where(x => x.IsActive)
+                    .OrderBy(x => x.ConditionName)
                     .ToList(),
 
+                // ARCHIVED CONDITIONS
                 InactiveConditions = _context.MedicalConditions
                     .Include(x => x.Category)
                     .Where(x => !x.IsActive)
+                    .OrderBy(x => x.ConditionName)
                     .ToList()
             };
 
             return View(vm);
         }
 
+
         [HttpPost]
-        public IActionResult AddCondition(string name, int categoryId, string? description)
+        public IActionResult AddCondition(
+            string name,
+            int categoryId,
+            string? description)
         {
             if (!string.IsNullOrWhiteSpace(name))
             {
@@ -159,16 +185,23 @@ namespace LabDash.Controllers
                 _context.MedicalConditions.Add(condition);
                 _context.SaveChanges();
 
-                TempData["Success"] = "Condition added successfully.";
+                TempData["Success"] =
+                    "Condition added successfully.";
             }
 
             return RedirectToAction(nameof(Conditions));
         }
 
+
         [HttpPost]
-        public IActionResult EditCondition(int id, string name, int categoryId, string? description)
+        public IActionResult EditCondition(
+            int id,
+            string name,
+            int categoryId,
+            string? description)
         {
-            var condition = _context.MedicalConditions.Find(id);
+            var condition =
+                _context.MedicalConditions.Find(id);
 
             if (condition != null)
             {
@@ -177,34 +210,53 @@ namespace LabDash.Controllers
                 condition.Description = description;
 
                 _context.SaveChanges();
-                TempData["Success"] = "Condition updated successfully.";
+
+                TempData["Success"] =
+                    "Condition updated successfully.";
             }
 
             return RedirectToAction(nameof(Conditions));
         }
+
 
         [HttpPost]
         public IActionResult DeleteCondition(int id)
         {
-            var condition = _context.MedicalConditions.Find(id);
+            var condition =
+                _context.MedicalConditions.Find(id);
 
             if (condition != null)
             {
                 condition.IsActive = false;
+
                 _context.SaveChanges();
-                TempData["Success"] = "Condition deactivated.";
+
+                TempData["Success"] =
+                    "Condition deactivated.";
             }
 
             return RedirectToAction(nameof(Conditions));
         }
 
+
+        // ==========================================================
+        // SHARED CATEGORY MANAGEMENT
+        // (used by both Conditions [Type="MedicalCondition"] and
+        // Allergies [Type="Allergy"] — redirects back to whichever
+        // page the category belongs to)
+        // ==========================================================
+
         [HttpPost]
-        public IActionResult AddCategory(string name, string type)
+        public IActionResult AddCategory(
+            string name,
+            string type)
         {
             if (!string.IsNullOrWhiteSpace(name))
             {
                 bool exists = _context.Categories
-                    .Any(c => c.Name == name && c.Type == type);
+                    .Any(c =>
+                        c.Name == name &&
+                        c.Type == type);
 
                 if (!exists)
                 {
@@ -214,69 +266,151 @@ namespace LabDash.Controllers
                         Type = type,
                         IsActive = true
                     });
+
                     _context.SaveChanges();
-                    TempData["Success"] = "Category added.";
+
+                    TempData["Success"] =
+                        "Category added.";
                 }
                 else
                 {
-                    TempData["Error"] = "That category already exists.";
+                    TempData["Error"] =
+                        "That category already exists.";
                 }
             }
 
-            return RedirectToAction(nameof(Conditions));
+            return RedirectByCategoryType(type);
         }
 
-        private static readonly List<string> _defaultAllergyCategories = new()
-        {
-            "Drug Allergies",
-            "Food Allergies",
-            "Environmental"
-        };
 
-        // ===========================
+        [HttpPost]
+        public IActionResult EditCategory(
+            int id,
+            string name)
+        {
+            var category =
+                _context.Categories.Find(id);
+
+            var type = category?.Type ?? "MedicalCondition";
+
+            if (category != null &&
+                !string.IsNullOrWhiteSpace(name))
+            {
+                category.Name = name;
+
+                _context.SaveChanges();
+
+                TempData["Success"] =
+                    "Category updated.";
+            }
+
+            return RedirectByCategoryType(type);
+        }
+
+
+        [HttpPost]
+        public IActionResult DeactivateCategory(int id)
+        {
+            var category =
+                _context.Categories.Find(id);
+
+            var type = category?.Type ?? "MedicalCondition";
+
+            if (category != null)
+            {
+                category.IsActive = false;
+
+                _context.SaveChanges();
+
+                TempData["Success"] =
+                    "Category archived.";
+            }
+
+            return RedirectByCategoryType(type);
+        }
+
+
+        [HttpPost]
+        public IActionResult ReactivateCategory(int id)
+        {
+            var category =
+                _context.Categories.Find(id);
+
+            var type = category?.Type ?? "MedicalCondition";
+
+            if (category != null)
+            {
+                category.IsActive = true;
+
+                _context.SaveChanges();
+
+                TempData["Success"] =
+                    "Category restored.";
+            }
+
+            return RedirectByCategoryType(type);
+        }
+
+
+        private IActionResult RedirectByCategoryType(string type)
+        {
+            return type == "Allergy"
+                ? RedirectToAction(nameof(Allergies))
+                : RedirectToAction(nameof(Conditions));
+        }
+
+
+        // ==========================================================
         // ALLERGIES
-        // ===========================
+        // ==========================================================
 
         public IActionResult Allergies()
         {
             SetSidebarData("Allergies");
 
-            var usedCategories = _context.Allergies
-                .Select(a => a.Category)
-                .Distinct()
-                .ToList();
-
-            var allCategories = _defaultAllergyCategories
-                .Union(usedCategories)
-                .OrderBy(c => c)
-                .ToList();
-
             var vm = new AllergyListViewModel
             {
                 PageTitle = "Allergies",
-                Categories = allCategories,
+
+                Categories = _context.Categories
+                    .Where(c => c.Type == "Allergy" && c.IsActive)
+                    .OrderBy(c => c.Name)
+                    .ToList(),
+
+                InactiveCategories = _context.Categories
+                    .Where(c => c.Type == "Allergy" && !c.IsActive)
+                    .OrderBy(c => c.Name)
+                    .ToList(),
 
                 Allergies = _context.Allergies
+                    .Include(x => x.Category)
                     .Where(x => x.IsActive)
+                    .OrderBy(x => x.AllergyName)
                     .ToList(),
 
                 InactiveAllergies = _context.Allergies
+                    .Include(x => x.Category)
                     .Where(x => !x.IsActive)
+                    .OrderBy(x => x.AllergyName)
                     .ToList()
             };
 
             return View(vm);
         }
 
+
         [HttpPost]
-        public IActionResult AddAllergy(string name, string category, string? description)
+        public IActionResult AddAllergy(
+            string name,
+            int categoryId,
+            string? description)
         {
-            if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(category))
+            if (!string.IsNullOrWhiteSpace(name))
             {
                 var allergy = new Allergy
                 {
                     AllergyName = name,
-                    Category = category,
+                    CategoryId = categoryId,
                     Description = description,
                     IsActive = true
                 };
@@ -290,23 +424,30 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(Allergies));
         }
 
+
         [HttpPost]
-        public IActionResult EditAllergy(int id, string name, string category, string? description)
+        public IActionResult EditAllergy(
+            int id,
+            string name,
+            int categoryId,
+            string? description)
         {
             var allergy = _context.Allergies.Find(id);
 
             if (allergy != null)
             {
                 allergy.AllergyName = name;
-                allergy.Category = category;
+                allergy.CategoryId = categoryId;
                 allergy.Description = description;
 
                 _context.SaveChanges();
+
                 TempData["Success"] = "Allergy updated successfully.";
             }
 
             return RedirectToAction(nameof(Allergies));
         }
+
 
         [HttpPost]
         public IActionResult ReactivateAllergy(int id)
@@ -323,6 +464,7 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(Allergies));
         }
 
+
         [HttpPost]
         public IActionResult DeleteAllergy(int id)
         {
@@ -338,16 +480,22 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(Allergies));
         }
 
-        private static readonly List<string> _defaultMedicationCategories = new()
-        {
-            "Antibiotics",
-            "Pain Relief",
-            "Chronic Condition"
-        };
+        // ==========================================================
+        // MEDICATION CATEGORIES
+        // ==========================================================
 
-        // ===========================
+        private static readonly List<string>
+            _defaultMedicationCategories = new()
+            {
+                "Antibiotics",
+                "Pain Relief",
+                "Chronic Condition"
+            };
+
+
+        // ==========================================================
         // MEDICATIONS
-        // ===========================
+        // ==========================================================
 
         public IActionResult Medications()
         {
@@ -358,32 +506,40 @@ namespace LabDash.Controllers
                 .Distinct()
                 .ToList();
 
-            var allCategories = _defaultMedicationCategories
-                .Union(usedCategories)
-                .OrderBy(c => c)
-                .ToList();
+            var allCategories =
+                _defaultMedicationCategories
+                    .Union(usedCategories)
+                    .OrderBy(c => c)
+                    .ToList();
 
             var vm = new MedicationListViewModel
             {
                 PageTitle = "Medications",
+
                 Categories = allCategories,
 
                 Medications = _context.Medications
                     .Where(x => x.IsActive)
                     .ToList(),
 
-                InactiveMedications = _context.Medications
-                    .Where(x => !x.IsActive)
-                    .ToList()
+                InactiveMedications =
+                    _context.Medications
+                        .Where(x => !x.IsActive)
+                        .ToList()
             };
 
             return View(vm);
         }
 
+
         [HttpPost]
-        public IActionResult AddMedication(string name, string category, string? description)
+        public IActionResult AddMedication(
+            string name,
+            string category,
+            string? description)
         {
-            if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(category))
+            if (!string.IsNullOrWhiteSpace(name) &&
+                !string.IsNullOrWhiteSpace(category))
             {
                 var medication = new Medication
                 {
@@ -396,16 +552,23 @@ namespace LabDash.Controllers
                 _context.Medications.Add(medication);
                 _context.SaveChanges();
 
-                TempData["Success"] = "Medication added successfully.";
+                TempData["Success"] =
+                    "Medication added successfully.";
             }
 
             return RedirectToAction(nameof(Medications));
         }
 
+
         [HttpPost]
-        public IActionResult EditMedication(int id, string name, string category, string? description)
+        public IActionResult EditMedication(
+            int id,
+            string name,
+            string category,
+            string? description)
         {
-            var medication = _context.Medications.Find(id);
+            var medication =
+                _context.Medications.Find(id);
 
             if (medication != null)
             {
@@ -414,41 +577,58 @@ namespace LabDash.Controllers
                 medication.Description = description;
 
                 _context.SaveChanges();
-                TempData["Success"] = "Medication updated successfully.";
+
+                TempData["Success"] =
+                    "Medication updated successfully.";
             }
 
             return RedirectToAction(nameof(Medications));
         }
+
 
         [HttpPost]
         public IActionResult ReactivateMedication(int id)
         {
-            var medication = _context.Medications.Find(id);
+            var medication =
+                _context.Medications.Find(id);
 
             if (medication != null)
             {
                 medication.IsActive = true;
+
                 _context.SaveChanges();
-                TempData["Success"] = "Medication reactivated.";
+
+                TempData["Success"] =
+                    "Medication reactivated.";
             }
 
             return RedirectToAction(nameof(Medications));
         }
+
 
         [HttpPost]
         public IActionResult DeleteMedication(int id)
         {
-            var medication = _context.Medications.Find(id);
+            var medication =
+                _context.Medications.Find(id);
 
             if (medication != null)
             {
                 medication.IsActive = false;
+
                 _context.SaveChanges();
-                TempData["Success"] = "Medication deactivated.";
+
+                TempData["Success"] =
+                    "Medication deactivated.";
             }
 
             return RedirectToAction(nameof(Medications));
         }
+
+
+        // ==========================================================
+        // AUDIT LOG
+        // ==========================================================
 
         public IActionResult AuditLog()
         {
@@ -460,11 +640,17 @@ namespace LabDash.Controllers
                     .OrderByDescending(x => x.ActionDate)
                     .Select(x => new AuditEntry
                     {
-                        Timestamp = x.ActionDate.ToString("g"),
+                        Timestamp =
+                            x.ActionDate.ToString("g"),
+
                         User = x.UserName,
+
                         Role = "",
+
                         Action = x.Action,
-                        Details = $"{x.TableName} — {x.Details}"
+
+                        Details =
+                            $"{x.TableName} — {x.Details}"
                     })
                     .ToList()
             };
@@ -472,70 +658,217 @@ namespace LabDash.Controllers
             return View(vm);
         }
 
+
+        // ==========================================================
+        // SYSTEM TABLES
+        // ==========================================================
+
         public IActionResult SystemTables()
         {
             SetSidebarData("SystemTables");
 
             var vm = new SystemTablesViewModel
             {
-                SampleTypes = _context.SampleTypeLookups.OrderBy(x => x.Name).ToList(),
-                Units = _context.Units.OrderBy(x => x.Name).ToList()
+                SampleTypes = _context.SampleTypeLookups
+                    .Where(x => x.IsActive)
+                    .OrderBy(x => x.Name)
+                    .ToList(),
+
+                InactiveSampleTypes =
+                    _context.SampleTypeLookups
+                        .Where(x => !x.IsActive)
+                        .OrderBy(x => x.Name)
+                        .ToList(),
+
+                Units = _context.Units
+                    .Where(x => x.IsActive)
+                    .OrderBy(x => x.Name)
+                    .ToList(),
+
+                InactiveUnits = _context.Units
+                    .Where(x => !x.IsActive)
+                    .OrderBy(x => x.Name)
+                    .ToList()
             };
 
             return View(vm);
         }
 
+
         [HttpPost]
-        public IActionResult AddSampleType(string name)
+        public IActionResult AddSampleType(
+            string name,
+            string? description)
         {
             if (!string.IsNullOrWhiteSpace(name))
             {
-                _context.SampleTypeLookups.Add(new SampleTypeLookup { Name = name });
+                _context.SampleTypeLookups.Add(
+                    new SampleTypeLookup
+                    {
+                        Name = name,
+                        Description = description,
+                        IsActive = true
+                    });
+
                 _context.SaveChanges();
-                TempData["Success"] = "Sample type added.";
+
+                TempData["Success"] =
+                    "Sample type added.";
             }
 
             return RedirectToAction(nameof(SystemTables));
         }
+
+
+        [HttpPost]
+        public IActionResult EditSampleType(
+            int id,
+            string name,
+            string? description)
+        {
+            var item =
+                _context.SampleTypeLookups.Find(id);
+
+            if (item != null &&
+                !string.IsNullOrWhiteSpace(name))
+            {
+                item.Name = name;
+                item.Description = description;
+
+                _context.SaveChanges();
+
+                TempData["Success"] =
+                    "Sample type updated.";
+            }
+
+            return RedirectToAction(nameof(SystemTables));
+        }
+
 
         [HttpPost]
         public IActionResult DeleteSampleType(int id)
         {
-            var item = _context.SampleTypeLookups.Find(id);
+            var item =
+                _context.SampleTypeLookups.Find(id);
 
             if (item != null)
             {
                 _context.SampleTypeLookups.Remove(item);
+
                 _context.SaveChanges();
-                TempData["Success"] = "Sample type deleted.";
+
+                TempData["Success"] =
+                    "Sample type deleted.";
             }
 
             return RedirectToAction(nameof(SystemTables));
         }
 
+
         [HttpPost]
-        public IActionResult AddUnit(string name)
+        public IActionResult DeactivateSampleType(int id)
+        {
+            var item =
+                _context.SampleTypeLookups.Find(id);
+
+            if (item != null)
+            {
+                item.IsActive = false;
+
+                _context.SaveChanges();
+
+                TempData["Success"] =
+                    "Sample type deactivated.";
+            }
+
+            return RedirectToAction(nameof(SystemTables));
+        }
+
+
+        [HttpPost]
+        public IActionResult ReactivateSampleType(int id)
+        {
+            var item =
+                _context.SampleTypeLookups.Find(id);
+
+            if (item != null)
+            {
+                item.IsActive = true;
+
+                _context.SaveChanges();
+
+                TempData["Success"] =
+                    "Sample type reactivated.";
+            }
+
+            return RedirectToAction(nameof(SystemTables));
+        }
+
+
+        [HttpPost]
+        public IActionResult AddUnit(
+            string name,
+            string? description)
         {
             if (!string.IsNullOrWhiteSpace(name))
             {
-                _context.Units.Add(new Unit { Name = name });
+                _context.Units.Add(
+                    new Unit
+                    {
+                        Name = name,
+                        Description = description,
+                        IsActive = true
+                    });
+
                 _context.SaveChanges();
-                TempData["Success"] = "Unit added.";
+
+                TempData["Success"] =
+                    "Unit added.";
             }
 
             return RedirectToAction(nameof(SystemTables));
         }
+
 
         [HttpPost]
         public IActionResult DeleteUnit(int id)
         {
-            var item = _context.Units.Find(id);
+            var item =
+                _context.Units.Find(id);
 
             if (item != null)
             {
                 _context.Units.Remove(item);
+
                 _context.SaveChanges();
-                TempData["Success"] = "Unit deleted.";
+
+                TempData["Success"] =
+                    "Unit deleted.";
+            }
+
+            return RedirectToAction(nameof(SystemTables));
+        }
+
+
+        [HttpPost]
+        public IActionResult EditUnit(
+            int id,
+            string name,
+            string? description)
+        {
+            var item =
+                _context.Units.Find(id);
+
+            if (item != null &&
+                !string.IsNullOrWhiteSpace(name))
+            {
+                item.Name = name;
+                item.Description = description;
+
+                _context.SaveChanges();
+
+                TempData["Success"] =
+                    "Unit updated.";
             }
 
             return RedirectToAction(nameof(SystemTables));
