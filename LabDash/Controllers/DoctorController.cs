@@ -95,20 +95,125 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // MY PATIENTS
-        // GET: /Doctor/MyPatients
+   
+        [HttpGet]
+        public IActionResult MyPatients()
+        {
+            // ---------------------------------------------------------
+            // If the doctor has already unlocked My Patients,
+            // go directly to the patient list.
+            // ---------------------------------------------------------
+
+            if (HttpContext.Session.GetString("DoctorPatientAccess") == "Granted")
+            {
+                return RedirectToAction(nameof(ViewMyPatients));
+            }
+
+            return View("MyPatientsPassword");
+        }
+
+
+        // =========================================================
+        // MY PATIENTS - PASSWORD CHECK
+        // POST: /Doctor/MyPatientsAccess
+        // =========================================================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult MyPatientsAccess(string password)
+        {
+            // ---------------------------------------------------------
+            // Password required for accessing My Patients
+            // ---------------------------------------------------------
+
+            const string requiredPassword = "Password!123";
+
+            // ---------------------------------------------------------
+            // Empty password
+            // ---------------------------------------------------------
+
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                ModelState.AddModelError(
+                    string.Empty,
+                    "Please enter the access password."
+                );
+
+                return View("MyPatientsPassword");
+            }
+
+            // ---------------------------------------------------------
+            // Incorrect password
+            // ---------------------------------------------------------
+
+            if (password != requiredPassword)
+            {
+                ModelState.AddModelError(
+                    string.Empty,
+                    "Incorrect password. Please check the password and try again."
+                );
+
+                return View("MyPatientsPassword");
+            }
+
+            // ---------------------------------------------------------
+            // Password is correct
+            // Give this doctor's session access
+            // ---------------------------------------------------------
+
+            HttpContext.Session.SetString(
+                "DoctorPatientAccess",
+                "Granted"
+            );
+
+            // ---------------------------------------------------------
+            // Send doctor to actual patient list
+            // ---------------------------------------------------------
+
+            return RedirectToAction(
+                nameof(ViewMyPatients)
+            );
+        }
+
+
+        // =========================================================
+        // VIEW MY PATIENTS
+        // GET: /Doctor/ViewMyPatients
         // =========================================================
 
         [HttpGet]
-        public async Task<IActionResult> MyPatients()
+        public async Task<IActionResult> ViewMyPatients()
         {
+            // ---------------------------------------------------------
+            // SECURITY CHECK
+            // Prevent direct access to the patient list
+            // ---------------------------------------------------------
+
+            if (
+                HttpContext.Session.GetString(
+                    "DoctorPatientAccess"
+                ) != "Granted"
+            )
+            {
+                return RedirectToAction(
+                    nameof(MyPatients)
+                );
+            }
+
+            // ---------------------------------------------------------
+            // Load patients
+            // ---------------------------------------------------------
+
             var patients =
                 await _context.Patients
                     .OrderBy(p => p.Surname)
                     .ThenBy(p => p.Name)
                     .ToListAsync();
 
-            return View(patients);
+            return View(
+                "MyPatients",
+                patients
+            );
         }
 
         // =========================================================
@@ -355,7 +460,7 @@ namespace LabDash.Controllers
                         patientEmployeeNumber,
 
                     HPCSANumber =
-                        "N/A",
+                        null,
 
                     MustChangePassword =
                         true
