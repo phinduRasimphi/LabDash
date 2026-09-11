@@ -27,11 +27,6 @@ namespace LabDash.Controllers
         }
 
 
-        // ============================================================
-        // GET: /TestRequest/Index
-        // ============================================================
-
-        [HttpGet]
         public async Task<IActionResult> Index()
         {
             var allRequests = await _context.TestRequests
@@ -57,9 +52,6 @@ namespace LabDash.Controllers
         }
 
 
-        // ============================================================
-        // POST: /TestRequest/UnlockFolder
-        // ============================================================
 
         [HttpPost]
         [ValidateAntiForgeryToken]
