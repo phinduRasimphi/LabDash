@@ -27,6 +27,7 @@ namespace LabDash.Controllers
         }
 
 
+        [HttpGet]
         public async Task<IActionResult> Index()
         {
             var allRequests = await _context.TestRequests
@@ -34,13 +35,15 @@ namespace LabDash.Controllers
                 .Include(tr => tr.RequestingDoctor)
                 .Include(tr => tr.TestRequestItems)
                     .ThenInclude(tri => tri.TestType)
+                .OrderByDescending(tr => tr.RequestDate)
                 .ToListAsync();
 
             var folders = allRequests
                 .GroupBy(tr => tr.PatientId)
-                .Select(g => new
+                .Select(g => new TrackRequestViewModel
                 {
                     Patient = g.First().Patient,
+
                     Requests = g
                         .OrderByDescending(r => r.RequestDate)
                         .ToList()
@@ -50,7 +53,6 @@ namespace LabDash.Controllers
 
             return View(folders);
         }
-
 
 
         [HttpPost]
