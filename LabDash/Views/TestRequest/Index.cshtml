@@ -1,3 +1,4 @@
+
 @model dynamic
 
 @{
@@ -6,137 +7,1527 @@
 }
 
 <style>
-    .folder-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 16px;
+
+   
+
+    .folders-page {
+        padding: 8px 10px 40px;
+        max-width: 1500px;
+        margin: 0 auto;
     }
 
-    .folder-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        border: 1px solid rgba(0,0,0,0.05);
+
+
+    .folders-heading {
+        position: relative;
         overflow: hidden;
-    }
-
-    .folder-header {
-        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        color: white;
-        padding: 14px 18px;
         display: flex;
         align-items: center;
-        gap: 10px;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 24px;
+        margin-bottom: 22px;
+        border-radius: 17px;
+        background: linear-gradient( 135deg, #0d6b63, #1a8c82 );
+        box-shadow: 0 8px 22px rgba(13, 107, 99, .14);
     }
 
-    .folder-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.2);
+        .folders-heading::before {
+            content: "";
+            position: absolute;
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            right: 90px;
+            top: -150px;
+            background: rgba(255,255,255,.045);
+        }
+
+        .folders-heading::after {
+            content: "";
+            position: absolute;
+            width: 170px;
+            height: 170px;
+            border-radius: 50%;
+            right: -55px;
+            bottom: -105px;
+            background: rgba(255,255,255,.055);
+        }
+
+    .heading-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .heading-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
+        border-radius: 13px;
+        background: rgba(255,255,255,.15);
+        border: 1px solid rgba(255,255,255,.20);
+        color: #fff;
+        font-size: 20px;
     }
 
-    .folder-name {
-        font-size: 14px;
-        font-weight: 700;
+    .heading-text h1 {
+        margin: 0;
+        color: #fff;
+        font-size: 22px;
+        font-weight: 750;
+        letter-spacing: -.3px;
     }
 
-    .folder-sub {
+    .heading-text p {
+        margin: 4px 0 0;
+        color: rgba(255,255,255,.82);
         font-size: 11px;
-        opacity: 0.85;
     }
 
-    .folder-body {
-        padding: 14px;
+    .heading-badge {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 13px;
+        border-radius: 25px;
+        background: rgba(255,255,255,.13);
+        border: 1px solid rgba(255,255,255,.18);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        white-space: nowrap;
     }
 
-    .folder-lock {
-        background: #f8fafd;
-        border-radius: 8px;
+
+    /* =========================================================
+           ERROR
+           ========================================================= */
+
+    .folder-error {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+        padding: 12px 15px;
+        border: 1px solid #f0cccc;
+        border-radius: 10px;
+        background: #fff3f3;
+        color: #a44444;
+        font-size: 11px;
+        font-weight: 650;
+    }
+
+        .folder-error i {
+            font-size: 15px;
+        }
+
+
+    /* =========================================================
+           FOLDER GRID
+           ========================================================= */
+
+    .patient-folder-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(390px, 1fr));
+        gap: 20px;
+    }
+
+
+    /* =========================================================
+           PATIENT FOLDER
+           ========================================================= */
+
+    .patient-folder {
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid #dfeae7;
+        border-radius: 17px;
+        box-shadow: 0 4px 16px rgba(31,78,72,.055);
+        transition: all .2s ease;
+    }
+
+        .patient-folder:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 9px 25px rgba(31,78,72,.09);
+        }
+
+
+    /* =========================================================
+           FOLDER TAB
+           ========================================================= */
+
+    .folder-tab {
+        height: 7px;
+        background: linear-gradient( 90deg, #0d6b63, #1a8c82, #48a99f );
+    }
+
+
+    /* =========================================================
+           PATIENT HEADER
+           ========================================================= */
+
+    .patient-folder-header {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        padding: 17px 18px;
+        border-bottom: 1px solid #e8efed;
+        background: linear-gradient( 180deg, #fbfefd, #f7fbfa );
+    }
+
+    .patient-avatar {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        background: linear-gradient( 135deg, #0d6b63, #1a8c82 );
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+        box-shadow: 0 5px 13px rgba(13,107,99,.16);
+    }
+
+    .patient-heading {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .patient-name {
+        margin: 0;
+        color: #173c38;
+        font-size: 15px;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .patient-id {
+        margin-top: 4px;
+        color: #7b8d89;
+        font-size: 10px;
+    }
+
+    .folder-status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 9px;
+        border-radius: 20px;
+        background: #eaf6f4;
+        color: #0d6b63;
+        font-size: 9px;
+        font-weight: 750;
+        white-space: nowrap;
+    }
+
+
+    /* =========================================================
+           PATIENT SUMMARY
+           ========================================================= */
+
+    .patient-summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        padding: 14px 17px;
+        border-bottom: 1px solid #edf2f0;
+    }
+
+    .summary-box {
         padding: 10px;
+        border: 1px solid #e5eeec;
+        border-radius: 10px;
+        background: #f9fcfb;
+    }
+
+    .summary-label {
+        display: block;
+        margin-bottom: 4px;
+        color: #8a9a97;
+        font-size: 8px;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: .45px;
+    }
+
+    .summary-value {
+        color: #294b45;
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+
+    /* =========================================================
+           REQUEST AREA
+           ========================================================= */
+
+    .request-area {
+        padding: 16px 17px 18px;
+    }
+
+    .request-area-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .request-area-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #294b45;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+        .request-area-title i {
+            color: #0d6b63;
+        }
+
+    .request-count {
+        padding: 5px 8px;
+        border-radius: 20px;
+        background: #edf6f4;
+        color: #0d6b63;
+        font-size: 8px;
+        font-weight: 750;
+    }
+
+
+    /* =========================================================
+           REQUEST CARD
+           ========================================================= */
+
+    .request-card {
+        margin-bottom: 10px;
+        overflow: hidden;
+        border: 1px solid #dfeae7;
+        border-radius: 13px;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(31,78,72,.035);
+    }
+
+        .request-card:last-child {
+            margin-bottom: 0;
+        }
+
+
+    /* =========================================================
+           REQUEST HEADER
+           ========================================================= */
+
+    .request-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 13px;
+        background: #f7fbfa;
+        border-bottom: 1px solid #e8efed;
+    }
+
+    .request-header-left {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 0;
+    }
+
+    .request-icon {
+        width: 31px;
+        height: 31px;
+        min-width: 31px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9px;
+        background: #e6f4f1;
+        color: #0d6b63;
+        font-size: 12px;
+    }
+
+    .request-title {
+        min-width: 0;
+    }
+
+    .request-number {
+        color: #294b45;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .request-date {
+        margin-top: 2px;
+        color: #899994;
+        font-size: 8px;
+    }
+
+
+    /* =========================================================
+           STATUS BADGES
+           ========================================================= */
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 8px;
+        border-radius: 20px;
+        font-size: 8px;
+        font-weight: 750;
+        white-space: nowrap;
+    }
+
+    .status-submitted {
+        background: #eaf3ff;
+        color: #3b6ea8;
+    }
+
+    .status-samples {
+        background: #fff6df;
+        color: #a97819;
+    }
+
+    .status-progress {
+        background: #eeeafe;
+        color: #6955a5;
+    }
+
+    .status-completed {
+        background: #e7f7ee;
+        color: #23804d;
+    }
+
+    .status-released {
+        background: #e4f6f4;
+        color: #0d6b63;
+    }
+
+    .status-cancelled {
+        background: #fff0f0;
+        color: #a44848;
+    }
+
+    .status-default {
+        background: #eef2f1;
+        color: #63736f;
+    }
+
+
+    /* =========================================================
+           REQUEST BODY
+           ========================================================= */
+
+    .request-body {
+        padding: 13px;
+    }
+
+
+    /* =========================================================
+           REQUEST INFORMATION GRID
+           ========================================================= */
+
+    .request-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .request-info {
+        padding: 9px 10px;
+        border-radius: 9px;
+        background: #f8fbfa;
+        border: 1px solid #edf2f0;
+    }
+
+    .request-info-label {
+        display: block;
+        margin-bottom: 3px;
+        color: #8a9a97;
+        font-size: 8px;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: .35px;
+    }
+
+    .request-info-value {
+        color: #35534d;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+
+    /* =========================================================
+           URGENCY
+           ========================================================= */
+
+    .urgency-routine {
+        color: #32755e;
+    }
+
+    .urgency-urgent {
+        color: #ad7517;
+    }
+
+    .urgency-stat {
+        color: #b44444;
+    }
+
+
+    /* =========================================================
+           SECTION LABEL
+           ========================================================= */
+
+    .detail-section {
+        margin-top: 12px;
+    }
+
+    .detail-section-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 7px;
+        color: #49645f;
+        font-size: 9px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+    }
+
+        .detail-section-title i {
+            color: #1a8c82;
+            font-size: 9px;
+        }
+
+
+    /* =========================================================
+           TEST LIST
+           ========================================================= */
+
+    .test-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .test-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 9px;
+        border: 1px solid #e5eeec;
+        border-radius: 8px;
+        background: #fbfdfc;
+    }
+
+    .test-item-left {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+    }
+
+    .test-check {
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        background: #e7f5f2;
+        color: #0d6b63;
+        font-size: 8px;
+    }
+
+    .test-name {
+        color: #3a5752;
+        font-size: 9px;
+        font-weight: 700;
+    }
+
+    .test-category {
+        padding: 4px 6px;
+        border-radius: 12px;
+        background: #eef5f3;
+        color: #66807a;
+        font-size: 7px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .no-test-items {
+        padding: 10px;
+        border: 1px dashed #d9e5e2;
+        border-radius: 9px;
+        color: #8a9995;
         text-align: center;
+        font-size: 9px;
     }
 
-        .folder-lock input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 12px;
-            margin-bottom: 8px;
-        }
 
-        .folder-lock button {
-            background: linear-gradient(135deg, #0d6b63, #1a8c82);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 14px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-        }
+    /* =========================================================
+           CLINICAL NOTES
+           ========================================================= */
 
-            .folder-lock button:hover {
-                background: linear-gradient(135deg, #1a8c82, #0d6b63);
-            }
-
-    .pr-error {
-        background: #ffebee;
-        color: #c62828;
-        padding: 10px;
-        border-radius: 8px;
-        margin-bottom: 16px;
-        font-size: 13px;
+    .clinical-notes {
+        padding: 10px 11px;
+        border-left: 3px solid #1a8c82;
+        border-radius: 0 8px 8px 0;
+        background: #f5faf9;
+        color: #61746f;
+        font-size: 9px;
+        line-height: 1.55;
     }
+
+    .no-notes {
+        color: #9aa7a4;
+        font-style: italic;
+    }
+
+
+    /* =========================================================
+           REQUEST FOOTER
+           ========================================================= */
+
+    .request-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 13px;
+        padding-top: 11px;
+        border-top: 1px solid #edf2f0;
+    }
+
+    .doctor-info {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+    }
+
+    .doctor-icon {
+        width: 27px;
+        height: 27px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #edf6f4;
+        color: #0d6b63;
+        font-size: 10px;
+    }
+
+    .doctor-label {
+        display: block;
+        color: #929f9c;
+        font-size: 7px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .doctor-name {
+        display: block;
+        margin-top: 2px;
+        color: #405b55;
+        font-size: 9px;
+        font-weight: 750;
+        max-width: 160px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+
+    /* =========================================================
+           SAMPLES
+           ========================================================= */
+
+    .sample-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 7px;
+    }
+
+    .sample-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 7px;
+        border-radius: 15px;
+        background: #edf7f5;
+        color: #397068;
+        font-size: 7px;
+        font-weight: 700;
+    }
+
+        .sample-pill i {
+            color: #0d6b63;
+        }
+
+
+    /* =========================================================
+           EMPTY STATE
+           ========================================================= */
+
+    .empty-state {
+        grid-column: 1 / -1;
+        padding: 70px 25px;
+        text-align: center;
+        background: #fff;
+        border: 1px solid #e1ebe8;
+        border-radius: 17px;
+        box-shadow: 0 4px 15px rgba(31,78,72,.04);
+    }
+
+    .empty-icon {
+        width: 62px;
+        height: 62px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        border-radius: 18px;
+        background: #e8f5f3;
+        color: #0d6b63;
+        font-size: 24px;
+    }
+
+    .empty-state h3 {
+        margin: 0;
+        color: #294943;
+        font-size: 16px;
+        font-weight: 800;
+    }
+
+    .empty-state p {
+        margin: 7px 0 0;
+        color: #879793;
+        font-size: 11px;
+    }
+
+
+    /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+
+    @@media (max-width: 900px) {
+
+        .patient-folder-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 650px) {
+
+        .folders-page {
+            padding: 5px 0 30px;
+        }
+
+        .folders-heading {
+            padding: 16px;
+        }
+
+        .heading-badge {
+            display: none;
+        }
+
+        .heading-text h1 {
+            font-size: 18px;
+        }
+
+        .heading-text p {
+            font-size: 10px;
+        }
+
+        .patient-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .request-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .request-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .request-footer {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .doctor-name {
+            max-width: 230px;
+        }
+    }
+
 </style>
 
-<h1 style="font-size:20px;font-weight:700;color:#1a2f4e;margin-bottom:16px;">Test Request Folders</h1>
 
-@if (TempData["Error"] != null)
-{
-    <div class="pr-error">
-        @TempData["Error"]
+<div class="folders-page">
+
+
+    <!-- =========================================================
+         PAGE HEADING
+         ========================================================= -->
+
+    <div class="folders-heading">
+
+        <div class="heading-content">
+
+            <div class="heading-icon">
+
+                <i class="fas fa-folder-open"></i>
+
+            </div>
+
+            <div class="heading-text">
+
+                <h1>
+                    Test Request Folders
+                </h1>
+
+                <p>
+                    Secure patient laboratory request records
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="heading-badge">
+
+            <i class="fas fa-flask"></i>
+
+            NMB LAB • Laboratory Records
+
+        </div>
+
     </div>
-}
 
-<div class="folder-grid">
-    @if (!((IEnumerable<dynamic>)Model).Any())
+
+    <!-- =========================================================
+         ERROR
+         ========================================================= -->
+    @if (TempData["Error"] != null)
     {
-        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #7a8da8;">
-            No test requests found.
+        <div class="folder-error">
+
+            <i class="fas fa-circle-exclamation"></i>
+
+            <span>
+                @TempData["Error"]
+            </span>
+
         </div>
     }
-    else
-    {
-        foreach (var folder in Model)
+
+
+    <!-- =========================================================
+         PATIENT FOLDERS
+         ========================================================= -->
+
+    <div class="patient-folder-grid">
+
+
+        @if (Model == null ||
+             !((IEnumerable<dynamic>)Model).Any())
         {
-            var patientId = folder.Patient.PatientID;
-            <div class="folder-card">
-                <div class="folder-header">
-                    <div class="folder-avatar">@folder.Patient.Name[0]@folder.Patient.Surname[0]</div>
-                    <div style="flex: 1;">
-                        <div class="folder-name">@folder.Patient.Name @folder.Patient.Surname</div>
-                        <div class="folder-sub">ID: @folder.Patient.IDNumber</div>
-                    </div>
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+
+                    <i class="fas fa-folder-open"></i>
+
                 </div>
 
-                <div class="folder-body">
-                    <div class="folder-lock">
-                        <p style="margin: 0 0 8px; font-size: 11px; color: #4a5c7c; font-weight: 600;">Enter SA ID Number to Unlock</p>
-                        <form asp-action="UnlockFolder" asp-controller="TestRequest" method="post">
-                            <input type="hidden" name="patientId" value="@patientId" />
-                            <input type="text" name="idNumber" placeholder="Enter 13-digit SA ID..." maxlength="13" required />
-                            <button type="submit">Unlock Folder</button>
-                        </form>
-                    </div>
-                </div>
+                <h3>
+                    No Test Request Folders
+                </h3>
+
+                <p>
+                    There are currently no stored laboratory
+                    test requests in the system.
+                </p>
+
             </div>
+
         }
-    }
+        else
+        {
+
+            foreach (var folder in Model)
+            {
+
+                var patient = folder.Patient;
+
+                var requests = folder.Requests;
+
+                var patientName =
+                    $"{patient.Name} {patient.Surname}";
+
+                var initials =
+                    (
+                        !string.IsNullOrWhiteSpace(patient.Name)
+                            ? patient.Name.Substring(0, 1)
+                            : "P"
+                    )
+                    +
+                    (
+                        !string.IsNullOrWhiteSpace(patient.Surname)
+                            ? patient.Surname.Substring(0, 1)
+                            : ""
+                    );
+
+
+                <!-- =================================================
+                     PATIENT FOLDER
+                     ================================================= -->
+
+                <div class="patient-folder">
+
+                    <div class="folder-tab"></div>
+
+
+                    <!-- =============================================
+                         PATIENT HEADER
+                         ============================================= -->
+
+                    <div class="patient-folder-header">
+
+                        <div class="patient-avatar">
+
+                            @initials.ToUpper()
+
+                        </div>
+
+
+                        <div class="patient-heading">
+
+                            <div class="patient-name">
+
+                                @patientName
+
+                            </div>
+
+                            <div class="patient-id">
+
+                                <i class="fas fa-id-card"></i>
+
+                                ID Number:
+                                @patient.IDNumber
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="folder-status">
+
+                            <i class="fas fa-lock-open"></i>
+
+                            Patient Folder
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =============================================
+                         PATIENT SUMMARY
+                         ============================================= -->
+
+                    <div class="patient-summary">
+
+                        <div class="summary-box">
+
+                            <span class="summary-label">
+                                Requests
+                            </span>
+
+                            <span class="summary-value">
+                                @requests.Count
+                            </span>
+
+                        </div>
+
+
+                        <div class="summary-box">
+
+                            <span class="summary-label">
+                                Patient ID
+                            </span>
+
+                            <span class="summary-value">
+                                #@patient.PatientID
+                            </span>
+
+                        </div>
+
+
+                        <div class="summary-box">
+
+                            <span class="summary-label">
+                                Record
+                            </span>
+
+                            <span class="summary-value">
+                                Active
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =============================================
+                         REQUESTS
+                         ============================================= -->
+
+                    <div class="request-area">
+
+
+                        <div class="request-area-heading">
+
+                            <div class="request-area-title">
+
+                                <i class="fas fa-file-medical"></i>
+
+                                Laboratory Test Requests
+
+                            </div>
+
+
+                            <div class="request-count">
+
+                                @requests.Count
+                                @(requests.Count == 1
+                                    ? "REQUEST"
+                                    : "REQUESTS")
+
+                            </div>
+
+                        </div>
+
+
+                        @foreach (var request in requests)
+                        {
+
+                            /* =================================================
+                               STATUS
+                               ================================================= */
+
+                            var status =
+                                request.Status?.ToString()
+                                ?? "Unknown";
+
+                            var normalizedStatus =
+                                status
+                                    .Replace(" ", "")
+                                    .Replace("_", "")
+                                    .ToLower();
+
+                            var statusClass =
+                                normalizedStatus switch
+                                {
+                                    "submitted"
+                                        => "status-submitted",
+
+                                    "samplesreceived"
+                                        => "status-samples",
+
+                                    "inprogress"
+                                        => "status-progress",
+
+                                    "completed"
+                                        => "status-completed",
+
+                                    "releasedbydoctor"
+                                        => "status-released",
+
+                                    "cancelled"
+                                        => "status-cancelled",
+
+                                    _ => "status-default"
+                                };
+
+
+                            /* =================================================
+                               URGENCY
+                               ================================================= */
+
+                            var urgency =
+                                request.Urgency?.ToString()
+                                ?? "Routine";
+
+                            var urgencyClass =
+                                urgency.Equals(
+                                    "STAT",
+                                    StringComparison.OrdinalIgnoreCase)
+                                    ? "urgency-stat"
+                                    :
+                                    urgency.Equals(
+                                        "Urgent",
+                                        StringComparison.OrdinalIgnoreCase)
+                                        ? "urgency-urgent"
+                                        : "urgency-routine";
+
+
+                            /* =================================================
+                               REQUEST NUMBER
+                               ================================================= */
+                            var requestNumber = "Laboratory Test Request"; 
+
+
+                            <!-- =============================================
+                                 REQUEST CARD
+                                 ============================================= -->
+
+                            <div class="request-card">
+
+
+                                <!-- =========================================
+                                     REQUEST HEADER
+                                     ========================================= -->
+
+                                <div class="request-header">
+
+                                    <div class="request-header-left">
+
+                                        <div class="request-icon">
+
+                                            <i class="fas fa-file-medical"></i>
+
+                                        </div>
+
+
+                                        <div class="request-title">
+
+                                            <div class="request-number">
+
+                                                @requestNumber
+
+                                            </div>
+
+                                            <div class="request-date">
+
+                                                @if (request.RequestDate != null)
+                                                {
+                                                    @Convert.ToDateTime(
+                                                        request.RequestDate
+                                                    ).ToString(
+                                                        "dd MMM yyyy • HH:mm"
+                                                    )
+                                                }
+                                                else
+                                                {
+                                                    <span>
+                                                        Date not recorded
+                                                    </span>
+                                                }
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <div class="status-badge @statusClass">
+
+                                        <i class="fas fa-circle"></i>
+
+                                        @status
+
+                                    </div>
+
+                                </div>
+
+
+                                <!-- =========================================
+                                     REQUEST BODY
+                                     ========================================= -->
+
+                                <div class="request-body">
+
+
+                                    <!-- =====================================
+                                         REQUEST INFORMATION
+                                         ===================================== -->
+
+                                    <div class="request-info-grid">
+
+
+                                        <div class="request-info">
+
+                                            <span class="request-info-label">
+
+                                                Request Date
+
+                                            </span>
+
+                                            <span class="request-info-value">
+
+                                                @if (request.RequestDate != null)
+                                                {
+                                                    @Convert.ToDateTime(
+                                                        request.RequestDate
+                                                    ).ToString(
+                                                        "dd MMM yyyy"
+                                                    )
+                                                }
+                                                else
+                                                {
+                                                    <span>
+                                                        Not recorded
+                                                    </span>
+                                                }
+
+                                            </span>
+
+                                        </div>
+
+
+                                        <div class="request-info">
+
+                                            <span class="request-info-label">
+
+                                                Urgency
+
+                                            </span>
+
+                                            <span class="request-info-value @urgencyClass">
+
+                                                <i class="fas fa-bolt"></i>
+
+                                                @urgency
+
+                                            </span>
+
+                                        </div>
+
+
+                                    </div>
+
+
+                                    <!-- =====================================
+                                         REQUESTING DOCTOR
+                                         ===================================== -->
+
+                                    <div class="detail-section">
+
+                                        <div class="detail-section-title">
+
+                                            <i class="fas fa-user-doctor"></i>
+
+                                            Requesting Doctor
+
+                                        </div>
+
+
+                                        <div class="doctor-info">
+
+                                            <div class="doctor-icon">
+
+                                                <i class="fas fa-user-md"></i>
+
+                                            </div>
+
+
+                                            <div>
+
+                                                <span class="doctor-label">
+                                                    Doctor
+                                                </span>
+
+                                                <span class="doctor-name">
+
+                                                    @if (request.RequestingDoctor != null)
+                                                    {
+                                                        @(
+                                                            request.RequestingDoctor.UserName
+                                                            ?? request.RequestingDoctor.Email
+                                                            ?? "Doctor"
+                                                        )
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>
+                                                            Not recorded
+                                                        </span>
+                                                    }
+
+                                                </span>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <!-- =====================================
+                                         REQUESTED TESTS
+                                         ===================================== -->
+
+                                    <div class="detail-section">
+
+                                        <div class="detail-section-title">
+
+                                            <i class="fas fa-flask"></i>
+
+                                            Requested Tests
+
+                                        </div>
+
+
+                                        <div class="test-list">
+
+                                            @if (request.TestRequestItems != null &&
+                                                 request.TestRequestItems.Count > 0)
+                                            {
+
+                                                foreach (var item in request.TestRequestItems)
+                                                {
+
+                                                    <div class="test-item">
+
+                                                        <div class="test-item-left">
+
+                                                            <div class="test-check">
+
+                                                                <i class="fas fa-check"></i>
+
+                                                            </div>
+
+
+                                                            <span class="test-name">
+
+                                                                @(
+                                                                    item.TestType?.Name
+                                                                    ?? "Laboratory Test"
+                                                                )
+
+                                                            </span>
+
+                                                        </div>
+
+
+                                                        @if (item.TestType != null &&
+                                                             !string.IsNullOrWhiteSpace(
+                                                                 item.TestType.Category))
+                                                        {
+
+                                                            <span class="test-category">
+
+                                                                @item.TestType.Category
+
+                                                            </span>
+
+                                                        }
+
+                                                    </div>
+
+                                                }
+
+                                            }
+                                            else
+                                            {
+
+                                                <div class="no-test-items">
+
+                                                    <i class="fas fa-flask"></i>
+
+                                                    No test items recorded.
+
+                                                </div>
+
+                                            }
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <!-- =====================================
+                                         SAMPLE INFORMATION
+                                         ===================================== -->
+                                    @if (request.TestRequestItems != null &&
+                                                                             request.TestRequestItems.Count > 0)
+                                    {
+
+                                        <div class="detail-section">
+
+                                            <div class="detail-section-title">
+
+                                                <i class="fas fa-vial"></i>
+
+                                                Required Samples
+
+                                            </div>
+
+
+                                            <div class="sample-list">
+
+                                                @foreach (var item in request.TestRequestItems)
+                                                {
+
+                                                    if (item.TestType != null &&
+                                                        !string.IsNullOrWhiteSpace(
+                                                            item.TestType.RequiredSampleType))
+                                                    {
+
+                                                        <span class="sample-pill">
+
+                                                            <i class="fas fa-vial"></i>
+
+                                                            @item.TestType.RequiredSampleType
+
+                                                        </span>
+
+                                                    }
+
+                                                }
+
+                                            </div>
+
+                                        </div>
+
+                                    }
+
+
+                                    <!-- =====================================
+                                         CLINICAL NOTES
+                                         ===================================== -->
+
+                                    <div class="detail-section">
+
+                                        <div class="detail-section-title">
+
+                                            <i class="fas fa-notes-medical"></i>
+
+                                            Clinical Notes
+
+                                        </div>
+
+
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            request.ClinicalNotes))
+                                        {
+
+                                            <div class="clinical-notes">
+
+                                                @request.ClinicalNotes
+
+                                            </div>
+
+                                        }
+                                        else
+                                        {
+
+                                            <div class="clinical-notes no-notes">
+
+                                                No clinical notes were provided
+                                                for this request.
+
+                                            </div>
+
+                                        }
+
+                                    </div>
+
+
+                                    <!-- =====================================
+                                         FOOTER
+                                         ===================================== -->
+
+                                    <div class="request-footer">
+
+                                        <div class="doctor-info">
+
+                                            <div class="doctor-icon">
+
+                                                <i class="fas fa-user-doctor"></i>
+
+                                            </div>
+
+
+                                            <div>
+
+                                                <span class="doctor-label">
+                                                    Requesting Doctor
+                                                </span>
+
+                                                <span class="doctor-name">
+
+                                                    @if (request.RequestingDoctor != null)
+                                                    {
+                                                        @(
+                                                            request.RequestingDoctor.UserName
+                                                            ?? request.RequestingDoctor.Email
+                                                            ?? "Doctor"
+                                                        )
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>
+                                                            Not recorded
+                                                        </span>
+                                                    }
+
+                                                </span>
+
+                                            </div>
+
+                                        </div>
+
+
+                                        <div class="status-badge @statusClass">
+
+                                            <i class="fas fa-circle"></i>
+
+                                            @status
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        }
+
+                    </div>
+
+                </div>
+
+            }
+
+        }
+
+    </div>
+
 </div>
+

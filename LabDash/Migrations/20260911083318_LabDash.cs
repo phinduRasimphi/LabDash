@@ -5,7 +5,7 @@
 namespace LabDash.Migrations
 {
     /// <inheritdoc />
-    public partial class AddSampleBarcodesToTestRequest : Migration
+    public partial class LabDash : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

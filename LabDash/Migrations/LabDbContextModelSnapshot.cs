@@ -829,9 +829,11 @@ namespace LabDash.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<decimal?>("ReferenceRangeHigh")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("ReferenceRangeLow")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("RequiredSampleType")

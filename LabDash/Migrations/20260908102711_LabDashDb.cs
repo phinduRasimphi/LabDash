@@ -5,7 +5,7 @@
 namespace LabDash.Migrations
 {
     /// <inheritdoc />
-    public partial class PATIENTIDNUMBER : Migration
+    public partial class LabDashDb : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    [Migration("20260902155239_MakePatientFieldsNullable")]
-    partial class MakePatientFieldsNullable
+    [Migration("20260910085925_HPCSAnullable")]
+    partial class HPCSAnullable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -832,9 +832,11 @@ namespace LabDash.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<decimal?>("ReferenceRangeHigh")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("ReferenceRangeLow")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("RequiredSampleType")
