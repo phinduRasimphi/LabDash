@@ -307,13 +307,13 @@ namespace LabDash.Controllers
             });
         }
 
-        // =========================================================
-        // START TEST
-        // =========================================================
+// =========================================================
+// START TEST
+// =========================================================
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> StartTest(int id)
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> StartTest(int id)
         {
             var technician =
                 await _userManager.GetUserAsync(User);
@@ -339,6 +339,10 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // =====================================================
+            // CHECK TEST REQUEST
+            // =====================================================
+
             if (item.TestRequest == null)
             {
                 TempData["Error"] =
@@ -347,23 +351,14 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // =====================================================
+            // CHECK TEST TYPE
+            // =====================================================
+
             if (item.TestType == null)
             {
                 TempData["Error"] =
                     "The test type could not be found.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
-            // =====================================================
-            // CHECK REQUEST STATUS
-            // =====================================================
-
-            if (item.TestRequest.Status != "Samples Received" &&
-                item.TestRequest.Status != "In Progress")
-            {
-                TempData["Error"] =
-                    "The sample for this request has not been received.";
 
                 return RedirectToAction(nameof(Index));
             }
@@ -375,21 +370,44 @@ namespace LabDash.Controllers
             if (item.Status != "Submitted")
             {
                 TempData["Error"] =
-                    "This test is no longer available.";
+                    "This test is no longer available to start.";
 
                 return RedirectToAction(nameof(Index));
             }
 
             // =====================================================
-            // CHECK STOCK
+            // CHECK ACTUAL SAMPLE RECEIPT
+            // =====================================================
+            // IMPORTANT:
+            // Do NOT check TestRequest.Status here.
+            //
+            // A request can be "Partially Received" while the
+            // particular sample required for this test has already
+            // been received.
+            // =====================================================
+
+            var sampleReceived = await _context.Samples
+                .AnyAsync(s =>
+                    s.TestRequestId == item.RequestId &&
+                    s.IsReceived);
+
+            if (!sampleReceived)
+            {
+                TempData["Error"] =
+                    "The sample for this test has not been received yet.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            // =====================================================
+            // CHECK CONSUMABLE STOCK
             // =====================================================
 
             var consumables =
                 await _context.TestTypeConsumables
                     .Include(x => x.Consumable)
                     .Where(x =>
-                        x.TestTypeId ==
-                        item.TestTypeId)
+                        x.TestTypeId == item.TestTypeId)
                     .ToListAsync();
 
             foreach (var stock in consumables)
@@ -409,7 +427,7 @@ namespace LabDash.Controllers
             }
 
             // =====================================================
-            // DEDUCT STOCK
+            // DEDUCT CONSUMABLE STOCK
             // =====================================================
 
             foreach (var stock in consumables)
@@ -431,18 +449,30 @@ namespace LabDash.Controllers
             item.AssignedTechnicianId =
                 technician.Id;
 
+            // =====================================================
+            // START DATE/TIME
+            // =====================================================
+
             item.StartDateTime =
                 DateTime.Now;
+
+            // =====================================================
+            // CHANGE TEST STATUS
+            // =====================================================
 
             item.Status =
                 "In Progress";
 
             // =====================================================
-            // UPDATE REQUEST STATUS
+            // CHANGE REQUEST STATUS
             // =====================================================
 
             item.TestRequest.Status =
                 "In Progress";
+
+            // =====================================================
+            // SAVE CHANGES
+            // =====================================================
 
             try
             {
@@ -458,17 +488,25 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // =====================================================
+            // SUCCESS
+            // =====================================================
+
             TempData["Success"] =
-                "Test successfully assigned to you.";
+                "Test successfully started and assigned to you.";
+
+            // =====================================================
+            // OPEN PROCESS TEST
+            // =====================================================
 
             return RedirectToAction(
                 nameof(ProcessTest),
                 new
                 {
-                    id =
-                        item.TestRequestItemId
+                    id = item.TestRequestItemId
                 });
         }
+
 
         // =========================================================
         // IN PROGRESS TESTS
