@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    [Migration("20260911083318_LabDash")]
-    partial class LabDash
+    [Migration("20260912140206_ChangeTurnaroundTimeToMinutes")]
+    partial class ChangeTurnaroundTimeToMinutes
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -846,7 +846,7 @@ namespace LabDash.Migrations
                     b.Property<int>("TestCategoryId")
                         .HasColumnType("int");
 
-                    b.Property<int>("TurnaroundTimeHours")
+                    b.Property<int>("TurnaroundTimeMinutes")
                         .HasColumnType("int");
 
                     b.Property<string>("UnitOfMeasurement")

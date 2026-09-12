@@ -588,16 +588,16 @@ namespace LabDash.Controllers
             // TURNAROUND TIME
             // =========================================================
 
-            double turnaroundHours = 0;
+            double turnaroundMinutes = 0;
 
             if (item.TestType != null)
             {
-                turnaroundHours =
+                turnaroundMinutes =
                     item.TestType.TurnaroundTimeMinutes;
             }
 
-            ViewBag.TurnaroundHours =
-                turnaroundHours;
+            ViewBag.TurnaroundMinutes =
+                turnaroundMinutes;
 
             // =========================================================
             // DUE DATE
@@ -606,11 +606,11 @@ namespace LabDash.Controllers
             DateTime? dueDateTime = null;
 
             if (item.StartDateTime.HasValue &&
-                turnaroundHours > 0)
+                turnaroundMinutes > 0)
             {
                 dueDateTime =
                     item.StartDateTime.Value
-                        .AddHours(turnaroundHours);
+                        .AddMinutes(turnaroundMinutes);
             }
 
             ViewBag.DueDateTime =
