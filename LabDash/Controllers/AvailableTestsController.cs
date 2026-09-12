@@ -21,19 +21,49 @@ namespace LabDash.Controllers
             _userManager = userManager;
         }
 
-        // =========================================================
-        // AVAILABLE TESTS
-        // =========================================================
+// =========================================================
+// AVAILABLE TESTS
+// =========================================================
 
-        [HttpGet]
-        public async Task<IActionResult> Index()
-        {
+           [HttpGet]
+           public async Task<IActionResult> Index()
+           {
             var tests = await _context.TestRequestItems
                 .Include(x => x.TestType)
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
-                .Where(x => x.Status == "Submitted")
-                .OrderByDescending(x => x.TestRequestItemId)
+
+                // Only tests that are available to technicians
+                .Where(x =>
+                    x.Status == "Submitted" &&
+                    x.TestRequest != null &&
+                    (
+                        x.TestRequest.Status == "Samples Received" ||
+                        x.TestRequest.Status == "In Progress"
+                    ))
+
+                // =====================================================
+                // SORT BY IMPORTANCE
+                // =====================================================
+                .OrderBy(x =>
+                    x.TestRequest.Urgency == "STAT" ? 1 :
+                    x.TestRequest.Urgency == "Urgent" ? 2 :
+                    x.TestRequest.Urgency == "Priority" ? 3 :
+                    x.TestRequest.Urgency == "Routine" ? 4 :
+                    5)
+
+                // =====================================================
+                // WITHIN THE SAME PRIORITY:
+                // OLDEST REQUEST FIRST
+                // =====================================================
+                .ThenBy(x => x.TestRequest.RequestDate)
+
+                // =====================================================
+                // IF TWO TESTS HAVE THE SAME REQUEST DATE:
+                // OLDEST TEST ITEM FIRST
+                // =====================================================
+                .ThenBy(x => x.TestRequestItemId)
+
                 .ToListAsync();
 
             return View(tests);
@@ -50,19 +80,49 @@ namespace LabDash.Controllers
                 .Include(x => x.TestType)
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
-                .FirstOrDefaultAsync(
-                    x => x.TestRequestItemId == id);
+                .FirstOrDefaultAsync(x =>
+                    x.TestRequestItemId == id);
 
             if (item == null)
                 return NotFound();
 
             if (item.TestRequest == null)
-                return NotFound(
-                    "Test request not found.");
+                return NotFound("Test request not found.");
 
             if (item.TestRequest.Patient == null)
-                return NotFound(
-                    "Patient not found.");
+                return NotFound("Patient not found.");
+
+            // =========================================================
+            // LOAD REQUIRED CONSUMABLES
+            // =========================================================
+
+            var consumables = await _context.TestTypeConsumables
+                .Include(x => x.Consumable)
+                .Where(x => x.TestTypeId == item.TestTypeId)
+                .Select(x => new
+                {
+                    name = x.Consumable != null
+                        ? x.Consumable.Name
+                        : "Unknown Consumable",
+
+                    required = x.QuantityRequired,
+
+                    available = x.Consumable != null
+                        ? x.Consumable.StockLevel
+                        : 0,
+
+                    isAvailable =
+                        x.Consumable != null &&
+                        x.Consumable.StockLevel >= x.QuantityRequired
+                })
+                .ToListAsync();
+
+            // =========================================================
+            // CHECK WHETHER ALL CONSUMABLES ARE AVAILABLE
+            // =========================================================
+
+            bool allConsumablesAvailable =
+                consumables.All(x => x.isAvailable);
 
             return Json(new
             {
@@ -124,7 +184,16 @@ namespace LabDash.Controllers
 
                     requestId =
                         item.RequestId
-                }
+                },
+
+                // =====================================================
+                // CONSUMABLE INFORMATION
+                // =====================================================
+
+                consumables = consumables,
+
+                allConsumablesAvailable =
+                    allConsumablesAvailable
             });
         }
 

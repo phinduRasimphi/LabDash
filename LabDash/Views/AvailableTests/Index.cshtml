@@ -737,6 +737,130 @@
             font-size: 13px;
         }
 
+    /* =========================================================
+       CONSUMABLE AVAILABILITY
+       ========================================================= */
+
+    .consumables-section {
+        border-top: 1px solid var(--av-border);
+        padding: 16px 0;
+    }
+
+        .consumables-section h4 {
+            margin: 0 0 12px;
+            color: var(--av-primary-dark);
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+    .stock-summary {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 13px;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+        .stock-summary.available {
+            background: #e7f5f3;
+            color: #095a54;
+        }
+
+        .stock-summary.unavailable {
+            background: #fbe9ea;
+            color: #9b2c35;
+        }
+
+        .stock-summary i {
+            font-size: 16px;
+        }
+
+    .consumable-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .consumable-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 11px 12px;
+        border: 1px solid var(--av-border);
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .consumable-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .consumable-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        background: var(--av-primary-light);
+        color: var(--av-primary);
+    }
+
+    .consumable-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--av-text);
+    }
+
+    .consumable-quantity {
+        margin-top: 3px;
+        font-size: 10px;
+        color: var(--av-muted);
+    }
+
+    .stock-status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 8px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+        .stock-status.available {
+            background: #e7f5f3;
+            color: #08766e;
+        }
+
+        .stock-status.unavailable {
+            background: #fbe9ea;
+            color: #c03945;
+        }
+
+        .stock-status i {
+            font-size: 10px;
+        }
+
+    .start-button:disabled {
+        background: #b8c1c0;
+        color: #ffffff;
+        cursor: not-allowed;
+        opacity: .75;
+    }
+
+        .start-button:disabled:hover {
+            background: #b8c1c0;
+        }
 
     /* PATIENT PANEL */
 
@@ -975,175 +1099,162 @@
         });
 
 
-        // =========================================================
-        // LOAD PATIENT
-        // =========================================================
+       // =========================================================
+// LOAD PATIENT
+// =========================================================
 
-        function loadPatient(id) {
+function loadPatient(id) {
 
-            selectedTestId = id;
+    selectedTestId = id;
 
+    // Highlight selected row
+    document.querySelectorAll(".test-row").forEach(row => {
+        row.style.background = "";
+    });
 
-            // Highlight selected row
+    const selectedRow =
+        document.querySelector(
+            '.test-row[data-test-id="' + id + '"]'
+        );
 
-            document.querySelectorAll(".test-row").forEach(row => {
+    if (selectedRow) {
+        selectedRow.style.background = "#e7f5f3";
+    }
 
-                row.style.background = "";
+    const panel =
+        document.getElementById("patientPanel");
 
-            });
+    panel.innerHTML = `
 
+        <div class="select-message">
 
-            const selectedRow =
-                document.querySelector(
-                    '.test-row[data-test-id="' + id + '"]'
+            <div class="select-icon">
+
+                <i class="fa-solid fa-spinner fa-spin"></i>
+
+            </div>
+
+            <h3>Loading patient...</h3>
+
+            <p>Please wait.</p>
+
+        </div>
+
+    `;
+
+    fetch(
+        '@Url.Action("GetPatient", "AvailableTests")?id=' + id
+    )
+        .then(response => {
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Unable to retrieve patient information."
                 );
-
-
-            if (selectedRow) {
-
-                selectedRow.style.background = "#e7f5f3";
 
             }
 
+            return response.json();
 
-            const panel =
-                document.getElementById("patientPanel");
+        })
+        .then(data => {
+
+            const patient =
+                data.patient || {};
+
+            const test =
+                data.test || {};
+
+            const consumables =
+                data.consumables || [];
+
+            const allConsumablesAvailable =
+                data.allConsumablesAvailable === true;
 
 
-            panel.innerHTML = `
+            // =====================================================
+            // PATIENT NAME
+            // =====================================================
 
-                    <div class="select-message">
+            const fullName =
+                `${patient.name || ""} ${patient.surname || ""}`.trim()
+                || "Unknown Patient";
 
-                        <div class="select-icon">
 
-                            <i class="fa-solid fa-spinner fa-spin"></i>
+            // =====================================================
+            // INITIALS
+            // =====================================================
 
-                        </div>
+            const initials =
+                fullName
+                    .split(" ")
+                    .filter(Boolean)
+                    .map(x => x.charAt(0))
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase();
 
-                        <h3>Loading patient...</h3>
 
-                        <p>Please wait.</p>
+            // =====================================================
+            // BUILD CONSUMABLE LIST
+            // =====================================================
+
+            let consumableHtml = "";
+
+            if (consumables.length === 0) {
+
+                consumableHtml = `
+
+                    <div class="stock-summary available">
+
+                        <i class="fa-solid fa-circle-check"></i>
+
+                        <span>
+                            No consumables are required for this test.
+                        </span>
 
                     </div>
 
                 `;
 
+            }
+            else {
 
-            fetch(
-                '@Url.Action("GetPatient", "AvailableTests")?id=' + id
-            )
-                .then(response => {
+                consumableHtml = consumables.map(c => {
 
-                    if (!response.ok) {
+                    const available =
+                        c.isAvailable === true;
 
-                        throw new Error(
-                            "Unable to retrieve patient information."
-                        );
+                    return `
 
-                    }
+                        <div class="consumable-item">
 
-                    return response.json();
+                            <div class="consumable-info">
 
-                })
-                .then(data => {
+                                <div class="consumable-icon">
 
-                    const patient = data.patient || {};
-                    const test = data.test || {};
+                                    <i class="fa-solid fa-box"></i>
 
-
-                    const fullName =
-                        `${patient.name || ""} ${patient.surname || ""}`.trim()
-                        || "Unknown Patient";
-
-
-                    const initials =
-                        fullName
-                            .split(" ")
-                            .filter(Boolean)
-                            .map(x => x.charAt(0))
-                            .slice(0, 2)
-                            .join("")
-                            .toUpperCase();
-
-
-                    panel.innerHTML = `
-
-                        <div class="patient-content">
-
-
-                            <div class="patient-header">
+                                </div>
 
                                 <div>
 
-                                    <small>
-                                        REQUEST #${test.requestId ?? "-"}
-                                    </small>
+                                    <div class="consumable-name">
 
-                                    <h2>
-                                        ${fullName}
-                                    </h2>
-
-                                </div>
-
-                                <div class="avatar">
-                                    ${initials}
-                                </div>
-
-                            </div>
-
-
-                            <!-- PATIENT INFORMATION -->
-
-                            <div class="detail-section">
-
-                                <h4>
-                                    <i class="fa-solid fa-user"></i>
-                                    Patient Information
-                                </h4>
-
-
-                                <div class="detail-grid">
-
-                                    <div class="detail-item">
-
-                                        <small>ID Number</small>
-
-                                        <span>
-                                            ${patient.idNumber || "-"}
-                                        </span>
+                                        ${c.name || "Unknown Consumable"}
 
                                     </div>
 
+                                    <div class="consumable-quantity">
 
-                                    <div class="detail-item">
+                                        Required:
+                                        <strong>${c.required}</strong>
 
-                                        <small>Cellphone</small>
+                                        &nbsp; | &nbsp;
 
-                                        <span>
-                                            ${patient.cellphone || "-"}
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="detail-item">
-
-                                        <small>Email</small>
-
-                                        <span>
-                                            ${patient.email || "-"}
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="detail-item">
-
-                                        <small>Address</small>
-
-                                        <span>
-                                            ${patient.address || "-"}
-                                        </span>
+                                        Stock:
+                                        <strong>${c.available}</strong>
 
                                     </div>
 
@@ -1152,200 +1263,423 @@
                             </div>
 
 
-                            <!-- TEST -->
+                            <div class="stock-status ${available
+                                ? "available"
+                                : "unavailable"}">
 
-                            <div class="detail-section">
+                                <i class="fa-solid ${available
+                                    ? "fa-circle-check"
+                                    : "fa-circle-xmark"}"></i>
 
-                                <h4>
-                                    <i class="fa-solid fa-flask-vial"></i>
-                                    Laboratory Test
-                                </h4>
-
-
-                                <div class="detail-grid">
-
-                                    <div class="detail-item">
-
-                                        <small>Test</small>
-
-                                        <span>
-                                            ${test.name || "-"}
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="detail-item">
-
-                                        <small>Category</small>
-
-                                        <span>
-                                            ${test.category || "-"}
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="detail-item">
-
-                                        <small>Sample</small>
-
-                                        <span>
-                                            ${test.sample || "-"}
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="detail-item">
-
-                                        <small>Turnaround</small>
-
-                                        <span>
-                                            ${test.turnaround ?? "-"} hours
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="detail-item">
-
-                                        <small>Urgency</small>
-
-                                        <span>
-                                            ${test.urgency || "Routine"}
-                                        </span>
-
-                                    </div>
-
-
-                                    <div class="detail-item">
-
-                                        <small>Status</small>
-
-                                        <span>
-                                            ${test.status || "Submitted"}
-                                        </span>
-
-                                    </div>
-
-                                </div>
+                                ${available
+                                    ? "Available"
+                                    : "Insufficient"}
 
                             </div>
-
-
-                            <!-- CLINICAL INFORMATION -->
-
-                            <div class="detail-section">
-
-                                <h4>
-                                    <i class="fa-solid fa-notes-medical"></i>
-                                    Clinical Information
-                                </h4>
-
-
-                                <div class="clinical-item allergy">
-
-                                    <strong>Allergies</strong><br>
-
-                                    ${patient.allergies || "None recorded"}
-
-                                </div>
-
-
-                                <div class="clinical-item condition">
-
-                                    <strong>Medical Conditions</strong><br>
-
-                                    ${patient.conditions || "None recorded"}
-
-                                </div>
-
-
-                                <div class="clinical-item medication">
-
-                                    <strong>Medication</strong><br>
-
-                                    ${patient.medication || "None recorded"}
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- DOCTOR NOTES -->
-
-                            <div class="detail-section">
-
-                                <h4>
-
-                                    <i class="fa-solid fa-file-lines"></i>
-
-                                    Doctor's Notes
-
-                                </h4>
-
-
-                                <p style="
-                                    font-size:13px;
-                                    line-height:1.6;
-                                    margin:0;
-                                ">
-
-                                    ${patient.notes || "No clinical notes recorded."}
-
-                                </p>
-
-                            </div>
-
-
-                            <!-- START -->
-
-                            <button
-                                type="button"
-                                class="start-button"
-                                onclick="startProcessing()">
-
-                                <i class="fa-solid fa-play"></i>
-
-                                Begin Processing
-
-                            </button>
 
                         </div>
 
                     `;
 
-                })
-                .catch(error => {
+                }).join("");
 
-                    console.error(error);
+            }
 
 
-                    panel.innerHTML = `
+            // =====================================================
+            // STOCK SUMMARY
+            // =====================================================
 
-                        <div class="select-message">
+            let stockSummaryHtml = "";
 
-                            <div class="select-icon"
-                                 style="background:#fbe9ea;color:#dc3545;">
+            if (consumables.length === 0) {
 
-                                <i class="fa-solid fa-triangle-exclamation"></i>
+                stockSummaryHtml = "";
 
-                            </div>
+            }
+            else if (allConsumablesAvailable) {
 
-                            <h3>Unable to load patient</h3>
+                stockSummaryHtml = `
 
-                            <p>
-                                Please try selecting the test again.
-                            </p>
+                    <div class="stock-summary available">
 
-                        </div>
+                        <i class="fa-solid fa-circle-check"></i>
+
+                        <span>
+                            All required consumables are available.
+                        </span>
+
+                    </div>
+
+                `;
+
+            }
+            else {
+
+                stockSummaryHtml = `
+
+                    <div class="stock-summary unavailable">
+
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+
+                        <span>
+                            One or more required consumables are
+                            insufficient. This test cannot be started.
+                        </span>
+
+                    </div>
+
+                `;
+
+            }
+
+
+            // =====================================================
+            // START BUTTON
+            // =====================================================
+
+            const startButtonHtml =
+                allConsumablesAvailable
+
+                    ? `
+
+                        <button
+                            type="button"
+                            class="start-button"
+                            onclick="startProcessing()">
+
+                            <i class="fa-solid fa-play"></i>
+
+                            Begin Processing
+
+                        </button>
+
+                    `
+
+                    : `
+
+                        <button
+                            type="button"
+                            class="start-button"
+                            disabled>
+
+                            <i class="fa-solid fa-lock"></i>
+
+                            Cannot Begin Processing
+
+                        </button>
 
                     `;
 
-                });
 
-        }
+            // =====================================================
+            // DISPLAY PATIENT PANEL
+            // =====================================================
+
+            panel.innerHTML = `
+
+                <div class="patient-content">
+
+
+                    <!-- PATIENT HEADER -->
+
+                    <div class="patient-header">
+
+                        <div>
+
+                            <small>
+                                REQUEST #${test.requestId ?? "-"}
+                            </small>
+
+                            <h2>
+                                ${fullName}
+                            </h2>
+
+                        </div>
+
+                        <div class="avatar">
+                            ${initials}
+                        </div>
+
+                    </div>
+
+
+                    <!-- PATIENT INFORMATION -->
+
+                    <div class="detail-section">
+
+                        <h4>
+
+                            <i class="fa-solid fa-user"></i>
+
+                            Patient Information
+
+                        </h4>
+
+
+                        <div class="detail-grid">
+
+                            <div class="detail-item">
+
+                                <small>ID Number</small>
+
+                                <span>
+                                    ${patient.idNumber || "-"}
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-item">
+
+                                <small>Cellphone</small>
+
+                                <span>
+                                    ${patient.cellphone || "-"}
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-item">
+
+                                <small>Email</small>
+
+                                <span>
+                                    ${patient.email || "-"}
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-item">
+
+                                <small>Address</small>
+
+                                <span>
+                                    ${patient.address || "-"}
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- LABORATORY TEST -->
+
+                    <div class="detail-section">
+
+                        <h4>
+
+                            <i class="fa-solid fa-flask-vial"></i>
+
+                            Laboratory Test
+
+                        </h4>
+
+
+                        <div class="detail-grid">
+
+                            <div class="detail-item">
+
+                                <small>Test</small>
+
+                                <span>
+                                    ${test.name || "-"}
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-item">
+
+                                <small>Category</small>
+
+                                <span>
+                                    ${test.category || "-"}
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-item">
+
+                                <small>Sample</small>
+
+                                <span>
+                                    ${test.sample || "-"}
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-item">
+
+                                <small>Turnaround</small>
+
+                                <span>
+                                    ${test.turnaround ?? "-"} hours
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-item">
+
+                                <small>Urgency</small>
+
+                                <span>
+                                    ${test.urgency || "Routine"}
+                                </span>
+
+                            </div>
+
+
+                            <div class="detail-item">
+
+                                <small>Status</small>
+
+                                <span>
+                                    ${test.status || "Submitted"}
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- CONSUMABLE AVAILABILITY -->
+
+                    <div class="consumables-section">
+
+                        <h4>
+
+                            <i class="fa-solid fa-boxes-stacked"></i>
+
+                            Required Consumables
+
+                        </h4>
+
+                        ${stockSummaryHtml}
+
+                        <div class="consumable-list">
+
+                            ${consumableHtml}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- CLINICAL INFORMATION -->
+
+                    <div class="detail-section">
+
+                        <h4>
+
+                            <i class="fa-solid fa-notes-medical"></i>
+
+                            Clinical Information
+
+                        </h4>
+
+
+                        <div class="clinical-item allergy">
+
+                            <strong>Allergies</strong><br>
+
+                            ${patient.allergies || "None recorded"}
+
+                        </div>
+
+
+                        <div class="clinical-item condition">
+
+                            <strong>Medical Conditions</strong><br>
+
+                            ${patient.conditions || "None recorded"}
+
+                        </div>
+
+
+                        <div class="clinical-item medication">
+
+                            <strong>Medication</strong><br>
+
+                            ${patient.medication || "None recorded"}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- DOCTOR NOTES -->
+
+                    <div class="detail-section">
+
+                        <h4>
+
+                            <i class="fa-solid fa-file-lines"></i>
+
+                            Doctor's Notes
+
+                        </h4>
+
+
+                        <p style="
+                            font-size:13px;
+                            line-height:1.6;
+                            margin:0;
+                        ">
+
+                            ${patient.notes || "No clinical notes recorded."}
+
+                        </p>
+
+                    </div>
+
+
+                    <!-- START PROCESSING -->
+
+                    ${startButtonHtml}
+
+                </div>
+
+            `;
+
+        })
+        .catch(error => {
+
+            console.error(error);
+
+            panel.innerHTML = `
+
+                <div class="select-message">
+
+                    <div class="select-icon"
+                         style="background:#fbe9ea;color:#dc3545;">
+
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+
+                    </div>
+
+                    <h3>Unable to load patient</h3>
+
+                    <p>
+                        Please try selecting the test again.
+                    </p>
+
+                </div>
+
+            `;
+
+        });
+
+}
 
 
         // =========================================================

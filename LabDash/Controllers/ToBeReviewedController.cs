@@ -73,9 +73,10 @@ namespace LabDash.Controllers
                 return Challenge();
 
 
-            // --------------------------------------------------------
-            // LOAD TEST
-            // --------------------------------------------------------
+            // ============================================================
+            // LOAD RETURNED TEST
+            // ============================================================
+
             var item = await _context.TestRequestItems
 
                 .Include(t => t.TestRequest)
@@ -86,40 +87,24 @@ namespace LabDash.Controllers
                 .Include(t => t.AssignedTechnician)
 
                 .FirstOrDefaultAsync(t =>
-                    t.TestRequestItemId == id);
+                    t.TestRequestItemId == id &&
+                    t.AssignedTechnicianId == technician.Id &&
+                    t.Status == "To Be Reviewed");
 
 
             if (item == null)
-                return NotFound();
-
-
-            // --------------------------------------------------------
-            // MAKE SURE THIS TEST BELONGS TO CURRENT TECHNICIAN
-            // --------------------------------------------------------
-            if (item.AssignedTechnicianId != technician.Id)
             {
                 TempData["Error"] =
-                    "This test is not assigned to you.";
+                    "This test is not assigned to you or is no longer waiting for review.";
 
                 return RedirectToAction(nameof(Index));
             }
 
 
-            // --------------------------------------------------------
-            // TEST MUST BE RETURNED FOR REVIEW
-            // --------------------------------------------------------
-            if (item.Status != "To Be Reviewed")
-            {
-                TempData["Error"] =
-                    "This test is no longer waiting for review.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
-
-            // --------------------------------------------------------
+            // ============================================================
             // LOAD RESULT
-            // --------------------------------------------------------
+            // ============================================================
+
             var result = await _context.TestResults
 
                 .FirstOrDefaultAsync(r =>
@@ -135,33 +120,32 @@ namespace LabDash.Controllers
             }
 
 
-            // --------------------------------------------------------
+            // ============================================================
             // LOAD MOST RECENT VERIFICATION
-            // --------------------------------------------------------
+            // ============================================================
+
             var verification = await _context.TestVerifications
 
                 .Include(v => v.VerifiedByTechnician)
 
                 .Where(v =>
                     v.TestRequestItemId == id &&
-                    v.Status == "To Be Reviewed"
-                )
+                    v.Status == "To Be Reviewed")
 
                 .OrderByDescending(v => v.VerificationDate)
 
                 .FirstOrDefaultAsync();
 
 
-            // --------------------------------------------------------
+            // ============================================================
             // SEND DATA TO VIEW
-            // --------------------------------------------------------
+            // ============================================================
+
             ViewBag.TestItem = item;
 
-            ViewBag.Patient =
-                item.TestRequest?.Patient;
+            ViewBag.Patient = item.TestRequest?.Patient;
 
-            ViewBag.Verification =
-                verification;
+            ViewBag.Verification = verification;
 
 
             return View(result);

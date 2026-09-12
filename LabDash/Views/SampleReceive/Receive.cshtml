@@ -1,283 +1,637 @@
-﻿@model LabDash.Models.SampleReceive
+﻿@model IEnumerable<LabDash.Models.TestRequest>
 
 @{
-ViewData["Title"] = "Receive Patient Sample";
-Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "Sample Receiving";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
-<div class="receive-page">
-    <div class="receive-container">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 
-    <!-- HEADER -->
-    <div class="receive-header">
-        <div class="header-icon">
-            <i class="fa-solid fa-vials"></i>
-        </div>
+<div class="sample-page">
 
-        <div>
-            <h1>Receive Patient Sample</h1>
-            <p>Verify the patient request and record the laboratory sample received.</p>
-        </div>
-    </div>
+    <div class="sample-container">
 
-    <!-- SUCCESS -->
-    @if (TempData["Success"] != null)
-    {
-        <div class="alert-message success-message">
-            <i class="fa-solid fa-circle-check"></i>
-            <div>
-                <strong>Success</strong>
-                <span>@TempData["Success"]</span>
+        <!-- =====================================================
+             HEADER
+        ====================================================== -->
+
+        <div class="sample-header">
+
+            <div class="header-icon">
+                <i class="fa-solid fa-vials"></i>
             </div>
-        </div>
-    }
 
-    <!-- ERROR -->
-    @if (TempData["Error"] != null)
-    {
-        <div class="alert-message error-message">
-            <i class="fa-solid fa-circle-exclamation"></i>
             <div>
-                <strong>Error</strong>
-                <span>@TempData["Error"]</span>
+                <h1>Sample Receiving</h1>
+
+                <p>
+                    Review laboratory test requests, verify samples,
+                    edit barcodes and receive samples.
+                </p>
             </div>
+
         </div>
-    }
 
-    <!-- VALIDATION -->
-    <div asp-validation-summary="All" class="validation-summary"></div>
 
-    <!-- RECEIVE CARD -->
-    <div class="receive-card">
+        <!-- =====================================================
+             ALERTS
+        ====================================================== -->
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert-box success">
 
-        <form asp-controller="SampleReceive"
-              asp-action="Receive"
-              method="post"
-              id="receiveForm">
+                <i class="fa-solid fa-circle-check"></i>
 
-            @Html.AntiForgeryToken()
+                <div>
+                    <strong>Success</strong>
+                    <span>@TempData["Success"]</span>
+                </div>
 
-            <!-- REQUEST -->
-            <div class="form-group">
+            </div>
+        }
 
-                <label asp-for="RequestId">
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert-box error">
+
+                <i class="fa-solid fa-circle-exclamation"></i>
+
+                <div>
+                    <strong>Error</strong>
+                    <span>@TempData["Error"]</span>
+                </div>
+
+            </div>
+        }
+
+
+        <!-- =====================================================
+             STATISTICS
+        ====================================================== -->
+
+        <div class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
                     <i class="fa-solid fa-clipboard-list"></i>
-                    Test Request
-                    <span>*</span>
-                </label>
+                </div>
 
-                <select asp-for="RequestId"
-                        asp-items="@(ViewBag.RequestList as IEnumerable<SelectListItem>)"
-                        id="requestId"
-                        class="form-control">
+                <div>
+                    <h2>@Model.Count()</h2>
+                    <p>Requests Awaiting Samples</p>
+                </div>
 
-                    <option value="">-- Select Test Request --</option>
+            </div>
 
-                </select>
 
-                <span asp-validation-for="RequestId"
-                      class="field-error"></span>
+            <div class="stat-card">
 
-                @if (ViewBag.RequestList == null)
+                <div class="stat-icon">
+                    <i class="fa-solid fa-vial"></i>
+                </div>
+
+                <div>
+                    <h2>
+                        @Model.Sum(x =>
+                            x.Samples?.Count(s => !s.IsReceived) ?? 0)
+                    </h2>
+
+                    <p>Samples Awaiting Receipt</p>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card urgent-stat">
+
+                <div class="stat-icon">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+
+                <div>
+                    <h2>
+                        @Model.Count(x =>
+                            x.Urgency == "STAT" ||
+                            x.Urgency == "Urgent")
+                    </h2>
+
+                    <p>Urgent Requests</p>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             MAIN CARD
+        ====================================================== -->
+
+        <div class="main-card">
+
+            <div class="card-header">
+
+                <div>
+                    <h2>
+                        <i class="fa-solid fa-flask"></i>
+                        Pending Sample Requests
+                    </h2>
+
+                    <p>
+                        Samples are listed according to request urgency.
+                    </p>
+                </div>
+
+                <div class="count-pill">
+                    @Model.Count() request@(Model.Count() == 1 ? "" : "s")
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 SEARCH
+            ================================================== -->
+
+            <div class="toolbar">
+
+                <div class="search-box">
+
+                    <i class="fa-solid fa-search"></i>
+
+                    <input type="text"
+                           id="sampleSearch"
+                           placeholder="Search request, patient, barcode or test..." />
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 REQUEST LIST
+            ================================================== -->
+
+            <div class="request-list">
+
+                @if (Model.Any())
                 {
-                    <div class="request-warning">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        No test requests were loaded.
+                    foreach (var request in Model)
+                    {
+                        var urgencyClass =
+                            request.Urgency switch
+                            {
+                                "STAT" => "urgency-stat",
+                                "Urgent" => "urgency-urgent",
+                                "Priority" => "urgency-priority",
+                                _ => "urgency-routine"
+                            };
+
+                        var urgencyIcon =
+                            request.Urgency switch
+                            {
+                                "STAT" => "fa-triangle-exclamation",
+                                "Urgent" => "fa-bolt",
+                                "Priority" => "fa-arrow-up",
+                                _ => "fa-clock"
+                            };
+
+                        var patientName =
+                            request.Patient != null
+                                ? $"{request.Patient.Name} {request.Patient.Surname}"
+                                : "Unknown Patient";
+
+                        var pendingSamples =
+                            request.Samples?
+                                .Where(s => !s.IsReceived)
+                                .ToList()
+                            ?? new List<LabDash.Models.Sample>();
+
+
+                        <div class="request-card"
+                             data-search="
+                            @request.RequestId
+                            @patientName
+                            @request.Urgency
+                            @string.Join(" ", request.TestRequestItems.Select(x => x.TestType?.Name))
+                            @string.Join(" ", request.Samples.Select(x => x.Barcode))">
+
+                            <!-- =================================
+                                 REQUEST HEADER
+                            ================================== -->
+
+                            <div class="request-top">
+
+                                <div class="request-number">
+
+                                    <span class="request-label">
+                                        TEST REQUEST
+                                    </span>
+
+                                    <strong>
+                                        #@request.RequestId
+                                    </strong>
+
+                                </div>
+
+
+                                <span class="urgency-badge @urgencyClass">
+
+                                    <i class="fa-solid @urgencyIcon"></i>
+
+                                    @(string.IsNullOrWhiteSpace(request.Urgency)
+                                        ? "Routine"
+                                        : request.Urgency)
+
+                                </span>
+
+                            </div>
+
+
+                            <!-- =================================
+                                 PATIENT
+                            ================================== -->
+
+                            <div class="patient-section">
+
+                                <div class="patient-avatar">
+
+                                    @if (request.Patient != null)
+                                    {
+                                        @request.Patient.Name.Substring(0, 1).ToUpper()
+                                    }
+                                    else
+                                    {
+                                        <text>?</text>
+                                    }
+
+                                </div>
+
+                                <div>
+
+                                    <strong>
+                                        @patientName
+                                    </strong>
+
+                                    <span>
+                                        ID:
+                                        @(request.Patient?.IDNumber ?? "Not available")
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- =================================
+                                 TESTS
+                            ================================== -->
+
+                            <div class="tests-section">
+
+                                <div class="section-title">
+                                    <i class="fa-solid fa-microscope"></i>
+                                    Requested Tests
+                                </div>
+
+                                <div class="test-list">
+
+                                    @foreach (var test in request.TestRequestItems)
+                                    {
+                                        <span class="test-chip">
+
+                                            <i class="fa-solid fa-flask"></i>
+
+                                            @(test.TestType?.Name ?? "Unknown Test")
+
+                                        </span>
+                                    }
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- =================================
+                                 SAMPLES
+                            ================================== -->
+
+                            <div class="samples-section">
+
+                                <div class="section-title">
+
+                                    <i class="fa-solid fa-vial"></i>
+
+                                    Samples
+
+                                </div>
+
+
+                                @if (request.Samples != null &&
+                                     request.Samples.Any())
+                                {
+
+                                    <div class="sample-table-wrapper">
+
+                                        <table class="sample-table">
+
+                                            <thead>
+
+                                                <tr>
+
+                                                    <th>Sample Type</th>
+
+                                                    <th>Barcode</th>
+
+                                                    <th>Status</th>
+
+                                                    <th>Received By</th>
+
+                                                    <th>Date Received</th>
+
+                                                    <th>Actions</th>
+
+                                                </tr>
+
+                                            </thead>
+
+
+                                            <tbody>
+
+                                                @foreach (var sample in request.Samples)
+                                                {
+
+                                                    <tr>
+
+                                                        <!-- SAMPLE TYPE -->
+
+                                                        <td>
+
+                                                            <div class="sample-type">
+
+                                                                <i class="fa-solid fa-vial"></i>
+
+                                                                <span>
+                                                                    @sample.SampleType
+                                                                </span>
+
+                                                            </div>
+
+                                                        </td>
+
+
+                                                        <!-- BARCODE -->
+
+                                                        <td>
+
+                                                            @if (!sample.IsReceived)
+                                                            {
+                                                                <form asp-action="EditBarcode"
+                                                                      method="post"
+                                                                      class="barcode-edit-form">
+
+                                                                    @Html.AntiForgeryToken()
+
+                                                                    <input type="hidden"
+                                                                           name="requestId"
+                                                                           value="@request.RequestId" />
+
+                                                                    <input type="hidden"
+                                                                           name="oldBarcode"
+                                                                           value="@sample.Barcode" />
+
+                                                                    <input type="text"
+                                                                           name="newBarcode"
+                                                                           value="@sample.Barcode"
+                                                                           class="barcode-input" />
+
+                                                                    <button type="submit"
+                                                                            class="save-barcode"
+                                                                            title="Save barcode">
+
+                                                                        <i class="fa-solid fa-floppy-disk"></i>
+
+                                                                    </button>
+
+                                                                </form>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="barcode-display">
+                                                                    @sample.Barcode
+                                                                </span>
+                                                            }
+
+                                                        </td>
+
+
+                                                        <!-- STATUS -->
+
+                                                        <td>
+
+                                                            @if (sample.IsReceived)
+                                                            {
+                                                                <span class="status received">
+
+                                                                    <i class="fa-solid fa-circle-check"></i>
+
+                                                                    Received
+
+                                                                </span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="status waiting">
+
+                                                                    <i class="fa-solid fa-clock"></i>
+
+                                                                    Awaiting
+
+                                                                </span>
+                                                            }
+
+                                                        </td>
+
+
+                                                        <!-- TECHNICIAN -->
+
+                                                        <td>
+
+                                                            @if (sample.IsReceived)
+                                                            {
+                                                                <span>
+                                                                    @(sample.ReceivedByTechnician ?? "Unknown")
+                                                                </span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="not-received">
+                                                                    —
+                                                                </span>
+                                                            }
+
+                                                        </td>
+
+
+                                                        <!-- DATE -->
+
+                                                        <td>
+
+                                                            @if (sample.IsReceived &&
+                                                                 sample.DateReceived.HasValue)
+                                                            {
+                                                                @sample.DateReceived.Value.ToString(
+                                                                    "dd MMM yyyy HH:mm")
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="not-received">
+                                                                    —
+                                                                </span>
+                                                            }
+
+                                                        </td>
+
+
+                                                        <!-- ACTION -->
+
+                                                        <td>
+
+                                                            @if (!sample.IsReceived)
+                                                            {
+                                                                <form asp-action="ReceiveSample"
+                                                                      method="post"
+                                                                      class="receive-form">
+
+                                                                    @Html.AntiForgeryToken()
+
+                                                                    <input type="hidden"
+                                                                           name="requestId"
+                                                                           value="@request.RequestId" />
+
+                                                                    <input type="hidden"
+                                                                           name="barcode"
+                                                                           value="@sample.Barcode"
+                                                                           class="receive-barcode" />
+
+                                                                    <input type="hidden"
+                                                                           name="notes"
+                                                                           value="" />
+
+                                                                    <button type="submit"
+                                                                            class="receive-btn"
+                                                                            onclick="return confirm('Receive this sample?');">
+
+                                                                        <i class="fa-solid fa-vial-circle-check"></i>
+
+                                                                        Receive
+
+                                                                    </button>
+
+                                                                </form>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="received-label">
+
+                                                                    <i class="fa-solid fa-check"></i>
+
+                                                                    Complete
+
+                                                                </span>
+                                                            }
+
+                                                        </td>
+
+                                                    </tr>
+                                                }
+
+                                            </tbody>
+
+                                        </table>
+
+                                    </div>
+
+                                }
+                                else
+                                {
+                                    <div class="no-samples">
+
+                                        <i class="fa-solid fa-vial-virus"></i>
+
+                                        <span>
+                                            No samples have been registered for this request.
+                                        </span>
+
+                                    </div>
+                                }
+
+                            </div>
+
+
+                            <!-- =================================
+                                 REQUEST STATUS
+                            ================================== -->
+
+                            <div class="request-footer">
+
+                                <div>
+
+                                    <span class="footer-label">
+                                        Request Status
+                                    </span>
+
+                                    <strong>
+                                        @request.Status
+                                    </strong>
+
+                                </div>
+
+                                <div>
+
+                                    <span class="footer-label">
+                                        Request Date
+                                    </span>
+
+                                    <strong>
+                                        @request.RequestDate.ToString("dd MMM yyyy HH:mm")
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                }
+                else
+                {
+
+                    <div class="empty-state">
+
+                        <i class="fa-solid fa-vial-circle-check"></i>
+
+                        <h3>No Samples Awaiting Receipt</h3>
+
+                        <p>
+                            There are currently no pending laboratory
+                            samples to receive.
+                        </p>
+
                     </div>
+
                 }
 
             </div>
 
-            <!-- TECHNICIAN -->
-            <div class="form-group">
-
-                <label>
-                    <i class="fa-solid fa-user"></i>
-                    Technician
-                </label>
-
-                <div class="technician-box">
-
-                    <div class="technician-avatar">
-                        @{
-                            var technicianName = User.Identity?.Name ?? "Unknown";
-
-                            var initials = string.Join(
-                                "",
-                                technicianName
-                                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                                    .Take(2)
-                                    .Select(x => x[0])
-                            ).ToUpper();
-
-                            if (string.IsNullOrWhiteSpace(initials))
-                            {
-                                initials = "?";
-                            }
-                        }
-
-                        @initials
-                    </div>
-
-                    <div>
-                        <strong>@technicianName</strong>
-                        <small>Logged-in laboratory technician</small>
-                    </div>
-
-                </div>
-
-            </div>
-
-            <!-- BARCODE -->
-            <div class="form-group">
-
-                <label asp-for="SampleBarcode">
-                    <i class="fa-solid fa-barcode"></i>
-                    Sample Barcode
-                    <span>*</span>
-                </label>
-
-                <div class="barcode-wrapper">
-
-                    <input asp-for="SampleBarcode"
-                           id="sampleBarcode"
-                           class="form-control"
-                           placeholder="Enter or scan sample barcode"
-                           autocomplete="off" />
-
-                    <button type="button"
-                            id="checkBarcode"
-                            class="check-button">
-
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        Verify
-
-                    </button>
-
-                </div>
-
-                <span asp-validation-for="SampleBarcode"
-                      class="field-error"></span>
-
-                <div id="barcodeMessage"
-                     class="barcode-message">
-                </div>
-
-            </div>
-
-            <!-- SAMPLE TYPE -->
-            <div class="form-group">
-
-                <label>
-                    <i class="fa-solid fa-flask"></i>
-                    Sample Type
-                </label>
-
-                <div id="sampleTypeBox"
-                     class="readonly-box">
-
-                    <i class="fa-solid fa-circle-question"></i>
-
-                    <span id="sampleTypeText">
-                        Sample type will appear after barcode verification.
-                    </span>
-
-                </div>
-
-                <input asp-for="SampleType"
-                       type="hidden"
-                       id="sampleType" />
-
-            </div>
-
-            <!-- DATE / TIME -->
-            <div class="form-group">
-
-                <label>
-                    <i class="fa-solid fa-clock"></i>
-                    Date & Time Received
-                </label>
-
-                <div class="readonly-box">
-
-                    <i class="fa-solid fa-calendar-check"></i>
-
-                    <span id="currentDateTime">
-                        @DateTime.Now.ToString("dd MMMM yyyy HH:mm")
-                    </span>
-
-                </div>
-
-                <small class="help-text">
-                    The server records the official receiving time automatically.
-                </small>
-
-            </div>
-
-            <!-- NOTES -->
-            <div class="form-group">
-
-                <label asp-for="Notes">
-                    <i class="fa-solid fa-note-sticky"></i>
-                    Notes
-                </label>
-
-                <textarea asp-for="Notes"
-                          class="form-control notes"
-                          placeholder="Optional notes about the received sample..."></textarea>
-
-            </div>
-
-            <!-- BUTTONS -->
-            <div class="form-actions">
-
-                <button type="button"
-                        id="clearButton"
-                        class="clear-button">
-
-                    <i class="fa-solid fa-rotate-left"></i>
-                    Clear
-
-                </button>
-
-                <button type="submit"
-                        id="receiveButton"
-                        class="receive-button"
-                        disabled>
-
-                    <i class="fa-solid fa-vial-circle-check"></i>
-                    Receive Sample
-
-                </button>
-
-            </div>
-
-        </form>
-
-    </div>
-
-    <!-- INFORMATION -->
-    <div class="information-card">
-
-        <div class="information-icon">
-            <i class="fa-solid fa-circle-info"></i>
-        </div>
-
-        <div>
-            <strong>Receiving procedure</strong>
-
-            <p>
-                Select the test request, enter or scan the sample barcode,
-                click <strong>Verify</strong>, confirm the sample type,
-                then click <strong>Receive Sample</strong>.
-            </p>
         </div>
 
     </div>
 
 </div>
 
-</div>
 
 <style>
 
@@ -285,835 +639,635 @@ Layout = "~/Views/Shared/_SystemLayout.cshtml";
         box-sizing: border-box;
     }
 
-    /* =========================================================
-           PAGE
-           ========================================================= */
-
-    .receive-page {
+    .sample-page {
         min-height: 100vh;
         background: #f1f6f8;
-        padding: 32px 20px 60px;
+        padding: 30px 20px 60px;
         font-family: "Segoe UI", Arial, sans-serif;
     }
 
-    .receive-container {
-        width: 100%;
-        max-width: 973px;
-        margin: 0 auto;
+    .sample-container {
+        max-width: 1450px;
+        margin: auto;
     }
 
 
-    /* =========================================================
-           PAGE HEADER
-           Matches Available Laboratory Tests
-           ========================================================= */
+    /* HEADER */
 
-    .receive-header {
+    .sample-header {
         background: linear-gradient(135deg, #0e8178, #086b64);
-        color: #ffffff;
+        color: white;
         border-radius: 18px;
-        min-height: 118px;
-        padding: 25px 32px;
+        padding: 25px 30px;
         display: flex;
         align-items: center;
-        gap: 20px;
+        gap: 18px;
         margin-bottom: 22px;
-        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 8px 22px rgba(0,0,0,.08);
     }
 
     .header-icon {
-        width: 64px;
-        height: 64px;
+        width: 62px;
+        height: 62px;
         border-radius: 50%;
         display: flex;
-        align-items: center;
         justify-content: center;
-        background: rgba(255, 255, 255, 0.14);
-        border: 2px solid rgba(255, 255, 255, 0.30);
-        font-size: 27px;
-        flex-shrink: 0;
+        align-items: center;
+        background: rgba(255,255,255,.15);
+        font-size: 26px;
     }
 
-    .receive-header h1 {
+    .sample-header h1 {
         margin: 0;
         font-size: 29px;
-        line-height: 1.2;
-        font-weight: 700;
-        letter-spacing: -0.3px;
     }
 
-    .receive-header p {
-        margin: 7px 0 0;
+    .sample-header p {
+        margin: 6px 0 0;
+        opacity: .9;
         font-size: 13px;
-        line-height: 1.5;
-        color: rgba(255, 255, 255, 0.92);
     }
 
 
-    /* =========================================================
-           ALERTS
-           ========================================================= */
+    /* ALERTS */
 
-    .alert-message {
+    .alert-box {
         display: flex;
+        gap: 12px;
         align-items: center;
-        gap: 13px;
         padding: 14px 17px;
         border-radius: 12px;
         margin-bottom: 18px;
-        font-size: 13px;
     }
 
-        .alert-message > i {
-            font-size: 21px;
-            flex-shrink: 0;
+        .alert-box.success {
+            background: #e9f8f3;
+            color: #176b52;
+            border: 1px solid #c2e9dd;
         }
 
-        .alert-message strong {
+        .alert-box.error {
+            background: #fdeeee;
+            color: #a52834;
+            border: 1px solid #f4c7c7;
+        }
+
+        .alert-box strong {
             display: block;
-            font-size: 13px;
-            margin-bottom: 2px;
         }
 
-        .alert-message span {
+        .alert-box span {
             font-size: 13px;
         }
 
-    .success-message {
-        background: #e9f8f3;
-        border: 1px solid #c2e9dd;
-        color: #176b52;
-    }
 
-    .error-message {
-        background: #fdeeee;
-        border: 1px solid #f4c7c7;
-        color: #a52834;
-    }
+    /* STATS */
 
-
-    /* =========================================================
-           VALIDATION
-           ========================================================= */
-
-    .validation-summary {
-        color: #dc3545;
-        font-size: 13px;
-        margin-bottom: 15px;
-    }
-
-        .validation-summary:empty {
-            display: none;
-        }
-
-    .field-error {
-        display: block;
-        color: #dc3545;
-        font-size: 12px;
-        margin-top: 5px;
-    }
-
-
-    /* =========================================================
-           MAIN RECEIVE CARD
-           ========================================================= */
-
-    .receive-card {
-        background: #ffffff;
-        border-radius: 18px;
-        padding: 30px 34px;
-        box-shadow: 0 6px 20px rgba(31, 45, 61, 0.07);
-        border: 1px solid #edf1f3;
-    }
-
-
-    /* =========================================================
-           FORM GROUP
-           ========================================================= */
-
-    .form-group {
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
         margin-bottom: 22px;
     }
 
-        .form-group label {
-            display: block;
-            color: #334155;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-            .form-group label i {
-                width: 21px;
-                color: #0e8178;
-                margin-right: 2px;
-            }
-
-            .form-group label span {
-                color: #dc3545;
-                margin-left: 3px;
-            }
-
-
-    /* =========================================================
-           INPUTS
-           ========================================================= */
-
-    .form-control {
-        width: 100%;
-        height: 50px;
-        border: 1px solid #d8e1e5;
-        border-radius: 10px;
-        background: #ffffff;
-        padding: 0 15px;
-        color: #334155;
-        font-family: inherit;
-        font-size: 13px;
-        outline: none;
-        transition: all 0.2s ease;
-    }
-
-        .form-control::placeholder {
-            color: #94a3b8;
-        }
-
-        .form-control:hover {
-            border-color: #b8c8cc;
-        }
-
-        .form-control:focus {
-            border-color: #0e8178;
-            box-shadow: 0 0 0 3px rgba(14, 129, 120, 0.10);
-        }
-
-    select.form-control {
-        cursor: pointer;
-    }
-
-    textarea.form-control {
-        height: 110px;
-        padding: 13px 15px;
-        resize: vertical;
-        line-height: 1.5;
-    }
-
-
-    /* =========================================================
-           REQUEST WARNING
-           ========================================================= */
-
-    .request-warning {
-        margin-top: 8px;
-        padding: 10px 13px;
-        border-radius: 9px;
-        background: #fff8e6;
-        border: 1px solid #f5df9f;
-        color: #856404;
-        font-size: 12px;
-    }
-
-        .request-warning i {
-            margin-right: 6px;
-        }
-
-
-    /* =========================================================
-           TECHNICIAN CARD
-           ========================================================= */
-
-    .technician-box {
-        min-height: 60px;
-        border-radius: 10px;
-        border: 1px solid #dce8e8;
-        background: #f1f8f7;
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
         display: flex;
         align-items: center;
-        padding: 8px 14px;
-        gap: 12px;
+        gap: 15px;
+        box-shadow: 0 5px 18px rgba(0,0,0,.06);
     }
 
-    .technician-avatar {
-        width: 40px;
-        height: 40px;
+    .stat-icon {
+        width: 52px;
+        height: 52px;
         border-radius: 50%;
-        background: #0e8178;
-        color: #ffffff;
+        background: rgba(14,129,120,.10);
+        color: #0e8178;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 13px;
-        font-weight: 700;
-        flex-shrink: 0;
+        font-size: 21px;
     }
 
-    .technician-box strong {
-        display: block;
-        color: #334155;
-        font-size: 13px;
-        font-weight: 700;
+    .stat-card h2 {
+        margin: 0;
+        color: #00695c;
+        font-size: 27px;
     }
 
-    .technician-box small {
-        display: block;
-        color: #7b8c95;
-        font-size: 11px;
-        margin-top: 2px;
-    }
-
-
-    /* =========================================================
-           BARCODE
-           ========================================================= */
-
-    .barcode-wrapper {
-        display: flex;
-        gap: 10px;
-        width: 100%;
-    }
-
-        .barcode-wrapper .form-control {
-            flex: 1;
-        }
-
-    .check-button {
-        height: 50px;
-        min-width: 108px;
-        padding: 0 20px;
-        border: none;
-        border-radius: 10px;
-        background: #455a64;
-        color: #ffffff;
-        font-family: inherit;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-        .check-button:hover {
-            background: #34474f;
-            transform: translateY(-1px);
-        }
-
-        .check-button:active {
-            transform: translateY(0);
-        }
-
-
-    /* =========================================================
-           READ ONLY BOXES
-           ========================================================= */
-
-    .readonly-box {
-        min-height: 50px;
-        border-radius: 10px;
-        border: 1px solid #dce8e8;
-        background: #f4f9f9;
-        padding: 12px 15px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        color: #607d8b;
-        font-size: 13px;
-    }
-
-        .readonly-box i {
-            color: #0e8178;
-            flex-shrink: 0;
-        }
-
-    #sampleTypeBox {
-        transition: all 0.2s ease;
-    }
-
-    .help-text {
-        display: block;
-        color: #84939b;
-        margin-top: 6px;
-        font-size: 11px;
-    }
-
-
-    /* =========================================================
-           BARCODE STATUS
-           ========================================================= */
-
-    .barcode-message {
-        min-height: 18px;
-        margin-top: 7px;
+    .stat-card p {
+        margin: 3px 0 0;
+        color: #7b8790;
         font-size: 12px;
     }
 
-    .barcode-success {
-        color: #16845f;
-        font-weight: 600;
+
+    /* MAIN CARD */
+
+    .main-card {
+        background: white;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 8px 28px rgba(0,0,0,.07);
     }
 
-    .barcode-error {
-        color: #dc3545;
-        font-weight: 600;
-    }
-
-    .barcode-checking {
-        color: #607d8b;
-    }
-
-
-    /* =========================================================
-           FORM BUTTON AREA
-           ========================================================= */
-
-    .form-actions {
-        margin-top: 28px;
-        padding-top: 22px;
-        border-top: 1px solid #edf1f3;
+    .card-header {
+        background: linear-gradient(135deg, #00897b, #00695c);
+        color: white;
+        padding: 25px 30px;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
+        .card-header h2 {
+            margin: 0;
+            font-size: 23px;
+        }
 
-    /* CLEAR */
+        .card-header p {
+            margin: 5px 0 0;
+            opacity: .88;
+            font-size: 12.5px;
+        }
 
-    .clear-button {
-        height: 46px;
-        padding: 0 22px;
-        border: 1px solid #d5dee1;
-        border-radius: 10px;
-        background: #ffffff;
-        color: #64748b;
-        font-family: inherit;
+    .count-pill {
+        background: rgba(255,255,255,.17);
+        padding: 9px 17px;
+        border-radius: 30px;
         font-size: 13px;
         font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
     }
 
-        .clear-button:hover {
-            background: #f5f7f8;
-            border-color: #c3ced2;
-            color: #475569;
-        }
 
+    /* TOOLBAR */
 
-    /* RECEIVE */
-
-    .receive-button {
-        height: 48px;
-        padding: 0 26px;
-        border: none;
-        border-radius: 10px;
-        background: #0e8178;
-        color: #ffffff;
-        font-family: inherit;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        box-shadow: 0 4px 10px rgba(14, 129, 120, 0.16);
-        transition: all 0.2s ease;
+    .toolbar {
+        padding: 20px 30px;
+        border-bottom: 1px solid #edf1f2;
     }
 
-        .receive-button:hover:not(:disabled) {
-            background: #096b64;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 14px rgba(14, 129, 120, 0.20);
+    .search-box {
+        width: 390px;
+        max-width: 100%;
+        position: relative;
+    }
+
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 15px;
+            color: #8a989e;
         }
 
-        .receive-button:active:not(:disabled) {
-            transform: translateY(0);
+        .search-box input {
+            width: 100%;
+            height: 46px;
+            border: 1px solid #dce4e6;
+            border-radius: 10px;
+            padding-left: 42px;
+            outline: none;
         }
 
-        .receive-button:disabled {
-            background: #b7c3c7;
-            color: #ffffff;
-            cursor: not-allowed;
-            box-shadow: none;
+            .search-box input:focus {
+                border-color: #0e8178;
+                box-shadow: 0 0 0 3px rgba(14,129,120,.1);
+            }
+
+
+    /* REQUEST LIST */
+
+    .request-list {
+        padding: 25px 30px;
+    }
+
+    .request-card {
+        border: 1px solid #e1e8ea;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        overflow: hidden;
+        transition: .2s;
+    }
+
+        .request-card:hover {
+            box-shadow: 0 5px 18px rgba(0,0,0,.06);
         }
 
 
-    /* =========================================================
-           INFORMATION CARD
-           ========================================================= */
+    /* REQUEST TOP */
 
-    .information-card {
-        margin-top: 18px;
-        background: #eaf6f5;
-        border: 1px solid #d4ece9;
-        border-left: 5px solid #0e8178;
-        border-radius: 12px;
-        padding: 16px 18px;
+    .request-top {
+        background: #f6fafb;
+        padding: 18px 22px;
         display: flex;
-        align-items: flex-start;
-        gap: 13px;
-        color: #315f5a;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e4eaec;
     }
 
-    .information-icon {
-        width: 30px;
-        height: 30px;
+    .request-label {
+        display: block;
+        color: #8a989e;
+        font-size: 10px;
+        letter-spacing: 1px;
+        font-weight: 700;
+    }
+
+    .request-number strong {
+        color: #26363b;
+        font-size: 21px;
+    }
+
+
+    /* URGENCY */
+
+    .urgency-badge {
+        border-radius: 30px;
+        padding: 8px 14px;
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .urgency-stat {
+        background: #c62828;
+    }
+
+    .urgency-urgent {
+        background: #ef6c00;
+    }
+
+    .urgency-priority {
+        background: #d89b00;
+    }
+
+    .urgency-routine {
+        background: #00897b;
+    }
+
+
+    /* PATIENT */
+
+    .patient-section {
+        padding: 18px 22px;
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        border-bottom: 1px solid #edf1f2;
+    }
+
+    .patient-avatar {
+        width: 45px;
+        height: 45px;
         border-radius: 50%;
-        background: #d6eeeb;
-        color: #0e8178;
+        background: #dff2ef;
+        color: #00695c;
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
-        font-size: 15px;
+        font-weight: 700;
     }
 
-    .information-card strong {
+    .patient-section strong {
         display: block;
-        color: #285e59;
-        font-size: 13px;
-        margin-bottom: 3px;
+        color: #334155;
+        font-size: 14px;
     }
 
-    .information-card p {
-        margin: 0;
+    .patient-section span {
+        display: block;
+        color: #89979d;
+        font-size: 11px;
+        margin-top: 3px;
+    }
+
+
+    /* TESTS */
+
+    .tests-section,
+    .samples-section {
+        padding: 18px 22px;
+    }
+
+    .section-title {
+        color: #334155;
+        font-weight: 700;
         font-size: 12px;
-        line-height: 1.55;
-        color: #55736f;
+        margin-bottom: 12px;
     }
 
-        .information-card p strong {
-            display: inline;
-            font-size: inherit;
-            margin: 0;
+        .section-title i {
+            color: #0e8178;
+            margin-right: 5px;
+        }
+
+    .test-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .test-chip {
+        background: #eef7f6;
+        color: #00695c;
+        border-radius: 20px;
+        padding: 7px 11px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+        .test-chip i {
+            margin-right: 5px;
         }
 
 
-    /* =========================================================
-           MOBILE
-           ========================================================= */
+    /* SAMPLE TABLE */
 
-    @@media (max-width: 700px) {
+    .sample-table-wrapper {
+        overflow-x: auto;
+    }
 
-        .receive-page {
-            padding: 20px 12px 50px;
+    .sample-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .sample-table th {
+            background: #00897b;
+            color: white;
+            padding: 12px 10px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+            text-align: center;
         }
 
-        .receive-container {
-            max-width: 100%;
-        }
-
-        .receive-header {
-            min-height: auto;
-            padding: 22px;
-            border-radius: 15px;
-            gap: 15px;
-        }
-
-        .header-icon {
-            width: 54px;
-            height: 54px;
-            font-size: 22px;
-        }
-
-        .receive-header h1 {
-            font-size: 22px;
-        }
-
-        .receive-header p {
+        .sample-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #edf1f2;
+            text-align: center;
             font-size: 12px;
+            vertical-align: middle;
         }
 
-        .receive-card {
-            padding: 22px 18px;
-            border-radius: 15px;
+    .sample-type {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        justify-content: center;
+        color: #475569;
+        font-weight: 600;
+    }
+
+        .sample-type i {
+            color: #0e8178;
         }
 
-        .barcode-wrapper {
-            flex-direction: column;
+
+    /* BARCODE */
+
+    .barcode-edit-form {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .barcode-input {
+        width: 145px;
+        height: 36px;
+        border: 1px solid #d3dfe2;
+        border-radius: 7px;
+        padding: 0 9px;
+        font-family: Consolas, monospace;
+        font-weight: 700;
+        color: #00695c;
+        font-size: 11px;
+        outline: none;
+    }
+
+        .barcode-input:focus {
+            border-color: #0e8178;
+            box-shadow: 0 0 0 2px rgba(14,129,120,.1);
         }
 
-        .check-button {
-            width: 100%;
+    .barcode-display {
+        font-family: Consolas, monospace;
+        font-weight: 700;
+        color: #00695c;
+    }
+
+    .save-barcode {
+        width: 35px;
+        height: 35px;
+        border: none;
+        border-radius: 7px;
+        background: #455a64;
+        color: white;
+        cursor: pointer;
+    }
+
+        .save-barcode:hover {
+            background: #26363b;
         }
 
-        .form-actions {
-            flex-direction: column-reverse;
-            gap: 10px;
-            align-items: stretch;
+
+    /* STATUS */
+
+    .status {
+        padding: 6px 10px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+        .status.received {
+            background: #e5f7f2;
+            color: #087f63;
         }
 
-        .clear-button,
-        .receive-button {
-            width: 100%;
+        .status.waiting {
+            background: #fff5df;
+            color: #a96e00;
         }
 
-        .information-card {
-            padding: 14px;
-        }
+    .not-received {
+        color: #aab4b8;
     }
 
 
-    /* =========================================================
-           SMALL SCREENS
-           ========================================================= */
+    /* RECEIVE BUTTON */
 
-    @@media (max-width: 450px) {
+    .receive-btn {
+        border: none;
+        background: #0e8178;
+        color: white;
+        border-radius: 8px;
+        padding: 8px 13px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+    }
 
-        .receive-header {
-            padding: 18px;
+        .receive-btn:hover {
+            background: #086b64;
         }
 
-            .receive-header h1 {
-                font-size: 20px;
+    .received-label {
+        color: #087f63;
+        font-weight: 700;
+        font-size: 11px;
+    }
+
+
+    /* FOOTER */
+
+    .request-footer {
+        background: #f8fafb;
+        border-top: 1px solid #edf1f2;
+        padding: 14px 22px;
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+    }
+
+    .footer-label {
+        display: block;
+        color: #929da1;
+        font-size: 10px;
+        text-transform: uppercase;
+    }
+
+    .request-footer strong {
+        color: #475569;
+        font-size: 12px;
+    }
+
+
+    /* EMPTY */
+
+    .empty-state {
+        padding: 80px 20px;
+        text-align: center;
+        color: #87969b;
+    }
+
+        .empty-state i {
+            font-size: 55px;
+            color: #b9dcd8;
+        }
+
+        .empty-state h3 {
+            color: #455a64;
+            margin: 15px 0 5px;
+        }
+
+
+    /* NO SAMPLES */
+
+    .no-samples {
+        padding: 20px;
+        background: #fff8e8;
+        color: #866b2b;
+        border-radius: 9px;
+        text-align: center;
+        font-size: 12px;
+    }
+
+
+    /* RESPONSIVE */
+
+    @@media(max-width: 900px) {
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .request-list {
+            padding: 15px;
+        }
+    }
+
+    @@media(max-width: 650px) {
+
+        .sample-page {
+            padding: 18px 10px;
+        }
+
+        .sample-header {
+            padding: 20px;
+        }
+
+            .sample-header h1 {
+                font-size: 22px;
             }
 
-        .receive-card {
-            padding: 18px 15px;
+        .request-top {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
         }
 
-        .form-group {
-            margin-bottom: 19px;
+        .request-footer {
+            flex-direction: column;
         }
     }
 
 </style>
 
+
 @section Scripts {
 
-<partial name="_ValidationScriptsPartial" />
+    <script>
 
-<script>
+        document.addEventListener("DOMContentLoaded", function () {
 
-    document.addEventListener("DOMContentLoaded", function () {
+            const searchInput =
+                document.getElementById("sampleSearch");
 
-        const requestId = document.getElementById("requestId");
-        const barcode = document.getElementById("sampleBarcode");
-        const checkButton = document.getElementById("checkBarcode");
-        const receiveButton = document.getElementById("receiveButton");
-        const clearButton = document.getElementById("clearButton");
-        const message = document.getElementById("barcodeMessage");
-        const sampleType = document.getElementById("sampleType");
-        const sampleTypeText = document.getElementById("sampleTypeText");
-        const sampleTypeBox = document.getElementById("sampleTypeBox");
-        const form = document.getElementById("receiveForm");
-
-        let barcodeVerified = false;
-
-        function resetBarcode() {
-
-            barcodeVerified = false;
-
-            receiveButton.disabled = true;
-
-            sampleType.value = "";
-
-            sampleTypeText.textContent =
-                "Sample type will appear after barcode verification.";
-
-            sampleTypeBox.style.color = "#607d8b";
-
-            message.textContent = "";
-
-            message.className = "barcode-message";
-        }
-
-        async function verifyBarcode() {
-
-            resetBarcode();
-
-            const request = requestId.value;
-            const code = barcode.value.trim();
-
-            if (!request) {
-
-                message.textContent =
-                    "Please select a test request first.";
-
-                message.className =
-                    "barcode-message barcode-error";
-
+            if (!searchInput)
                 return;
-            }
 
-            if (!code) {
+            searchInput.addEventListener("input", function () {
 
-                message.textContent =
-                    "Please enter or scan the sample barcode.";
+                const search =
+                        this.value.toLowerCase().trim();
 
-                message.className =
-                    "barcode-message barcode-error";
+                    const cards =
+                    document.querySelectorAll(".request-card");
 
-                return;
-            }
+                cards.forEach(function (card) {
 
-            message.textContent =
-                "Checking barcode...";
+                    const text =
+                        card.getAttribute("data-search")
+                                ?.toLowerCase() || "";
 
-            message.className =
-                "barcode-message barcode-checking";
+                        card.style.display =
+                        text.includes(search)
+                                ? ""
+                            : "none";
 
-            try {
-
-                const url =
-                    "/SampleReceive/GetSampleType"
-                    + "?requestId="
-                    + encodeURIComponent(request)
-                    + "&barcode="
-                    + encodeURIComponent(code);
-
-                const response =
-                    await fetch(url, {
-                        method: "GET",
-                        headers: {
-                            "Accept": "application/json"
-                        }
                     });
 
-                if (!response.ok) {
+                });
 
-                    throw new Error(
-                        "Server returned " + response.status
-                    );
-                }
+            });
 
-                const data = await response.json();
-
-                if (data.found) {
-
-                    barcodeVerified = true;
-
-                    sampleType.value =
-                        data.sampleType;
-
-                    sampleTypeText.textContent =
-                        data.sampleType;
-
-                    sampleTypeBox.style.color =
-                        "#00695c";
-
-                    message.innerHTML =
-                        '<i class="fa-solid fa-circle-check"></i> ' +
-                        'Barcode verified successfully.';
-
-                    message.className =
-                        "barcode-message barcode-success";
-
-                    receiveButton.disabled = false;
-
-                } else {
-
-                    resetBarcode();
-
-                    message.textContent =
-                        data.message ||
-                        "Barcode was not found.";
-
-                    message.className =
-                        "barcode-message barcode-error";
-                }
-
-            }
-            catch (error) {
-
-                resetBarcode();
-
-                console.error(error);
-
-                message.textContent =
-                    "Could not verify the barcode. Please try again.";
-
-                message.className =
-                    "barcode-message barcode-error";
-            }
-        }
-
-        requestId.addEventListener("change", function () {
-
-            barcode.value = "";
-
-            resetBarcode();
-
-        });
-
-        checkButton.addEventListener(
-            "click",
-            verifyBarcode
-        );
-
-        barcode.addEventListener(
-            "keydown",
-            function (event) {
-
-                if (event.key === "Enter") {
-
-                    event.preventDefault();
-
-                    verifyBarcode();
-                }
-
-            }
-        );
-
-        barcode.addEventListener(
-            "input",
-            function () {
-
-                barcodeVerified = false;
-
-                receiveButton.disabled = true;
-
-                sampleType.value = "";
-
-                sampleTypeText.textContent =
-                    "Click Verify to check this barcode.";
-
-                message.textContent = "";
-
-            }
-        );
-
-        clearButton.addEventListener(
-            "click",
-            function () {
-
-                requestId.value = "";
-
-                barcode.value = "";
-
-                const notes =
-                    document.querySelector(
-                        "textarea[name='Notes']"
-                    );
-
-                if (notes) {
-                    notes.value = "";
-                }
-
-                resetBarcode();
-
-            }
-        );
-
-        form.addEventListener(
-            "submit",
-            function (event) {
-
-                if (!barcodeVerified) {
-
-                    event.preventDefault();
-
-                    alert(
-                        "Please verify the sample barcode before receiving the sample."
-                    );
-
-                    return;
-                }
-
-                receiveButton.disabled = true;
-
-                receiveButton.innerHTML =
-                    '<i class="fa-solid fa-spinner fa-spin"></i> Recording Sample...';
-
-            }
-        );
-
-    });
-
-</script>
+    </script>
 
 }
-
