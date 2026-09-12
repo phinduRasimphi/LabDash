@@ -29,22 +29,55 @@ namespace LabDash.Controllers
            public async Task<IActionResult> Index()
            {
             var tests = await _context.TestRequestItems
+
+                // -----------------------------------------------------
+                // TEST TYPE
+                // -----------------------------------------------------
+
                 .Include(x => x.TestType)
+
+                // -----------------------------------------------------
+                // TEST REQUEST + PATIENT
+                // -----------------------------------------------------
+
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
 
-                // Only tests that are available to technicians
+                // -----------------------------------------------------
+                // ONLY TESTS THAT ARE STILL AVAILABLE
+                // -----------------------------------------------------
+
                 .Where(x =>
-                    x.Status == "Submitted" &&
-                    x.TestRequest != null &&
-                    (
-                        x.TestRequest.Status == "Samples Received" ||
-                        x.TestRequest.Status == "In Progress"
-                    ))
+                    x.Status == "Submitted"
+
+                    &&
+
+                    x.TestRequest != null
+
+                    &&
+
+                    // -------------------------------------------------
+                    // IMPORTANT:
+                    // A sample belonging to this request must have
+                    // actually been received.
+                    //
+                    // This works even when the request status is:
+                    //
+                    // Pending
+                    // Partially Received
+                    // Samples Received
+                    // -------------------------------------------------
+
+                    _context.Samples.Any(s =>
+                        s.TestRequestId == x.RequestId &&
+                        s.IsReceived
+                    )
+                )
 
                 // =====================================================
-                // SORT BY IMPORTANCE
+                // SORT BY URGENCY
                 // =====================================================
+
                 .OrderBy(x =>
                     x.TestRequest.Urgency == "STAT" ? 1 :
                     x.TestRequest.Urgency == "Urgent" ? 2 :
@@ -53,15 +86,15 @@ namespace LabDash.Controllers
                     5)
 
                 // =====================================================
-                // WITHIN THE SAME PRIORITY:
                 // OLDEST REQUEST FIRST
                 // =====================================================
+
                 .ThenBy(x => x.TestRequest.RequestDate)
 
                 // =====================================================
-                // IF TWO TESTS HAVE THE SAME REQUEST DATE:
                 // OLDEST TEST ITEM FIRST
                 // =====================================================
+
                 .ThenBy(x => x.TestRequestItemId)
 
                 .ToListAsync();
@@ -171,7 +204,7 @@ namespace LabDash.Controllers
                         item.TestType?.Category,
 
                     turnaround =
-                        item.TestType?.TurnaroundTimeHours,
+                        item.TestType?.TurnaroundTimeMinutes,
 
                     sample =
                         item.TestType?.RequiredSampleType,
@@ -264,7 +297,7 @@ namespace LabDash.Controllers
                     item.TestType?.RequiredSampleType,
 
                 turnaround =
-                    item.TestType?.TurnaroundTimeHours,
+                    item.TestType?.TurnaroundTimeMinutes,
 
                 urgency =
                     item.TestRequest.Urgency,
@@ -560,7 +593,7 @@ namespace LabDash.Controllers
             if (item.TestType != null)
             {
                 turnaroundHours =
-                    item.TestType.TurnaroundTimeHours;
+                    item.TestType.TurnaroundTimeMinutes;
             }
 
             ViewBag.TurnaroundHours =

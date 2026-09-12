@@ -22,11 +22,10 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // SAMPLE RECEIVING PAGE
+        // RECEIVE SAMPLES
         // =========================================================
-        // Shows pending and partially received requests.
-        // The technician can see all request/sample information
-        // and receive individual samples from this page.
+        // Shows requests that still have samples which have not
+        // been received.
         // =========================================================
 
         [HttpGet]
@@ -52,11 +51,9 @@ namespace LabDash.Controllers
             return View(requests);
         }
 
+
         // =========================================================
-        // EDIT BARCODE
-        // =========================================================
-        // Allows technician to correct/edit a sample barcode
-        // before receiving the sample.
+        // EDIT SAMPLE BARCODE
         // =========================================================
 
         [HttpPost]
@@ -68,9 +65,7 @@ namespace LabDash.Controllers
         {
             if (requestId <= 0)
             {
-                TempData["Error"] =
-                    "Invalid test request.";
-
+                TempData["Error"] = "Invalid test request.";
                 return RedirectToAction(nameof(Receive));
             }
 
@@ -94,7 +89,7 @@ namespace LabDash.Controllers
             newBarcode = newBarcode.Trim();
 
             // -----------------------------------------------------
-            // LOAD SAMPLE
+            // FIND SAMPLE
             // -----------------------------------------------------
 
             var sample = await _context.Samples
@@ -111,7 +106,7 @@ namespace LabDash.Controllers
             }
 
             // -----------------------------------------------------
-            // DO NOT EDIT A SAMPLE THAT HAS ALREADY BEEN RECEIVED
+            // DO NOT EDIT RECEIVED SAMPLE
             // -----------------------------------------------------
 
             if (sample.IsReceived)
@@ -123,13 +118,13 @@ namespace LabDash.Controllers
             }
 
             // -----------------------------------------------------
-            // CHECK IF NEW BARCODE ALREADY EXISTS
+            // CHECK DUPLICATE BARCODE
             // -----------------------------------------------------
 
             var barcodeExists = await _context.Samples
                 .AnyAsync(s =>
                     s.Barcode == newBarcode &&
-                    s.TestRequestId != requestId);
+                    s.SampleId != sample.SampleId);
 
             if (barcodeExists)
             {
@@ -157,7 +152,7 @@ namespace LabDash.Controllers
             }
 
             // -----------------------------------------------------
-            // UPDATE BARCODE
+            // UPDATE
             // -----------------------------------------------------
 
             sample.Barcode = newBarcode;
@@ -181,8 +176,17 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(Receive));
         }
 
+
         // =========================================================
         // RECEIVE INDIVIDUAL SAMPLE
+        // =========================================================
+        //
+        // IMPORTANT:
+        // When a sample is received, the tests associated with
+        // the request become available for the technician.
+        //
+        // We do NOT wait for all samples to be received.
+        //
         // =========================================================
 
         [HttpPost]
@@ -193,7 +197,7 @@ namespace LabDash.Controllers
             string? notes)
         {
             // -----------------------------------------------------
-            // GET TECHNICIAN
+            // GET LOGGED-IN TECHNICIAN
             // -----------------------------------------------------
 
             var technician =
@@ -238,6 +242,7 @@ namespace LabDash.Controllers
             // -----------------------------------------------------
 
             var request = await _context.TestRequests
+                .Include(r => r.Patient)
                 .Include(r => r.Samples)
                 .Include(r => r.SampleReceives)
                 .Include(r => r.TestRequestItems)
@@ -284,7 +289,7 @@ namespace LabDash.Controllers
             }
 
             // -----------------------------------------------------
-            // CHECK ALREADY RECEIVED
+            // CHECK IF ALREADY RECEIVED
             // -----------------------------------------------------
 
             if (sample.IsReceived)
@@ -313,7 +318,7 @@ namespace LabDash.Controllers
             }
 
             // -----------------------------------------------------
-            // TECHNICIAN
+            // TECHNICIAN INFORMATION
             // -----------------------------------------------------
 
             string technicianName =
@@ -349,13 +354,39 @@ namespace LabDash.Controllers
             _context.SampleReceives.Add(sampleReceive);
 
             // -----------------------------------------------------
-            // CHECK ALL SAMPLES
+            // UPDATE TEST REQUEST ITEMS
+            // -----------------------------------------------------
+            //
+            // The tests become available after the sample is
+            // received.
+            //
+            // We DO NOT assign a technician here.
+            //
+            // The technician will be assigned when they click
+            // "Start Test" from Available Tests.
+            //
             // -----------------------------------------------------
 
-            var allSamples = await _context.Samples
-                .Where(s =>
-                    s.TestRequestId == request.RequestId)
-                .ToListAsync();
+            foreach (var testItem in request.TestRequestItems)
+            {
+                if (testItem.Status == "Pending" ||
+                    testItem.Status == "Requested" ||
+                    testItem.Status == "Submitted" ||
+                    string.IsNullOrWhiteSpace(testItem.Status))
+                {
+                    testItem.Status = "Submitted";
+
+                    testItem.AssignedTechnicianId = null;
+                    testItem.StartDateTime = null;
+                    testItem.CompletionDateTime = null;
+                }
+            }
+
+            // -----------------------------------------------------
+            // CHECK WHETHER ALL SAMPLES ARE RECEIVED
+            // -----------------------------------------------------
+
+            var allSamples = request.Samples.ToList();
 
             bool allReceived =
                 allSamples.Count > 0 &&
@@ -369,25 +400,6 @@ namespace LabDash.Controllers
             {
                 request.Status = "Samples Received";
                 request.DateTimeReceived = now;
-
-                // -------------------------------------------------
-                // MAKE TESTS AVAILABLE
-                // -------------------------------------------------
-
-                foreach (var testItem in request.TestRequestItems)
-                {
-                    if (testItem.Status == "Pending" ||
-                        testItem.Status == "Requested" ||
-                        testItem.Status == "Submitted" ||
-                        string.IsNullOrWhiteSpace(testItem.Status))
-                    {
-                        testItem.Status = "Submitted";
-
-                        testItem.AssignedTechnicianId = null;
-                        testItem.StartDateTime = null;
-                        testItem.CompletionDateTime = null;
-                    }
-                }
             }
             else
             {
@@ -395,7 +407,7 @@ namespace LabDash.Controllers
             }
 
             // -----------------------------------------------------
-            // SAVE
+            // SAVE EVERYTHING
             // -----------------------------------------------------
 
             try
@@ -412,28 +424,203 @@ namespace LabDash.Controllers
             }
 
             // -----------------------------------------------------
-            // SUCCESS
+            // SUCCESS MESSAGE
             // -----------------------------------------------------
 
             if (allReceived)
             {
                 TempData["Success"] =
                     $"Sample '{barcode}' was received successfully. " +
-                    $"All samples for request #{request.RequestId} " +
-                    $"have now been received. The laboratory tests are available.";
+                    $"All samples for request #{request.RequestId} have been received. " +
+                    $"The requested tests are now available.";
             }
             else
             {
                 TempData["Success"] =
                     $"Sample '{barcode}' was received successfully. " +
-                    $"Request #{request.RequestId} is partially received.";
+                    $"The tests are now available to laboratory technicians.";
             }
 
             return RedirectToAction(nameof(Receive));
         }
 
+
         // =========================================================
-        // RECEIVED SAMPLES HISTORY
+        // AVAILABLE TESTS
+        // =========================================================
+        //
+        // Shows tests that can be started by the logged-in
+        // laboratory technician.
+        //
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> AvailableTests()
+        {
+            var tests = await _context.TestRequestItems
+                .Include(i => i.TestRequest)
+                    .ThenInclude(r => r.Patient)
+
+                .Include(i => i.TestRequest)
+                    .ThenInclude(r => r.Samples)
+
+                .Include(i => i.TestType)
+
+                .Where(i =>
+                    (
+                        i.TestRequest.Status == "Partially Received" ||
+                        i.TestRequest.Status == "Samples Received"
+                    )
+                    &&
+                    (
+                        i.Status == "Submitted" ||
+                        i.Status == "Pending" ||
+                        i.Status == "Requested"
+                    )
+                )
+
+                .OrderBy(i =>
+                    i.TestRequest.Urgency == "STAT" ? 1 :
+                    i.TestRequest.Urgency == "Urgent" ? 2 :
+                    i.TestRequest.Urgency == "Priority" ? 3 :
+                    i.TestRequest.Urgency == "Routine" ? 4 :
+                    5)
+
+                .ThenBy(i => i.TestRequest.RequestId)
+
+                .ToListAsync();
+
+            return View(tests);
+        }
+
+
+        // =========================================================
+        // START TEST
+        // =========================================================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> StartTest(
+            int testRequestItemId)
+        {
+            // -----------------------------------------------------
+            // GET TECHNICIAN
+            // -----------------------------------------------------
+
+            var technician =
+                await _userManager.GetUserAsync(User);
+
+            if (technician == null)
+            {
+                TempData["Error"] =
+                    "Unable to identify the logged-in technician.";
+
+                return RedirectToAction(nameof(AvailableTests));
+            }
+
+            // -----------------------------------------------------
+            // LOAD TEST
+            // -----------------------------------------------------
+
+            var testItem = await _context.TestRequestItems
+                .Include(i => i.TestRequest)
+                    .ThenInclude(r => r.Patient)
+                .Include(i => i.TestType)
+                .FirstOrDefaultAsync(i =>
+                    i.TestRequestItemId == testRequestItemId);
+
+            if (testItem == null)
+            {
+                TempData["Error"] =
+                    "The requested test could not be found.";
+
+                return RedirectToAction(nameof(AvailableTests));
+            }
+
+            // -----------------------------------------------------
+            // CHECK STATUS
+            // -----------------------------------------------------
+
+            if (testItem.Status != "Submitted" &&
+                testItem.Status != "Pending" &&
+                testItem.Status != "Requested")
+            {
+                TempData["Error"] =
+                    "This test is no longer available.";
+
+                return RedirectToAction(nameof(AvailableTests));
+            }
+
+            // -----------------------------------------------------
+            // CHECK SAMPLE
+            // -----------------------------------------------------
+
+            var hasReceivedSample = await _context.Samples
+                .AnyAsync(s =>
+                    s.TestRequestId == testItem.RequestId &&
+                    s.IsReceived);
+
+            if (!hasReceivedSample)
+            {
+                TempData["Error"] =
+                    "The required sample has not been received yet.";
+
+                return RedirectToAction(nameof(AvailableTests));
+            }
+
+            // -----------------------------------------------------
+            // ASSIGN TECHNICIAN
+            // -----------------------------------------------------
+
+            testItem.AssignedTechnicianId = technician.Id;
+
+            // -----------------------------------------------------
+            // START TEST
+            // -----------------------------------------------------
+
+            testItem.Status = "In Progress";
+            testItem.StartDateTime = DateTime.Now;
+
+            // -----------------------------------------------------
+            // UPDATE REQUEST STATUS
+            // -----------------------------------------------------
+
+            if (testItem.TestRequest.Status == "Partially Received" ||
+                testItem.TestRequest.Status == "Samples Received")
+            {
+                testItem.TestRequest.Status = "In Progress";
+            }
+
+            // -----------------------------------------------------
+            // SAVE
+            // -----------------------------------------------------
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                TempData["Error"] =
+                    "The test could not be started. " +
+                    (ex.InnerException?.Message ?? ex.Message);
+
+                return RedirectToAction(nameof(AvailableTests));
+            }
+
+            // -----------------------------------------------------
+            // SUCCESS
+            // -----------------------------------------------------
+
+            TempData["Success"] =
+                $"Test '{testItem.TestType?.Name ?? "Test"}' has been started.";
+
+            return RedirectToAction(nameof(AvailableTests));
+        }
+
+
+        // =========================================================
+        // RECEIVED SAMPLE HISTORY
         // =========================================================
 
         [HttpGet]

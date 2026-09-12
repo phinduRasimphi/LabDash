@@ -131,10 +131,10 @@ namespace LabDash.Controllers
             }
 
 
-            if (model.TurnaroundTimeHours <= 0)
+            if (model.TurnaroundTimeMinutes <= 0)
             {
                 ModelState.AddModelError(
-                    "TurnaroundTimeHours",
+                    "TurnaroundTimeMinutes",
                     "Turnaround time must be greater than zero.");
             }
 
@@ -413,10 +413,10 @@ namespace LabDash.Controllers
             }
 
 
-            if (model.TurnaroundTimeHours <= 0)
+            if (model.TurnaroundTimeMinutes <= 0)
             {
                 ModelState.AddModelError(
-                    "TurnaroundTimeHours",
+                    "TurnaroundTimeMinutes",
                     "Turnaround time must be greater than zero.");
             }
 
@@ -557,7 +557,7 @@ namespace LabDash.Controllers
                     existingTestType.Category = model.Category;
                     existingTestType.RequiredSampleType = model.RequiredSampleType;
                     existingTestType.UnitOfMeasurement = model.UnitOfMeasurement;
-                    existingTestType.TurnaroundTimeHours = model.TurnaroundTimeHours;
+                    existingTestType.TurnaroundTimeMinutes = model.TurnaroundTimeMinutes;
                     existingTestType.ReferenceRangeLow = model.ReferenceRangeLow;
                     existingTestType.ReferenceRangeHigh = model.ReferenceRangeHigh;
                     existingTestType.TestCategoryId = model.TestCategoryId;

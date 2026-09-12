@@ -20,8 +20,9 @@ namespace LabDash.Models
         public string? UnitOfMeasurement { get; set; }
 
         [Required(ErrorMessage = "Turnaround time is required.")]
-        [Range(1, int.MaxValue, ErrorMessage = "Turnaround time must be greater than 0.")]
-        public int TurnaroundTimeHours { get; set; }
+        [Range(1, int.MaxValue, ErrorMessage = "Turnaround time must be greater than 0 minutes.")]
+        [Display(Name = "Turnaround Time (Minutes)")]
+        public int TurnaroundTimeMinutes { get; set; }
 
         public decimal? ReferenceRangeLow { get; set; }
 
