@@ -591,13 +591,8 @@ namespace LabDash.Controllers
                             {
                                 TestTypeId = id,
                                 ConsumableId = consumableId,
-                                QuantityRequired =
-                                    ConsumableQuantities[i]
-                            };
-
-
-                        _context.TestTypeConsumables.Add(
-                            testTypeConsumable);
+                                QuantityRequired = ConsumableQuantities[consumableId]
+                            });
                     }
 
 
