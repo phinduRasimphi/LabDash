@@ -107,34 +107,78 @@
                 <div class="current-test-body">
 
                     <div class="current-test-item">
+
                         <span>TEST TYPE</span>
+
                         <strong>
                             <i class="fa-solid fa-flask"></i>
                             @currentTest.TestType.Name
                         </strong>
+
                     </div>
 
+
                     <div class="current-test-item">
+
                         <span>SAMPLE</span>
+
                         <strong>
                             <i class="fa-solid fa-vial"></i>
                             @currentTest.TestType.RequiredSampleType
                         </strong>
+
                     </div>
 
+
                     <div class="current-test-item">
+
                         <span>PATIENT</span>
+
                         <strong>
                             @currentTest.TestRequest.Patient.Name
                             @currentTest.TestRequest.Patient.Surname
                         </strong>
+
                     </div>
 
+
                     <div class="current-test-item">
+
                         <span>STARTED</span>
+
                         <strong>
-                            @(currentTest.StartDateTime?.ToString("dd MMM yyyy HH:mm") ?? "Not started")
+                            @(currentTest.StartDateTime?.ToString("dd MMM yyyy HH:mm:ss") ?? "Not started")
                         </strong>
+
+                    </div>
+
+
+                    <!-- LIVE COUNTDOWN -->
+                    <div class="current-test-item countdown-item">
+
+                        <span>TIME REMAINING</span>
+
+                        @if (currentTest.StartDateTime.HasValue)
+                        {
+                            var startTime = currentTest.StartDateTime.Value;
+                            var turnaroundMinutes = currentTest.TestType.TurnaroundTimeMinutes;
+
+                            <strong id="currentCountdown"
+                                    class="countdown-value"
+                                    data-start="@startTime.ToString("yyyy-MM-ddTHH:mm:ss")"
+                                    data-turnaround="@turnaroundMinutes">
+
+                                Calculating...
+
+                            </strong>
+                        }
+                        else
+                        {
+                            <strong class="countdown-value">
+                                Not started
+                            </strong>
+                        }
+
                     </div>
 
                 </div>
@@ -449,7 +493,7 @@
 
     .current-test-body {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         padding: 6px 20px;
     }
 
@@ -516,6 +560,33 @@
         .current-test-button:hover {
             background: var(--pg-teal-deep);
             color: #fff;
+        }
+    /* =========================================================
+       LIVE TIME REMAINING
+       ========================================================= */
+
+    .countdown-item {
+        background: #F3FAF8;
+    }
+
+    .countdown-value {
+        color: var(--pg-teal) !important;
+        font-family: 'Poppins', sans-serif;
+        font-size: 16px !important;
+        font-weight: 800 !important;
+        white-space: nowrap;
+    }
+
+        .countdown-value.countdown-warning {
+            color: #B4862A !important;
+        }
+
+        .countdown-value.countdown-danger {
+            color: #B0463F !important;
+        }
+
+        .countdown-value.countdown-overdue {
+            color: #B0463F !important;
         }
     /* Search */
     .pg-search-row { margin-bottom: 22px; position: relative; }
@@ -600,18 +671,212 @@
 </style>
 
 @section Scripts {
+
     <script>
+
         document.addEventListener("DOMContentLoaded", function () {
+
+            /* =====================================================
+               SEARCH
+               ===================================================== */
+
             const searchBox = document.getElementById("searchInput");
-            searchBox.addEventListener("keyup", function () {
-                const value = this.value.toLowerCase();
-                const rows = document.querySelectorAll("#progressTable tr");
-                rows.forEach(function (row) {
-                    const text = row.innerText.toLowerCase();
-                    row.style.display = text.indexOf(value) > -1 ? "" : "none";
+
+            if (searchBox) {
+
+                searchBox.addEventListener("keyup", function () {
+
+                    const value = this.value.toLowerCase();
+
+                    const rows =
+                        document.querySelectorAll("#progressTable tr");
+
+                    rows.forEach(function (row) {
+
+                        const text =
+                            row.innerText.toLowerCase();
+
+                        row.style.display =
+                            text.indexOf(value) > -1
+                                ? ""
+                                : "none";
+
+                    });
+
                 });
-            });
+
+            }
+
+
+            /* =====================================================
+               LIVE CURRENT TEST COUNTDOWN
+               ===================================================== */
+
+            const countdown =
+                document.getElementById("currentCountdown");
+
+
+            if (countdown) {
+
+                const startValue =
+                    countdown.dataset.start;
+
+                const turnaroundMinutes =
+                    parseInt(
+                        countdown.dataset.turnaround,
+                        10
+                    );
+
+
+                if (startValue && !isNaN(turnaroundMinutes)) {
+
+                    /*
+                     * Convert the test start time into a JavaScript
+                     * Date and calculate when the test should finish.
+                     */
+
+                    const startTime =
+                        new Date(startValue);
+
+
+                    const completionTime =
+                        new Date(
+                            startTime.getTime() +
+                            (turnaroundMinutes * 60 * 1000)
+                        );
+
+
+                    function updateCountdown() {
+
+                        const now =
+                            new Date();
+
+
+                        let remaining =
+                            completionTime.getTime() -
+                            now.getTime();
+
+
+                        /* -----------------------------------------
+                           TEST IS OVERDUE
+                           ----------------------------------------- */
+
+                        if (remaining <= 0) {
+
+                            countdown.textContent =
+                                "OVERDUE";
+
+                            countdown.classList.remove(
+                                "countdown-warning"
+                            );
+
+                            countdown.classList.add(
+                                "countdown-overdue"
+                            );
+
+                            return;
+                        }
+
+
+                        /* -----------------------------------------
+                           CONVERT MILLISECONDS
+                           ----------------------------------------- */
+
+                        const totalSeconds =
+                            Math.floor(
+                                remaining / 1000
+                            );
+
+
+                        const days =
+                            Math.floor(
+                                totalSeconds / 86400
+                            );
+
+
+                        const hours =
+                            Math.floor(
+                                (totalSeconds % 86400) / 3600
+                            );
+
+
+                        const minutes =
+                            Math.floor(
+                                (totalSeconds % 3600) / 60
+                            );
+
+
+                        const seconds =
+                            totalSeconds % 60;
+
+
+                        /* -----------------------------------------
+                           DISPLAY
+                           ----------------------------------------- */
+
+                        countdown.textContent =
+                            String(days).padStart(2, "0") +
+                            "d " +
+
+                            String(hours).padStart(2, "0") +
+                            "h " +
+
+                            String(minutes).padStart(2, "0") +
+                            "m " +
+
+                            String(seconds).padStart(2, "0") +
+                            "s";
+
+
+                        /* -----------------------------------------
+                           WARNING STATES
+                           ----------------------------------------- */
+
+                        countdown.classList.remove(
+                            "countdown-warning",
+                            "countdown-danger"
+                        );
+
+
+                        const totalMinutes =
+                            remaining / 60000;
+
+
+                        if (totalMinutes <= 10) {
+
+                            countdown.classList.add(
+                                "countdown-danger"
+                            );
+
+                        }
+                        else if (totalMinutes <= 30) {
+
+                            countdown.classList.add(
+                                "countdown-warning"
+                            );
+
+                        }
+
+                    }
+
+
+                    /* Run immediately */
+                    updateCountdown();
+
+
+                    /* Update every second */
+                    setInterval(
+                        updateCountdown,
+                        1000
+                    );
+
+                }
+
+            }
+
         });
+
     </script>
 }
+
 
