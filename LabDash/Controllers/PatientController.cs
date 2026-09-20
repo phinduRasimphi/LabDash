@@ -2,6 +2,7 @@
 using LabDash.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -13,13 +14,16 @@ namespace LabDash.Controllers
     {
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
+        private readonly IEmailSender _emailSender;
 
         public PatientController(
             LabDbContext context,
-            UserManager<LabUser> userManager)
+            UserManager<LabUser> userManager,
+            IEmailSender emailSender)
         {
             _context = context;
             _userManager = userManager;
+            _emailSender = emailSender;
         }
 
         // ============================================================
@@ -28,22 +32,19 @@ namespace LabDash.Controllers
 
         private async Task<Patient?> GetCurrentPatientAsync()
         {
-            // Get the Identity user's ID directly from the logged-in user.
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrEmpty(userId))
                 return null;
 
-            // Find the patient whose UserId is linked to the
-            // currently logged-in Identity account.
             return await _context.Patients
                 .FirstOrDefaultAsync(p => p.UserId == userId);
         }
 
 
         // ============================================================
-        //PROFILE
-        //============================================================
+        // PROFILE
+        // ============================================================
 
         [HttpGet]
         public async Task<IActionResult> Profile()
@@ -157,10 +158,6 @@ namespace LabDash.Controllers
         }
 
 
-        // ============================================================
-        // TEST RESULTS
-        // ============================================================
-
         [HttpGet]
         public async Task<IActionResult> Results()
         {
@@ -176,12 +173,17 @@ namespace LabDash.Controllers
             var results = await _context.TestResults
                 .Include(r => r.TestRequestItem)
                     .ThenInclude(i => i.TestRequest)
+                        .ThenInclude(q => q.RequestingDoctor)
+
                 .Include(r => r.TestRequestItem)
                     .ThenInclude(i => i.TestType)
+
                 .Where(r =>
                     r.TestRequestItem.TestRequest.PatientId
                     == patient.PatientID)
+
                 .OrderByDescending(r => r.DateCaptured)
+
                 .ToListAsync();
 
             var model = results.Select(r => new TestResultViewModel
@@ -194,28 +196,45 @@ namespace LabDash.Controllers
                         ? r.TestRequestItem.TestType.Name
                         : "Unknown Test",
 
-                ResultValue = r.ResultValue,
+                ResultValue =
+                    r.ResultValue,
 
-                Unit = r.Units ?? "",
+                Unit =
+                    r.Units ?? "",
 
-                IsAbnormal = r.IsAbnormal,
+                IsAbnormal =
+                    r.IsAbnormal,
 
-                ResultDate = r.DateCaptured,
+                ResultDate =
+                    r.DateCaptured,
 
                 Category =
                     r.TestRequestItem.TestType != null
                         ? r.TestRequestItem.TestType.Category ?? ""
                         : "",
 
-                NormalMin = 0,
-                NormalMax = 0
+                DoctorName =
+                    r.TestRequestItem.TestRequest.RequestingDoctor?.FullName
+                    ?? "Unknown Doctor",
+
+                // Use the actual TestType reference range
+                NormalMin = (double)(r.TestRequestItem.TestType?.ReferenceRangeLow ?? 0m),
+                NormalMax = (double)(r.TestRequestItem.TestType?.ReferenceRangeHigh ?? 0m),
+
+                // TestResults contains VerificationNote and Comments.
+                // Use VerificationNote first, then Comments.
+                TechnicianNotes =
+                    !string.IsNullOrWhiteSpace(r.VerificationNote)
+                        ? r.VerificationNote
+                        : r.Comments ?? ""
             }).ToList();
 
             return View(model);
         }
 
-        // Replace the existing [HttpGet] MedicalHistory() action in
-        // PatientController.cs with this version.
+        // ============================================================
+        // MEDICAL HISTORY
+        // ============================================================
 
         [HttpGet]
         public async Task<IActionResult> MedicalHistory()
@@ -229,6 +248,10 @@ namespace LabDash.Controllers
                 );
             }
 
+            // --------------------------------------------------------
+            // CONDITIONS
+            // --------------------------------------------------------
+
             var conditions = await _context.PatientMedicalConditions
                 .Where(pc => pc.PatientID == patient.PatientID)
                 .Include(pc => pc.MedicalCondition)
@@ -239,17 +262,29 @@ namespace LabDash.Controllers
                 .Select(pc => new ConditionRecordViewModel
                 {
                     Name = pc.MedicalCondition!.ConditionName,
-                    CategoryName = pc.MedicalCondition.Category != null
-                        ? pc.MedicalCondition.Category.Name
-                        : null,
+
+                    CategoryName =
+                        pc.MedicalCondition.Category != null
+                            ? pc.MedicalCondition.Category.Name
+                            : null,
+
                     DiagnosisDate = pc.DiagnosisDate,
+
                     Severity = pc.Severity,
-                    RecordedByDoctorName = pc.RecordedByDoctor != null
-                        ? pc.RecordedByDoctor.FullName
-                        : null,
+
+                    RecordedByDoctorName =
+                        pc.RecordedByDoctor != null
+                            ? pc.RecordedByDoctor.FullName
+                            : null,
+
                     Notes = pc.Notes
                 })
                 .ToListAsync();
+
+
+            // --------------------------------------------------------
+            // ALLERGIES
+            // --------------------------------------------------------
 
             var allergies = await _context.PatientAllergies
                 .Where(pa => pa.PatientID == patient.PatientID)
@@ -261,17 +296,29 @@ namespace LabDash.Controllers
                 .Select(pa => new AllergyRecordViewModel
                 {
                     Name = pa.Allergy!.AllergyName,
-                    CategoryName = pa.Allergy.Category != null
-                        ? pa.Allergy.Category.Name
-                        : null,
+
+                    CategoryName =
+                        pa.Allergy.Category != null
+                            ? pa.Allergy.Category.Name
+                            : null,
+
                     RecordedDate = pa.RecordedDate,
+
                     Severity = pa.Severity,
-                    RecordedByDoctorName = pa.RecordedByDoctor != null
-                        ? pa.RecordedByDoctor.FullName
-                        : null,
+
+                    RecordedByDoctorName =
+                        pa.RecordedByDoctor != null
+                            ? pa.RecordedByDoctor.FullName
+                            : null,
+
                     Notes = pa.Notes
                 })
                 .ToListAsync();
+
+
+            // --------------------------------------------------------
+            // MEDICATIONS
+            // --------------------------------------------------------
 
             var medications = await _context.PatientMedications
                 .Where(pm => pm.PatientID == patient.PatientID)
@@ -282,17 +329,33 @@ namespace LabDash.Controllers
                 .Select(pm => new MedicationRecordViewModel
                 {
                     Name = pm.Medication!.MedicationName,
-                    CategoryName = pm.Medication.Category,
+
+                    CategoryName =
+                        pm.Medication.Category != null
+                            ? pm.Medication.Category.Name
+                            : null,
+
                     Dosage = pm.Dosage,
+
                     Frequency = pm.Frequency,
+
                     StartDate = pm.StartDate,
+
                     EndDate = pm.EndDate,
-                    RecordedByDoctorName = pm.RecordedByDoctor != null
-                        ? pm.RecordedByDoctor.FullName
-                        : null,
+
+                    RecordedByDoctorName =
+                        pm.RecordedByDoctor != null
+                            ? pm.RecordedByDoctor.FullName
+                            : null,
+
                     Notes = pm.Notes
                 })
                 .ToListAsync();
+
+
+            // --------------------------------------------------------
+            // BUILD MEDICAL HISTORY MODEL
+            // --------------------------------------------------------
 
             var model = new MedicalHistoryViewModel
             {
@@ -303,6 +366,8 @@ namespace LabDash.Controllers
 
             return View(model);
         }
+
+
         // ============================================================
         // CONSENT
         // ============================================================
@@ -319,48 +384,22 @@ namespace LabDash.Controllers
                 );
             }
 
-            var model = await BuildConsentViewModelAsync(patient.PatientID);
+            var model =
+                await BuildConsentViewModelAsync(patient.PatientID);
 
             return View(model);
         }
 
-        // Live doctor search used by the search box on the Consent page.
-        // Doctors are LabUser accounts in the "Doctor" role (no separate
-        // Doctor table exists in this project).
-        // GET /Patient/SearchDoctors?query=smith
-        [HttpGet]
-        public async Task<IActionResult> SearchDoctors(string query)
-        {
-            if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
-                return Json(new List<DoctorSearchResultViewModel>());
 
-            var doctorUsers = await _userManager.GetUsersInRoleAsync("Doctor");
-
-            var results = doctorUsers
-                .Where(d =>
-                    (d.FullName != null &&
-                        d.FullName.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                    (d.HPCSANumber != null &&
-                        d.HPCSANumber.Contains(query, StringComparison.OrdinalIgnoreCase))
-                )
-                .OrderBy(d => d.FullName)
-                .Take(8)
-                .Select(d => new DoctorSearchResultViewModel
-                {
-                    DoctorId = d.Id,
-                    FullName = d.FullName,
-                    HPCSANumber = d.HPCSANumber ?? ""
-                })
-                .ToList();
-
-            return Json(results);
-        }
+        // ============================================================
+        // GRANT CONSENT (per test item, not whole request)
+        // ============================================================
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> GrantConsent(
             string doctorId,
-            List<int> requestIds)
+            List<int> itemIds)
         {
             var patient = await GetCurrentPatientAsync();
 
@@ -374,75 +413,163 @@ namespace LabDash.Controllers
             if (string.IsNullOrEmpty(doctorId))
             {
                 TempData["ErrorMessage"] =
-                    "Please select a doctor from the search results.";
+                    "Please select a doctor.";
+
                 return RedirectToAction(nameof(Consent));
             }
 
-            if (requestIds == null || !requestIds.Any())
+            if (itemIds == null || !itemIds.Any())
             {
                 TempData["ErrorMessage"] =
-                    "Select at least one test request to share.";
+                    "Select at least one test to share.";
+
                 return RedirectToAction(nameof(Consent));
             }
 
-            var doctorUser = await _userManager.FindByIdAsync(doctorId);
-            var doctorIsInRole = doctorUser != null &&
-                await _userManager.IsInRoleAsync(doctorUser, "Doctor");
+            var doctorUser =
+                await _userManager.FindByIdAsync(doctorId);
+
+            var doctorIsInRole =
+                doctorUser != null &&
+                await _userManager.IsInRoleAsync(
+                    doctorUser,
+                    "Doctor");
 
             if (!doctorIsInRole)
             {
                 TempData["ErrorMessage"] =
-                    "Please select a doctor from the search results.";
+                    "Please select a valid doctor.";
+
                 return RedirectToAction(nameof(Consent));
             }
 
-            // Reuse an existing (possibly inactive) consent record between
-            // this patient and doctor instead of creating duplicates.
-            var consent = await _context.PatientDoctorConsents
-                .FirstOrDefaultAsync(c =>
-                    c.PatientID == patient.PatientID &&
-                    c.DoctorId == doctorId);
+
+            // --------------------------------------------------------
+            // ONLY ALLOW ITEMS THAT BELONG TO THIS PATIENT'S OWN
+            // REQUESTS — never trust the posted ids blindly.
+            // --------------------------------------------------------
+
+            var validItemIds = await _context.TestRequestItems
+                .Where(i =>
+                    i.TestRequest.PatientId == patient.PatientID &&
+                    itemIds.Contains(i.TestRequestItemId))
+                .Select(i => i.TestRequestItemId)
+                .ToListAsync();
+
+            if (!validItemIds.Any())
+            {
+                TempData["ErrorMessage"] =
+                    "None of the selected tests could be found.";
+
+                return RedirectToAction(nameof(Consent));
+            }
+
+
+            // --------------------------------------------------------
+            // FIND EXISTING CONSENT
+            // --------------------------------------------------------
+
+            var consent =
+                await _context.PatientDoctorConsents
+                    .FirstOrDefaultAsync(c =>
+                        c.PatientID == patient.PatientID &&
+                        c.DoctorId == doctorId);
+
+
+            // --------------------------------------------------------
+            // CREATE NEW CONSENT
+            // --------------------------------------------------------
 
             if (consent == null)
             {
                 consent = new PatientDoctorConsent
                 {
                     PatientID = patient.PatientID,
+
                     DoctorId = doctorId,
+
                     GrantedDate = DateTime.Now,
+
                     IsActive = true
                 };
+
                 _context.PatientDoctorConsents.Add(consent);
             }
             else
             {
                 consent.IsActive = true;
+
                 consent.GrantedDate = DateTime.Now;
             }
 
-            await _context.SaveChangesAsync(); // ensure ConsentID is generated
 
-            var existingRequestIds = await _context.ConsentRequestAccess
-                .Where(a => a.ConsentID == consent.ConsentID)
-                .Select(a => a.RequestID)
-                .ToListAsync();
+            // Save first so ConsentID is generated.
+            await _context.SaveChangesAsync();
 
-            foreach (var reqId in requestIds.Distinct())
+
+            // --------------------------------------------------------
+            // EXISTING ITEM ACCESS
+            // --------------------------------------------------------
+
+            var existingItemIds =
+                await _context.ConsentItemAccesses
+                    .Where(a =>
+                        a.ConsentID == consent.ConsentID)
+                    .Select(a => a.TestRequestItemID)
+                    .ToListAsync();
+
+
+            // --------------------------------------------------------
+            // ADD ITEM ACCESS
+            // --------------------------------------------------------
+
+            foreach (var itemId in validItemIds.Distinct())
             {
-                if (!existingRequestIds.Contains(reqId))
+                if (!existingItemIds.Contains(itemId))
                 {
-                    _context.ConsentRequestAccess.Add(new ConsentRequestAccess
-                    {
-                        ConsentID = consent.ConsentID,
-                        RequestID = reqId
-                    });
+                    _context.ConsentItemAccesses.Add(
+                        new ConsentItemAccess
+                        {
+                            ConsentID = consent.ConsentID,
+
+                            TestRequestItemID = itemId
+                        });
                 }
             }
 
             await _context.SaveChangesAsync();
 
-            // TODO: send email notification to the doctor here
-            // (reuse the existing Gmail SMTP setup from the password reset flow)
+
+            // --------------------------------------------------------
+            // NOTIFY DOCTOR BY EMAIL
+            // --------------------------------------------------------
+
+            if (doctorUser != null && !string.IsNullOrWhiteSpace(doctorUser.Email))
+            {
+                var subject = "A patient has granted you access to test results";
+
+                var body =
+                    $"<p>Dear Dr. {doctorUser.LastName},</p>" +
+                    $"<p><strong>{patient.Name} {patient.Surname}</strong> has granted you " +
+                    $"access to {validItemIds.Count} test result item(s) via the LabDash patient portal.</p>" +
+                    "<p>You can view them by logging into the Doctor Portal.</p>" +
+                    "<p>This access can be revoked by the patient at any time.</p>";
+
+                try
+                {
+                    await _emailSender.SendEmailAsync(
+                        doctorUser.Email,
+                        subject,
+                        body);
+                }
+                catch
+                {
+                    // Consent is still valid even if the notification email
+                    // fails to send — don't block the patient's action on
+                    // an SMTP hiccup. (Consider logging this via AuditLog.)
+                }
+            }
+
 
             TempData["SuccessMessage"] =
                 "Access granted and the doctor has been notified.";
@@ -450,9 +577,15 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(Consent));
         }
 
+
+        // ============================================================
+        // REVOKE CONSENT — whole doctor (all items, instantly)
+        // ============================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RevokeConsent(int consentId)
+        public async Task<IActionResult> RevokeConsent(
+            int consentId)
         {
             var patient = await GetCurrentPatientAsync();
 
@@ -463,61 +596,212 @@ namespace LabDash.Controllers
                 );
             }
 
-            var consent = await _context.PatientDoctorConsents
-                .FirstOrDefaultAsync(c =>
-                    c.ConsentID == consentId &&
-                    c.PatientID == patient.PatientID);
+            var consent =
+                await _context.PatientDoctorConsents
+                    .Include(c => c.ConsentItemAccesses)
+                    .FirstOrDefaultAsync(c =>
+                        c.ConsentID == consentId &&
+                        c.PatientID == patient.PatientID);
 
             if (consent != null)
             {
                 consent.IsActive = false;
+
+                // Remove every item-access row so the doctor loses access
+                // to everything immediately, not just future items.
+                _context.ConsentItemAccesses.RemoveRange(
+                    consent.ConsentItemAccesses);
+
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Access revoked.";
+
+                TempData["SuccessMessage"] =
+                    "Access revoked.";
             }
 
             return RedirectToAction(nameof(Consent));
         }
 
-        private async Task<ConsentViewModel> BuildConsentViewModelAsync(
-            int patientId)
+
+        // ============================================================
+        // REVOKE ITEM ACCESS — single test, instantly
+        // ============================================================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RevokeItemAccess(
+            int consentItemAccessId)
         {
-            var activeGrants = await _context.PatientDoctorConsents
-                .Where(c => c.PatientID == patientId && c.IsActive)
-                .Include(c => c.Doctor)
-                .OrderByDescending(c => c.GrantedDate)
-                .ToListAsync();
+            var patient = await GetCurrentPatientAsync();
 
-            var activeGrantModels = activeGrants
-                .Select(c => new ActiveConsentViewModel
-                {
-                    ConsentID = c.ConsentID,
-                    DoctorId = c.DoctorId,
-                    DoctorName = c.Doctor?.FullName ?? "Unknown",
-                    HPCSANumber = c.Doctor?.HPCSANumber ?? "",
-                    GrantedDate = c.GrantedDate
-                })
-                .ToList();
+            if (patient == null)
+            {
+                return NotFound(
+                    "No patient profile is linked to your account."
+                );
+            }
 
-            var availableRequests = await _context.TestRequests
-                .Where(r => r.PatientId == patientId)
-                .Include(r => r.TestRequestItems)
-                    .ThenInclude(i => i.TestType)
-                .OrderByDescending(r => r.RequestDate)
-                .Select(r => new TestRequestOptionViewModel
-                {
-                    RequestID = r.RequestId,
-                    Label = string.Join(
-                        ", ",
-                        r.TestRequestItems
+            var access =
+                await _context.ConsentItemAccesses
+                    .Include(a => a.Consent)
+                    .FirstOrDefaultAsync(a =>
+                        a.ConsentItemAccessID == consentItemAccessId &&
+                        a.Consent != null &&
+                        a.Consent.PatientID == patient.PatientID);
+
+            if (access != null)
+            {
+                _context.ConsentItemAccesses.Remove(access);
+
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] =
+                    "Access to that test was revoked.";
+            }
+
+            return RedirectToAction(nameof(Consent));
+        }
+
+
+        // ============================================================
+        // BUILD CONSENT VIEW MODEL
+        // ============================================================
+
+        private async Task<ConsentViewModel>
+            BuildConsentViewModelAsync(int patientId)
+        {
+            // --------------------------------------------------------
+            // ACTIVE GRANTS (with the specific items each doctor sees)
+            // --------------------------------------------------------
+
+            var activeGrants =
+                await _context.PatientDoctorConsents
+                    .Where(c =>
+                        c.PatientID == patientId &&
+                        c.IsActive)
+                    .Include(c => c.Doctor)
+                    .Include(c => c.ConsentItemAccesses)
+                        .ThenInclude(a => a.TestRequestItem)
+                            .ThenInclude(i => i!.TestType)
+                    .Include(c => c.ConsentItemAccesses)
+                        .ThenInclude(a => a.TestRequestItem)
+                            .ThenInclude(i => i!.TestRequest)
+                    .OrderByDescending(c => c.GrantedDate)
+                    .ToListAsync();
+
+
+            var activeGrantModels =
+                activeGrants
+                    // Hide grants that were revoked down to zero items —
+                    // nothing left for the doctor to see.
+                    .Where(c => c.ConsentItemAccesses.Any())
+                    .Select(c => new ActiveConsentViewModel
+                    {
+                        ConsentID = c.ConsentID,
+
+                        DoctorId = c.DoctorId,
+
+                        DoctorName =
+                            c.Doctor?.FullName ?? "Unknown",
+
+                        HPCSANumber =
+                            c.Doctor?.HPCSANumber ?? "",
+
+                        GrantedDate = c.GrantedDate,
+
+                        GrantedItems = c.ConsentItemAccesses
+                            .Where(a => a.TestRequestItem != null)
+                            .Select(a => new GrantedItemViewModel
+                            {
+                                ConsentItemAccessID = a.ConsentItemAccessID,
+
+                                RequestID = a.TestRequestItem!.RequestId,
+
+                                TestName =
+                                    a.TestRequestItem.TestType != null
+                                        ? a.TestRequestItem.TestType.Name
+                                        : "Unknown Test"
+                            })
+                            .OrderBy(i => i.RequestID)
+                            .ThenBy(i => i.TestName)
+                            .ToList()
+                    })
+                    .ToList();
+
+
+            // --------------------------------------------------------
+            // DOCTORS LINKED TO THIS PATIENT'S OWN REQUESTS
+            // (the only doctors that appear in the grant dropdown)
+            // --------------------------------------------------------
+
+            var linkedDoctorIds =
+                await _context.TestRequests
+                    .Where(r => r.PatientId == patientId)
+                    .Select(r => r.RequestingDoctorId)
+                    .Distinct()
+                    .ToListAsync();
+
+            var linkedDoctors =
+                await _context.Users
+                    .Where(u => linkedDoctorIds.Contains(u.Id))
+                    .OrderBy(u => u.FirstName)
+                    .ThenBy(u => u.LastName)
+                    .Select(u => new DoctorSearchResultViewModel
+                    {
+                        DoctorId = u.Id,
+
+                        FullName = u.FirstName + " " + u.LastName,
+
+                        HPCSANumber = u.HPCSANumber ?? ""
+                    })
+                    .ToListAsync();
+
+
+            // --------------------------------------------------------
+            // AVAILABLE TEST REQUESTS, EXPANDED TO THEIR ITEMS
+            // --------------------------------------------------------
+
+            var requests =
+                await _context.TestRequests
+                    .Where(r =>
+                        r.PatientId == patientId)
+                    .Include(r => r.TestRequestItems)
+                        .ThenInclude(i => i.TestType)
+                    .OrderByDescending(r => r.RequestDate)
+                    .ToListAsync();
+
+            var availableRequests =
+                requests
+                    .Where(r => r.TestRequestItems.Any(i => i.TestType != null))
+                    .Select(r => new TestRequestOptionViewModel
+                    {
+                        RequestID = r.RequestId,
+
+                        Label = string.Join(
+                            ", ",
+                            r.TestRequestItems
+                                .Where(i => i.TestType != null)
+                                .Select(i => i.TestType.Name)),
+
+                        Items = r.TestRequestItems
                             .Where(i => i.TestType != null)
-                            .Select(i => i.TestType.Name))
-                })
-                .ToListAsync();
+                            .Select(i => new TestRequestItemOptionViewModel
+                            {
+                                TestRequestItemID = i.TestRequestItemId,
+
+                                TestName = i.TestType.Name
+                            })
+                            .ToList()
+                    })
+                    .ToList();
+
 
             return new ConsentViewModel
             {
                 ActiveGrants = activeGrantModels,
-                AvailableRequests = availableRequests
+
+                AvailableRequests = availableRequests,
+
+                LinkedDoctors = linkedDoctors
             };
         }
 
@@ -538,20 +822,28 @@ namespace LabDash.Controllers
                 );
             }
 
-            var results = await GetPatientResults(patient.PatientID);
+            var results =
+                await GetPatientResults(patient.PatientID);
 
             var model = new ReportViewModel
             {
-                FromDate = DateTime.Today.AddMonths(-1),
+                FromDate =
+                    DateTime.Today.AddMonths(-1),
 
-                ToDate = DateTime.Today,
+                ToDate =
+                    DateTime.Today,
 
-                FilteredResults = ConvertResults(results)
+                FilteredResults =
+                    ConvertResults(results)
             };
 
             return View(model);
         }
 
+
+        // ============================================================
+        // REPORTS - FILTER
+        // ============================================================
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -570,7 +862,9 @@ namespace LabDash.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            var results = await GetPatientResults(patient.PatientID);
+            var results =
+                await GetPatientResults(patient.PatientID);
+
 
             results = results
                 .Where(r =>
@@ -578,7 +872,9 @@ namespace LabDash.Controllers
                     r.DateCaptured.Date <= model.ToDate.Date)
                 .ToList();
 
-            model.FilteredResults = ConvertResults(results);
+
+            model.FilteredResults =
+                ConvertResults(results);
 
             return View(model);
         }
@@ -596,56 +892,77 @@ namespace LabDash.Controllers
 
 
         // ============================================================
-        // HELPER METHODS
+        // HELPER - GET PATIENT RESULTS
         // ============================================================
 
-        private async Task<List<TestResult>> GetPatientResults(
-            int patientId)
+        private async Task<List<TestResult>>
+            GetPatientResults(int patientId)
         {
             return await _context.TestResults
                 .Include(r => r.TestRequestItem)
                     .ThenInclude(i => i.TestRequest)
+
                 .Include(r => r.TestRequestItem)
                     .ThenInclude(i => i.TestType)
+
                 .Where(r =>
                     r.TestRequestItem.TestRequest.PatientId
                     == patientId)
+
                 .OrderByDescending(r => r.DateCaptured)
+
                 .ToListAsync();
         }
 
 
-        private List<TestResultViewModel> ConvertResults(
-            List<TestResult> results)
+        // ============================================================
+        // HELPER - CONVERT RESULTS
+        // ============================================================
+
+        private List<TestResultViewModel>
+            ConvertResults(List<TestResult> results)
         {
-            return results.Select(r => new TestResultViewModel
-            {
-                RequestID =
-                    r.TestRequestItem.TestRequest.RequestId.ToString(),
+            return results
+                .Select(r => new TestResultViewModel
+                {
+                    RequestID =
+                        r.TestRequestItem
+                            .TestRequest
+                            .RequestId
+                            .ToString(),
 
-                TestName =
-                    r.TestRequestItem.TestType != null
-                        ? r.TestRequestItem.TestType.Name
-                        : "Unknown Test",
+                    TestName =
+                        r.TestRequestItem.TestType != null
+                            ? r.TestRequestItem.TestType.Name
+                            : "Unknown Test",
 
-                ResultValue = r.ResultValue,
+                    ResultValue =
+                        r.ResultValue,
 
-                Unit = r.Units ?? "",
+                    Unit =
+                        r.Units ?? "",
 
-                IsAbnormal = r.IsAbnormal,
+                    IsAbnormal =
+                        r.IsAbnormal,
 
-                ResultDate = r.DateCaptured,
+                    ResultDate =
+                        r.DateCaptured,
 
-                Category =
-                    r.TestRequestItem.TestType != null
-                        ? r.TestRequestItem.TestType.Category ?? ""
-                        : "",
+                    Category =
+    r.TestRequestItem.TestType != null
+        ? r.TestRequestItem.TestType.Category ?? ""
+        : "",
 
-                NormalMin = 0,
-                NormalMax = 0
-            }).ToList();
+                    NormalMin = 0,
+                    NormalMax = 0
+                })
+                .ToList();
         }
 
+
+        // ============================================================
+        // HELPER - SPLIT VALUES
+        // ============================================================
 
         private List<string> SplitValues(string? value)
         {

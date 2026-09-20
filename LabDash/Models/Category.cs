@@ -19,5 +19,10 @@
         // Allergies belonging to this category
         public virtual ICollection<Allergy> Allergies { get; set; }
             = new List<Allergy>();
+
+        public ICollection<Medication> Medications { get; set; }
+    = new List<Medication>();
+
+
     }
 }

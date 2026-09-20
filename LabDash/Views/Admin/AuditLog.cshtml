@@ -9,7 +9,10 @@
         .Select(g => new { Name = g.Key, Count = g.Count() })
         .OrderByDescending(g => g.Count)
         .ToList();
-    var roleBreakdownMax = roleBreakdown.Any() ? roleBreakdown.Max(b => b.Count) : 0;
+
+    var roleBreakdownMax = roleBreakdown.Any()
+        ? roleBreakdown.Max(b => b.Count)
+        : 0;
 
     var distinctRoles = Model.Entries
         .Select(e => e.Role)
@@ -26,242 +29,1106 @@
         .ToList();
 }
 
-@*
-    ============================================================================
-    Same "adm-" treatment as Conditions.cshtml / Allergies.cshtml / Medications.cshtml
-    / SystemTables.cshtml. This page is read-only (no add/edit/delete — it's a
-    log), so no modals, no tabs, no actions column. What was ported/fixed:
-
-      1. The search box and the two <select> filters existed but were never
-         wired to anything — no oninput/onchange, no JS at all. Wired them up
-         below: text search matches user/action/details, plus role and action
-         dropdowns, all combined.
-      2. The role/action dropdowns had hardcoded <option> lists (Admin/
-         Doctors/Technicians/Patients, Create/Update/Delete/Login) that don't
-         necessarily match what's actually in the log. Replaced with options
-         built from the distinct values actually present in Model.Entries, so
-         the filter never has a dead option or misses a role/action that
-         exists but wasn't in the hardcoded list.
-      3. Added a "By role" breakdown panel, same pattern as the category
-         breakdown on Allergies/Medications, since this page didn't have a
-         second column to fill.
-
-    NOTE — not fixable from the view: AdminController.AuditLog() currently
-    hardcodes Role = "" for every entry, so every row falls into the
-    "Unspecified" bucket below and every badge renders the same color until
-    the controller actually populates Role (e.g. from the acting user's
-    Identity role, or a Role column on the AuditLog entity itself).
-    ============================================================================
-*@
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet">
+
 
 <div class="adm-page">
 
-    <!-- ==========================================
-        PAGE BANNER
-    =========================================== -->
+    <!-- ==========================================================
+         PAGE BANNER
+    =========================================================== -->
+
     <div class="adm-page-banner">
+
         <div class="adm-page-banner-pattern"></div>
 
         <div class="adm-page-banner-left">
-            <div class="adm-page-banner-icon"><i class="fas fa-shield-halved"></i></div>
-            <div>
-                <h1>Audit Log</h1>
-                <p>Recent system activity across all users and roles</p>
+
+            <div class="adm-page-banner-icon">
+                <i class="fas fa-shield-halved"></i>
             </div>
+
+            <div>
+
+                <h1>Audit Log</h1>
+
+                <p>
+                    Recent system activity across all users and roles
+                </p>
+
+            </div>
+
         </div>
+
 
         <div class="adm-page-banner-right">
+
             <div class="adm-mini-stats">
+
                 <div class="adm-mini-stat">
-                    <span class="num">@Model.Entries.Count</span>
-                    <span class="label">Entries</span>
+
+                    <span class="num">
+                        @Model.Entries.Count
+                    </span>
+
+                    <span class="label">
+                        Entries
+                    </span>
+
                 </div>
+
+
                 <div class="adm-mini-stat">
-                    <span class="num">@distinctRoles.Count</span>
-                    <span class="label">Roles</span>
+
+                    <span class="num">
+                        @distinctRoles.Count
+                    </span>
+
+                    <span class="label">
+                        Roles
+                    </span>
+
                 </div>
+
+
                 <div class="adm-mini-stat">
-                    <span class="num">@distinctActions.Count</span>
-                    <span class="label">Action Types</span>
+
+                    <span class="num">
+                        @distinctActions.Count
+                    </span>
+
+                    <span class="label">
+                        Action Types
+                    </span>
+
                 </div>
+
             </div>
+
         </div>
+
     </div>
 
-    <!-- ==========================================
-        LOG TABLE + ROLE BREAKDOWN
-    =========================================== -->
+
+    <!-- ==========================================================
+         LOG TABLE + ROLE BREAKDOWN
+    =========================================================== -->
+
     <div class="adm-split">
 
-        <!-- Log table -->
+
+        <!-- ======================================================
+             AUDIT LOG TABLE
+        ======================================================= -->
+
         <div class="adm-panel">
+
+
+            <!-- HEADER -->
+
             <div class="adm-panel-head">
-                <span><i class="fas fa-history"></i> Recent System Activity</span>
-                <span class="adm-panel-tag">@Model.Entries.Count entries</span>
+
+                <span>
+
+                    <i class="fas fa-history"></i>
+
+                    Recent System Activity
+
+                </span>
+
+
+                <span class="adm-panel-tag">
+
+                    @Model.Entries.Count entries
+
+                </span>
+
             </div>
+
+
+
+            <!-- ==================================================
+                 SEARCH / FILTER TOOLBAR
+            =================================================== -->
 
             <div class="adm-toolbar">
+
+
+                <!-- SEARCH -->
+
                 <div class="adm-search-box">
+
                     <i class="fas fa-magnifying-glass"></i>
-                    <input id="log-search" placeholder="Search logs…" oninput="filterLog()" />
+
+                    <input id="log-search"
+                           type="text"
+                           placeholder="Search logs…"
+                           oninput="filterLog()" />
+
                 </div>
-                <select id="log-role-filter" onchange="filterLog()">
-                    <option value="">All Roles</option>
+
+
+                <!-- ROLE -->
+
+                <select id="log-role-filter"
+                        onchange="filterLog()">
+
+                    <option value="">
+                        All Roles
+                    </option>
+
                     @foreach (var role in distinctRoles)
                     {
-                        <option value="@role">@role</option>
+                        <option value="@role">
+                            @role
+                        </option>
                     }
+
                 </select>
-                <select id="log-action-filter" onchange="filterLog()">
-                    <option value="">All Actions</option>
+
+
+                <!-- ACTION -->
+
+                <select id="log-action-filter"
+                        onchange="filterLog()">
+
+                    <option value="">
+                        All Actions
+                    </option>
+
                     @foreach (var action in distinctActions)
                     {
-                        <option value="@action">@action</option>
+                        <option value="@action">
+                            @action
+                        </option>
                     }
+
                 </select>
+
+
             </div>
 
-            <div class="adm-table-wrap">
-                <table class="adm-table">
-                    <thead>
-                        <tr>
-                            <th>Timestamp</th>
-                            <th>User</th>
-                            <th>Role</th>
-                            <th>Action</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody id="log-tbody">
-                        @foreach (var e in Model.Entries)
-                        {
-                            <tr data-user="@((e.User ?? "").ToLower())"
-                                data-role="@(e.Role ?? "")"
-                                data-action="@(e.Action ?? "")"
-                                data-search="@(($"{e.User} {e.Action} {e.Details}").ToLower())">
-                                <td class="adm-td-nowrap">@e.Timestamp</td>
-                                <td class="adm-td-strong">@e.User</td>
-                                <td>
-                                    <span class="adm-badge @RoleBadgeClass(e.Role)">
-                                        @(string.IsNullOrWhiteSpace(e.Role) ? "Unspecified" : e.Role)
-                                    </span>
-                                </td>
-                                <td>@e.Action</td>
-                                <td class="adm-td-muted">@e.Details</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
 
+
+            <!-- ==================================================
+                 SHOW ROWS
+            =================================================== -->
+
+            <div class="adm-toolbar-mini">
+
+                <div class="adm-show-control">
+
+                    <span>
+                        Show
+                    </span>
+
+
+                    <select id="audit-page-size"
+                            onchange="changeAuditPageSize(this)">
+
+                        <option value="5">
+                            5
+                        </option>
+
+                        <option value="10" selected>
+                            10
+                        </option>
+
+                        <option value="15">
+                            15
+                        </option>
+
+                        <option value="25">
+                            25
+                        </option>
+
+                        <option value="all">
+                            All
+                        </option>
+
+                    </select>
+
+                    <span>
+                        rows
+                    </span>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ==================================================
+                 TABLE
+            =================================================== -->
+
+            <div class="adm-table-wrap adm-table-wrap-flush">
+
+                <div class="adm-table-scroll">
+
+                    <table class="adm-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Timestamp
+                                </th>
+
+                                <th>
+                                    User
+                                </th>
+
+                                <th>
+                                    Role
+                                </th>
+
+                                <th>
+                                    Action
+                                </th>
+
+                                <th>
+                                    Details
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="log-tbody">
+
+                            @foreach (var e in Model.Entries)
+                            {
+                                <tr data-user="@((e.User ?? "").ToLower())"
+                                    data-role="@(e.Role ?? "")"
+                                    data-action="@(e.Action ?? "")"
+                                    data-search="@(($"{e.User} {e.Action} {e.Details}").ToLower())">
+
+                                    <td class="adm-td-nowrap">
+
+                                        @e.Timestamp
+
+                                    </td>
+
+
+                                    <td class="adm-td-strong">
+
+                                        @e.User
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <span class="adm-badge @RoleBadgeClass(e.Role)">
+
+                                            @(string.IsNullOrWhiteSpace(e.Role)
+                                                ? "Unspecified"
+                                                : e.Role)
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <span class="adm-action-text">
+
+                                            @e.Action
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <td class="adm-td-muted">
+
+                                        @e.Details
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+
+
+                <!-- ==================================================
+                     EMPTY DATABASE STATE
+                =================================================== -->
                 @if (!Model.Entries.Any())
                 {
-                    <div class="adm-empty-state" id="log-empty">
-                        <div class="adm-empty-icon"><i class="fas fa-shield-halved"></i></div>
-                        <h5>No activity recorded yet</h5>
-                        <p>System actions will appear here as they happen.</p>
+                    <div class="adm-empty-state"
+                         id="log-empty">
+
+                        <div class="adm-empty-icon">
+
+                            <i class="fas fa-shield-halved"></i>
+
+                        </div>
+
+                        <h5>
+                            No activity recorded yet
+                        </h5>
+
+                        <p>
+                            System actions will appear here as they happen.
+                        </p>
+
                     </div>
                 }
 
-                <div class="adm-empty-state" id="log-empty-filtered" style="display:none;">
-                    <div class="adm-empty-icon"><i class="fas fa-magnifying-glass"></i></div>
-                    <h5>No matching entries</h5>
-                    <p>Try adjusting your search or filters.</p>
+
+                <!-- ==================================================
+                     FILTERED EMPTY STATE
+                =================================================== -->
+
+                <div class="adm-empty-state"
+                     id="log-empty-filtered"
+                     style="display:none;">
+
+                    <div class="adm-empty-icon">
+
+                        <i class="fas fa-magnifying-glass"></i>
+
+                    </div>
+
+                    <h5>
+                        No matching entries
+                    </h5>
+
+                    <p>
+                        Try adjusting your search or filters.
+                    </p>
+
                 </div>
+
             </div>
+
+
+
+            <!-- ==================================================
+                 PAGINATION
+            =================================================== -->
+
+            <div class="adm-table-pagination"
+                 id="audit-pagination">
+
+
+                <div class="adm-pagination-left">
+
+                    <span id="audit-results-info">
+
+                        Showing 0 of 0
+
+                    </span>
+
+                </div>
+
+
+
+                <div class="adm-pagination-right">
+
+
+                    <button type="button"
+                            class="adm-page-btn"
+                            id="audit-prev"
+                            onclick="changeAuditPage(-1)">
+
+                        <i class="fas fa-chevron-left"></i>
+
+                    </button>
+
+
+                    <span class="adm-page-info"
+                          id="audit-page-info">
+
+                        Page 1
+
+                    </span>
+
+
+                    <button type="button"
+                            class="adm-page-btn"
+                            id="audit-next"
+                            onclick="changeAuditPage(1)">
+
+                        <i class="fas fa-chevron-right"></i>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
         </div>
 
-        <!-- Role breakdown -->
+
+
+        <!-- ======================================================
+             ROLE BREAKDOWN
+        ======================================================= -->
+
         <div class="adm-panel">
+
+
             <div class="adm-panel-head">
-                <span><i class="fas fa-chart-simple"></i> By role</span>
+
+                <span>
+
+                    <i class="fas fa-chart-simple"></i>
+
+                    By Role
+
+                </span>
+
             </div>
+
+
             <div class="adm-breakdown">
+
                 @if (roleBreakdown.Any())
                 {
                     @foreach (var b in roleBreakdown)
                     {
-                        var pct = roleBreakdownMax > 0 ? (int)Math.Round((double)b.Count / roleBreakdownMax * 100) : 0;
+                        var pct = roleBreakdownMax > 0
+                            ? (int)Math.Round(
+                                (double)b.Count /
+                                roleBreakdownMax *
+                                100)
+                            : 0;
+
                         <div class="adm-breakdown-row">
+
+
                             <div class="adm-breakdown-label">
-                                <span>@b.Name</span>
-                                <strong>@b.Count</strong>
+
+                                <span>
+                                    @b.Name
+                                </span>
+
+                                <strong>
+                                    @b.Count
+                                </strong>
+
                             </div>
+
+
                             <div class="adm-breakdown-track">
-                                <div class="adm-breakdown-fill @RoleBreakdownFillClass(b.Name)" style="width:@(pct)%;"></div>
+
+                                <div class="adm-breakdown-fill @RoleBreakdownFillClass(b.Name)"
+                                     style="width:@(pct)%;">
+                                </div>
+
                             </div>
+
                         </div>
                     }
                 }
                 else
                 {
                     <div class="adm-empty-state">
-                        <div class="adm-empty-icon"><i class="fas fa-chart-simple"></i></div>
-                        <h5>No data yet</h5>
-                        <p>Once activity is logged, its spread across roles will show up here.</p>
+
+                        <div class="adm-empty-icon">
+
+                            <i class="fas fa-chart-simple"></i>
+
+                        </div>
+
+                        <h5>
+                            No data yet
+                        </h5>
+
+                        <p>
+                            Once activity is logged, its spread across roles
+                            will show up here.
+                        </p>
+
                     </div>
                 }
+
             </div>
+
         </div>
 
     </div>
 
 </div>
 
-@functions {
-    // Badge/fill color per role. Falls back to the neutral "unspecified"
-    // style for anything that doesn't match a known role — see the note
-    // at the top of this file about AdminController.AuditLog() currently
-    // leaving Role blank for every entry.
+
+
+@functions
+{
+
     string RoleBadgeClass(string? role) => role switch
     {
         "Admin" => "adm-badge-admin",
+
         "Doctor" => "adm-badge-doctor",
+
         "Technician" => "adm-badge-tech",
+
         "Patient" => "adm-badge-patient",
+
         _ => "adm-badge-unspecified"
     };
+
 
     string RoleBreakdownFillClass(string role) => role switch
     {
         "Admin" => "adm-fill-admin",
+
         "Doctor" => "adm-fill-doctor",
+
         "Technician" => "adm-fill-tech",
+
         "Patient" => "adm-fill-patient",
+
         _ => "adm-fill-unspecified"
     };
+
 }
 
-@section Scripts {
+
+
+@section Scripts
+{
+
     <script>
-        function filterLog() {
-            var q = document.getElementById('log-search').value.toLowerCase();
-            var role = document.getElementById('log-role-filter').value;
-            var action = document.getElementById('log-action-filter').value;
 
-            var rows = document.getElementById('log-tbody').querySelectorAll('tr');
-            var visibleCount = 0;
+        /* ==========================================================
+           AUDIT LOG TABLE STATE
+        ========================================================== */
 
-            rows.forEach(function(row) {
-                var searchMatch = !q || row.dataset.search.includes(q);
-                var roleMatch = !role || row.dataset.role === role;
-                var actionMatch = !action || row.dataset.action === action;
-                var show = searchMatch && roleMatch && actionMatch;
-                row.style.display = show ? '' : 'none';
-                if (show) visibleCount++;
-            });
+        var auditState = {
 
-            var filteredEmpty = document.getElementById('log-empty-filtered');
-            if (filteredEmpty) {
-                filteredEmpty.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+            page: 1,
+
+            pageSize: 10,
+
+            filteredRows: []
+
+        };
+
+
+
+        /* ==========================================================
+           GET ALL TABLE ROWS
+        ========================================================== */
+
+        function getAuditRows() {
+
+            var tbody =
+                document.getElementById('log-tbody');
+
+            if (!tbody) {
+                return [];
             }
+
+            return Array.from(
+                tbody.querySelectorAll('tr')
+            );
+
         }
+
+
+
+        /* ==========================================================
+           FILTER LOG
+        ========================================================== */
+
+        function filterLog() {
+
+            var searchInput =
+                document.getElementById('log-search');
+
+            var roleSelect =
+                document.getElementById('log-role-filter');
+
+            var actionSelect =
+                document.getElementById('log-action-filter');
+
+
+            var q =
+                searchInput.value
+                    .toLowerCase()
+                    .trim();
+
+
+            var role =
+                roleSelect.value;
+
+
+            var action =
+                actionSelect.value;
+
+
+            var rows =
+                getAuditRows();
+
+
+            auditState.filteredRows =
+                rows.filter(function(row) {
+
+                    var searchText =
+                        row.dataset.search || "";
+
+
+                    var rowRole =
+                        row.dataset.role || "";
+
+
+                    var rowAction =
+                        row.dataset.action || "";
+
+
+                    var searchMatch =
+                        !q ||
+                        searchText.includes(q);
+
+
+                    var roleMatch =
+                        !role ||
+                        rowRole === role;
+
+
+                    var actionMatch =
+                        !action ||
+                        rowAction === action;
+
+
+                    return (
+                        searchMatch &&
+                        roleMatch &&
+                        actionMatch
+                    );
+
+                });
+
+
+            /*
+             * Reset to first page whenever
+             * the filter changes.
+             */
+
+            auditState.page = 1;
+
+
+            renderAuditTable();
+
+        }
+
+
+
+        /* ==========================================================
+           RENDER TABLE
+        ========================================================== */
+
+        function renderAuditTable() {
+
+            var allRows =
+                getAuditRows();
+
+
+            var filteredRows =
+                auditState.filteredRows;
+
+
+            /*
+             * If no filter has been run yet,
+             * use every row.
+             */
+
+            if (
+                !filteredRows ||
+                filteredRows.length === 0
+            ) {
+
+                var search =
+                    document
+                        .getElementById('log-search')
+                        .value
+                        .trim();
+
+
+                var role =
+                    document
+                        .getElementById('log-role-filter')
+                        .value;
+
+
+                var action =
+                    document
+                        .getElementById('log-action-filter')
+                        .value;
+
+
+                if (
+                    !search &&
+                    !role &&
+                    !action
+                ) {
+
+                    filteredRows =
+                        allRows;
+
+                    auditState.filteredRows =
+                        allRows;
+
+                }
+
+            }
+
+
+            var total =
+                filteredRows.length;
+
+
+            var pageSize =
+                auditState.pageSize;
+
+
+            /*
+             * ALL
+             */
+
+            if (pageSize === 'all') {
+
+                allRows.forEach(function(row) {
+                    row.style.display = 'none';
+                });
+
+
+                filteredRows.forEach(function(row) {
+                    row.style.display = '';
+                });
+
+
+                updateAuditPagination(
+                    total,
+                    1,
+                    1,
+                    true
+                );
+
+            }
+
+            /*
+             * NORMAL PAGINATION
+             */
+
+            else {
+
+                var size =
+                    parseInt(pageSize);
+
+
+                var totalPages =
+                    Math.max(
+                        1,
+                        Math.ceil(total / size)
+                    );
+
+
+                if (
+                    auditState.page >
+                    totalPages
+                ) {
+
+                    auditState.page =
+                        totalPages;
+
+                }
+
+
+                var start =
+                    (auditState.page - 1) *
+                    size;
+
+
+                var end =
+                    Math.min(
+                        start + size,
+                        total
+                    );
+
+
+                /*
+                 * Hide every row first.
+                 */
+
+                allRows.forEach(function(row) {
+                    row.style.display = 'none';
+                });
+
+
+                /*
+                 * Show only rows
+                 * belonging to current page.
+                 */
+
+                filteredRows
+                    .slice(start, end)
+                    .forEach(function(row) {
+                        row.style.display = '';
+                    });
+
+
+                updateAuditPagination(
+                    total,
+                    auditState.page,
+                    totalPages,
+                    false,
+                    start,
+                    end
+                );
+
+            }
+
+
+            /*
+             * FILTERED EMPTY STATE
+             */
+
+            var filteredEmpty =
+                document.getElementById(
+                    'log-empty-filtered'
+                );
+
+
+            if (filteredEmpty) {
+
+                filteredEmpty.style.display =
+                    total === 0 &&
+                        allRows.length > 0
+                        ? ''
+                        : 'none';
+
+            }
+
+        }
+
+
+
+        /* ==========================================================
+           UPDATE PAGINATION UI
+        ========================================================== */
+
+        function updateAuditPagination(
+            total,
+            currentPage,
+            totalPages,
+            allResults,
+            start,
+            end
+        ) {
+
+            var pagination =
+                document.getElementById(
+                    'audit-pagination'
+                );
+
+
+            if (!pagination) {
+                return;
+            }
+
+
+            /*
+             * No records.
+             */
+
+            if (total === 0) {
+
+                pagination.style.display =
+                    'none';
+
+                return;
+
+            }
+
+
+            if (allResults) {
+
+                start = 0;
+
+                end = total;
+
+            }
+
+
+            var showingStart =
+                total === 0
+                    ? 0
+                    : start + 1;
+
+
+            var showingEnd =
+                Math.min(
+                    end,
+                    total
+                );
+
+
+            document.getElementById(
+                'audit-results-info'
+            ).textContent =
+                'Showing ' +
+                showingStart +
+                '–' +
+                showingEnd +
+                ' of ' +
+                total;
+
+
+            document.getElementById(
+                'audit-page-info'
+            ).textContent =
+                allResults
+                    ? 'All'
+                    : 'Page ' +
+                    currentPage +
+                    ' of ' +
+                    totalPages;
+
+
+            var prev =
+                document.getElementById(
+                    'audit-prev'
+                );
+
+
+            var next =
+                document.getElementById(
+                    'audit-next'
+                );
+
+
+            prev.disabled =
+                allResults ||
+                currentPage <= 1;
+
+
+            next.disabled =
+                allResults ||
+                currentPage >= totalPages;
+
+
+            pagination.style.display =
+                'flex';
+
+        }
+
+
+
+        /* ==========================================================
+           PREVIOUS / NEXT
+        ========================================================== */
+
+        function changeAuditPage(direction) {
+
+            if (
+                auditState.pageSize === 'all'
+            ) {
+                return;
+            }
+
+
+            auditState.page +=
+                direction;
+
+
+            if (auditState.page < 1) {
+
+                auditState.page = 1;
+
+            }
+
+
+            renderAuditTable();
+
+        }
+
+
+
+        /* ==========================================================
+           CHANGE PAGE SIZE
+        ========================================================== */
+
+        function changeAuditPageSize(select) {
+
+            var value =
+                select.value;
+
+
+            if (value === 'all') {
+
+                auditState.pageSize =
+                    'all';
+
+            }
+            else {
+
+                auditState.pageSize =
+                    parseInt(value);
+
+            }
+
+
+            auditState.page = 1;
+
+
+            renderAuditTable();
+
+        }
+
+
+
+        /* ==========================================================
+           INITIALISE
+        ========================================================== */
+
+        document.addEventListener(
+            'DOMContentLoaded',
+            function() {
+
+                /*
+                 * Start with every row available.
+                 */
+
+                auditState.filteredRows =
+                    getAuditRows();
+
+
+                /*
+                 * Render first page.
+                 */
+
+                renderAuditTable();
+
+            }
+        );
+
     </script>
+
 }
+
+
 
 <style>
+
     :root {
         --adm-paper: #F0F7F6;
         --adm-raised: #FFFFFF;
@@ -289,6 +1156,12 @@
         --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
     }
 
+
+
+    /* ==========================================================
+           PAGE
+        ========================================================== */
+
     .adm-page {
         max-width: 1280px;
         margin: 0 auto;
@@ -297,14 +1170,19 @@
         font-family: 'Inter', sans-serif;
     }
 
-    /* ============ PAGE BANNER ============ */
+
+
+    /* ==========================================================
+           BANNER
+        ========================================================== */
+
     .adm-page-banner {
         position: relative;
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 24px;
-        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        background: linear-gradient( 125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end) );
         border-radius: var(--adm-radius);
         padding: 26px 32px;
         margin-bottom: 22px;
@@ -313,12 +1191,16 @@
         flex-wrap: wrap;
     }
 
+
+
     .adm-page-banner-pattern {
         position: absolute;
         inset: 0;
-        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        background-image: radial-gradient( circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45% ), radial-gradient( circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40% );
         pointer-events: none;
     }
+
+
 
     .adm-page-banner-left {
         display: flex;
@@ -327,6 +1209,8 @@
         position: relative;
         z-index: 1;
     }
+
+
 
     .adm-page-banner-icon {
         width: 58px;
@@ -342,6 +1226,8 @@
         flex-shrink: 0;
     }
 
+
+
     .adm-page-banner-left h1 {
         font-family: 'Poppins', sans-serif;
         font-weight: 700;
@@ -350,11 +1236,15 @@
         color: #fff;
     }
 
+
+
     .adm-page-banner-left p {
         margin: 0;
         color: rgba(255,255,255,.85);
         font-size: 13px;
     }
+
+
 
     .adm-page-banner-right {
         display: flex;
@@ -365,10 +1255,14 @@
         flex-wrap: wrap;
     }
 
+
+
     .adm-mini-stats {
         display: flex;
         gap: 18px;
     }
+
+
 
     .adm-mini-stat {
         display: flex;
@@ -377,12 +1271,16 @@
         min-width: 58px;
     }
 
+
+
         .adm-mini-stat .num {
             font-family: 'Poppins', sans-serif;
             font-weight: 700;
             font-size: 20px;
             color: #fff;
         }
+
+
 
         .adm-mini-stat .label {
             font-size: 10.5px;
@@ -392,7 +1290,12 @@
             margin-top: 2px;
         }
 
-    /* ============ PANELS ============ */
+
+
+    /* ==========================================================
+           PANELS
+        ========================================================== */
+
     .adm-panel {
         background: var(--adm-raised);
         border-radius: var(--adm-radius);
@@ -401,6 +1304,8 @@
         margin-bottom: 22px;
     }
 
+
+
     .adm-panel-head {
         display: flex;
         justify-content: space-between;
@@ -408,6 +1313,8 @@
         padding: 18px 26px;
         border-bottom: 1px solid var(--adm-line);
     }
+
+
 
         .adm-panel-head span:first-child {
             font-family: 'Poppins', sans-serif;
@@ -418,9 +1325,13 @@
             gap: 10px;
         }
 
+
+
             .adm-panel-head span:first-child i {
                 color: var(--adm-teal);
             }
+
+
 
     .adm-panel-tag {
         font-weight: 600;
@@ -431,7 +1342,12 @@
         border-radius: 999px;
     }
 
-    /* ============ SPLIT LAYOUT ============ */
+
+
+    /* ==========================================================
+           SPLIT
+        ========================================================== */
+
     .adm-split {
         display: grid;
         grid-template-columns: 1.7fr 1fr;
@@ -439,13 +1355,20 @@
         align-items: start;
     }
 
-    /* ============ TOOLBAR ============ */
+
+
+    /* ==========================================================
+           TOOLBAR
+        ========================================================== */
+
     .adm-toolbar {
         display: flex;
         gap: 12px;
         padding: 16px 26px 0;
         flex-wrap: wrap;
     }
+
+
 
     .adm-search-box {
         flex: 1;
@@ -459,10 +1382,14 @@
         padding: 10px 14px;
     }
 
+
+
         .adm-search-box i {
             color: var(--adm-ink-faint);
             font-size: 13px;
         }
+
+
 
         .adm-search-box input {
             border: none;
@@ -472,6 +1399,8 @@
             font-family: 'Inter', sans-serif;
             width: 100%;
         }
+
+
 
     .adm-toolbar select {
         border: 1px solid var(--adm-line-strong);
@@ -483,17 +1412,110 @@
         background: var(--adm-raised);
     }
 
-    /* ============ TABLE ============ */
+
+
+    /* ==========================================================
+           SHOW ROWS
+        ========================================================== */
+
+    .adm-toolbar-mini {
+        display: flex;
+        justify-content: flex-end;
+        padding: 14px 26px 0;
+    }
+
+
+
+    .adm-show-control {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--adm-ink-soft);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+
+
+        .adm-show-control select {
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 7px 10px;
+            min-width: 64px;
+            font-size: 12.5px;
+            font-family: 'Inter', sans-serif;
+            color: var(--adm-ink);
+            background: var(--adm-raised);
+        }
+
+
+
+    /* ==========================================================
+           TABLE
+        ========================================================== */
+
     .adm-table-wrap {
         padding: 16px 0 6px;
         overflow-x: auto;
     }
 
+
+
+    .adm-table-wrap-flush {
+        padding-bottom: 0;
+    }
+
+
+
+    .adm-table-scroll {
+        width: 100%;
+        max-width: 100%;
+        max-height: 500px;
+        overflow-y: auto;
+        overflow-x: auto;
+        box-sizing: border-box;
+        scrollbar-width: thin;
+        scrollbar-color: var(--adm-line-strong) var(--adm-paper);
+    }
+
+
+
+        .adm-table-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+
+
+        .adm-table-scroll::-webkit-scrollbar-track {
+            background: var(--adm-paper);
+            border-radius: 10px;
+        }
+
+
+
+        .adm-table-scroll::-webkit-scrollbar-thumb {
+            background: var(--adm-line-strong);
+            border-radius: 10px;
+        }
+
+
+
+            .adm-table-scroll::-webkit-scrollbar-thumb:hover {
+                background: var(--adm-teal);
+            }
+
+
+
     .adm-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 13.5px;
+        min-width: 700px;
     }
+
+
 
         .adm-table th {
             text-align: left;
@@ -505,7 +1527,12 @@
             color: var(--adm-ink-faint);
             background: var(--adm-paper);
             border-bottom: 1px solid var(--adm-line);
+            position: sticky;
+            top: 0;
+            z-index: 5;
         }
+
+
 
         .adm-table td {
             padding: 14px 26px;
@@ -513,29 +1540,51 @@
             vertical-align: middle;
         }
 
+
+
         .adm-table tbody tr:last-child td {
             border-bottom: none;
         }
+
+
 
         .adm-table tbody tr:hover {
             background: var(--adm-paper);
         }
 
+
+
     .adm-td-strong {
         font-weight: 600;
     }
+
+
 
     .adm-td-muted {
         color: var(--adm-ink-soft);
         font-size: 12.5px;
     }
 
+
+
     .adm-td-nowrap {
         white-space: nowrap;
         color: var(--adm-ink-soft);
     }
 
-    /* ============ ROLE BADGES ============ */
+
+
+    .adm-action-text {
+        font-weight: 600;
+        color: var(--adm-ink);
+    }
+
+
+
+    /* ==========================================================
+           BADGES
+        ========================================================== */
+
     .adm-badge {
         display: inline-flex;
         padding: 4px 12px;
@@ -544,32 +1593,118 @@
         font-weight: 600;
     }
 
+
+
     .adm-badge-admin {
         background: var(--adm-teal-dim);
         color: var(--adm-teal-deep);
     }
+
+
 
     .adm-badge-doctor {
         background: var(--adm-blue-dim);
         color: var(--adm-blue);
     }
 
+
+
     .adm-badge-tech {
         background: var(--adm-purple-dim);
         color: var(--adm-purple);
     }
+
+
 
     .adm-badge-patient {
         background: var(--adm-amber-dim);
         color: var(--adm-amber);
     }
 
+
+
     .adm-badge-unspecified {
         background: var(--adm-line);
         color: var(--adm-ink-faint);
     }
 
-    /* ============ ROLE BREAKDOWN ============ */
+
+
+    /* ==========================================================
+           PAGINATION
+        ========================================================== */
+
+    .adm-table-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 26px 18px;
+        border-top: 1px solid var(--adm-line);
+    }
+
+
+
+    .adm-pagination-left {
+        color: var(--adm-ink-faint);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+
+
+    .adm-pagination-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+
+
+    .adm-page-btn {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--adm-line-strong);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all .15s;
+    }
+
+
+
+        .adm-page-btn:hover:not(:disabled) {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+            border-color: var(--adm-teal);
+        }
+
+
+
+        .adm-page-btn:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+        }
+
+
+
+    .adm-page-info {
+        min-width: 90px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--adm-ink-soft);
+        font-weight: 600;
+    }
+
+
+
+    /* ==========================================================
+           ROLE BREAKDOWN
+        ========================================================== */
+
     .adm-breakdown {
         padding: 20px 26px 26px;
         display: flex;
@@ -577,11 +1712,15 @@
         gap: 16px;
     }
 
+
+
     .adm-breakdown-row {
         display: flex;
         flex-direction: column;
         gap: 6px;
     }
+
+
 
     .adm-breakdown-label {
         display: flex;
@@ -590,10 +1729,14 @@
         color: var(--adm-ink);
     }
 
+
+
         .adm-breakdown-label strong {
             color: var(--adm-ink-faint);
             font-weight: 700;
         }
+
+
 
     .adm-breakdown-track {
         height: 8px;
@@ -602,34 +1745,50 @@
         overflow: hidden;
     }
 
+
+
     .adm-breakdown-fill {
         height: 100%;
         border-radius: 999px;
         opacity: .85;
-        background: linear-gradient(90deg, var(--adm-teal), var(--adm-teal));
     }
+
+
 
     .adm-fill-admin {
-        background: linear-gradient(90deg, var(--adm-teal), var(--adm-teal));
+        background: var(--adm-teal);
     }
+
+
 
     .adm-fill-doctor {
-        background: linear-gradient(90deg, var(--adm-blue), var(--adm-blue));
+        background: var(--adm-blue);
     }
+
+
 
     .adm-fill-tech {
-        background: linear-gradient(90deg, var(--adm-purple), var(--adm-purple));
+        background: var(--adm-purple);
     }
+
+
 
     .adm-fill-patient {
-        background: linear-gradient(90deg, var(--adm-amber), var(--adm-amber));
+        background: var(--adm-amber);
     }
+
+
 
     .adm-fill-unspecified {
-        background: linear-gradient(90deg, var(--adm-ink-faint), var(--adm-ink-faint));
+        background: var(--adm-ink-faint);
     }
 
-    /* ============ EMPTY STATE ============ */
+
+
+    /* ==========================================================
+           EMPTY STATE
+        ========================================================== */
+
     .adm-empty-state {
         padding: 48px 30px;
         text-align: center;
@@ -638,6 +1797,8 @@
         align-items: center;
         gap: 10px;
     }
+
+
 
     .adm-empty-icon {
         width: 58px;
@@ -651,11 +1812,15 @@
         font-size: 22px;
     }
 
+
+
     .adm-empty-state h5 {
         margin: 0;
         font-size: 14.5px;
         font-weight: 700;
     }
+
+
 
     .adm-empty-state p {
         margin: 0;
@@ -665,26 +1830,49 @@
         line-height: 1.6;
     }
 
-    /* ============ RESPONSIVE ============ */
+
+
+    /* ==========================================================
+           RESPONSIVE
+        ========================================================== */
+
     @@media (max-width: 1000px) {
+
         .adm-split {
             grid-template-columns: 1fr;
         }
     }
 
+
+
     @@media (max-width: 640px) {
+
         .adm-page {
             padding: 20px 16px 50px;
         }
+
 
         .adm-page-banner {
             flex-direction: column;
             align-items: flex-start;
         }
 
+
         .adm-page-banner-right {
             width: 100%;
             justify-content: space-between;
         }
+
+
+        .adm-table-pagination {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+
+        .adm-toolbar-mini {
+            justify-content: flex-start;
+        }
     }
+
 </style>

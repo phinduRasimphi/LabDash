@@ -1,5 +1,6 @@
 ﻿using LabDash.Models;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace LabDash.Models
 {
@@ -30,8 +31,9 @@ namespace LabDash.Models
         public List<MedicalCondition> RecentConditions { get; set; } = new();
         public List<Medication> RecentMedications { get; set; } = new();
 
-        // === ✅ PATIENT PROPERTIES — NOW INSIDE THE CLASS! ===
+        // === = PATIENT PROPERTIES — NOW INSIDE THE CLASS! ===
         public PatientProfileViewModel PatientProfile { get; set; } = new();
+        public int PatientInProgressRequests { get; set; }
         public int PatientTotalRequests { get; set; }
         public int PatientPendingRequests { get; set; }
         public int PatientResultsReady { get; set; }
@@ -64,15 +66,11 @@ namespace LabDash.Models
     public class MedicationListViewModel
     {
         public string PageTitle { get; set; } = "";
-        public List<string> Categories { get; set; } = new();
+        public List<Category> Categories { get; set; } = new();
+        public List<Category> InactiveCategories { get; set; } = new();
         public List<Medication> Medications { get; set; } = new();
         public List<Medication> InactiveMedications { get; set; } = new();
-        public string NewName { get; set; } = "";
-        public string NewCategory { get; set; } = "";
-        public string NewDescription { get; set; } = "";
-        public List<Category> InactiveCategories { get; set; } = new();
     }
-
     public class SystemTablesViewModel
     {
         public List<SampleTypeLookup> SampleTypes { get; set; } = new();
@@ -84,5 +82,51 @@ namespace LabDash.Models
     public class AuditLogViewModel
     {
         public List<AuditEntry> Entries { get; set; } = new();
+    }
+
+    public class AdminProfileViewModel
+    {
+        // LabUser's PK is a string (IdentityUser default), not an int.
+        public string Id { get; set; }
+
+        [Required(ErrorMessage = "First name is required.")]
+        [Display(Name = "First Name")]
+        [StringLength(50)]
+        public string Name { get; set; }
+
+        [Required(ErrorMessage = "Surname is required.")]
+        [StringLength(50)]
+        public string Surname { get; set; }
+
+        // Locked - display only. Maps to LabUser.SouthAfricanID.
+        [Display(Name = "SA ID Number")]
+        public string IDNumber { get; set; }
+
+        // Locked - display only. Comes from the user's Identity role, not LabUser.
+        public string Role { get; set; }
+
+        [Required(ErrorMessage = "E-mail is required.")]
+        [EmailAddress(ErrorMessage = "Enter a valid e-mail address.")]
+        public string Email { get; set; }
+
+        [Required(ErrorMessage = "Cellphone is required.")]
+        [RegularExpression(@"^1?[0-9]{10}$", ErrorMessage = "Enter a valid phone number.")]
+        public string Cellphone { get; set; }
+
+        // ---- ADDRESS SPLIT OVER TWO TEXT BOXES ----
+        [Display(Name = "Address Line 1")]
+        [StringLength(100)]
+        public string AddressLine1 { get; set; }
+
+        [Display(Name = "Address Line 2")]
+        [StringLength(100)]
+        public string AddressLine2 { get; set; }
+
+        // Helpers used by the view
+        public string FullName => $"{Name} {Surname}".Trim();
+
+        public string Initials =>
+            $"{(string.IsNullOrWhiteSpace(Name) ? "" : Name.Substring(0, 1))}" +
+            $"{(string.IsNullOrWhiteSpace(Surname) ? "" : Surname.Substring(0, 1))}".ToUpper();
     }
 }

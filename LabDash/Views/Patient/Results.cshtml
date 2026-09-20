@@ -1,330 +1,125 @@
 ﻿@model List<LabDash.Models.TestResultViewModel>
-
 @using System.Text.Json
 @using System.Globalization
+@using System.Text.RegularExpressions
+
+@functions {
+    static bool TryNum(string s, out double v)
+    {
+        v = 0;
+        if (string.IsNullOrWhiteSpace(s)) return false;
+        s = s.Trim();
+        return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v)
+            || double.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out v);
+    }
+
+    // Handles "70-99", "-5 - 5", "0.5 to 1.2"
+    static bool TryRange(string s, out double lo, out double hi)
+    {
+        lo = hi = 0;
+        if (string.IsNullOrWhiteSpace(s)) return false;
+        var m = Regex.Match(s, @"^\s*(-?[\d.,]+)\s*(?:-|–|to)\s*(-?[\d.,]+)");
+        return m.Success && TryNum(m.Groups[1].Value, out lo) && TryNum(m.Groups[2].Value, out hi) && hi > lo;
+    }
+
+    static string F(double d) => d.ToString("0.##", CultureInfo.InvariantCulture);
+
+    static string Doctor(string n)
+    {
+        n = n?.Trim();
+        if (string.IsNullOrWhiteSpace(n)) return "Doctor not assigned";
+        return n.StartsWith("Dr", StringComparison.OrdinalIgnoreCase) ? n : "Dr. " + n;
+    }
+}
 
 @{
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
-
     ViewData["Title"] = "Results";
     ViewData["ActivePage"] = "Results";
 
     var results = Model ?? new List<LabDash.Models.TestResultViewModel>();
+    var total = results.Count;
+    var panels = results.Select(r => r.RequestID).Distinct().Count();
+    var abnormal = results.Count(r => r.IsAbnormal);
+    var normal = total - abnormal;
+    var testTypes = results.Where(r => !string.IsNullOrWhiteSpace(r.TestName)).Select(r => r.TestName).Distinct().Count();
+    var normalPct = total > 0 ? (double)normal / total * 100 : 0;
+    var abnormalPct = total > 0 ? 100 - normalPct : 0;
+    var normalDeg = F(normalPct * 3.6);
 
-    var totalResults = results.Count;
+    var topTests = results.GroupBy(r => r.TestName).OrderByDescending(g => g.Count()).Take(6).ToList();
 
-    var releasedPanels = results
-        .Select(r => r.RequestID)
-        .Distinct()
-        .Count();
-
-    var abnormalResults = results.Count(r => r.IsAbnormal);
-
-    var normalResults = results.Count(r => !r.IsAbnormal);
-
-    var testTypes = results
-        .Select(r => r.TestName)
-        .Where(x => !string.IsNullOrWhiteSpace(x))
-        .Distinct()
-        .Count();
-
-    var abnormalPercentage = totalResults > 0
-        ? (double)abnormalResults / totalResults * 100
-        : 0;
-
-    var normalPercentage = totalResults > 0
-        ? (double)normalResults / totalResults * 100
-        : 0;
-
-
-    // ============================================================
-    // NUMERIC RESULTS FOR HEALTH TREND
-    // ============================================================
-
-    var numericResults = new List<LabDash.Models.TestResultViewModel>();
-
-    foreach (var result in results)
-    {
-        if (string.IsNullOrWhiteSpace(result.ResultValue))
-            continue;
-
-        double numericValue;
-
-        if (double.TryParse(
-            result.ResultValue.Trim(),
-            NumberStyles.Any,
-            CultureInfo.InvariantCulture,
-            out numericValue))
-        {
-            numericResults.Add(result);
-        }
-        else if (double.TryParse(
-            result.ResultValue.Trim(),
-            NumberStyles.Any,
-            CultureInfo.CurrentCulture,
-            out numericValue))
-        {
-            numericResults.Add(result);
-        }
-    }
-
-
-    // ============================================================
-    // AVAILABLE TREND TESTS
-    // ============================================================
-
-    var trendTests = numericResults
+    // Numeric series per test, oldest -> newest
+    var series = results
+        .Where(r => !string.IsNullOrWhiteSpace(r.TestName) && TryNum(r.ResultValue, out _))
         .GroupBy(r => r.TestName)
-        .Where(g => !string.IsNullOrWhiteSpace(g.Key))
-        .Select(g => new
-        {
-            Name = g.Key,
-            Count = g.Count()
-        })
-        .OrderByDescending(x => x.Count)
-        .ThenBy(x => x.Name)
+        .OrderByDescending(g => g.Count()).ThenBy(g => g.Key)
         .ToList();
 
-    var selectedTrendTest =
-        trendTests.FirstOrDefault()?.Name ?? "";
-
-
-    // ============================================================
-    // INITIAL TREND DATA
-    // ============================================================
-
-    var selectedTrendResults = numericResults
-        .Where(r => r.TestName == selectedTrendTest)
-        .ToList();
-
-    var initialTrendValues = new List<double>();
-    var initialTrendRequests = new List<string>();
-    var initialTrendAbnormal = new List<bool>();
-
-    foreach (var result in selectedTrendResults)
-    {
-        double numericValue;
-
-        if (
-            double.TryParse(
-                result.ResultValue?.Trim(),
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out numericValue)
-            ||
-            double.TryParse(
-                result.ResultValue?.Trim(),
-                NumberStyles.Any,
-                CultureInfo.CurrentCulture,
-                out numericValue)
-        )
+    var trend = series.ToDictionary(
+        g => g.Key,
+        g => g.OrderBy(r => r.ResultDate).ThenBy(r => r.RequestID).Select(r =>
         {
-            initialTrendValues.Add(numericValue);
-            initialTrendRequests.Add(result.RequestID.ToString());
-            initialTrendAbnormal.Add(result.IsAbnormal);
-        }
-    }
-
-    var initialCount = initialTrendValues.Count;
-
-    double initialAverage = 0;
-    double initialMinimum = 0;
-    double initialMaximum = 0;
-    double initialLatest = 0;
-    double initialFirst = 0;
-
-    if (initialCount > 0)
-    {
-        initialAverage = initialTrendValues.Average();
-        initialMinimum = initialTrendValues.Min();
-        initialMaximum = initialTrendValues.Max();
-        initialLatest = initialTrendValues[initialCount - 1];
-        initialFirst = initialTrendValues[0];
-    }
-
-    double initialChange = 0;
-    double initialChangePercentage = 0;
-
-    if (initialCount >= 2)
-    {
-        initialChange = initialLatest - initialFirst;
-
-        if (Math.Abs(initialFirst) > 0.000001)
-        {
-            initialChangePercentage =
-                (initialChange / Math.Abs(initialFirst)) * 100;
-        }
-    }
-
-    string initialTrendDirection = "stable";
-
-    if (initialCount >= 2)
-    {
-        var difference = initialLatest - initialFirst;
-
-        var tolerance = Math.Max(
-            Math.Abs(initialAverage) * 0.02,
-            0.000001);
-
-        if (difference > tolerance)
-        {
-            initialTrendDirection = "up";
-        }
-        else if (difference < -tolerance)
-        {
-            initialTrendDirection = "down";
-        }
-    }
-
-    string initialTrendText = "Stable";
-
-    if (initialTrendDirection == "up")
-    {
-        initialTrendText = "Trending upward";
-    }
-    else if (initialTrendDirection == "down")
-    {
-        initialTrendText = "Trending downward";
-    }
-
-
-    // ============================================================
-    // INITIAL REFERENCE RANGE
-    // ============================================================
-
-    double initialRangeLow = 0;
-    double initialRangeHigh = 0;
-    bool initialHasRange = false;
-
-    var firstRangeResult = selectedTrendResults
-        .FirstOrDefault(r =>
-            !string.IsNullOrWhiteSpace(r.NormalRange));
-
-    if (firstRangeResult != null)
-    {
-        var rangeText = firstRangeResult.NormalRange.Trim();
-
-        var rangeParts = rangeText.Split(
-            '-',
-            StringSplitOptions.RemoveEmptyEntries);
-
-        if (rangeParts.Length == 2)
-        {
-            double parsedLow = 0;
-            double parsedHigh = 0;
-
-            bool lowOk =
-                double.TryParse(
-                    rangeParts[0].Trim(),
-                    NumberStyles.Any,
-                    CultureInfo.InvariantCulture,
-                    out parsedLow)
-                ||
-                double.TryParse(
-                    rangeParts[0].Trim(),
-                    NumberStyles.Any,
-                    CultureInfo.CurrentCulture,
-                    out parsedLow);
-
-            bool highOk =
-                double.TryParse(
-                    rangeParts[1].Trim(),
-                    NumberStyles.Any,
-                    CultureInfo.InvariantCulture,
-                    out parsedHigh)
-                ||
-                double.TryParse(
-                    rangeParts[1].Trim(),
-                    NumberStyles.Any,
-                    CultureInfo.CurrentCulture,
-                    out parsedHigh);
-
-            if (lowOk && highOk && parsedHigh > parsedLow)
+            TryNum(r.ResultValue, out var v);
+            var hasRange = TryRange(r.NormalRange, out var lo, out var hi);
+            return new
             {
-                initialRangeLow = parsedLow;
-                initialRangeHigh = parsedHigh;
-                initialHasRange = true;
-            }
-        }
-    }
+                v,
+                d = r.ResultDate != default(DateTime) ? r.ResultDate.ToString("yyyy-MM-dd") : "",
+                r = r.RequestID,
+                a = r.IsAbnormal,
+                lo = hasRange ? lo : (double?)null,
+                hi = hasRange ? hi : (double?)null
+            };
+        }).ToList());
 
+    var trendJson = JsonSerializer.Serialize(trend);
 
-    // ============================================================
-    // TESTS PERFORMED
-    // ============================================================
-
-    var topTests = results
-        .GroupBy(r => r.TestName)
-        .OrderByDescending(g => g.Count())
-        .Take(6)
-        .ToList();
+    // Filter options
+    var filterTests = results.Where(r => !string.IsNullOrWhiteSpace(r.TestName)).Select(r => r.TestName).Distinct().OrderBy(x => x).ToList();
+    var filterDoctors = results.Select(r => Doctor(r.DoctorName)).Distinct().OrderBy(x => x).ToList();
+    var filterCats = results.Where(r => !string.IsNullOrWhiteSpace(r.Category)).Select(r => r.Category).Distinct().OrderBy(x => x).ToList();
 }
 
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect"
-      href="https://fonts.gstatic.com"
-      crossorigin>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap"
-      rel="stylesheet">
-
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
 <style>
-
-    /* ==========================================================
-       ORIGINAL RESULTS PAGE STYLE
-       ========================================================== */
-
-    :root {
-        --rx-paper: #F0F7F6;
-        --rx-white: #FFFFFF;
-
-        --rx-ink: #102C27;
-        --rx-soft: #52716C;
-        --rx-faint: #8FA9A3;
-
-        --rx-line: #E1EEEC;
-        --rx-line-strong: #CCE3DF;
-
-        --rx-teal: #0E8C7F;
-        --rx-teal-deep: #0A5850;
-        --rx-teal-light: #E3F4F1;
-
-        --rx-teal-start: #12A392;
-        --rx-teal-end: #0A4F48;
-
-        --rx-green: #2E8B57;
-        --rx-green-light: #E3F4EA;
-
-        --rx-red: #B0463F;
-        --rx-red-light: #F7E8E7;
-
-        --rx-purple: #6D4EA8;
-        --rx-purple-light: #EEE8F9;
-
-        --rx-radius: 20px;
-        --rx-radius-sm: 13px;
-
-        --rx-shadow:
-            0 8px 28px rgba(10,60,55,.08);
-    }
-
-    * {
-        box-sizing: border-box;
-    }
-
     .rx-wrap {
+        --ink: #102C27;
+        --soft: #52716C;
+        --faint: #8FA9A3;
+        --line: #E1EEEC;
+        --line2: #CCE3DF;
+        --teal: #0E8C7F;
+        --deep: #0A5850;
+        --tl: #E3F4F1;
+        --g1: #12A392;
+        --g2: #0A4F48;
+        --green: #2E8B57;
+        --gl: #E3F4EA;
+        --red: #B0463F;
+        --rl: #F7E8E7;
+        --purple: #6D4EA8;
+        --pl: #EEE8F9;
         max-width: 1200px;
         margin: 0 auto;
         padding: 28px 24px 60px;
-        color: var(--rx-ink);
-        font-family: 'Inter', sans-serif;
+        color: var(--ink);
+        font-family: 'Inter',sans-serif;
         animation: rxFade .45s ease;
     }
+
+        .rx-wrap *, .rx-wrap *::before, .rx-wrap *::after {
+            box-sizing: border-box;
+        }
+
+        .rx-wrap h1, .rx-wrap h2, .rx-wrap h3 {
+            font-family: 'Poppins',sans-serif;
+            margin: 0;
+        }
 
     @@keyframes rxFade {
         from {
@@ -334,369 +129,8 @@
 
         to {
             opacity: 1;
-            transform: translateY(0);
+            transform: none;
         }
-    }
-
-
-    /* ==========================================================
-       HERO
-       ========================================================== */
-
-    .rx-hero {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 30px;
-
-        padding: 30px 34px;
-        margin-bottom: 20px;
-
-        border-radius: var(--rx-radius);
-        overflow: hidden;
-
-        background:
-            linear-gradient(
-                125deg,
-                var(--rx-teal-start),
-                var(--rx-teal-end)
-            );
-
-        box-shadow:
-            0 18px 45px rgba(10,90,80,.20);
-    }
-
-    .rx-hero-pattern {
-        position: absolute;
-        inset: 0;
-
-        background:
-            radial-gradient(
-                circle at 85% 15%,
-                rgba(255,255,255,.13),
-                transparent 35%
-            ),
-            radial-gradient(
-                circle at 100% 100%,
-                rgba(255,255,255,.08),
-                transparent 35%
-            );
-    }
-
-    .rx-hero-left {
-        position: relative;
-        z-index: 1;
-
-        display: flex;
-        align-items: center;
-        gap: 18px;
-    }
-
-    .rx-hero-icon {
-        width: 62px;
-        height: 62px;
-
-        flex-shrink: 0;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        border-radius: 17px;
-
-        color: #fff;
-        font-size: 23px;
-
-        background: rgba(255,255,255,.15);
-        border: 1px solid rgba(255,255,255,.3);
-    }
-
-    .rx-eyebrow {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-
-        margin-bottom: 4px;
-
-        color: rgba(255,255,255,.7);
-
-        font-size: 10px;
-        font-weight: 700;
-
-        letter-spacing: .08em;
-        text-transform: uppercase;
-    }
-
-    .rx-hero h1 {
-        margin: 0 0 4px;
-
-        color: #fff;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 25px;
-    }
-
-    .rx-hero p {
-        max-width: 590px;
-
-        margin: 0;
-
-        color: rgba(255,255,255,.84);
-
-        font-size: 13px;
-        line-height: 1.5;
-    }
-
-    .rx-hero-right {
-        position: relative;
-        z-index: 1;
-
-        display: flex;
-        align-items: center;
-        gap: 22px;
-    }
-
-    .rx-active-status {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-
-        padding: 8px 13px;
-
-        border-radius: 999px;
-
-        color: #fff;
-
-        font-size: 10.5px;
-        font-weight: 600;
-
-        background: rgba(255,255,255,.12);
-        border: 1px solid rgba(255,255,255,.2);
-    }
-
-    .rx-active-status span {
-        width: 7px;
-        height: 7px;
-
-        border-radius: 50%;
-
-        background: #79E1D2;
-
-        box-shadow:
-            0 0 0 4px rgba(121,225,210,.14);
-    }
-
-    .rx-hero-number {
-        padding-left: 22px;
-
-        border-left:
-            1px solid rgba(255,255,255,.25);
-
-        display: flex;
-        flex-direction: column;
-    }
-
-    .rx-hero-number strong {
-        color: #fff;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 27px;
-        line-height: 1;
-    }
-
-    .rx-hero-number small {
-        margin-top: 4px;
-
-        color: rgba(255,255,255,.65);
-
-        font-size: 9px;
-
-        text-transform: uppercase;
-        letter-spacing: .06em;
-    }
-
-
-    /* ==========================================================
-       STAT CARDS
-       ========================================================== */
-
-    .rx-stats {
-        display: grid;
-        grid-template-columns: repeat(4,1fr);
-
-        gap: 14px;
-
-        margin-bottom: 24px;
-    }
-
-    .rx-stat-card {
-        display: flex;
-        align-items: center;
-        gap: 13px;
-
-        padding: 16px;
-
-        background: #fff;
-
-        border: 1px solid var(--rx-line);
-        border-radius: 17px;
-
-        box-shadow: var(--rx-shadow);
-
-        transition: .2s ease;
-    }
-
-    .rx-stat-card:hover {
-        transform: translateY(-3px);
-
-        box-shadow:
-            0 15px 32px rgba(10,60,55,.12);
-    }
-
-    .rx-stat-icon {
-        width: 44px;
-        height: 44px;
-
-        flex-shrink: 0;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        border-radius: 12px;
-
-        font-size: 16px;
-    }
-
-    .rx-stat-teal {
-        color: var(--rx-teal);
-        background: var(--rx-teal-light);
-    }
-
-    .rx-stat-green {
-        color: var(--rx-green);
-        background: var(--rx-green-light);
-    }
-
-    .rx-stat-red {
-        color: var(--rx-red);
-        background: var(--rx-red-light);
-    }
-
-    .rx-stat-purple {
-        color: var(--rx-purple);
-        background: var(--rx-purple-light);
-    }
-
-    .rx-stat-content {
-        display: flex;
-        flex-direction: column;
-
-        min-width: 0;
-    }
-
-    .rx-stat-content span {
-        color: var(--rx-soft);
-
-        font-size: 10.5px;
-        font-weight: 600;
-    }
-
-    .rx-stat-content strong {
-        margin-top: 1px;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 22px;
-        line-height: 1;
-    }
-
-    .rx-stat-content small {
-        margin-top: 3px;
-
-        color: var(--rx-faint);
-
-        font-size: 9px;
-    }
-
-
-    /* ==========================================================
-       EMPTY STATE
-       ========================================================== */
-
-    .rx-empty-panel {
-        display: flex;
-        align-items: center;
-        gap: 55px;
-
-        padding: 50px;
-        margin-top: 8px;
-
-        background: #fff;
-
-        border: 1px solid var(--rx-line);
-        border-radius: var(--rx-radius);
-
-        box-shadow: var(--rx-shadow);
-    }
-
-    .rx-empty-visual {
-        position: relative;
-
-        width: 180px;
-        height: 180px;
-
-        flex-shrink: 0;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .rx-empty-circle {
-        width: 110px;
-        height: 110px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        border-radius: 50%;
-
-        color: var(--rx-teal);
-
-        font-size: 35px;
-
-        background: var(--rx-teal-light);
-
-        box-shadow:
-            0 0 0 14px rgba(14,140,127,.05),
-            0 0 0 28px rgba(14,140,127,.025);
-    }
-
-    .rx-empty-orbit {
-        position: absolute;
-
-        border:
-            1px dashed var(--rx-line-strong);
-
-        border-radius: 50%;
-    }
-
-    .rx-orbit-one {
-        width: 145px;
-        height: 145px;
-
-        animation:
-            rxRotate 12s linear infinite;
-    }
-
-    .rx-orbit-two {
-        width: 175px;
-        height: 175px;
-
-        animation:
-            rxRotate 18s linear infinite reverse;
     }
 
     @@keyframes rxRotate {
@@ -705,1323 +139,1287 @@
         }
     }
 
-    .rx-empty-content {
-        max-width: 600px;
+    .rx-card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        box-shadow: 0 8px 28px rgba(10,60,55,.08);
     }
 
-    .rx-empty-label {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-
-        padding: 6px 10px;
-
-        border-radius: 999px;
-
-        color: var(--rx-teal-deep);
-        background: var(--rx-teal-light);
-
-        font-size: 10px;
-        font-weight: 700;
-
-        text-transform: uppercase;
-        letter-spacing: .05em;
-    }
-
-    .rx-empty-content h2 {
-        margin: 13px 0 7px;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 22px;
-    }
-
-    .rx-empty-content > p {
-        max-width: 600px;
-
-        margin: 0;
-
-        color: var(--rx-soft);
-
-        font-size: 12.5px;
-        line-height: 1.65;
-    }
-
-    .rx-empty-steps {
+    /* Hero */
+    .rx-hero {
+        position: relative;
         display: flex;
         align-items: center;
-
-        margin-top: 25px;
+        justify-content: space-between;
+        gap: 30px;
+        padding: 38px 42px;
+        margin-bottom: 22px;
+        border-radius: 24px;
+        overflow: hidden;
+        color: #fff;
+        background: linear-gradient(125deg,var(--g1),var(--g2));
+        box-shadow: 0 18px 45px rgba(10,90,80,.20);
     }
 
-    .rx-empty-steps > div:not(.rx-step-line) {
+        .rx-hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 85% 15%,rgba(255,255,255,.13),transparent 35%),radial-gradient(circle at 100% 100%,rgba(255,255,255,.08),transparent 35%);
+        }
+
+        .rx-hero > * {
+            position: relative;
+        }
+
+    .rx-hero-left {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 22px;
     }
 
-    .rx-empty-steps span {
-        width: 28px;
-        height: 28px;
-
+    .rx-hero-icon {
+        width: 74px;
+        height: 74px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
+        border-radius: 20px;
+        font-size: 28px;
+        background: rgba(255,255,255,.15);
+        border: 1px solid rgba(255,255,255,.3);
+    }
 
-        border-radius: 9px;
-
-        color: var(--rx-teal);
-        background: var(--rx-teal-light);
-
-        font-size: 9px;
+    .rx-eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 6px;
+        font-size: 12px;
         font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,.75);
     }
 
-    .rx-empty-steps p {
+    .rx-hero h1 {
+        font-size: 31px;
+        margin-bottom: 6px;
+    }
+
+    .rx-hero p {
         margin: 0;
+        max-width: 620px;
+        font-size: 15px;
+        line-height: 1.55;
+        color: rgba(255,255,255,.86);
+    }
 
-        color: var(--rx-soft);
+    .rx-hero-right {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+    }
 
-        font-size: 10px;
+    .rx-status {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        font-size: 12.5px;
         font-weight: 600;
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.2);
+        white-space: nowrap;
     }
 
-    .rx-step-line {
-        width: 35px;
-        height: 1px;
+        .rx-status i {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #79E1D2;
+            box-shadow: 0 0 0 4px rgba(121,225,210,.14);
+        }
 
-        margin: 0 10px;
-
-        background: var(--rx-line-strong);
+    .rx-hero-num {
+        padding-left: 24px;
+        border-left: 1px solid rgba(255,255,255,.25);
     }
 
+        .rx-hero-num strong {
+            display: block;
+            font: 700 36px/1 'Poppins',sans-serif;
+        }
 
-    /* ==========================================================
-       TABS
-       ========================================================== */
+        .rx-hero-num small {
+            display: block;
+            margin-top: 6px;
+            font-size: 11px;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,.7);
+        }
 
+    /* Stats */
+    .rx-stats {
+        display: grid;
+        grid-template-columns: repeat(4,1fr);
+        gap: 16px;
+        margin-bottom: 26px;
+    }
+
+    .rx-stat {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 22px;
+        border-radius: 20px;
+        transition: .2s ease;
+    }
+
+        .rx-stat:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 32px rgba(10,60,55,.12);
+        }
+
+    .rx-ico {
+        width: 54px;
+        height: 54px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 15px;
+        font-size: 20px;
+    }
+
+        .rx-ico.teal {
+            color: var(--teal);
+            background: var(--tl);
+        }
+
+        .rx-ico.green {
+            color: var(--green);
+            background: var(--gl);
+        }
+
+        .rx-ico.red {
+            color: var(--red);
+            background: var(--rl);
+        }
+
+        .rx-ico.purple {
+            color: var(--purple);
+            background: var(--pl);
+        }
+
+    .rx-stat span {
+        display: block;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--soft);
+    }
+
+    .rx-stat strong {
+        display: block;
+        margin-top: 2px;
+        font: 700 28px/1.1 'Poppins',sans-serif;
+    }
+
+    .rx-stat small {
+        display: block;
+        margin-top: 3px;
+        font-size: 11.5px;
+        color: var(--faint);
+    }
+
+    /* Empty state */
+    .rx-empty {
+        display: flex;
+        align-items: center;
+        gap: 56px;
+        padding: 56px;
+    }
+
+    .rx-empty-visual {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rx-empty-circle {
+        width: 120px;
+        height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-size: 38px;
+        color: var(--teal);
+        background: var(--tl);
+        box-shadow: 0 0 0 14px rgba(14,140,127,.05),0 0 0 28px rgba(14,140,127,.025);
+    }
+
+    .rx-orbit {
+        position: absolute;
+        border: 1px dashed var(--line2);
+        border-radius: 50%;
+    }
+
+        .rx-orbit.o1 {
+            width: 160px;
+            height: 160px;
+            animation: rxRotate 12s linear infinite;
+        }
+
+        .rx-orbit.o2 {
+            width: 195px;
+            height: 195px;
+            animation: rxRotate 18s linear infinite reverse;
+        }
+
+    .rx-empty h2 {
+        font-size: 25px;
+        margin: 12px 0 8px;
+    }
+
+    .rx-empty p {
+        margin: 0;
+        max-width: 600px;
+        font-size: 14px;
+        line-height: 1.65;
+        color: var(--soft);
+    }
+
+    .rx-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: var(--deep);
+        background: var(--tl);
+    }
+
+    .rx-steps {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 26px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--soft);
+    }
+
+        .rx-steps b {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+            border-radius: 9px;
+            font-size: 11px;
+            color: var(--teal);
+            background: var(--tl);
+        }
+
+        .rx-steps i {
+            width: 36px;
+            height: 1px;
+            background: var(--line2);
+        }
+
+    /* Tabs */
     .rx-tabs {
         display: flex;
         width: fit-content;
-
         gap: 5px;
-
-        padding: 5px;
-        margin-bottom: 18px;
-
+        padding: 6px;
+        margin-bottom: 22px;
         border-radius: 999px;
-
         background: #fff;
+        box-shadow: 0 8px 28px rgba(10,60,55,.08);
+    }
 
-        box-shadow: var(--rx-shadow);
+    .rx-tab, .rx-pill {
+        border: none;
+        border-radius: 999px;
+        font-family: 'Inter',sans-serif;
+        font-weight: 600;
+        color: var(--soft);
+        background: transparent;
+        cursor: pointer;
     }
 
     .rx-tab {
         display: flex;
         align-items: center;
-        gap: 7px;
-
-        padding: 10px 18px;
-
-        border: none;
-        border-radius: 999px;
-
-        color: var(--rx-soft);
-        background: transparent;
-
-        font-family: 'Inter', sans-serif;
-        font-size: 12px;
-        font-weight: 600;
-
-        cursor: pointer;
+        gap: 8px;
+        padding: 12px 24px;
+        font-size: 14px;
     }
 
-    .rx-tab.active {
-        color: #fff;
+        .rx-tab.active, .rx-pill.active {
+            color: #fff;
+            background: linear-gradient(120deg,var(--g1),var(--g2));
+            box-shadow: 0 6px 15px rgba(10,90,80,.2);
+        }
 
-        background:
-            linear-gradient(
-                120deg,
-                var(--rx-teal-start),
-                var(--rx-teal-end)
-            );
-
-        box-shadow:
-            0 6px 15px rgba(10,90,80,.2);
-    }
-
-
-    /* ==========================================================
-       ALL RESULTS
-       ========================================================== */
-
+    /* Request panel */
     .rx-panel {
-        margin-bottom: 18px;
-
+        margin-bottom: 24px;
         overflow: hidden;
-
-        background: #fff;
-
-        border: 1px solid var(--rx-line);
-        border-radius: var(--rx-radius);
-
-        box-shadow: var(--rx-shadow);
     }
 
-    .rx-panel-header {
+    .rx-ph {
         display: flex;
         align-items: center;
         justify-content: space-between;
-
-        padding: 18px 22px;
-
-        border-bottom:
-            1px solid var(--rx-line);
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 24px 28px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg,#F6FBFA,#fff);
     }
 
-    .rx-panel-title {
+    .rx-ph-left {
         display: flex;
         align-items: center;
-
-        gap: 12px;
+        gap: 16px;
     }
 
-    .rx-panel-icon {
-        width: 40px;
-        height: 40px;
-
+    .rx-ph-icon {
+        width: 52px;
+        height: 52px;
         display: flex;
         align-items: center;
         justify-content: center;
-
-        border-radius: 11px;
-
-        color: var(--rx-teal);
-        background: var(--rx-teal-light);
+        border-radius: 15px;
+        font-size: 19px;
+        color: var(--teal);
+        background: var(--tl);
     }
 
-    .rx-panel-title span {
+    .rx-ph small {
         display: block;
-
-        margin-bottom: 2px;
-
-        color: var(--rx-faint);
-
-        font-size: 9px;
-
-        text-transform: uppercase;
+        margin-bottom: 3px;
+        font-size: 11px;
         letter-spacing: .06em;
+        text-transform: uppercase;
+        color: var(--faint);
     }
 
-    .rx-panel-title h3 {
-        margin: 0;
+    .rx-ph h3 {
+        font-size: 19px;
+    }
 
-        font-family: 'Poppins', sans-serif;
+    .rx-ph-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 20px;
+        margin-top: 8px;
         font-size: 13px;
+        color: var(--soft);
     }
 
-    .rx-panel-title h3 span {
-        display: inline;
-
-        margin: 0 4px;
-
-        color: var(--rx-faint);
-
-        font-size: 12px;
-    }
-
-    .rx-released {
+        .rx-ph-meta i {
+            margin-right: 7px;
+            color: var(--teal);
+        }
+    /* Test ledger (request rows) */
+    .rxl-chips {
         display: flex;
         align-items: center;
-        gap: 6px;
-
-        padding: 6px 10px;
-
-        border-radius: 999px;
-
-        color: var(--rx-green);
-        background: var(--rx-green-light);
-
-        font-size: 9.5px;
-        font-weight: 700;
-    }
-
-    .rx-panel-body {
-        padding: 0 22px;
-    }
-
-    .rx-result {
-        display: grid;
-
-        grid-template-columns:
-            1.2fr
-            .7fr
-            2fr
-            auto;
-
-        align-items: center;
-
-        gap: 18px;
-
-        padding: 18px 0;
-
-        border-bottom:
-            1px solid var(--rx-line);
-    }
-
-    .rx-result:last-child {
-        border-bottom: none;
-    }
-
-    .rx-result-name {
-        display: flex;
-        align-items: center;
-
+        flex-wrap: wrap;
         gap: 10px;
     }
 
-    .rx-result-name > span {
-        width: 32px;
-        height: 32px;
+    .rxl-chip {
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--green);
+        background: var(--gl);
+    }
 
+        .rxl-chip.abn {
+            color: var(--red);
+            background: var(--rl);
+        }
+
+    .rxl-head, .rxl-main {
+        display: grid;
+        grid-template-columns: minmax(190px,1.4fr) minmax(120px,.8fr) minmax(220px,1.7fr) 120px;
+        gap: 22px;
+        align-items: center;
+    }
+
+    .rxl-head {
+        padding: 14px 28px 14px 34px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: var(--faint);
+        background: #F6FAF9;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .rxl-row {
+        position: relative;
+        padding: 22px 28px 22px 34px;
+        border-bottom: 1px solid var(--line);
+        transition: background .15s ease;
+    }
+
+        .rxl-row:last-child {
+            border-bottom: none;
+        }
+
+        .rxl-row::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            background: var(--green);
+        }
+
+        .rxl-row.abn::before {
+            background: var(--red);
+        }
+
+        .rxl-row.abn {
+            background: #FFF9F8;
+        }
+
+        .rxl-row:hover {
+            background: #F6FBFA;
+        }
+
+        .rxl-row.abn:hover {
+            background: #FFF3F1;
+        }
+
+    .rxl-name {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+    }
+
+    .rxl-ico {
+        width: 46px;
+        height: 46px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-
-        border-radius: 9px;
-
-        color: var(--rx-teal);
-        background: var(--rx-teal-light);
-
-        font-size: 11px;
+        border-radius: 14px;
+        font-size: 17px;
+        color: var(--teal);
+        background: var(--tl);
     }
 
-    .rx-result-name strong {
-        display: block;
-
-        font-size: 12px;
+    .rxl-row.abn .rxl-ico {
+        color: var(--red);
+        background: var(--rl);
     }
 
-    .rx-result-name small {
-        display: block;
-
-        margin-top: 2px;
-
-        color: var(--rx-faint);
-
-        font-size: 9px;
+    .rxl-name strong {
+        font-size: 16.5px;
+        line-height: 1.3;
     }
 
-    .rx-value strong {
-        color: var(--rx-teal-deep);
-
-        font-family:
-            'IBM Plex Mono',
-            monospace;
-
-        font-size: 16px;
+    .rxl-val b {
+        font: 600 27px/1 'IBM Plex Mono',monospace;
+        color: var(--deep);
+        word-break: break-word;
     }
 
-    .rx-value span {
-        margin-left: 3px;
-
-        color: var(--rx-faint);
-
-        font-size: 9px;
+    .rxl-row.abn .rxl-val b {
+        color: var(--red);
     }
 
-    .rx-abnormal-text {
-        color: var(--rx-red) !important;
+    .rxl-val span {
+        margin-left: 7px;
+        font-size: 13px;
+        color: var(--faint);
     }
 
-    .rx-gauge {
+    .rxl-line {
         position: relative;
-
-        height: 8px;
-
-        margin-bottom: 5px;
-
-        overflow: visible;
-
+        height: 9px;
+        margin: 4px 0 10px;
         border-radius: 999px;
-
-        background: var(--rx-line);
+        background: var(--line2);
     }
 
-    .rx-gauge-normal {
-        position: absolute;
+        .rxl-line.flat {
+            background: #BFE3D8;
+        }
 
+    .rxl-row.abn .rxl-line.flat {
+        background: #EBC3BF;
+    }
+
+    .rxl-band {
+        position: absolute;
         top: 0;
-
         height: 100%;
-
         border-radius: 999px;
-
-        background: var(--rx-teal-light);
+        background: #8FD3BF;
     }
 
-    .rx-gauge-marker {
+    .rxl-mark {
         position: absolute;
-
         top: 50%;
-
-        width: 13px;
-        height: 13px;
-
+        width: 20px;
+        height: 20px;
         border-radius: 50%;
-
-        transform:
-            translate(-50%,-50%);
-
-        background: var(--rx-teal);
-
-        border:
-            3px solid #fff;
-
-        box-shadow:
-            0 0 0 1px var(--rx-teal);
+        transform: translate(-50%,-50%);
+        background: var(--teal);
+        border: 4px solid #fff;
+        box-shadow: 0 0 0 1px var(--teal),0 2px 6px rgba(0,0,0,.15);
     }
 
-    .rx-marker-abnormal {
-        background: var(--rx-red);
-
-        box-shadow:
-            0 0 0 1px var(--rx-red);
+    .rxl-row.abn .rxl-mark {
+        background: var(--red);
+        box-shadow: 0 0 0 1px var(--red),0 2px 6px rgba(0,0,0,.15);
     }
 
-    .rx-gauge-area small {
-        color: var(--rx-faint);
+    .rxl-range small {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 12.5px;
+        color: var(--soft);
+    }
 
-        font-size: 8.5px;
+        .rxl-range small b {
+            color: var(--green);
+        }
+
+    .rxl-row.abn .rxl-range small b {
+        color: var(--red);
+    }
+
+    .rxl-meta {
+        display: grid;
+        grid-template-columns: 190px 250px 1fr;
+        gap: 14px 24px;
+        margin-top: 16px;
+        padding: 15px 20px;
+        border-radius: 14px;
+        background: #F3F9F8;
+    }
+
+        .rxl-meta small {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--faint);
+        }
+
+        .rxl-meta span {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            font-size: 13.5px;
+            font-weight: 600;
+            line-height: 1.5;
+            color: var(--ink);
+        }
+
+        .rxl-meta i {
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--teal);
+        }
+
+        .rxl-meta .none {
+            font-weight: 500;
+            font-style: italic;
+            color: var(--faint);
+        }
+
+    .rxl-note i {
+        color: var(--purple);
+    }
+
+    .rxl-note span {
+        font-weight: 500;
+        color: var(--soft);
     }
 
     .rx-badge {
         display: inline-flex;
         align-items: center;
-
-        gap: 5px;
-
-        padding: 6px 10px;
-
-        border-radius: 999px;
-
-        font-size: 9px;
-        font-weight: 700;
-
-        text-transform: uppercase;
-
-        white-space: nowrap;
-    }
-
-    .rx-badge-normal {
-        color: var(--rx-green);
-        background: var(--rx-green-light);
-    }
-
-    .rx-badge-danger {
-        color: var(--rx-red);
-        background: var(--rx-red-light);
-    }
-
-    .rx-panel-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-
-        padding: 12px 22px;
-
-        background: var(--rx-paper);
-
-        border-top:
-            1px solid var(--rx-line);
-    }
-
-    .rx-panel-footer > span {
-        color: var(--rx-faint);
-
-        font-size: 9px;
-    }
-
-    .rx-panel-footer i {
-        margin-right: 5px;
-    }
-
-    .rx-download {
+        gap: 6px;
         padding: 8px 13px;
-
-        border:
-            1px solid var(--rx-line-strong);
-
         border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        white-space: nowrap;
+        color: var(--green);
+        background: var(--gl);
+    }
 
-        color: var(--rx-teal-deep);
+        .rx-badge.abn {
+            color: var(--red);
+            background: var(--rl);
+        }
+
+    @@media (max-width:1000px) {
+        .rxl-head {
+            display: none;
+        }
+
+        .rxl-main {
+            grid-template-columns: 1fr auto;
+            gap: 14px;
+        }
+
+        .rxl-name {
+            order: 1;
+        }
+
+        .rxl-st {
+            order: 2;
+        }
+
+        .rxl-val {
+            order: 3;
+        }
+
+        .rxl-range {
+            order: 4;
+            grid-column: 1/-1;
+        }
+
+        .rxl-meta {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .rxl-note {
+            grid-column: 1/-1;
+        }
+    }
+
+    @@media (max-width:600px) {
+        .rxl-row {
+            padding: 18px 16px 18px 24px;
+        }
+
+        .rxl-meta {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .rx-pf {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 28px;
+        font-size: 12px;
+        color: var(--faint);
+        background: #F0F7F6;
+        border-top: 1px solid var(--line);
+    }
+
+    .rx-btn {
+        padding: 10px 18px;
+        border: 1px solid var(--line2);
+        border-radius: 999px;
+        font: 600 12.5px 'Inter',sans-serif;
+        color: var(--deep);
         background: #fff;
-
-        font-size: 9.5px;
-        font-weight: 600;
-
         cursor: pointer;
     }
 
-    .rx-download:hover {
-        background: var(--rx-teal-light);
+        .rx-btn:hover {
+            background: var(--tl);
+            border-color: var(--teal);
+        }
 
-        border-color: var(--rx-teal);
-    }
-
-
-    /* ==========================================================
-       ANALYTICS INTRO
-       ========================================================== */
-
-    .rx-analytics-intro {
+    /* Analytics */
+    .rx-intro {
         display: flex;
         align-items: center;
         justify-content: space-between;
-
-        padding: 23px;
-        margin-bottom: 15px;
-
-        border-radius: var(--rx-radius);
-
-        background: #fff;
-
-        border:
-            1px solid var(--rx-line);
-
-        box-shadow: var(--rx-shadow);
+        padding: 28px 30px;
+        margin-bottom: 18px;
     }
 
-    .rx-section-label {
-        display: flex;
-        align-items: center;
+        .rx-intro small {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--teal);
+        }
 
-        gap: 6px;
+        .rx-intro h2 {
+            margin: 6px 0 4px;
+            font-size: 22px;
+        }
 
-        color: var(--rx-teal);
+        .rx-intro p {
+            margin: 0;
+            font-size: 13.5px;
+            color: var(--soft);
+        }
 
-        font-size: 9px;
-        font-weight: 700;
-
-        text-transform: uppercase;
-        letter-spacing: .06em;
-    }
-
-    .rx-analytics-intro h2 {
-        margin: 4px 0 3px;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 17px;
-    }
-
-    .rx-analytics-intro p {
-        margin: 0;
-
-        color: var(--rx-soft);
-
-        font-size: 10.5px;
-    }
-
-    .rx-analytics-total {
+    .rx-intro-num {
+        padding-left: 28px;
+        border-left: 1px solid var(--line);
         text-align: center;
-
-        padding-left: 25px;
-
-        border-left:
-            1px solid var(--rx-line);
     }
 
-    .rx-analytics-total strong {
-        display: block;
+        .rx-intro-num strong {
+            display: block;
+            font: 700 32px 'Poppins',sans-serif;
+            color: var(--deep);
+        }
 
-        color: var(--rx-teal-deep);
+        .rx-intro-num span {
+            font-size: 11px;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--faint);
+        }
 
-        font-family: 'Poppins', sans-serif;
-        font-size: 25px;
-    }
-
-    .rx-analytics-total span {
-        color: var(--rx-faint);
-
-        font-size: 8px;
-
-        text-transform: uppercase;
-        letter-spacing: .06em;
-    }
-
-
-    /* ==========================================================
-       ANALYTICS GRID
-       ========================================================== */
-
-    .rx-analytics-grid {
+    .rx-grid2 {
         display: grid;
-
-        grid-template-columns:
-            1fr
-            1fr;
-
-        gap: 15px;
-
-        margin-bottom: 15px;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-bottom: 18px;
     }
 
-    .rx-chart-card {
-        padding: 22px;
-
-        background: #fff;
-
-        border:
-            1px solid var(--rx-line);
-
-        border-radius: var(--rx-radius);
-
-        box-shadow: var(--rx-shadow);
+    .rx-chart {
+        padding: 28px;
     }
 
-    .rx-chart-header {
+    .rx-chart-h {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-
-        margin-bottom: 20px;
+        margin-bottom: 24px;
     }
 
-    .rx-chart-header span {
-        color: var(--rx-faint);
+        .rx-chart-h small {
+            font-size: 11px;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            color: var(--faint);
+        }
 
-        font-size: 8.5px;
+        .rx-chart-h h3 {
+            margin-top: 4px;
+            font-size: 18px;
+        }
 
-        text-transform: uppercase;
-        letter-spacing: .05em;
-    }
-
-    .rx-chart-header h3 {
-        margin: 3px 0 0;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 14px;
-    }
-
-    .rx-chart-header > i {
-        color: var(--rx-teal);
-
-        font-size: 16px;
-    }
-
-
-    /* ==========================================================
-       DONUT
-       ========================================================== */
+        .rx-chart-h > i {
+            font-size: 19px;
+            color: var(--teal);
+        }
 
     .rx-donut-area {
-        min-height: 190px;
-
         display: flex;
         align-items: center;
         justify-content: center;
-
-        gap: 35px;
+        gap: 40px;
+        min-height: 210px;
     }
 
     .rx-donut {
-        width: 145px;
-        height: 145px;
-
+        width: 176px;
+        height: 176px;
         flex-shrink: 0;
-
         display: flex;
         align-items: center;
         justify-content: center;
-
         border-radius: 50%;
-
-        background:
-            conic-gradient(
-                var(--rx-green)
-                0%
-                @(normalPercentage.ToString("0.##", CultureInfo.InvariantCulture))%,
-
-                var(--rx-red)
-                @(normalPercentage.ToString("0.##", CultureInfo.InvariantCulture))%
-                100%
-            );
+        background: var(--line);
     }
 
-    .rx-donut-inner {
-        width: 105px;
-        height: 105px;
-
+    .rx-donut-in {
+        width: 128px;
+        height: 128px;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-
-        flex-direction: column;
-
         border-radius: 50%;
-
         background: #fff;
     }
 
-    .rx-donut-inner strong {
-        font-family: 'Poppins', sans-serif;
+        .rx-donut-in strong {
+            font: 700 28px 'Poppins',sans-serif;
+        }
 
-        font-size: 22px;
-    }
+        .rx-donut-in span {
+            font-size: 11px;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: var(--faint);
+        }
 
-    .rx-donut-inner span {
-        color: var(--rx-faint);
-
-        font-size: 8px;
-
-        text-transform: uppercase;
-    }
-
-    .rx-legend {
-        display: flex;
-        flex-direction: column;
-
-        gap: 13px;
-
-        min-width: 110px;
-    }
-
-    .rx-legend-item {
+    .rx-legend div {
         display: flex;
         align-items: center;
-
-        gap: 8px;
-
-        font-size: 10px;
+        gap: 10px;
+        margin-bottom: 16px;
+        font-size: 14px;
     }
 
-    .rx-legend-item strong {
+    .rx-legend strong {
         margin-left: auto;
-
-        font-family:
-            'IBM Plex Mono',
-            monospace;
+        padding-left: 20px;
+        font-family: 'IBM Plex Mono',monospace;
     }
 
     .rx-dot {
-        width: 8px;
-        height: 8px;
-
-        flex-shrink: 0;
-
+        width: 11px;
+        height: 11px;
         border-radius: 50%;
     }
 
-    .rx-dot-green {
-        background: var(--rx-green);
+    .rx-bar {
+        margin-bottom: 20px;
+        font-size: 13px;
     }
 
-    .rx-dot-red {
-        background: var(--rx-red);
-    }
+        .rx-bar > div:first-child {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            color: var(--soft);
+        }
 
+        .rx-bar span {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            max-width: 80%;
+        }
 
-    /* ==========================================================
-       TESTS PERFORMED
-       ========================================================== */
-
-    .rx-test-bars {
-        display: flex;
-        flex-direction: column;
-
-        gap: 16px;
-
-        padding-top: 2px;
-    }
-
-    .rx-test-bar {
-        width: 100%;
-    }
-
-    .rx-test-label {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-
-        gap: 12px;
-
-        margin-bottom: 6px;
-
-        font-size: 10px;
-    }
-
-    .rx-test-label span {
-        overflow: hidden;
-
-        max-width: 80%;
-
-        color: var(--rx-soft);
-
-        white-space: nowrap;
-
-        text-overflow: ellipsis;
-    }
-
-    .rx-test-label strong {
-        color: var(--rx-soft);
-
-        font-family:
-            'IBM Plex Mono',
-            monospace;
-    }
-
-    .rx-bar-track {
-        height: 8px;
-
-        overflow: hidden;
-
+    .rx-track {
+        height: 10px;
         border-radius: 999px;
-
-        background: var(--rx-line);
+        background: var(--line);
+        overflow: hidden;
     }
 
-    .rx-bar-fill {
+    .rx-fill {
         height: 100%;
-
         min-width: 2px;
-
         border-radius: 999px;
-
-        background:
-            linear-gradient(
-                90deg,
-                var(--rx-teal-start),
-                var(--rx-teal-end)
-            );
-
-        transition:
-            width .7s ease;
+        background: linear-gradient(90deg,var(--g1),var(--g2));
     }
 
-
-    /* ==========================================================
-       TREND CARD
-       ========================================================== */
-
-    .rx-trend-card {
-        padding: 22px;
-        margin-bottom: 15px;
-
-        background: #fff;
-
-        border:
-            1px solid var(--rx-line);
-
-        border-radius: var(--rx-radius);
-
-        box-shadow: var(--rx-shadow);
-    }
-
-    .rx-trend-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-
-        gap: 20px;
-
+    .rx-trend {
+        padding: 28px;
         margin-bottom: 18px;
     }
 
-    .rx-trend-heading {
+    .rx-thead {
         display: flex;
+        justify-content: space-between;
         align-items: center;
-
-        gap: 13px;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
     }
 
-    .rx-trend-icon {
-        width: 42px;
-        height: 42px;
+    .rx-thead-l {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
 
+    .rx-thead-ico {
+        width: 50px;
+        height: 50px;
         display: flex;
         align-items: center;
         justify-content: center;
-
-        border-radius: 12px;
-
-        color: var(--rx-purple);
-        background: var(--rx-purple-light);
+        border-radius: 14px;
+        font-size: 18px;
+        color: var(--purple);
+        background: var(--pl);
     }
 
-    .rx-trend-heading h3 {
-        margin: 0;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 16px;
+    .rx-thead h3 {
+        font-size: 19px;
     }
 
-    .rx-trend-heading p {
+    .rx-thead p {
         margin: 4px 0 0;
-
-        color: var(--rx-faint);
-
-        font-size: 10px;
+        font-size: 12.5px;
+        color: var(--faint);
     }
 
-    .rx-test-select {
-        min-width: 210px;
-
-        padding: 10px 12px;
-
-        border:
-            1px solid var(--rx-line-strong);
-
-        border-radius: 11px;
-
-        color: var(--rx-ink);
+    .rx-sel {
+        min-width: 240px;
+        padding: 12px 14px;
+        border: 1px solid var(--line2);
+        border-radius: 12px;
+        font: 13.5px 'Inter',sans-serif;
+        color: var(--ink);
         background: #fff;
-
-        font-family: 'Inter', sans-serif;
-        font-size: 11px;
-
-        outline: none;
-
-        cursor: pointer;
     }
 
-    .rx-test-select:focus {
-        border-color: var(--rx-teal);
-
-        box-shadow:
-            0 0 0 3px rgba(14,140,127,.08);
-    }
-
-
-    /* ==========================================================
-       TREND SUMMARY
-       ========================================================== */
-
-    .rx-trend-summary {
-        display: grid;
-
-        grid-template-columns:
-            repeat(4,1fr);
-
-        gap: 10px;
-
+    .rx-ranges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
         margin-bottom: 18px;
     }
 
-    .rx-trend-stat {
-        padding: 13px;
-
-        background: #FBFDFC;
-
-        border:
-            1px solid var(--rx-line);
-
-        border-radius: 13px;
+    .rx-pill {
+        padding: 9px 16px;
+        border: 1px solid var(--line2);
+        background: #fff;
+        font-size: 12.5px;
     }
 
-    .rx-trend-stat-label {
-        margin-bottom: 6px;
-
-        color: var(--rx-faint);
-
-        font-size: 8px;
-
-        text-transform: uppercase;
-
-        letter-spacing: .06em;
+    .rx-sum {
+        display: grid;
+        grid-template-columns: repeat(4,1fr);
+        gap: 12px;
+        margin-bottom: 20px;
     }
 
-    .rx-trend-stat-value {
-        color: var(--rx-ink);
+        .rx-sum div {
+            padding: 17px;
+            border: 1px solid var(--line);
+            border-radius: 15px;
+            background: #FBFDFC;
+        }
 
-        font-family:
-            'IBM Plex Mono',
-            monospace;
+        .rx-sum small {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 11px;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: var(--faint);
+        }
 
-        font-size: 13px;
+        .rx-sum b {
+            font: 600 17px 'IBM Plex Mono',monospace;
+        }
 
-        font-weight: 600;
-    }
+            .rx-sum b.up {
+                color: var(--red);
+            }
 
-    .rx-trend-stat-value.up {
-        color: var(--rx-red);
-    }
+            .rx-sum b.down {
+                color: var(--teal);
+            }
 
-    .rx-trend-stat-value.down {
-        color: var(--rx-teal);
-    }
-
-    .rx-trend-stat-value.stable {
-        color: var(--rx-soft);
-    }
-
-
-    /* ==========================================================
-       GRAPH
-       ========================================================== */
-
-    .rx-graph-wrap {
-        position: relative;
-
-        padding: 15px;
-
-        overflow: hidden;
-
-        border:
-            1px solid var(--rx-line);
-
-        border-radius: 15px;
-
-        background:
-            linear-gradient(
-                180deg,
-                #FCFEFD,
-                #F8FBFA
-            );
-    }
+            .rx-sum b.stable {
+                color: var(--soft);
+            }
 
     .rx-graph {
-        width: 100%;
-        height: 310px;
-
-        display: block;
-
-        overflow: visible;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: linear-gradient(180deg,#FCFEFD,#F8FBFA);
     }
 
-    .rx-grid-line {
-        stroke: #E5EFED;
-        stroke-width: 1;
-    }
-
-    .rx-axis-text {
-        fill: #8FA9A3;
-
-        font-family:
-            'IBM Plex Mono',
-            monospace;
-
-        font-size: 10px;
-    }
-
-    .rx-trend-area {
-        fill: rgba(14,140,127,.08);
-    }
-
-    .rx-trend-line {
-        fill: none;
-
-        stroke: var(--rx-teal);
-
-        stroke-width: 3;
-
-        stroke-linecap: round;
-        stroke-linejoin: round;
-    }
-
-    .rx-trend-point {
-        fill: white;
-
-        stroke: var(--rx-teal);
-
-        stroke-width: 3;
-
-        cursor: pointer;
-
-        transition:
-            r .15s ease;
-    }
-
-    .rx-trend-point:hover {
-        r: 7;
-    }
-
-    .rx-range-band {
-        fill: rgba(46,139,87,.09);
-    }
-
-    .rx-range-line {
-        stroke: rgba(46,139,87,.45);
-
-        stroke-width: 1;
-
-        stroke-dasharray: 5 5;
-    }
-
-
-    /* ==========================================================
-       TOOLTIP
-       ========================================================== */
-
-    .rx-graph-tooltip {
-        position: absolute;
-
-        display: none;
-
-        min-width: 135px;
-
-        padding: 10px 11px;
-
-        border-radius: 10px;
-
-        color: white;
-
-        background: #102C27;
-
-        pointer-events: none;
-
-        z-index: 20;
-
-        box-shadow:
-            0 8px 25px rgba(0,0,0,.15);
-    }
-
-    .rx-tooltip-title {
-        margin-bottom: 3px;
-
-        opacity: .65;
-
-        font-size: 9px;
-    }
-
-    .rx-tooltip-value {
-        font-family:
-            'IBM Plex Mono',
-            monospace;
-
-        font-size: 12px;
-
-        font-weight: 600;
-    }
-
-    .rx-tooltip-status {
-        margin-top: 4px;
-
-        font-size: 9px;
-    }
-
-
-    /* ==========================================================
-       SMART INSIGHT
-       ========================================================== */
-
-    .rx-smart-insight {
-        display: flex;
-        align-items: flex-start;
-
-        gap: 12px;
-
-        margin-top: 15px;
-
-        padding: 14px 15px;
-
-        border-radius: 13px;
-
-        color: var(--rx-teal-deep);
-
-        background: var(--rx-teal-light);
-
-        border:
-            1px solid var(--rx-line-strong);
-    }
-
-    .rx-smart-insight i {
-        margin-top: 2px;
-
-        color: var(--rx-teal);
-    }
-
-    .rx-smart-insight strong {
-        display: block;
-
-        margin-bottom: 3px;
-
-        font-size: 10.5px;
-    }
-
-    .rx-smart-insight span {
-        display: block;
-
-        color: var(--rx-soft);
-
-        font-size: 9.5px;
-
-        line-height: 1.5;
-    }
-
-
-    /* ==========================================================
-       NO TREND
-       ========================================================== */
-
-    .rx-no-trend {
-        min-height: 220px;
-
-        display: flex;
-        flex-direction: column;
-
-        align-items: center;
-        justify-content: center;
-
-        padding: 30px;
-
+        .rx-graph svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .rx-graph text {
+            font: 11px 'IBM Plex Mono',monospace;
+            fill: var(--faint);
+        }
+
+    .rx-graph-empty {
+        padding: 60px 20px;
         text-align: center;
+        font-size: 14px;
+        color: var(--faint);
     }
 
-    .rx-no-trend-icon {
-        width: 55px;
-        height: 55px;
-
+    .rx-insight {
         display: flex;
-        align-items: center;
-        justify-content: center;
-
-        margin-bottom: 14px;
-
-        border-radius: 17px;
-
-        color: var(--rx-teal);
-        background: var(--rx-teal-light);
-
-        font-size: 20px;
-    }
-
-    .rx-no-trend h3 {
-        margin: 0 0 5px;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 15px;
-    }
-
-    .rx-no-trend p {
-        max-width: 470px;
-
-        margin: 0;
-
-        color: var(--rx-faint);
-
-        font-size: 10px;
-
+        gap: 14px;
+        margin-top: 18px;
+        padding: 18px 20px;
+        border-radius: 15px;
+        border: 1px solid var(--line2);
+        background: var(--tl);
+        font-size: 13px;
+        color: var(--soft);
         line-height: 1.6;
     }
 
+        .rx-insight i {
+            margin-top: 3px;
+            color: var(--teal);
+        }
 
-    /* ==========================================================
-       FOOTER
-       ========================================================== */
+        .rx-insight strong {
+            display: block;
+            margin-bottom: 2px;
+            font-size: 14px;
+            color: var(--deep);
+        }
 
     .rx-footer {
+        margin-top: 40px;
+        padding-top: 22px;
+        text-align: center;
+        border-top: 1px solid var(--line);
+        font-size: 12px;
+        color: var(--faint);
+    }
+
+        .rx-footer i {
+            margin-right: 6px;
+            color: var(--teal);
+        }
+
+    /* Filters */
+    .rxf {
+        padding: 22px 24px;
+        margin-bottom: 22px;
+        display: grid;
+        gap: 16px;
+    }
+
+    .rxf-top, .rxf-bottom {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .rxf-search {
+        position: relative;
+        flex: 1 1 280px;
+    }
+
+        .rxf-search i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 13px;
+            color: var(--faint);
+        }
+
+        .rxf-search input, .rxf input[type=date] {
+            padding: 12px 14px;
+            border: 1px solid var(--line2);
+            border-radius: 12px;
+            font: 13.5px 'Inter',sans-serif;
+            color: var(--ink);
+            background: #fff;
+            outline: none;
+        }
+
+        .rxf-search input {
+            width: 100%;
+            padding-left: 42px;
+        }
+
+    .rxf input:focus, .rxf select:focus {
+        border-color: var(--teal);
+        box-shadow: 0 0 0 3px rgba(14,140,127,.10);
+    }
+
+    .rxf .rx-sel {
+        min-width: 170px;
+    }
+
+    .rxf-group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .rxf-group + .rxf-group {
+            padding-left: 16px;
+            border-left: 1px solid var(--line);
+        }
+
+    .rxf-btn {
+        padding: 9px 16px;
+        border: 1px solid var(--line2);
+        border-radius: 999px;
+        font: 600 12.5px 'Inter',sans-serif;
+        color: var(--soft);
+        background: #fff;
+        cursor: pointer;
+    }
+
+        .rxf-btn:hover {
+            border-color: var(--teal);
+            color: var(--deep);
+        }
+
+        .rxf-btn.active {
+            color: #fff;
+            border-color: transparent;
+            background: linear-gradient(120deg,var(--g1),var(--g2));
+        }
+
+    .rxf-group label {
         display: flex;
         align-items: center;
-        justify-content: center;
-
-        flex-wrap: wrap;
-
-        gap: 10px;
-
-        margin-top: 35px;
-
-        padding-top: 20px;
-
-        border-top:
-            1px solid var(--rx-line);
-
-        color: var(--rx-faint);
-
-        font-size: 9.5px;
+        gap: 7px;
+        font-size: 12px;
+        color: var(--faint);
     }
 
-    .rx-footer i {
-        margin-right: 5px;
-
-        color: var(--rx-teal);
+    .rxf input[type=date] {
+        padding: 8px 10px;
+        font-size: 12.5px;
     }
 
+    .rxf-meta {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-left: auto;
+        font-size: 13px;
+        color: var(--soft);
+    }
 
-    /* ==========================================================
-       RESPONSIVE
-       ========================================================== */
+    .rxf-clear {
+        padding: 8px 14px;
+        border: 1px solid var(--line2);
+        border-radius: 999px;
+        font: 600 12px 'Inter',sans-serif;
+        color: var(--red);
+        background: #fff;
+        cursor: pointer;
+    }
 
-    @@media (max-width: 1000px) {
+        .rxf-clear:hover {
+            background: var(--rl);
+        }
 
+    .rxf-none {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 48px 20px;
+        margin-bottom: 22px;
+        text-align: center;
+        display: flex;
+    }
+
+        .rxf-none i {
+            font-size: 30px;
+            color: var(--teal);
+        }
+
+        .rxf-none strong {
+            font-size: 16px;
+        }
+
+        .rxf-none span {
+            font-size: 13px;
+            color: var(--soft);
+        }
+
+        .rxf-none[hidden], .rxf-clear[hidden] {
+            display: none;
+        }
+
+    @@media (max-width:800px) {
+        .rxf-group + .rxf-group {
+            padding-left: 0;
+            border-left: none;
+        }
+
+        .rxf-meta {
+            margin-left: 0;
+            width: 100%;
+            justify-content: space-between;
+        }
+    }
+
+    @@media (max-width:1000px) {
         .rx-stats {
-            grid-template-columns:
-                repeat(2,1fr);
+            grid-template-columns: repeat(2,1fr);
         }
 
-        .rx-result {
-            grid-template-columns:
-                1.2fr
-                .7fr
-                1.5fr;
-        }
-
-        .rx-status {
-            grid-column:
-                1 / -1;
+        .rx-tests {
+            grid-template-columns: 1fr;
         }
     }
 
-
-    @@media (max-width: 850px) {
-
-        .rx-analytics-grid {
+    @@media (max-width:800px) {
+        .rx-grid2 {
             grid-template-columns: 1fr;
         }
 
-        .rx-trend-summary {
-            grid-template-columns:
-                repeat(2,1fr);
-        }
-
-        .rx-trend-header {
-            flex-direction: column;
-        }
-
-        .rx-test-select {
-            width: 100%;
-        }
-    }
-
-
-    @@media (max-width: 800px) {
-
         .rx-hero {
             flex-direction: column;
-
             align-items: flex-start;
         }
 
         .rx-hero-right {
             width: 100%;
-
-            justify-content:
-                space-between;
+            justify-content: space-between;
         }
 
-        .rx-empty-panel {
-            flex-direction: column;
-
-            text-align: center;
-
-            padding: 35px 25px;
-        }
-
-        .rx-empty-steps {
-            justify-content: center;
-
-            flex-wrap: wrap;
+        .rx-sum {
+            grid-template-columns: repeat(2,1fr);
         }
 
         .rx-donut-area {
             flex-direction: column;
         }
+
+        .rx-empty {
+            flex-direction: column;
+            text-align: center;
+            padding: 36px 24px;
+        }
+
+        .rx-steps {
+            justify-content: center;
+        }
     }
 
-
-    @@media (max-width: 600px) {
-
+    @@media (max-width:600px) {
         .rx-wrap {
-            padding:
-                20px 14px 45px;
+            padding: 20px 14px 45px;
         }
 
         .rx-stats {
@@ -2029,2747 +1427,539 @@
         }
 
         .rx-hero {
-            padding: 23px 20px;
+            padding: 26px 22px;
         }
 
-        .rx-hero-left {
-            align-items: flex-start;
-        }
-
-        .rx-hero h1 {
-            font-size: 20px;
-        }
-
-        .rx-hero p {
-            font-size: 11px;
-        }
-
-        .rx-result {
-            grid-template-columns: 1fr;
-
-            gap: 12px;
-        }
-
-        .rx-panel-header {
-            align-items: flex-start;
-
-            gap: 10px;
-        }
-
-        .rx-panel-footer {
-            align-items: flex-start;
-
-            flex-direction: column;
-
-            gap: 10px;
-        }
-
-        .rx-analytics-intro {
-            align-items: flex-start;
-        }
-
-        .rx-tabs {
-            width: 100%;
-        }
+            .rx-hero h1 {
+                font-size: 24px;
+            }
 
         .rx-tab {
             flex: 1;
+            justify-content: center;
+            padding: 12px;
         }
 
-        .rx-graph {
-            height: 250px;
+        .rx-tests {
+            padding: 18px;
+        }
+
+        .rx-t-body {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .rx-ph {
+            padding: 20px;
         }
     }
 
-</style>
+    @@media print {
+        .rx-tabs, .rx-btn {
+            display: none;
+        }
 
+        #rx-analytics {
+            display: none !important;
+        }
+
+        #rx-all {
+            display: block !important;
+        }
+    }
+</style>
 
 <div class="rx-wrap">
 
-    <!-- ==========================================================
-         HERO
-         ========================================================== -->
-
     <section class="rx-hero">
-
-        <div class="rx-hero-pattern"></div>
-
         <div class="rx-hero-left">
-
-            <div class="rx-hero-icon">
-                <i class="fas fa-chart-line"></i>
-            </div>
-
+            <div class="rx-hero-icon"><i class="fas fa-chart-line"></i></div>
             <div>
-
-                <div class="rx-eyebrow">
-                    <i class="fas fa-flask"></i>
-                    Laboratory Results
-                </div>
-
-                <h1>
-                    My Test Results
-                </h1>
-
-                <p>
-                    Review your laboratory results, monitor abnormal
-                    values and follow your health information over time.
-                </p>
-
+                <div class="rx-eyebrow"><i class="fas fa-flask"></i> Laboratory Results</div>
+                <h1>My Test Results</h1>
+                <p>Review your laboratory results, monitor abnormal values and follow your health information over time.</p>
             </div>
-
         </div>
-
-
         <div class="rx-hero-right">
-
-            <span class="rx-active-status">
-
-                <span></span>
-
-                Results Portal
-
-            </span>
-
-            <div class="rx-hero-number">
-
-                <strong>
-                    @releasedPanels
-                </strong>
-
-                <small>
-                    Released Panels
-                </small>
-
-            </div>
-
+            <span class="rx-status"><i></i> Results Portal</span>
+            <div class="rx-hero-num"><strong>@panels</strong><small>Released Panels</small></div>
         </div>
-
     </section>
-
-
-    <!-- ==========================================================
-         STATISTICS
-         ========================================================== -->
 
     <section class="rx-stats">
-
-        <div class="rx-stat-card">
-
-            <div class="rx-stat-icon rx-stat-teal">
-                <i class="fas fa-vial"></i>
-            </div>
-
-            <div class="rx-stat-content">
-
-                <span>
-                    Total Results
-                </span>
-
-                <strong>
-                    @totalResults
-                </strong>
-
-                <small>
-                    Laboratory values
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <div class="rx-stat-card">
-
-            <div class="rx-stat-icon rx-stat-green">
-                <i class="fas fa-circle-check"></i>
-            </div>
-
-            <div class="rx-stat-content">
-
-                <span>
-                    Normal
-                </span>
-
-                <strong>
-                    @normalResults
-                </strong>
-
-                <small>
-                    @normalPercentage.ToString("0")% of results
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <div class="rx-stat-card">
-
-            <div class="rx-stat-icon rx-stat-red">
-                <i class="fas fa-triangle-exclamation"></i>
-            </div>
-
-            <div class="rx-stat-content">
-
-                <span>
-                    Needs Attention
-                </span>
-
-                <strong>
-                    @abnormalResults
-                </strong>
-
-                <small>
-                    @abnormalPercentage.ToString("0")% of results
-                </small>
-
-            </div>
-
-        </div>
-
-
-        <div class="rx-stat-card">
-
-            <div class="rx-stat-icon rx-stat-purple">
-                <i class="fas fa-microscope"></i>
-            </div>
-
-            <div class="rx-stat-content">
-
-                <span>
-                    Test Types
-                </span>
-
-                <strong>
-                    @testTypes
-                </strong>
-
-                <small>
-                    Different tests
-                </small>
-
-            </div>
-
-        </div>
-
+        <div class="rx-card rx-stat"><div class="rx-ico teal"><i class="fas fa-vial"></i></div><div><span>Total Results</span><strong>@total</strong><small>Laboratory values</small></div></div>
+        <div class="rx-card rx-stat"><div class="rx-ico green"><i class="fas fa-circle-check"></i></div><div><span>Normal</span><strong>@normal</strong><small>@normalPct.ToString("0")% of results</small></div></div>
+        <div class="rx-card rx-stat"><div class="rx-ico red"><i class="fas fa-triangle-exclamation"></i></div><div><span>Needs Attention</span><strong>@abnormal</strong><small>@abnormalPct.ToString("0")% of results</small></div></div>
+        <div class="rx-card rx-stat"><div class="rx-ico purple"><i class="fas fa-microscope"></i></div><div><span>Test Types</span><strong>@testTypes</strong><small>Different tests</small></div></div>
     </section>
-
 
     @if (!results.Any())
     {
-        <!-- ======================================================
-             EMPTY STATE
-             ====================================================== -->
-
-        <section class="rx-empty-panel">
-
+        <section class="rx-card rx-empty">
             <div class="rx-empty-visual">
-
-                <div class="rx-empty-circle">
-                    <i class="fas fa-flask-vial"></i>
-                </div>
-
-                <span class="rx-empty-orbit rx-orbit-one"></span>
-
-                <span class="rx-empty-orbit rx-orbit-two"></span>
-
+                <div class="rx-empty-circle"><i class="fas fa-flask-vial"></i></div>
+                <span class="rx-orbit o1"></span><span class="rx-orbit o2"></span>
             </div>
-
-            <div class="rx-empty-content">
-
-                <span class="rx-empty-label">
-
-                    <i class="fas fa-info-circle"></i>
-
-                    No Results Available
-
-                </span>
-
-                <h2>
-                    Your laboratory results will appear here
-                </h2>
-
-                <p>
-                    You currently don't have any released laboratory
-                    results on your patient record. Once a laboratory
-                    test has been completed and released, your results
-                    will automatically appear on this page.
-                </p>
-
-                <div class="rx-empty-steps">
-
-                    <div>
-                        <span>01</span>
-                        <p>Test requested</p>
-                    </div>
-
-                    <div class="rx-step-line"></div>
-
-                    <div>
-                        <span>02</span>
-                        <p>Sample processed</p>
-                    </div>
-
-                    <div class="rx-step-line"></div>
-
-                    <div>
-                        <span>03</span>
-                        <p>Result released</p>
-                    </div>
-
-                </div>
-
+            <div>
+                <span class="rx-label"><i class="fas fa-info-circle"></i> No results available</span>
+                <h2>Your laboratory results will appear here</h2>
+                <p>You don't have any released results on your patient record yet. Once a test is completed and released, it appears on this page automatically.</p>
+                <div class="rx-steps"><span><b>01</b>Test requested</span><i></i><span><b>02</b>Sample processed</span><i></i><span><b>03</b>Result released</span></div>
             </div>
-
         </section>
     }
     else
     {
-
-        <!-- ======================================================
-             TABS
-             ====================================================== -->
-
         <div class="rx-tabs">
-
-            <button
-                class="rx-tab active"
-                type="button"
-                onclick="switchResultsTab(this,'rx-all')">
-
-                <i class="fas fa-list"></i>
-
-                All Results
-
-            </button>
-
-
-            <button
-                class="rx-tab"
-                type="button"
-                onclick="switchResultsTab(this,'rx-analytics')">
-
-                <i class="fas fa-chart-line"></i>
-
-                Health Analytics
-
-            </button>
-
+            <button class="rx-tab active" type="button" onclick="switchTab(this,'rx-all')"><i class="fas fa-list"></i> All results</button>
+            <button class="rx-tab" type="button" onclick="switchTab(this,'rx-analytics')"><i class="fas fa-chart-line"></i> Health analytics</button>
         </div>
 
-
-        <!-- ======================================================
-             ALL RESULTS
-             ====================================================== -->
-
+        <!-- ================= ALL RESULTS ================= -->
         <div id="rx-all">
 
-            @{
-                var groupedRequests = results
-                    .GroupBy(r => r.RequestID)
-                    .OrderByDescending(g => g.Key)
-                    .ToList();
-            }
-
-
-            @foreach (var group in groupedRequests)
-            {
-
-                <article class="rx-panel">
-
-                    <div class="rx-panel-header">
-
-                        <div class="rx-panel-title">
-
-                            <div class="rx-panel-icon">
-
-                                <i class="fas fa-flask"></i>
-
-                            </div>
-
-                            <div>
-
-                                <span>
-                                    Laboratory Request
-                                </span>
-
-                                <h3>
-
-                                    #@group.Key
-
-                                    <span>•</span>
-
-                                    @group.First().Category
-
-                                </h3>
-
-                            </div>
-
-                        </div>
-
-
-                        <div class="rx-released">
-
-                            <i class="fas fa-circle-check"></i>
-
-                            Released
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="rx-panel-body">
-
-                        @foreach (var result in group)
-                        {
-
-                            double lo = 0;
-                            double hi = 100;
-                            double val = 0;
-
-                            bool canGauge = false;
-
-
-                            if (
-                                !string.IsNullOrWhiteSpace(result.NormalRange)
-                                &&
-                                !string.IsNullOrWhiteSpace(result.ResultValue)
-                            )
-                            {
-
-                                bool valueOk =
-                                    double.TryParse(
-                                        result.ResultValue.Trim(),
-                                        NumberStyles.Any,
-                                        CultureInfo.InvariantCulture,
-                                        out val)
-                                    ||
-                                    double.TryParse(
-                                        result.ResultValue.Trim(),
-                                        NumberStyles.Any,
-                                        CultureInfo.CurrentCulture,
-                                        out val);
-
-
-                                if (valueOk)
-                                {
-
-                                    var parts =
-                                        result.NormalRange.Split(
-                                            '-',
-                                            StringSplitOptions.RemoveEmptyEntries);
-
-
-                                    if (parts.Length == 2)
-                                    {
-
-                                        bool lowOk =
-                                            double.TryParse(
-                                                parts[0].Trim(),
-                                                NumberStyles.Any,
-                                                CultureInfo.InvariantCulture,
-                                                out lo)
-                                            ||
-                                            double.TryParse(
-                                                parts[0].Trim(),
-                                                NumberStyles.Any,
-                                                CultureInfo.CurrentCulture,
-                                                out lo);
-
-
-                                        bool highOk =
-                                            double.TryParse(
-                                                parts[1].Trim(),
-                                                NumberStyles.Any,
-                                                CultureInfo.InvariantCulture,
-                                                out hi)
-                                            ||
-                                            double.TryParse(
-                                                parts[1].Trim(),
-                                                NumberStyles.Any,
-                                                CultureInfo.CurrentCulture,
-                                                out hi);
-
-
-                                        if (lowOk && highOk && hi > lo)
-                                        {
-                                            canGauge = true;
-                                        }
-
-                                    }
-
-                                }
-
-                            }
-
-
-                            var span = hi - lo;
-
-                            if (span <= 0)
-                            {
-                                span = 100;
-                            }
-
-
-                            var paddedLo =
-                                lo - span * .4;
-
-                            var paddedHi =
-                                hi + span * .4;
-
-                            var paddedSpan =
-                                paddedHi - paddedLo;
-
-
-                            var bandStart =
-                                canGauge
-                                    ? ((lo - paddedLo) / paddedSpan) * 100
-                                    : 20;
-
-
-                            var bandWidth =
-                                canGauge
-                                    ? ((hi - lo) / paddedSpan) * 100
-                                    : 60;
-
-
-                            var marker =
-                                canGauge
-                                    ? Math.Clamp(
-                                        ((val - paddedLo) / paddedSpan) * 100,
-                                        2,
-                                        98)
-                                    : 50;
-
-
-                            <div class="rx-result">
-
-
-                                <div class="rx-result-name">
-
-                                    <span>
-                                        <i class="fas fa-vial"></i>
-                                    </span>
-
-                                    <div>
-
-                                        <strong>
-                                            @result.TestName
-                                        </strong>
-
-                                        <small>
-                                            Laboratory measurement
-                                        </small>
-
-                                    </div>
-
-                                </div>
-
-
-                                <div class="rx-value">
-
-                                    <strong class="@(result.IsAbnormal ? "rx-abnormal-text" : "")">
-                                        @result.ResultValue
-                                    </strong>
-
-                                    <span>
-                                        @result.Unit
-                                    </span>
-
-                                </div>
-
-
-                                <div class="rx-gauge-area">
-
-                                    <div class="rx-gauge">
-
-                                        <div
-                                            class="rx-gauge-normal"
-                                            style="
-                                                left:@bandStart.ToString("0.##", CultureInfo.InvariantCulture)%;
-                                                width:@bandWidth.ToString("0.##", CultureInfo.InvariantCulture)%;
-                                            ">
-                                        </div>
-
-
-                                        <div
-                                            class="rx-gauge-marker @(result.IsAbnormal ? "rx-marker-abnormal" : "")"
-                                            style="
-                                                left:@marker.ToString("0.##", CultureInfo.InvariantCulture)%;
-                                            ">
-                                        </div>
-
-                                    </div>
-
-
-                                    <small>
-
-                                        Reference:
-                                        @result.NormalRange
-                                        @result.Unit
-
-                                    </small>
-
-                                </div>
-
-
-                                <div class="rx-status">
-
-                                    @if (result.IsAbnormal)
-                                    {
-
-                                        <span class="rx-badge rx-badge-danger">
-
-                                            <i class="fas fa-triangle-exclamation"></i>
-
-                                            Abnormal
-
-                                        </span>
-
-                                    }
-                                    else
-                                    {
-
-                                        <span class="rx-badge rx-badge-normal">
-
-                                            <i class="fas fa-check"></i>
-
-                                            Normal
-
-                                        </span>
-
-                                    }
-
-                                </div>
-
-                            </div>
-
+            <div class="rx-card rxf" id="rxFilter">
+                <div class="rxf-top">
+                    <div class="rxf-search"><i class="fas fa-magnifying-glass"></i><input id="rxfQ" type="search" placeholder="Search test, doctor, request or note" autocomplete="off"></div>
+                    @if (filterTests.Count > 1)
+                    {
+                        <select id="rxfTest" class="rx-sel"><option value="">All tests</option>@foreach (var t in filterTests) {
+                            <option value="@t">@t</option>
                         }
-
-                    </div>
-
-
-                    <div class="rx-panel-footer">
-
-                        <span>
-
-                            <i class="fas fa-clock"></i>
-
-                            Laboratory report
-
-                        </span>
-
-
-                        <button
-                            type="button"
-                            class="rx-download">
-
-                            <i class="fas fa-download"></i>
-
-                            Download Report
-
-                        </button>
-
-                    </div>
-
-                </article>
-
+                    </select>
+                }
+                @if (filterDoctors.Count > 1)
+                {
+                    <select id="rxfDoctor" class="rx-sel"><option value="">All doctors</option>@foreach (var d in filterDoctors) {
+                        <option value="@d">@d</option>
+                    }
+                </select>
             }
+            @if (filterCats.Count > 1)
+            {
+                <select id="rxfCat" class="rx-sel"><option value="">All categories</option>@foreach (var c in filterCats) {
+                    <option value="@c">@c</option>
+                }
+            </select>
+        }
+    </div>
+    <div class="rxf-bottom">
+        <div class="rxf-group">
+            <button type="button" class="rxf-btn active" data-status="all">All (@total)</button>
+            <button type="button" class="rxf-btn" data-status="ok">Normal (@normal)</button>
+            <button type="button" class="rxf-btn" data-status="abn">Needs attention (@abnormal)</button>
+        </div>
+        <div class="rxf-group">
+            <button type="button" class="rxf-btn active" data-days="0">All time</button>
+            <button type="button" class="rxf-btn" data-days="30">30 days</button>
+            <button type="button" class="rxf-btn" data-days="180">6 months</button>
+            <button type="button" class="rxf-btn" data-days="365">Year</button>
+            <label>From <input type="date" id="rxfFrom"></label>
+            <label>To <input type="date" id="rxfTo"></label>
+        </div>
+        <div class="rxf-meta"><span id="rxfCount"></span><button type="button" id="rxfClear" class="rxf-clear" hidden>Clear filters</button></div>
+    </div>
+</div>
 
+<div class="rx-card rxf-none" id="rxfNone" hidden>
+    <i class="fas fa-filter-circle-xmark"></i>
+    <strong>No results match your filters</strong>
+    <span>Try a different date range or clear the filters to see everything.</span>
+</div>
+@foreach (var group in results.GroupBy(r => r.RequestID).OrderByDescending(g => g.Key))
+{
+    var first = group.First();
+    var reqDoctor = group.Select(r => r.DoctorName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+    var reqDate = group.Where(r => r.ResultDate != default(DateTime)).Select(r => r.ResultDate).DefaultIfEmpty().Max();
+
+    <article class="rx-card rx-panel">
+        <div class="rx-ph">
+            <div class="rx-ph-left">
+                <div class="rx-ph-icon"><i class="fas fa-flask"></i></div>
+                <div>
+                    <small>Laboratory request</small>
+                    <h3>#@group.Key @(string.IsNullOrWhiteSpace(first.Category) ? "" : "· " + first.Category)</h3>
+                    <div class="rx-ph-meta">
+                        <span><i class="fas fa-calendar-day"></i>@(reqDate != default(DateTime) ? reqDate.ToString("dd MMM yyyy") : "Date not recorded")</span>
+                        <span><i class="fas fa-user-doctor"></i>@Doctor(reqDoctor)</span>
+                        <span><i class="fas fa-vials"></i><span class="rx-tc">@group.Count() @(group.Count() == 1 ? "test" : "tests")</span></span>
+                    </div>
+                </div>
+            </div>
+            <div class="rxl-chips">
+                <span class="rxl-chip">@(group.Count(x => !x.IsAbnormal)) normal</span>
+                @if (group.Any(x => x.IsAbnormal))
+                {
+                    <span class="rxl-chip abn">@(group.Count(x => x.IsAbnormal)) need attention</span>
+                }
+                <span class="rx-badge"><i class="fas fa-circle-check"></i> Released</span>
+            </div>
         </div>
 
-
-        <!-- ======================================================
-             HEALTH ANALYTICS
-             ====================================================== -->
-
-        <div
-            id="rx-analytics"
-            style="display:none;">
-
-            <!-- ==================================================
-                 ANALYTICS INTRO
-                 ================================================== -->
-
-            <section class="rx-analytics-intro">
-
-                <div>
-
-                    <span class="rx-section-label">
-
-                        <i class="fas fa-chart-line"></i>
-
-                        Results Overview
-
-                    </span>
-
-                    <h2>
-                        Your Results at a Glance
-                    </h2>
-
-                    <p>
-                        A summary of the laboratory information
-                        currently available on your patient record.
-                    </p>
-
-                </div>
-
-
-                <div class="rx-analytics-total">
-
-                    <strong>
-                        @totalResults
-                    </strong>
-
-                    <span>
-                        Total Values
-                    </span>
-
-                </div>
-
-            </section>
-
-
-            <!-- ==================================================
-                 DONUT + TEST BARS
-                 ================================================== -->
-
-            <div class="rx-analytics-grid">
-
-
-                <!-- =================================================
-                     NORMAL VS ATTENTION
-                     ================================================= -->
-
-                <div class="rx-chart-card">
-
-                    <div class="rx-chart-header">
-
-                        <div>
-
-                            <span>
-                                Result Status
-                            </span>
-
-                            <h3>
-                                Normal vs Attention
-                            </h3>
-
-                        </div>
-
-                        <i class="fas fa-chart-pie"></i>
-
-                    </div>
-
-
-                    @if (totalResults > 0)
-                    {
-
-                        <div class="rx-donut-area">
-
-                            <div class="rx-donut">
-
-                                <div class="rx-donut-inner">
-
-                                    <strong>
-                                        @normalPercentage.ToString("0")%
-                                    </strong>
-
-                                    <span>
-                                        Normal
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="rx-legend">
-
-                                <div class="rx-legend-item">
-
-                                    <span class="rx-dot rx-dot-green"></span>
-
-                                    <span>
-                                        Normal
-                                    </span>
-
-                                    <strong>
-                                        @normalResults
-                                    </strong>
-
-                                </div>
-
-
-                                <div class="rx-legend-item">
-
-                                    <span class="rx-dot rx-dot-red"></span>
-
-                                    <span>
-                                        Attention
-                                    </span>
-
-                                    <strong>
-                                        @abnormalResults
-                                    </strong>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    }
-
-                </div>
-
-
-                <!-- =================================================
-                     TESTS PERFORMED
-                     ================================================= -->
-
-                <div class="rx-chart-card">
-
-                    <div class="rx-chart-header">
-
-                        <div>
-
-                            <span>
-                                Laboratory Activity
-                            </span>
-
-                            <h3>
-                                Tests Performed
-                            </h3>
-
-                        </div>
-
-                        <i class="fas fa-vials"></i>
-
-                    </div>
-
-
-                    @if (topTests.Any())
-                    {
-
-                        <div class="rx-test-bars">
-
-                            @foreach (var test in topTests)
-                            {
-
-                                var width =
-                                    totalResults > 0
-                                        ? (double)test.Count() / totalResults * 100
-                                        : 0;
-
-
-                                <div class="rx-test-bar">
-
-                                    <div class="rx-test-label">
-
-                                        <span>
-                                            @test.Key
-                                        </span>
-
-                                        <strong>
-                                            @test.Count()
-                                        </strong>
-
-                                    </div>
-
-
-                                    <div class="rx-bar-track">
-
-                                        <div
-                                            class="rx-bar-fill"
-                                            style="
-                                                width:@width.ToString(
-                                                    "0.##",
-                                                    CultureInfo.InvariantCulture
-                                                )%;
-                                            ">
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            }
-
-                        </div>
-
-                    }
-                    else
-                    {
-
-                        <div class="rx-no-trend">
-
-                            <div class="rx-no-trend-icon">
-
-                                <i class="fas fa-chart-column"></i>
-
-                            </div>
-
-                            <h3>
-                                No test data
-                            </h3>
-
-                            <p>
-                                There are no test results available
-                                for this chart.
-                            </p>
-
-                        </div>
-
-                    }
-
-                </div>
-
-            </div>
-
-
-            <!-- ==================================================
-                 RESULT TREND
-                 ================================================== -->
-
-            <div class="rx-trend-card">
-
-                <div class="rx-trend-header">
-
-                    <div class="rx-trend-heading">
-
-                        <div class="rx-trend-icon">
-
-                            <i class="fas fa-wave-square"></i>
-
-                        </div>
-
-                        <div>
-
-                            <h3>
-                                Result Trend
-                            </h3>
-
-                            <p>
-                                Track repeated numeric measurements
-                                for the same test.
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    @if (trendTests.Any())
-                    {
-
-                        <select
-                            id="rxTrendTest"
-                            class="rx-test-select"
-                            onchange="changeTrendTest(this.value)">
-
-                            @foreach (var test in trendTests)
-                            {
-
-                                if (test.Name == selectedTrendTest)
-                                {
-                                    <option
-                                        value="@test.Name"
-                                        selected>
-                                        @test.Name (@test.Count)
-                                    </option>
-                                }
-                                else
-                                {
-                                    <option
-                                        value="@test.Name">
-                                        @test.Name (@test.Count)
-                                    </option>
-                                }
-
-                            }
-
-                        </select>
-
-                    }
-
-                </div>
-
-
-                @if (!trendTests.Any())
+        <div class="rxl">
+            <div class="rxl-head"><span>Test</span><span>Result</span><span>Reference range</span><span>Status</span></div>
+
+            @foreach (var r in group)
+            {
+                double lo = 0, hi = 0, val = 0;
+                var hasVal = TryNum(r.ResultValue, out val);
+                var canGauge = hasVal && TryRange(r.NormalRange, out lo, out hi);
+                double bandStart = 0, bandWidth = 0, marker = 50;
+                var pos = "";
+                if (canGauge)
                 {
-
-                    <div class="rx-no-trend">
-
-                        <div class="rx-no-trend-icon">
-
-                            <i class="fas fa-chart-line"></i>
-
-                        </div>
-
-                        <h3>
-                            Not enough numeric data
-                        </h3>
-
-                        <p>
-                            A trend graph becomes available when
-                            numeric laboratory measurements are recorded.
-                        </p>
-
-                    </div>
-
+                    var span = hi - lo;
+                    var pLo = lo - span * .4;
+                    var pSpan = span * 1.8;
+                    bandStart = (lo - pLo) / pSpan * 100;
+                    bandWidth = span / pSpan * 100;
+                    marker = Math.Clamp((val - pLo) / pSpan * 100, 2, 98);
+                    pos = val < lo ? "Below range" : val > hi ? "Above range" : "Within range";
                 }
-                else
+                var unset = string.IsNullOrWhiteSpace(r.NormalRange)
+                    || Regex.IsMatch(r.NormalRange, @"^\s*0+([.,]0+)?\s*(-|–|to)\s*0+([.,]0+)?(?![\d.,])");
+                var refText = unset ? "No reference range" : r.NormalRange.Trim();
+                if (!unset && !string.IsNullOrWhiteSpace(r.Unit)
+                    && refText.IndexOf(r.Unit.Trim(), StringComparison.OrdinalIgnoreCase) < 0)
                 {
+                    refText += " " + r.Unit.Trim();
+                }
+                var cls = r.IsAbnormal ? "abn" : "ok";
+                var note = r.TechnicianNotes?.Trim();
+                var noDoc = string.IsNullOrWhiteSpace(r.DoctorName);
+                var when = r.ResultDate == default(DateTime)
+                    ? "Not recorded"
+                    : r.ResultDate.ToString(r.ResultDate.TimeOfDay == TimeSpan.Zero ? "dd MMM yyyy" : "dd MMM yyyy, HH:mm");
+                var dateKey = r.ResultDate == default(DateTime) ? "" : r.ResultDate.ToString("yyyy-MM-dd");
+                var docLabel = Doctor(r.DoctorName);
+                var searchKey = string.Join(" ", new[] { r.TestName, r.RequestID.ToString(), r.Category, r.TechnicianNotes, docLabel }).ToLowerInvariant();
 
-                    <div id="rxTrendContent">
-
-
-                        <!-- ==========================================
-                             TREND SUMMARY
-                             ========================================== -->
-
-                        <div class="rx-trend-summary">
-
-
-                            <div class="rx-trend-stat">
-
-                                <div class="rx-trend-stat-label">
-                                    Latest
-                                </div>
-
-                                <div class="rx-trend-stat-value">
-
-                                    @(initialCount > 0
-                                        ? initialLatest.ToString(
-                                            "0.##",
-                                            CultureInfo.InvariantCulture)
-                                        : "—")
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="rx-trend-stat">
-
-                                <div class="rx-trend-stat-label">
-                                    Average
-                                </div>
-
-                                <div class="rx-trend-stat-value">
-
-                                    @(initialCount > 0
-                                        ? initialAverage.ToString(
-                                            "0.##",
-                                            CultureInfo.InvariantCulture)
-                                        : "—")
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="rx-trend-stat">
-
-                                <div class="rx-trend-stat-label">
-                                    Range
-                                </div>
-
-                                <div class="rx-trend-stat-value">
-
-                                    @(initialCount > 0
-                                        ? $"{initialMinimum.ToString("0.##", CultureInfo.InvariantCulture)} – {initialMaximum.ToString("0.##", CultureInfo.InvariantCulture)}"
-                                        : "—")
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="rx-trend-stat">
-
-                                <div class="rx-trend-stat-label">
-                                    Direction
-                                </div>
-
-                                <div
-                                    class="rx-trend-stat-value @initialTrendDirection">
-
-                                    @if (initialTrendDirection == "up")
-                                    {
-                                        <i class="fas fa-arrow-trend-up"></i>
-                                    }
-                                    else if (initialTrendDirection == "down")
-                                    {
-                                        <i class="fas fa-arrow-trend-down"></i>
-                                    }
-                                    else
-                                    {
-                                        <i class="fas fa-minus"></i>
-                                    }
-
-                                    @initialTrendText
-
-                                </div>
-
-                            </div>
-
+                <div class="rxl-row @cls" data-status="@cls" data-test="@r.TestName" data-doctor="@docLabel" data-cat="@r.Category" data-date="@dateKey" data-search="@searchKey">
+                    <div class="rxl-main">
+                        <div class="rxl-name">
+                            <span class="rxl-ico"><i class="fas fa-vial"></i></span>
+                            <strong>@r.TestName</strong>
                         </div>
-
-
-                        @if (initialCount >= 2)
+                        <div class="rxl-val"><b>@r.ResultValue</b><span>@r.Unit</span></div>
+                        <div class="rxl-range">
+                            <div class="rxl-line @(canGauge ? "" : "flat")">
+                                @if (canGauge)
+                                {
+                                    <div class="rxl-band" style="left:@F(bandStart)%;width:@F(bandWidth)%"></div>
+                                    <div class="rxl-mark" style="left:@F(marker)%"></div>
+                                }
+                            </div>
+                            <small><span>@refText</span>@if (pos != "") {
+                                <b>@pos</b>
+                            }
+                        </small>
+                    </div>
+                    <div class="rxl-st">
+                        @if (r.IsAbnormal)
                         {
-
-                            <!-- ======================================
-                                 GRAPH
-                                 ====================================== -->
-
-                            <div class="rx-graph-wrap">
-
-                                <svg
-                                    id="rxTrendGraph"
-                                    class="rx-graph"
-                                    viewBox="0 0 900 310"
-                                    preserveAspectRatio="none">
-
-                                    <g id="rxGraphGrid"></g>
-
-                                    <g id="rxGraphRange"></g>
-
-                                    <path
-                                        id="rxTrendArea"
-                                        class="rx-trend-area">
-                                    </path>
-
-                                    <path
-                                        id="rxTrendLine"
-                                        class="rx-trend-line">
-                                    </path>
-
-                                    <g id="rxTrendPoints"></g>
-
-                                    <g id="rxGraphLabels"></g>
-
-                                </svg>
-
-
-                                <!-- TOOLTIP -->
-
-                                <div
-                                    id="rxTrendTooltip"
-                                    class="rx-graph-tooltip">
-
-                                    <div class="rx-tooltip-title">
-                                        Laboratory Result
-                                    </div>
-
-                                    <div
-                                        id="rxTooltipValue"
-                                        class="rx-tooltip-value">
-                                    </div>
-
-                                    <div
-                                        id="rxTooltipStatus"
-                                        class="rx-tooltip-status">
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- ======================================
-                                 SMART INSIGHT
-                                 ====================================== -->
-
-                            <div class="rx-smart-insight">
-
-                                <i class="fas fa-lightbulb"></i>
-
-                                <div>
-
-                                    <strong id="rxInsightTitle">
-                                        @initialTrendText
-                                    </strong>
-
-                                    <span id="rxInsightText">
-
-                                        @if (initialTrendDirection == "up")
-                                        {
-                                            @:The latest recorded value is higher than the first recorded value in this series.
-                                        }
-                                        else if (initialTrendDirection == "down")
-                                        {
-                                            @:The latest recorded value is lower than the first recorded value in this series.
-                                        }
-                                        else
-                                        {
-                                            @:The first and latest recorded values are relatively close, so the series is classified as stable.
-                                        }
-
-                                    </span>
-
-                                </div>
-
-                            </div>
-
+                            <span class="rx-badge abn"><i class="fas fa-triangle-exclamation"></i> Abnormal</span>
                         }
                         else
                         {
 
-                            <div class="rx-no-trend">
-
-                                <div class="rx-no-trend-icon">
-
-                                    <i class="fas fa-chart-line"></i>
-
-                                </div>
-
-                                <h3>
-                                    One measurement available
-                                </h3>
-
-                                <p>
-                                    A trend requires at least two numeric
-                                    measurements for the same test.
-                                    More results will allow the graph
-                                    to calculate an actual direction.
-                                </p>
-
-                            </div>
-
+                            <span class="rx-badge"><i class="fas fa-check"></i> Normal</span>
                         }
-
                     </div>
-
-                }
-
-            </div>
-
-
-            <!-- ==================================================
-                 ANALYTICS NOTICE
-                 ================================================== -->
-
-            <div class="rx-smart-insight">
-
-                <i class="fas fa-circle-info"></i>
-
-                <div>
-
-                    <strong>
-                        About your analytics
-                    </strong>
-
-                    <span>
-                        These charts describe the recorded laboratory
-                        data statistically. A trend does not by itself
-                        indicate a diagnosis or medical condition.
-                    </span>
-
                 </div>
 
+                <div class="rxl-meta">
+                    <div><small>Date performed</small><span><i class="fas fa-calendar-day"></i>@when</span></div>
+                    <div><small>Doctor</small><span class="@(noDoc ? "none" : "")"><i class="fas fa-user-doctor"></i>@Doctor(r.DoctorName)</span></div>
+                    <div class="rxl-note"><small>Technician note</small><span class="@(string.IsNullOrWhiteSpace(note) ? "none" : "")"><i class="fas fa-note-sticky"></i>@(string.IsNullOrWhiteSpace(note) ? "No note recorded for this test" : note)</span></div>
+                </div>
             </div>
+        }
+    </div>
 
-        </div>
-
-    }
-
-
-    <!-- ==========================================================
-         FOOTER
-         ========================================================== -->
-
-    <footer class="rx-footer">
-
-        <div>
-
-            <i class="fas fa-shield-halved"></i>
-
-            Laboratory Information Management System
-
-        </div>
-
-        <span>
-            Patient Portal
-        </span>
-
-        <span>
-            •
-        </span>
-
-        <span>
-            @DateTime.Now.Year
-        </span>
-
-    </footer>
-
+    <div class="rx-pf">
+        <span><i class="fas fa-clock"></i> Laboratory report</span>
+        <button type="button" class="rx-btn" onclick="window.print()"><i class="fas fa-print"></i> Print report</button>
+    </div>
+</article>
+            }
 </div>
 
+<!-- ================= ANALYTICS ================= -->
+<div id="rx-analytics" style="display:none">
+
+    <section class="rx-card rx-intro">
+        <div>
+            <small><i class="fas fa-chart-line"></i> Results overview</small>
+            <h2>Your results at a glance</h2>
+            <p>A summary of the laboratory information currently on your patient record.</p>
+        </div>
+        <div class="rx-intro-num"><strong>@total</strong><span>Total values</span></div>
+    </section>
+
+    <div class="rx-grid2">
+        <div class="rx-card rx-chart">
+            <div class="rx-chart-h"><div><small>Result status</small><h3>Normal vs attention</h3></div><i class="fas fa-chart-pie"></i></div>
+            <div class="rx-donut-area">
+                <div class="rx-donut" style="background:conic-gradient(#2E8B57 0deg @(normalDeg)deg, #B0463F @(normalDeg)deg 360deg)">
+                    <div class="rx-donut-in"><strong>@normalPct.ToString("0")%</strong><span>Normal</span></div>
+                </div>
+                <div class="rx-legend">
+                    <div><span class="rx-dot" style="background:#2E8B57"></span>Normal<strong>@normal</strong></div>
+                    <div><span class="rx-dot" style="background:#B0463F"></span>Attention<strong>@abnormal</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rx-card rx-chart">
+            <div class="rx-chart-h"><div><small>Laboratory activity</small><h3>Tests performed</h3></div><i class="fas fa-vials"></i></div>
+            @foreach (var t in topTests)
+            {
+                <div class="rx-bar">
+                    <div><span>@t.Key</span><strong>@t.Count()</strong></div>
+                    <div class="rx-track"><div class="rx-fill" style="width:@F((double)t.Count() / total * 100)%"></div></div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="rx-card rx-trend">
+        <div class="rx-thead">
+            <div class="rx-thead-l"><div class="rx-thead-ico"><i class="fas fa-wave-square"></i></div><div><h3>Result trend</h3><p>Track repeated numeric measurements for the same test.</p></div></div>
+            @if (series.Any())
+            {
+                <select id="trendSel" class="rx-sel" onchange="drawTrend()">
+                    @foreach (var s in series)
+                    {
+                        <option value="@s.Key">@s.Key (@s.Count())</option>
+                    }
+                </select>
+            }
+        </div>
+
+        @if (!series.Any())
+        {
+            <div class="rx-graph-empty">A trend appears once numeric measurements are recorded.</div>
+        }
+        else
+        {
+            <div class="rx-ranges">
+                <button type="button" class="rx-pill active" data-days="0">All time</button>
+                <button type="button" class="rx-pill" data-days="7">7 days</button>
+                <button type="button" class="rx-pill" data-days="30">Month</button>
+                <button type="button" class="rx-pill" data-days="180">6 months</button>
+                <button type="button" class="rx-pill" data-days="365">Year</button>
+            </div>
+            <div class="rx-sum">
+                <div><small>Latest</small><b id="sLatest">—</b></div>
+                <div><small>Average</small><b id="sAvg">—</b></div>
+                <div><small>Range</small><b id="sRange">—</b></div>
+                <div><small>Direction</small><b id="sDir">—</b></div>
+            </div>
+            <div class="rx-graph"><div id="trendBox"></div></div>
+            <div class="rx-insight">
+                <i class="fas fa-lightbulb"></i>
+                <div><strong id="insTitle">—</strong><span id="insText"></span></div>
+            </div>
+        }
+    </div>
+
+    <div class="rx-insight">
+        <i class="fas fa-circle-info"></i>
+        <div><strong>About your analytics</strong>These charts describe your recorded data statistically. A trend is not a diagnosis; discuss changes with your doctor.</div>
+    </div>
+</div>
+    }
+
+<footer class="rx-footer"><i class="fas fa-shield-halved"></i> Laboratory Information Management System · Patient Portal · @DateTime.Now.Year</footer>
+</div>
 
 @section Scripts {
+    <script>
+        var T = @Html.Raw(trendJson);
+        var days = 0;
 
-<script>
+        function switchTab(btn, id) {
+            document.querySelectorAll('.rx-tab').forEach(function(t) { t.classList.remove('active'); });
+            btn.classList.add('active');
+            document.getElementById('rx-all').style.display = id === 'rx-all' ? '' : 'none';
+            document.getElementById('rx-analytics').style.display = id === 'rx-analytics' ? '' : 'none';
+            if (id === 'rx-analytics') drawTrend();
+        }
 
-    /* ============================================================
-       TAB SWITCHING
-       ============================================================ */
-
-    function switchResultsTab(button, tabId) {
-
-        document
-            .querySelectorAll('.rx-tab')
-            .forEach(function (tab) {
-
-                tab.classList.remove('active');
-
+        document.querySelectorAll('.rx-pill').forEach(function(b) {
+            b.addEventListener('click', function() {
+                document.querySelectorAll('.rx-pill').forEach(function(x) { x.classList.remove('active'); });
+                b.classList.add('active');
+                days = parseInt(b.dataset.days, 10) || 0;
+                drawTrend();
             });
-
-
-        button.classList.add('active');
-
-
-        var allPanel =
-            document.getElementById('rx-all');
-
-        var analyticsPanel =
-            document.getElementById('rx-analytics');
-
-
-        if (!allPanel || !analyticsPanel)
-            return;
-
-
-        allPanel.style.display =
-            tabId === 'rx-all'
-                ? ''
-                : 'none';
-
-
-        analyticsPanel.style.display =
-            tabId === 'rx-analytics'
-                ? ''
-                : 'none';
-
-
-        if (tabId === 'rx-analytics') {
-
-            setTimeout(function () {
-
-                renderTrendGraph();
-
-            }, 50);
-
-        }
-
-    }
-
-
-    /* ============================================================
-       SERVER GENERATED TREND DATA
-       ============================================================ */
-
-    var trendData = {};
-
-
-    @foreach (var test in trendTests)
-    {
-
-        var testResultsForJs = numericResults
-            .Where(r => r.TestName == test.Name)
-            .ToList();
-
-
-        var jsValues =
-            new List<double>();
-
-        var jsRequests =
-            new List<string>();
-
-        var jsAbnormal =
-            new List<bool>();
-
-
-        foreach (var result in testResultsForJs)
-        {
-
-            double numericValue;
-
-
-            if (
-                double.TryParse(
-                    result.ResultValue?.Trim(),
-                    NumberStyles.Any,
-                    CultureInfo.InvariantCulture,
-                    out numericValue)
-                ||
-                double.TryParse(
-                    result.ResultValue?.Trim(),
-                    NumberStyles.Any,
-                    CultureInfo.CurrentCulture,
-                    out numericValue)
-            )
-            {
-
-                jsValues.Add(numericValue);
-
-                jsRequests.Add(
-                    result.RequestID.ToString());
-
-                jsAbnormal.Add(
-                    result.IsAbnormal);
-
-            }
-
-        }
-
-
-        double jsRangeLow = 0;
-        double jsRangeHigh = 0;
-
-        bool jsHasRange = false;
-
-
-        var jsRangeResult =
-            testResultsForJs
-                .FirstOrDefault(
-                    r =>
-                        !string.IsNullOrWhiteSpace(
-                            r.NormalRange));
-
-
-        if (jsRangeResult != null)
-        {
-
-            var jsParts =
-                jsRangeResult.NormalRange
-                    .Split(
-                        '-',
-                        StringSplitOptions.RemoveEmptyEntries);
-
-
-            if (jsParts.Length == 2)
-            {
-
-                double parsedLow = 0;
-                double parsedHigh = 0;
-
-
-                bool lowOk =
-                    double.TryParse(
-                        jsParts[0].Trim(),
-                        NumberStyles.Any,
-                        CultureInfo.InvariantCulture,
-                        out parsedLow)
-                    ||
-                    double.TryParse(
-                        jsParts[0].Trim(),
-                        NumberStyles.Any,
-                        CultureInfo.CurrentCulture,
-                        out parsedLow);
-
-
-                bool highOk =
-                    double.TryParse(
-                        jsParts[1].Trim(),
-                        NumberStyles.Any,
-                        CultureInfo.InvariantCulture,
-                        out parsedHigh)
-                    ||
-                    double.TryParse(
-                        jsParts[1].Trim(),
-                        NumberStyles.Any,
-                        CultureInfo.CurrentCulture,
-                        out parsedHigh);
-
-
-                if (
-                    lowOk
-                    &&
-                    highOk
-                    &&
-                    parsedHigh > parsedLow)
-                {
-
-                    jsRangeLow =
-                        parsedLow;
-
-                    jsRangeHigh =
-                        parsedHigh;
-
-                    jsHasRange =
-                        true;
-
-                }
-
-            }
-
-        }
-
-
-        var serializedData =
-            JsonSerializer.Serialize(
-                new
-                {
-                    name = test.Name,
-
-                    values = jsValues,
-
-                    requests = jsRequests,
-
-                    abnormal = jsAbnormal,
-
-                    rangeLow = jsRangeLow,
-
-                    rangeHigh = jsRangeHigh,
-
-                    hasRange = jsHasRange
+        });
+
+        /* ===== Filters (All results tab) ===== */
+        var FLT = { status: 'all', test: '', doctor: '', cat: '', q: '', days: 0, from: '', to: '' };
+
+        function applyFilters() {
+            var cutoff = FLT.days ? new Date(Date.now() - FLT.days * 864e5).toISOString().slice(0, 10) : '';
+            var from = FLT.from || cutoff, to = FLT.to;
+            var shown = 0, all = 0;
+
+            document.querySelectorAll('#rx-all .rx-panel').forEach(function(panel) {
+                var rows = panel.querySelectorAll('.rxl-row'), vis = 0;
+                rows.forEach(function(r) {
+                    var d = r.dataset, ok = true;
+                    if (FLT.status !== 'all' && d.status !== FLT.status) ok = false;
+                    if (ok && FLT.test && d.test !== FLT.test) ok = false;
+                    if (ok && FLT.doctor && d.doctor !== FLT.doctor) ok = false;
+                    if (ok && FLT.cat && d.cat !== FLT.cat) ok = false;
+                    if (ok && FLT.q && d.search.indexOf(FLT.q) < 0) ok = false;
+                    if (ok && (from || to)) {
+                        if (!d.date) ok = false;
+                        else if ((from && d.date < from) || (to && d.date > to)) ok = false;
+                    }
+                    r.style.display = ok ? '' : 'none';
+                    if (ok) vis++;
                 });
-
-
-        @Html.Raw(
-            $"trendData[{JsonSerializer.Serialize(test.Name)}] = {serializedData};"
-        )
-    }
-
-
-    /* ============================================================
-       CHANGE TEST
-       ============================================================ */
-
-    function changeTrendTest(testName) {
-
-        if (!trendData[testName])
-            return;
-
-
-        updateTrendSummary(testName);
-
-        renderTrendGraph();
-
-    }
-
-
-    /* ============================================================
-       UPDATE TREND SUMMARY
-       ============================================================ */
-
-    function updateTrendSummary(testName) {
-
-        var data =
-            trendData[testName];
-
-
-        if (!data)
-            return;
-
-
-        var values =
-            data.values || [];
-
-
-        if (values.length === 0)
-            return;
-
-
-        var latest =
-            values[values.length - 1];
-
-
-        var first =
-            values[0];
-
-
-        var total = 0;
-
-
-        for (
-            var i = 0;
-            i < values.length;
-            i++
-        ) {
-
-            total +=
-                Number(values[i]);
-
-        }
-
-
-        var average =
-            total / values.length;
-
-
-        var minimum =
-            Math.min.apply(null, values);
-
-
-        var maximum =
-            Math.max.apply(null, values);
-
-
-        var direction =
-            "stable";
-
-
-        if (values.length >= 2) {
-
-            var difference =
-                latest - first;
-
-
-            var tolerance =
-                Math.max(
-                    Math.abs(average) * 0.02,
-                    0.000001
-                );
-
-
-            if (difference > tolerance) {
-
-                direction =
-                    "up";
-
-            }
-            else if (difference < -tolerance) {
-
-                direction =
-                    "down";
-
-            }
-
-        }
-
-
-        var statValues =
-            document.querySelectorAll(
-                '#rxTrendContent .rx-trend-stat-value'
-            );
-
-
-        if (statValues.length >= 4) {
-
-            statValues[0].textContent =
-                formatTrendNumber(latest);
-
-
-            statValues[1].textContent =
-                formatTrendNumber(average);
-
-
-            statValues[2].textContent =
-                formatTrendNumber(minimum)
-                +
-                " – "
-                +
-                formatTrendNumber(maximum);
-
-
-            var directionText =
-                direction === "up"
-                    ? "Trending upward"
-                    : direction === "down"
-                        ? "Trending downward"
-                        : "Stable";
-
-
-            var icon =
-                direction === "up"
-                    ? '<i class="fas fa-arrow-trend-up"></i> '
-                    : direction === "down"
-                        ? '<i class="fas fa-arrow-trend-down"></i> '
-                        : '<i class="fas fa-minus"></i> ';
-
-
-            statValues[3].className =
-                'rx-trend-stat-value '
-                +
-                direction;
-
-
-            statValues[3].innerHTML =
-                icon +
-                directionText;
-
-        }
-
-
-        var insightTitle =
-            document.getElementById(
-                'rxInsightTitle'
-            );
-
-
-        var insightText =
-            document.getElementById(
-                'rxInsightText'
-            );
-
-
-        if (
-            insightTitle
-            &&
-            insightText
-        ) {
-
-            if (direction === "up") {
-
-                insightTitle.textContent =
-                    "Trending upward";
-
-
-                insightText.textContent =
-                    "The latest recorded value is higher than the first recorded value in this series.";
-
-            }
-            else if (direction === "down") {
-
-                insightTitle.textContent =
-                    "Trending downward";
-
-
-                insightText.textContent =
-                    "The latest recorded value is lower than the first recorded value in this series.";
-
-            }
-            else {
-
-                insightTitle.textContent =
-                    "Stable";
-
-
-                insightText.textContent =
-                    "The first and latest recorded values are relatively close, so the series is classified as stable.";
-
-            }
-
-        }
-
-    }
-
-
-    /* ============================================================
-       FORMAT NUMBERS
-       ============================================================ */
-
-    function formatTrendNumber(value) {
-
-        return Number(value)
-            .toFixed(2)
-            .replace(/\.00$/, '');
-
-    }
-
-
-    /* ============================================================
-       RENDER TREND GRAPH
-       ============================================================ */
-
-    function renderTrendGraph() {
-
-        var select =
-            document.getElementById(
-                'rxTrendTest'
-            );
-
-
-        var graph =
-            document.getElementById(
-                'rxTrendGraph'
-            );
-
-
-        if (!select || !graph)
-            return;
-
-
-        var testName =
-            select.value;
-
-
-        var data =
-            trendData[testName];
-
-
-        if (!data)
-            return;
-
-
-        var values =
-            data.values || [];
-
-
-        var requests =
-            data.requests || [];
-
-
-        var abnormal =
-            data.abnormal || [];
-
-
-        if (values.length < 2)
-            return;
-
-
-        var svgWidth =
-            900;
-
-        var svgHeight =
-            310;
-
-
-        var left =
-            55;
-
-        var right =
-            20;
-
-        var top =
-            20;
-
-        var bottom =
-            42;
-
-
-        var graphWidth =
-            svgWidth -
-            left -
-            right;
-
-
-        var graphHeight =
-            svgHeight -
-            top -
-            bottom;
-
-
-        /* ========================================================
-           GRAPH BOUNDS
-           ======================================================== */
-
-        var minimum =
-            Math.min.apply(null, values);
-
-
-        var maximum =
-            Math.max.apply(null, values);
-
-
-        var range =
-            maximum -
-            minimum;
-
-
-        if (range === 0) {
-
-            range =
-                Math.max(
-                    Math.abs(maximum) * 0.1,
-                    1
-                );
-
-        }
-
-
-        var padding =
-            range * 0.18;
-
-
-        var minY =
-            minimum -
-            padding;
-
-
-        var maxY =
-            maximum +
-            padding;
-
-
-        if (data.hasRange) {
-
-            minY =
-                Math.min(
-                    minY,
-                    Number(data.rangeLow)
-                );
-
-
-            maxY =
-                Math.max(
-                    maxY,
-                    Number(data.rangeHigh)
-                );
-
-        }
-
-
-        if (maxY === minY) {
-
-            maxY =
-                minY + 1;
-
-        }
-
-
-        /* ========================================================
-           POSITION FUNCTIONS
-           ======================================================== */
-
-        function xPosition(index) {
-
-            if (values.length === 1) {
-
-                return left +
-                    graphWidth / 2;
-
-            }
-
-
-            return left +
-                (index /
-                    (values.length - 1))
-                *
-                graphWidth;
-
-        }
-
-
-        function yPosition(value) {
-
-            return top +
-                (
-                    (maxY -
-                        Number(value))
-                    /
-                    (maxY - minY)
-                )
-                *
-                graphHeight;
-
-        }
-
-
-        /* ========================================================
-           ELEMENTS
-           ======================================================== */
-
-        var grid =
-            document.getElementById(
-                'rxGraphGrid'
-            );
-
-
-        var rangeGroup =
-            document.getElementById(
-                'rxGraphRange'
-            );
-
-
-        var area =
-            document.getElementById(
-                'rxTrendArea'
-            );
-
-
-        var line =
-            document.getElementById(
-                'rxTrendLine'
-            );
-
-
-        var points =
-            document.getElementById(
-                'rxTrendPoints'
-            );
-
-
-        var labels =
-            document.getElementById(
-                'rxGraphLabels'
-            );
-
-
-        if (
-            !grid ||
-            !rangeGroup ||
-            !area ||
-            !line ||
-            !points ||
-            !labels
-        )
-            return;
-
-
-        grid.innerHTML = "";
-
-        rangeGroup.innerHTML = "";
-
-        points.innerHTML = "";
-
-        labels.innerHTML = "";
-
-
-        /* ========================================================
-           GRID
-           ======================================================== */
-
-        var gridCount =
-            5;
-
-
-        for (
-            var g = 0;
-            g <= gridCount;
-            g++
-        ) {
-
-            var gy =
-                top +
-                (g / gridCount)
-                *
-                graphHeight;
-
-
-            var gridLine =
-                document.createElementNS(
-                    "http://www.w3.org/2000/svg",
-                    "line"
-                );
-
-
-            gridLine.setAttribute(
-                "x1",
-                left
-            );
-
-            gridLine.setAttribute(
-                "x2",
-                svgWidth - right
-            );
-
-            gridLine.setAttribute(
-                "y1",
-                gy
-            );
-
-            gridLine.setAttribute(
-                "y2",
-                gy
-            );
-
-            gridLine.setAttribute(
-                "class",
-                "rx-grid-line"
-            );
-
-
-            grid.appendChild(
-                gridLine
-            );
-
-
-            var labelValue =
-                maxY -
-                (g / gridCount)
-                *
-                (maxY - minY);
-
-
-            var text =
-                document.createElementNS(
-                    "http://www.w3.org/2000/svg",
-                    "text"
-                );
-
-
-            text.setAttribute(
-                "x",
-                left - 10
-            );
-
-            text.setAttribute(
-                "y",
-                gy + 3
-            );
-
-            text.setAttribute(
-                "text-anchor",
-                "end"
-            );
-
-            text.setAttribute(
-                "class",
-                "rx-axis-text"
-            );
-
-
-            text.textContent =
-                formatTrendNumber(
-                    labelValue
-                );
-
-
-            grid.appendChild(
-                text
-            );
-
-        }
-
-
-        /* ========================================================
-           REFERENCE RANGE
-           ======================================================== */
-
-        if (data.hasRange) {
-
-            var rangeTop =
-                yPosition(
-                    Number(data.rangeHigh)
-                );
-
-
-            var rangeBottom =
-                yPosition(
-                    Number(data.rangeLow)
-                );
-
-
-            var rangeRect =
-                document.createElementNS(
-                    "http://www.w3.org/2000/svg",
-                    "rect"
-                );
-
-
-            rangeRect.setAttribute(
-                "x",
-                left
-            );
-
-            rangeRect.setAttribute(
-                "y",
-                rangeTop
-            );
-
-            rangeRect.setAttribute(
-                "width",
-                graphWidth
-            );
-
-            rangeRect.setAttribute(
-                "height",
-                Math.max(
-                    rangeBottom -
-                    rangeTop,
-                    0
-                )
-            );
-
-            rangeRect.setAttribute(
-                "class",
-                "rx-range-band"
-            );
-
-
-            rangeGroup.appendChild(
-                rangeRect
-            );
-
-
-            var highLine =
-                document.createElementNS(
-                    "http://www.w3.org/2000/svg",
-                    "line"
-                );
-
-
-            highLine.setAttribute(
-                "x1",
-                left
-            );
-
-            highLine.setAttribute(
-                "x2",
-                svgWidth - right
-            );
-
-            highLine.setAttribute(
-                "y1",
-                rangeTop
-            );
-
-            highLine.setAttribute(
-                "y2",
-                rangeTop
-            );
-
-            highLine.setAttribute(
-                "class",
-                "rx-range-line"
-            );
-
-
-            rangeGroup.appendChild(
-                highLine
-            );
-
-
-            var lowLine =
-                document.createElementNS(
-                    "http://www.w3.org/2000/svg",
-                    "line"
-                );
-
-
-            lowLine.setAttribute(
-                "x1",
-                left
-            );
-
-            lowLine.setAttribute(
-                "x2",
-                svgWidth - right
-            );
-
-            lowLine.setAttribute(
-                "y1",
-                rangeBottom
-            );
-
-            lowLine.setAttribute(
-                "y2",
-                rangeBottom
-            );
-
-            lowLine.setAttribute(
-                "class",
-                "rx-range-line"
-            );
-
-
-            rangeGroup.appendChild(
-                lowLine
-            );
-
-        }
-
-
-        /* ========================================================
-           GRAPH POINTS
-           ======================================================== */
-
-        var graphPoints = [];
-
-
-        for (
-            var i = 0;
-            i < values.length;
-            i++
-        ) {
-
-            graphPoints.push({
-
-                x:
-                    xPosition(i),
-
-                y:
-                    yPosition(
-                        values[i]
-                    )
-
+                panel.style.display = vis ? '' : 'none';
+                var tc = panel.querySelector('.rx-tc');
+                if (tc) {
+                    var nAll = rows.length;
+                    tc.textContent = vis === nAll ? nAll + (nAll === 1 ? ' test' : ' tests') : vis + ' of ' + nAll + ' tests';
+                }
+                shown += vis; all += rows.length;
             });
 
+            var active = FLT.status !== 'all' || FLT.test || FLT.doctor || FLT.cat || FLT.q || FLT.days || FLT.from || FLT.to;
+            document.getElementById('rxfCount').textContent = 'Showing ' + shown + ' of ' + all + ' results';
+            document.getElementById('rxfClear').hidden = !active;
+            document.getElementById('rxfNone').hidden = shown !== 0;
         }
 
+        (function() {
+            var bar = document.getElementById('rxFilter');
+            if (!bar) return;
 
-        /* ========================================================
-           SMOOTH LINE
-           ======================================================== */
-
-        var path = "";
-
-
-        if (graphPoints.length > 0) {
-
-            path =
-                "M "
-                +
-                graphPoints[0].x
-                +
-                " "
-                +
-                graphPoints[0].y;
-
-
-            for (
-                var p = 0;
-                p < graphPoints.length - 1;
-                p++
-            ) {
-
-                var current =
-                    graphPoints[p];
-
-
-                var next =
-                    graphPoints[p + 1];
-
-
-                var midpoint =
-                    (current.x +
-                        next.x) / 2;
-
-
-                path +=
-                    " C "
-                    +
-                    midpoint
-                    +
-                    " "
-                    +
-                    current.y
-                    +
-                    ", "
-                    +
-                    midpoint
-                    +
-                    " "
-                    +
-                    next.y
-                    +
-                    ", "
-                    +
-                    next.x
-                    +
-                    " "
-                    +
-                    next.y;
-
+            function mark(attr, btn) {
+                bar.querySelectorAll('.rxf-btn[' + attr + ']').forEach(function(b) { b.classList.toggle('active', b === btn); });
             }
 
-        }
-
-
-        line.setAttribute(
-            "d",
-            path
-        );
-
-
-        /* ========================================================
-           AREA UNDER LINE
-           ======================================================== */
-
-        var areaPath =
-            path
-            +
-            " L "
-            +
-            graphPoints[
-                graphPoints.length - 1
-            ].x
-            +
-            " "
-            +
-            (top + graphHeight)
-            +
-            " L "
-            +
-            graphPoints[0].x
-            +
-            " "
-            +
-            (top + graphHeight)
-            +
-            " Z";
-
-
-        area.setAttribute(
-            "d",
-            areaPath
-        );
-
-
-        /* ========================================================
-           POINTS
-           ======================================================== */
-
-        for (
-            var j = 0;
-            j < graphPoints.length;
-            j++
-        ) {
-
-            var point =
-                graphPoints[j];
-
-
-            var circle =
-                document.createElementNS(
-                    "http://www.w3.org/2000/svg",
-                    "circle"
-                );
-
-
-            circle.setAttribute(
-                "cx",
-                point.x
-            );
-
-            circle.setAttribute(
-                "cy",
-                point.y
-            );
-
-            circle.setAttribute(
-                "r",
-                5
-            );
-
-            circle.setAttribute(
-                "class",
-                "rx-trend-point"
-            );
-
-
-            (function (
-                index,
-                pointElement
-            ) {
-
-                pointElement.addEventListener(
-                    "mouseenter",
-                    function (event) {
-
-                        showTrendTooltip(
-                            event,
-                            index,
-                            values,
-                            requests,
-                            abnormal
-                        );
-
+            bar.addEventListener('click', function(e) {
+                var b = e.target.closest('.rxf-btn');
+                if (b) {
+                    if (b.hasAttribute('data-status')) { FLT.status = b.dataset.status; mark('data-status', b); }
+                    else {
+                        FLT.days = parseInt(b.dataset.days, 10) || 0; FLT.from = FLT.to = '';
+                        document.getElementById('rxfFrom').value = ''; document.getElementById('rxfTo').value = '';
+                        mark('data-days', b);
                     }
-                );
-
-
-                pointElement.addEventListener(
-                    "mouseleave",
-                    function () {
-
-                        hideTrendTooltip();
-
-                    }
-                );
-
-
-            })(
-                j,
-                circle
-            );
-
-
-            points.appendChild(
-                circle
-            );
-
-        }
-
-
-        /* ========================================================
-           X AXIS LABELS
-           ======================================================== */
-
-        var labelIndexes = [];
-
-
-        if (values.length <= 6) {
-
-            for (
-                var li = 0;
-                li < values.length;
-                li++
-            ) {
-
-                labelIndexes.push(
-                    li
-                );
-
-            }
-
-        }
-        else {
-
-            labelIndexes.push(0);
-
-
-            var middle =
-                Math.floor(
-                    (values.length - 1)
-                    / 2
-                );
-
-
-            labelIndexes.push(
-                middle
-            );
-
-
-            labelIndexes.push(
-                values.length - 1
-            );
-
-        }
-
-
-        for (
-            var xi = 0;
-            xi < labelIndexes.length;
-            xi++
-        ) {
-
-            var index =
-                labelIndexes[xi];
-
-
-            var label =
-                document.createElementNS(
-                    "http://www.w3.org/2000/svg",
-                    "text"
-                );
-
-
-            label.setAttribute(
-                "x",
-                graphPoints[index].x
-            );
-
-            label.setAttribute(
-                "y",
-                svgHeight - 13
-            );
-
-            label.setAttribute(
-                "text-anchor",
-                "middle"
-            );
-
-            label.setAttribute(
-                "class",
-                "rx-axis-text"
-            );
-
-
-            label.textContent =
-                "Request "
-                +
-                requests[index];
-
-
-            labels.appendChild(
-                label
-            );
-
-        }
-
-    }
-
-
-    /* ============================================================
-       TOOLTIP
-       ============================================================ */
-
-    function showTrendTooltip(
-        event,
-        index,
-        values,
-        requests,
-        abnormal
-    ) {
-
-        var tooltip =
-            document.getElementById(
-                'rxTrendTooltip'
-            );
-
-
-        var valueElement =
-            document.getElementById(
-                'rxTooltipValue'
-            );
-
-
-        var statusElement =
-            document.getElementById(
-                'rxTooltipStatus'
-            );
-
-
-        var wrap =
-            document.querySelector(
-                '.rx-graph-wrap'
-            );
-
-
-        if (
-            !tooltip ||
-            !valueElement ||
-            !statusElement ||
-            !wrap
-        )
-            return;
-
-
-        valueElement.textContent =
-            formatTrendNumber(
-                values[index]
-            )
-            +
-            " • Request "
-            +
-            requests[index];
-
-
-        if (abnormal[index]) {
-
-            statusElement.textContent =
-                "Attention";
-
-            statusElement.style.color =
-                "#F3B4AE";
-
-        }
-        else {
-
-            statusElement.textContent =
-                "Normal";
-
-            statusElement.style.color =
-                "#9DDFBA";
-
-        }
-
-
-        var rect =
-            wrap.getBoundingClientRect();
-
-
-        var left =
-            event.clientX -
-            rect.left +
-            12;
-
-
-        var top =
-            event.clientY -
-            rect.top -
-            65;
-
-
-        if (
-            left + 145 >
-            rect.width
-        ) {
-
-            left -= 155;
-
-        }
-
-
-        if (top < 5) {
-
-            top = 5;
-
-        }
-
-
-        tooltip.style.left =
-            left + "px";
-
-
-        tooltip.style.top =
-            top + "px";
-
-
-        tooltip.style.display =
-            "block";
-
-    }
-
-
-    function hideTrendTooltip() {
-
-        var tooltip =
-            document.getElementById(
-                'rxTrendTooltip'
-            );
-
-
-        if (tooltip) {
-
-            tooltip.style.display =
-                "none";
-
-        }
-
-    }
-
-
-    /* ============================================================
-       INITIALISE
-       ============================================================ */
-
-    document.addEventListener(
-        "DOMContentLoaded",
-        function () {
-
-            var analytics =
-                document.getElementById(
-                    'rx-analytics'
-                );
-
-
-            if (
-                analytics
-                &&
-                analytics.style.display !== 'none'
-            ) {
-
-                renderTrendGraph();
-
-            }
-
-
-            var resizeTimer;
-
-
-            window.addEventListener(
-                "resize",
-                function () {
-
-                    clearTimeout(
-                        resizeTimer
-                    );
-
-
-                    resizeTimer =
-                        setTimeout(
-                            function () {
-
-                                renderTrendGraph();
-
-                            },
-                            100
-                        );
-
+                    applyFilters();
                 }
-            );
+                if (e.target.id === 'rxfClear') {
+                    FLT = { status: 'all', test: '', doctor: '', cat: '', q: '', days: 0, from: '', to: '' };
+                    bar.querySelectorAll('input, select').forEach(function(el) { el.value = ''; });
+                    mark('data-status', bar.querySelector('[data-status="all"]'));
+                    mark('data-days', bar.querySelector('[data-days="0"]'));
+                    applyFilters();
+                }
+            });
 
+            bar.addEventListener('input', function(e) {
+                var t = e.target, id = t.id;
+                if (id === 'rxfQ') FLT.q = t.value.trim().toLowerCase();
+                else if (id === 'rxfTest') FLT.test = t.value;
+                else if (id === 'rxfDoctor') FLT.doctor = t.value;
+                else if (id === 'rxfCat') FLT.cat = t.value;
+                else if (id === 'rxfFrom' || id === 'rxfTo') {
+                    FLT.from = document.getElementById('rxfFrom').value;
+                    FLT.to = document.getElementById('rxfTo').value;
+                    FLT.days = 0; mark('data-days', null);
+                } else return;
+                applyFilters();
+            });
+
+            applyFilters();
+        })();
+        function n(v) { return String(Math.round(v * 100) / 100); }
+        function set(id, txt) { document.getElementById(id).textContent = txt; }
+
+        function drawTrend() {
+            var sel = document.getElementById('trendSel');
+            if (!sel) return;
+            var cutoff = Date.now() - days * 864e5;
+            var pts = (T[sel.value] || []).filter(function(p) {
+                return !days || !p.d || new Date(p.d).getTime() >= cutoff;
+            });
+            var box = document.getElementById('trendBox');
+            var dir = document.getElementById('sDir');
+
+            if (pts.length < 2) {
+                box.innerHTML = '<div class="rx-graph-empty">Not enough results in this period to draw a trend.</div>';
+                ['sLatest', 'sAvg', 'sRange'].forEach(function(i) { set(i, '—'); });
+                dir.className = ''; dir.textContent = '—';
+                set('insTitle', 'Not enough data');
+                set('insText', 'A trend needs at least two measurements of the same test.');
+                return;
+            }
+
+            var vals = pts.map(function(p) { return p.v; });
+            var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+            var avg = vals.reduce(function(a, b) { return a + b; }, 0) / vals.length;
+            var diff = vals[vals.length - 1] - vals[0];
+            var tol = Math.max(Math.abs(avg) * 0.02, 1e-6);
+            var d = diff > tol ? 'up' : diff < -tol ? 'down' : 'stable';
+            var label = { up: 'Trending upward', down: 'Trending downward', stable: 'Stable' }[d];
+            var text = {
+                up: 'The latest value is higher than the first value in this period.',
+                down: 'The latest value is lower than the first value in this period.',
+                stable: 'The first and latest values are close, so this series is stable.'
+            }[d];
+
+            set('sLatest', n(vals[vals.length - 1])); set('sAvg', n(avg)); set('sRange', n(min) + ' – ' + n(max));
+            dir.className = d; dir.textContent = label;
+            set('insTitle', label); set('insText', text);
+
+            // Chart geometry
+            var W = 900, H = 340, L = 50, R = 20, Tp = 20, B = 40, gw = W - L - R, gh = H - Tp - B;
+            var ref = pts[0].lo != null ? { lo: pts[0].lo, hi: pts[0].hi } : null;
+            var lo = min, hi = max, pad = (max - min || Math.abs(max) * 0.1 || 1) * 0.18;
+            lo -= pad; hi += pad;
+            if (ref) { lo = Math.min(lo, ref.lo); hi = Math.max(hi, ref.hi); }
+            var X = function(i) { return L + i / (pts.length - 1) * gw; };
+            var Y = function(v) { return Tp + (hi - v) / (hi - lo) * gh; };
+
+            var s = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
+            for (var g = 0; g <= 5; g++) {
+                var gy = Tp + g / 5 * gh;
+                s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + gy + '" y2="' + gy + '" stroke="#E5EFED"/>' +
+                    '<text x="' + (L - 8) + '" y="' + (gy + 3) + '" text-anchor="end">' + n(hi - g / 5 * (hi - lo)) + '</text>';
+            }
+            if (ref) {
+                s += '<rect x="' + L + '" y="' + Y(ref.hi) + '" width="' + gw + '" height="' + (Y(ref.lo) - Y(ref.hi)) + '" fill="rgba(46,139,87,.10)"/>' +
+                    '<text x="' + (L + 6) + '" y="' + (Y(ref.hi) + 12) + '" style="fill:#2E8B57">Normal range ' + n(ref.lo) + '–' + n(ref.hi) + '</text>';
+            }
+            s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(max) + '" y2="' + Y(max) + '" stroke="#B0463F" stroke-dasharray="6 4"/>' +
+                '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(min) + '" y2="' + Y(min) + '" stroke="#2B7FD1" stroke-dasharray="6 4"/>' +
+                '<text x="' + (W - R - 4) + '" y="' + (Y(max) - 5) + '" text-anchor="end" style="fill:#B0463F">Max ' + n(max) + '</text>' +
+                '<text x="' + (W - R - 4) + '" y="' + (Y(min) + (max === min ? -5 : 13)) + '" text-anchor="end" style="fill:#2B7FD1">Min ' + n(min) + '</text>';
+
+            var line = pts.map(function(p, i) { return (i ? 'L' : 'M') + X(i) + ' ' + Y(p.v); }).join(' ');
+            s += '<path d="' + line + ' L' + X(pts.length - 1) + ' ' + (Tp + gh) + ' L' + X(0) + ' ' + (Tp + gh) + ' Z" fill="rgba(14,140,127,.08)"/>' +
+                '<path d="' + line + '" fill="none" stroke="#0E8C7F" stroke-width="3" stroke-linejoin="round"/>';
+
+            pts.forEach(function(p, i) {
+                s += '<circle cx="' + X(i) + '" cy="' + Y(p.v) + '" r="5.5" fill="#fff" stroke="' + (p.a ? '#B0463F' : '#0E8C7F') + '" stroke-width="3">' +
+                    '<title>' + n(p.v) + ' · ' + (p.d || 'no date') + ' · Request #' + p.r + ' · ' + (p.a ? 'Attention' : 'Normal') + '</title></circle>';
+            });
+
+            var idx = pts.length <= 6 ? pts.map(function(_, i) { return i; }) : [0, Math.floor((pts.length - 1) / 2), pts.length - 1];
+            idx.forEach(function(i) {
+                s += '<text x="' + X(i) + '" y="' + (H - 12) + '" text-anchor="middle">' + (pts[i].d || 'Req #' + pts[i].r) + '</text>';
+            });
+
+            box.innerHTML = s + '</svg>';
         }
-    );
 
-</script>
-
+        window.addEventListener('resize', function() {
+            if (document.getElementById('rx-analytics').style.display !== 'none') drawTrend();
+        });
+    </script>
 }
