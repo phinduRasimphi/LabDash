@@ -21,19 +21,82 @@ namespace LabDash.Controllers
             _userManager = userManager;
         }
 
-        // =========================================================
-        // AVAILABLE TESTS
-        // =========================================================
+// =========================================================
+// AVAILABLE TESTS
+// =========================================================
 
-        [HttpGet]
-        public async Task<IActionResult> Index()
-        {
+           [HttpGet]
+           public async Task<IActionResult> Index()
+           {
             var tests = await _context.TestRequestItems
+
+                // -----------------------------------------------------
+                // TEST TYPE
+                // -----------------------------------------------------
+
                 .Include(x => x.TestType)
+
+                // -----------------------------------------------------
+                // TEST REQUEST + PATIENT
+                // -----------------------------------------------------
+
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
-                .Where(x => x.Status == "Submitted")
-                .OrderByDescending(x => x.TestRequestItemId)
+
+                // -----------------------------------------------------
+                // ONLY TESTS THAT ARE STILL AVAILABLE
+                // -----------------------------------------------------
+
+                .Where(x =>
+                    x.Status == "Submitted"
+
+                    &&
+
+                    x.TestRequest != null
+
+                    &&
+
+                    // -------------------------------------------------
+                    // IMPORTANT:
+                    // A sample belonging to this request must have
+                    // actually been received.
+                    //
+                    // This works even when the request status is:
+                    //
+                    // Pending
+                    // Partially Received
+                    // Samples Received
+                    // -------------------------------------------------
+
+                    _context.Samples.Any(s =>
+                        s.TestRequestId == x.RequestId &&
+                        s.IsReceived
+                    )
+                )
+
+                // =====================================================
+                // SORT BY URGENCY
+                // =====================================================
+
+                .OrderBy(x =>
+                    x.TestRequest.Urgency == "STAT" ? 1 :
+                    x.TestRequest.Urgency == "Urgent" ? 2 :
+                    x.TestRequest.Urgency == "Priority" ? 3 :
+                    x.TestRequest.Urgency == "Routine" ? 4 :
+                    5)
+
+                // =====================================================
+                // OLDEST REQUEST FIRST
+                // =====================================================
+
+                .ThenBy(x => x.TestRequest.RequestDate)
+
+                // =====================================================
+                // OLDEST TEST ITEM FIRST
+                // =====================================================
+
+                .ThenBy(x => x.TestRequestItemId)
+
                 .ToListAsync();
 
             return View(tests);
@@ -50,19 +113,49 @@ namespace LabDash.Controllers
                 .Include(x => x.TestType)
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
-                .FirstOrDefaultAsync(
-                    x => x.TestRequestItemId == id);
+                .FirstOrDefaultAsync(x =>
+                    x.TestRequestItemId == id);
 
             if (item == null)
                 return NotFound();
 
             if (item.TestRequest == null)
-                return NotFound(
-                    "Test request not found.");
+                return NotFound("Test request not found.");
 
             if (item.TestRequest.Patient == null)
-                return NotFound(
-                    "Patient not found.");
+                return NotFound("Patient not found.");
+
+            // =========================================================
+            // LOAD REQUIRED CONSUMABLES
+            // =========================================================
+
+            var consumables = await _context.TestTypeConsumables
+                .Include(x => x.Consumable)
+                .Where(x => x.TestTypeId == item.TestTypeId)
+                .Select(x => new
+                {
+                    name = x.Consumable != null
+                        ? x.Consumable.Name
+                        : "Unknown Consumable",
+
+                    required = x.QuantityRequired,
+
+                    available = x.Consumable != null
+                        ? x.Consumable.StockLevel
+                        : 0,
+
+                    isAvailable =
+                        x.Consumable != null &&
+                        x.Consumable.StockLevel >= x.QuantityRequired
+                })
+                .ToListAsync();
+
+            // =========================================================
+            // CHECK WHETHER ALL CONSUMABLES ARE AVAILABLE
+            // =========================================================
+
+            bool allConsumablesAvailable =
+                consumables.All(x => x.isAvailable);
 
             return Json(new
             {
@@ -111,7 +204,7 @@ namespace LabDash.Controllers
                         item.TestType?.Category,
 
                     turnaround =
-                        item.TestType?.TurnaroundTimeHours,
+                        item.TestType?.TurnaroundTimeMinutes,
 
                     sample =
                         item.TestType?.RequiredSampleType,
@@ -124,7 +217,16 @@ namespace LabDash.Controllers
 
                     requestId =
                         item.RequestId
-                }
+                },
+
+                // =====================================================
+                // CONSUMABLE INFORMATION
+                // =====================================================
+
+                consumables = consumables,
+
+                allConsumablesAvailable =
+                    allConsumablesAvailable
             });
         }
 
@@ -195,7 +297,7 @@ namespace LabDash.Controllers
                     item.TestType?.RequiredSampleType,
 
                 turnaround =
-                    item.TestType?.TurnaroundTimeHours,
+                    item.TestType?.TurnaroundTimeMinutes,
 
                 urgency =
                     item.TestRequest.Urgency,
@@ -205,13 +307,13 @@ namespace LabDash.Controllers
             });
         }
 
-        // =========================================================
-        // START TEST
-        // =========================================================
+// =========================================================
+// START TEST
+// =========================================================
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> StartTest(int id)
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> StartTest(int id)
         {
             var technician =
                 await _userManager.GetUserAsync(User);
@@ -237,6 +339,10 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // =====================================================
+            // CHECK TEST REQUEST
+            // =====================================================
+
             if (item.TestRequest == null)
             {
                 TempData["Error"] =
@@ -245,23 +351,14 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // =====================================================
+            // CHECK TEST TYPE
+            // =====================================================
+
             if (item.TestType == null)
             {
                 TempData["Error"] =
                     "The test type could not be found.";
-
-                return RedirectToAction(nameof(Index));
-            }
-
-            // =====================================================
-            // CHECK REQUEST STATUS
-            // =====================================================
-
-            if (item.TestRequest.Status != "Samples Received" &&
-                item.TestRequest.Status != "In Progress")
-            {
-                TempData["Error"] =
-                    "The sample for this request has not been received.";
 
                 return RedirectToAction(nameof(Index));
             }
@@ -273,21 +370,44 @@ namespace LabDash.Controllers
             if (item.Status != "Submitted")
             {
                 TempData["Error"] =
-                    "This test is no longer available.";
+                    "This test is no longer available to start.";
 
                 return RedirectToAction(nameof(Index));
             }
 
             // =====================================================
-            // CHECK STOCK
+            // CHECK ACTUAL SAMPLE RECEIPT
+            // =====================================================
+            // IMPORTANT:
+            // Do NOT check TestRequest.Status here.
+            //
+            // A request can be "Partially Received" while the
+            // particular sample required for this test has already
+            // been received.
+            // =====================================================
+
+            var sampleReceived = await _context.Samples
+                .AnyAsync(s =>
+                    s.TestRequestId == item.RequestId &&
+                    s.IsReceived);
+
+            if (!sampleReceived)
+            {
+                TempData["Error"] =
+                    "The sample for this test has not been received yet.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
+            // =====================================================
+            // CHECK CONSUMABLE STOCK
             // =====================================================
 
             var consumables =
                 await _context.TestTypeConsumables
                     .Include(x => x.Consumable)
                     .Where(x =>
-                        x.TestTypeId ==
-                        item.TestTypeId)
+                        x.TestTypeId == item.TestTypeId)
                     .ToListAsync();
 
             foreach (var stock in consumables)
@@ -307,7 +427,7 @@ namespace LabDash.Controllers
             }
 
             // =====================================================
-            // DEDUCT STOCK
+            // DEDUCT CONSUMABLE STOCK
             // =====================================================
 
             foreach (var stock in consumables)
@@ -329,18 +449,30 @@ namespace LabDash.Controllers
             item.AssignedTechnicianId =
                 technician.Id;
 
+            // =====================================================
+            // START DATE/TIME
+            // =====================================================
+
             item.StartDateTime =
                 DateTime.Now;
+
+            // =====================================================
+            // CHANGE TEST STATUS
+            // =====================================================
 
             item.Status =
                 "In Progress";
 
             // =====================================================
-            // UPDATE REQUEST STATUS
+            // CHANGE REQUEST STATUS
             // =====================================================
 
             item.TestRequest.Status =
                 "In Progress";
+
+            // =====================================================
+            // SAVE CHANGES
+            // =====================================================
 
             try
             {
@@ -356,17 +488,25 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // =====================================================
+            // SUCCESS
+            // =====================================================
+
             TempData["Success"] =
-                "Test successfully assigned to you.";
+                "Test successfully started and assigned to you.";
+
+            // =====================================================
+            // OPEN PROCESS TEST
+            // =====================================================
 
             return RedirectToAction(
                 nameof(ProcessTest),
                 new
                 {
-                    id =
-                        item.TestRequestItemId
+                    id = item.TestRequestItemId
                 });
         }
+
 
         // =========================================================
         // IN PROGRESS TESTS
@@ -486,16 +626,16 @@ namespace LabDash.Controllers
             // TURNAROUND TIME
             // =========================================================
 
-            double turnaroundHours = 0;
+            double turnaroundMinutes = 0;
 
             if (item.TestType != null)
             {
-                turnaroundHours =
-                    item.TestType.TurnaroundTimeHours;
+                turnaroundMinutes =
+                    item.TestType.TurnaroundTimeMinutes;
             }
 
-            ViewBag.TurnaroundHours =
-                turnaroundHours;
+            ViewBag.TurnaroundMinutes =
+                turnaroundMinutes;
 
             // =========================================================
             // DUE DATE
@@ -504,11 +644,11 @@ namespace LabDash.Controllers
             DateTime? dueDateTime = null;
 
             if (item.StartDateTime.HasValue &&
-                turnaroundHours > 0)
+                turnaroundMinutes > 0)
             {
                 dueDateTime =
                     item.StartDateTime.Value
-                        .AddHours(turnaroundHours);
+                        .AddMinutes(turnaroundMinutes);
             }
 
             ViewBag.DueDateTime =

@@ -19,6 +19,8 @@ builder.Services.AddIdentity<LabUser, IdentityRole>(options => options.SignIn.Re
     .AddEntityFrameworkStores<LabDbContext>().AddDefaultTokenProviders();
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddSession();
+
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 builder.Services.AddTransient<IEmailSender, EmailSender>();
@@ -46,7 +48,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 

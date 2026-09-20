@@ -35,6 +35,6 @@ namespace LabDash.ViewModels
 
         public string RequiredSampleType { get; set; } = string.Empty;
 
-        public int TurnaroundTimeHours { get; set; }
+        public int TurnaroundTimeMinutes { get; set; }
     }
 }

@@ -1,6 +1,8 @@
 ﻿using System.Security.Claims;
 using LabDash.Areas.Identity.Data;
 using LabDash.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -105,3 +107,6 @@ namespace LabDash.Controllers
         }
     }
 }
+
+
+   

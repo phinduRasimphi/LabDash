@@ -1052,7 +1052,7 @@ namespace LabDash.Migrations
                     b.Property<int>("TestCategoryId")
                         .HasColumnType("int");
 
-                    b.Property<int>("TurnaroundTimeHours")
+                    b.Property<int>("TurnaroundTimeMinutes")
                         .HasColumnType("int");
 
                     b.Property<string>("UnitOfMeasurement")
