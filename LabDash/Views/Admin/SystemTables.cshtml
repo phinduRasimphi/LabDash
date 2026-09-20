@@ -5,30 +5,6 @@
     ViewData["ActivePage"] = "SystemTables";
 }
 
-@*
-    ============================================================================
-    Same "adm-" treatment as Conditions.cshtml / Allergies.cshtml / Medications.cshtml.
-
-    UPDATED: Sample Types and Units now soft-delete instead of hard-delete, to
-    match the archive/reactivate pattern used on the other three pages (test
-    types and other records may still reference an old sample type/unit even
-    after it's retired, same reasoning as Conditions/Allergies/Medications).
-    Each panel now has an Active/Archived tab pair, same as those pages.
-
-    ASSUMES (add these if they don't already exist):
-      - SampleTypeLookup and Unit gain an IsActive bool column.
-      - SystemTablesViewModel gains InactiveSampleTypes and InactiveUnits
-        collections alongside the existing SampleTypes / Units.
-      - Controller actions: DeactivateSampleType (replaces DeleteSampleType),
-        ReactivateSampleType, DeactivateUnit (replaces DeleteUnit),
-        ReactivateUnit — each doing an UPDATE, not a DELETE FROM.
-
-    Still kept: the info banner pointing at Conditions/Allergies/Medications
-    for their own category management, and the add-inline-at-bottom-of-table
-    pattern (no modal — these lookups are a single required text field).
-    ============================================================================
-*@
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -48,14 +24,15 @@
         </div>
     }
 
-    <!-- ==========================================
-        PAGE BANNER
-    =========================================== -->
+    <!-- PAGE BANNER -->
     <div class="adm-page-banner">
         <div class="adm-page-banner-pattern"></div>
 
         <div class="adm-page-banner-left">
-            <div class="adm-page-banner-icon"><i class="fas fa-table-cells"></i></div>
+            <div class="adm-page-banner-icon">
+                <i class="fas fa-table-cells"></i>
+            </div>
+
             <div>
                 <h1>System Tables</h1>
                 <p>Manage small reference lookups shared across subsystems</p>
@@ -64,248 +41,960 @@
 
         <div class="adm-page-banner-right">
             <div class="adm-mini-stats">
+
                 <div class="adm-mini-stat">
                     <span class="num">@Model.SampleTypes.Count</span>
                     <span class="label">Sample Types</span>
                 </div>
+
                 <div class="adm-mini-stat">
                     <span class="num">@Model.Units.Count</span>
                     <span class="label">Units</span>
                 </div>
+
                 <div class="adm-mini-stat">
-                    <span class="num">@(Model.InactiveSampleTypes.Count + Model.InactiveUnits.Count)</span>
+                    <span class="num">
+                        @(Model.InactiveSampleTypes.Count + Model.InactiveUnits.Count)
+                    </span>
                     <span class="label">Archived</span>
                 </div>
+
             </div>
         </div>
     </div>
 
-    <!-- ==========================================
-        INFO NOTE
-    =========================================== -->
+    <!-- INFO NOTE -->
     <div class="adm-alert adm-alert-info">
         <i class="fas fa-circle-info"></i>
+
         Condition, Allergy, and Medication categories are managed on their own pages
-        (<a asp-action="Conditions">Conditions</a>, <a asp-action="Allergies">Allergies</a>,
-        <a asp-action="Medications">Medications</a>) — this page only covers Sample Types and Units.
+        (<a asp-action="Conditions">Conditions</a>,
+        <a asp-action="Allergies">Allergies</a>,
+        <a asp-action="Medications">Medications</a>)
+        — this page only covers Sample Types and Units.
     </div>
 
-    <!-- ==========================================
-        SAMPLE TYPES + UNITS
-    =========================================== -->
+    <!-- SAMPLE TYPES + UNITS -->
     <div class="adm-split adm-split-even">
 
-        <!-- Sample Types -->
+        <!-- ==========================================
+             SAMPLE TYPES
+        =========================================== -->
         <div class="adm-panel">
+
             <div class="adm-panel-head">
-                <span><i class="fas fa-vial"></i> Sample Types</span>
-                <span class="adm-panel-tag">@Model.SampleTypes.Count items</span>
+                <span>
+                    <i class="fas fa-vial"></i>
+                    Sample Types
+                </span>
+
+                <span class="adm-panel-tag">
+                    @Model.SampleTypes.Count items
+                </span>
             </div>
 
+            <!-- TABS -->
             <div class="adm-tabs">
-                <button type="button" class="adm-tab is-active" data-tbody="sampletype-tbody" onclick="switchTab(this, 'sampletype')">
-                    Active <span class="adm-tab-count">@Model.SampleTypes.Count</span>
+
+                <button type="button"
+                        class="adm-tab is-active"
+                        data-tbody="sampletype-tbody"
+                        onclick="switchTab(this, 'sampletype')">
+
+                    Active
+
+                    <span class="adm-tab-count">
+                        @Model.SampleTypes.Count
+                    </span>
+
                 </button>
-                <button type="button" class="adm-tab" data-tbody="sampletype-tbody-archived" onclick="switchTab(this, 'sampletype')">
-                    Archived <span class="adm-tab-count">@Model.InactiveSampleTypes.Count</span>
+
+                <button type="button"
+                        class="adm-tab"
+                        data-tbody="sampletype-tbody-archived"
+                        onclick="switchTab(this, 'sampletype')">
+
+                    Archived
+
+                    <span class="adm-tab-count">
+                        @Model.InactiveSampleTypes.Count
+                    </span>
+
                 </button>
+
             </div>
 
+            <!-- SHOW-ROWS CONTROL -->
+            <div class="adm-toolbar-mini">
+
+                <div class="adm-show-control">
+                    <span>Show</span>
+
+                    <select id="sampletype-page-size"
+                            onchange="changeTablePageSize('sampletype', this)">
+
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="15">15</option>
+                        <option value="25">25</option>
+                        <option value="all">All</option>
+
+                    </select>
+                </div>
+
+            </div>
+
+            <!-- TABLE -->
             <div class="adm-table-wrap adm-table-wrap-flush">
-                <table class="adm-table">
-                    <thead>
-                        <tr>
-                            <th>Sample Type</th>
-                            <th class="adm-th-actions-sm">Actions</th>
-                        </tr>
-                    </thead>
 
-                    <!-- ACTIVE ROWS -->
-                    <tbody id="sampletype-tbody">
-                        @foreach (var s in Model.SampleTypes)
-                        {
+                <div class="adm-table-scroll">
+
+                    <table class="adm-table">
+
+                        <thead>
                             <tr>
-                                <td class="adm-td-strong">@s.Name</td>
-                                <td>
-                                    <form asp-action="DeactivateSampleType" method="post" class="adm-inline-form-tight">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@s.SampleTypeLookupId" />
-                                        <button type="submit" class="adm-icon-btn adm-icon-btn-danger">
-                                            <i class="fas fa-box-archive"></i> Deactivate
-                                        </button>
-                                    </form>
-                                </td>
+                                <th>Sample Type</th>
+                                <th>Description</th>
+                                <th class="adm-th-actions-sm">Actions</th>
                             </tr>
-                        }
-                    </tbody>
+                        </thead>
 
-                    <!-- ARCHIVED ROWS -->
-                    <tbody id="sampletype-tbody-archived" style="display:none;">
-                        @foreach (var s in Model.InactiveSampleTypes)
-                        {
-                            <tr>
-                                <td class="adm-td-strong adm-td-muted">@s.Name</td>
-                                <td>
-                                    <form asp-action="ReactivateSampleType" method="post" class="adm-inline-form-tight">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@s.SampleTypeLookupId" />
-                                        <button type="submit" class="adm-icon-btn adm-icon-btn-restore">
-                                            <i class="fas fa-rotate-left"></i> Reactivate
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                        <!-- ACTIVE SAMPLE TYPES -->
+                        <tbody id="sampletype-tbody">
 
+                            @foreach (var s in Model.SampleTypes)
+                            {
+                                <tr>
+
+                                    <td class="adm-td-strong">
+                                        @s.Name
+                                    </td>
+
+                                    <td class="adm-description">
+                                        @(string.IsNullOrWhiteSpace(s.Description)
+                                            ? "No description"
+                                            : s.Description)
+                                    </td>
+
+                                    <td>
+                                        <div class="adm-row-actions">
+
+                                            <button type="button"
+                                                    class="adm-icon-btn"
+                                                    data-type="sampletype"
+                                                    data-id="@s.SampleTypeLookupId"
+                                                    data-name="@s.Name"
+                                                    data-description="@s.Description"
+                                                    onclick="openEditModalFromButton(this)">
+
+                                                <i class="fas fa-pen"></i>
+                                                Edit
+
+                                            </button>
+
+                                            <form asp-action="DeactivateSampleType"
+                                                  method="post"
+                                                  class="adm-inline-form-tight">
+
+                                                @Html.AntiForgeryToken()
+
+                                                <input type="hidden"
+                                                       name="id"
+                                                       value="@s.SampleTypeLookupId" />
+
+                                                <button type="submit"
+                                                        class="adm-icon-btn adm-icon-btn-danger">
+
+                                                    <i class="fas fa-box-archive"></i>
+                                                    Deactivate
+
+                                                </button>
+
+                                            </form>
+
+                                        </div>
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                        <!-- ARCHIVED SAMPLE TYPES -->
+                        <tbody id="sampletype-tbody-archived"
+                               style="display:none;">
+
+                            @foreach (var s in Model.InactiveSampleTypes)
+                            {
+                                <tr>
+
+                                    <td class="adm-td-strong adm-td-muted">
+                                        @s.Name
+                                    </td>
+
+                                    <td class="adm-description adm-td-muted">
+                                        @(string.IsNullOrWhiteSpace(s.Description)
+                                            ? "No description"
+                                            : s.Description)
+                                    </td>
+
+                                    <td>
+
+                                        <form asp-action="ReactivateSampleType"
+                                              method="post"
+                                              class="adm-inline-form-tight">
+
+                                            @Html.AntiForgeryToken()
+
+                                            <input type="hidden"
+                                                   name="id"
+                                                   value="@s.SampleTypeLookupId" />
+
+                                            <button type="submit"
+                                                    class="adm-icon-btn adm-icon-btn-restore">
+
+                                                <i class="fas fa-rotate-left"></i>
+                                                Reactivate
+
+                                            </button>
+
+                                        </form>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <!-- ACTIVE EMPTY STATE -->
                 @if (!Model.SampleTypes.Any())
                 {
-                    <div class="adm-empty-state" id="sampletype-empty-active">
-                        <div class="adm-empty-icon"><i class="fas fa-vial"></i></div>
+                    <div class="adm-empty-state"
+                         id="sampletype-empty-active">
+
+                        <div class="adm-empty-icon">
+                            <i class="fas fa-vial"></i>
+                        </div>
+
                         <h5>No sample types yet</h5>
-                        <p>Add your first sample type using the form below.</p>
+
+                        <p>
+                            Add your first sample type using the form below.
+                        </p>
+
                     </div>
                 }
 
+                <!-- ARCHIVED EMPTY STATE -->
                 @if (!Model.InactiveSampleTypes.Any())
                 {
-                    <div class="adm-empty-state" id="sampletype-empty-archived" style="display:none;">
-                        <div class="adm-empty-icon"><i class="fas fa-box-archive"></i></div>
+                    <div class="adm-empty-state"
+                         id="sampletype-empty-archived"
+                         style="display:none;">
+
+                        <div class="adm-empty-icon">
+                            <i class="fas fa-box-archive"></i>
+                        </div>
+
                         <h5>Nothing archived</h5>
-                        <p>Sample types you deactivate will appear here and can be reactivated any time.</p>
+
+                        <p>
+                            Sample types you deactivate will appear here
+                            and can be reactivated any time.
+                        </p>
+
                     </div>
                 }
+
             </div>
 
-            <form asp-action="AddSampleType" method="post" class="adm-add-bar">
+            <!-- PAGINATION -->
+            <div class="adm-table-pagination"
+                 id="sampletype-pagination">
+
+                <div class="adm-pagination-left">
+                    <span id="sampletype-results-info">
+                        Showing 0 of 0
+                    </span>
+                </div>
+
+                <div class="adm-pagination-right">
+
+                    <button type="button"
+                            class="adm-page-btn"
+                            id="sampletype-prev"
+                            onclick="changeTablePage('sampletype', -1)">
+
+                        <i class="fas fa-chevron-left"></i>
+
+                    </button>
+
+                    <span class="adm-page-info"
+                          id="sampletype-page-info">
+                        Page 1
+                    </span>
+
+                    <button type="button"
+                            class="adm-page-btn"
+                            id="sampletype-next"
+                            onclick="changeTablePage('sampletype', 1)">
+
+                        <i class="fas fa-chevron-right"></i>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+            <!-- ADD SAMPLE TYPE -->
+            <form asp-action="AddSampleType"
+                  method="post"
+                  class="adm-add-bar">
+
                 @Html.AntiForgeryToken()
-                <input name="name" required placeholder="Add sample type…" />
-                <button type="submit" class="adm-btn adm-btn-sm">
-                    <i class="fas fa-plus"></i> Add
+
+                <input name="name"
+                       required
+                       placeholder="Add sample type…" />
+
+                <input name="description"
+                       placeholder="Description…" />
+
+                <button type="submit"
+                        class="adm-btn adm-btn-sm">
+
+                    <i class="fas fa-plus"></i>
+                    Add
+
                 </button>
+
             </form>
+
         </div>
 
-        <!-- Units -->
+
+        <!-- ==========================================
+             UNITS
+        =========================================== -->
         <div class="adm-panel">
+
             <div class="adm-panel-head">
-                <span><i class="fas fa-ruler"></i> Units</span>
-                <span class="adm-panel-tag">@Model.Units.Count items</span>
+
+                <span>
+                    <i class="fas fa-ruler"></i>
+                    Units
+                </span>
+
+                <span class="adm-panel-tag">
+                    @Model.Units.Count items
+                </span>
+
             </div>
 
+            <!-- TABS -->
             <div class="adm-tabs">
-                <button type="button" class="adm-tab is-active" data-tbody="unit-tbody" onclick="switchTab(this, 'unit')">
-                    Active <span class="adm-tab-count">@Model.Units.Count</span>
+
+                <button type="button"
+                        class="adm-tab is-active"
+                        data-tbody="unit-tbody"
+                        onclick="switchTab(this, 'unit')">
+
+                    Active
+
+                    <span class="adm-tab-count">
+                        @Model.Units.Count
+                    </span>
+
                 </button>
-                <button type="button" class="adm-tab" data-tbody="unit-tbody-archived" onclick="switchTab(this, 'unit')">
-                    Archived <span class="adm-tab-count">@Model.InactiveUnits.Count</span>
+
+                <button type="button"
+                        class="adm-tab"
+                        data-tbody="unit-tbody-archived"
+                        onclick="switchTab(this, 'unit')">
+
+                    Archived
+
+                    <span class="adm-tab-count">
+                        @Model.InactiveUnits.Count
+                    </span>
+
                 </button>
+
             </div>
 
+            <!-- SHOW-ROWS CONTROL -->
+            <div class="adm-toolbar-mini">
+
+                <div class="adm-show-control">
+                    <span>Show</span>
+
+                    <select id="unit-page-size"
+                            onchange="changeTablePageSize('unit', this)">
+
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="15">15</option>
+                        <option value="25">25</option>
+                        <option value="all">All</option>
+
+                    </select>
+                </div>
+
+            </div>
+
+            <!-- TABLE -->
             <div class="adm-table-wrap adm-table-wrap-flush">
-                <table class="adm-table">
-                    <thead>
-                        <tr>
-                            <th>Unit</th>
-                            <th class="adm-th-actions-sm">Actions</th>
-                        </tr>
-                    </thead>
 
-                    <!-- ACTIVE ROWS -->
-                    <tbody id="unit-tbody">
-                        @foreach (var u in Model.Units)
-                        {
+                <div class="adm-table-scroll">
+
+                    <table class="adm-table">
+
+                        <thead>
+
                             <tr>
-                                <td class="adm-td-strong">@u.Name</td>
-                                <td>
-                                    <form asp-action="DeactivateUnit" method="post" class="adm-inline-form-tight">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@u.UnitId" />
-                                        <button type="submit" class="adm-icon-btn adm-icon-btn-danger">
-                                            <i class="fas fa-box-archive"></i> Deactivate
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
 
-                    <!-- ARCHIVED ROWS -->
-                    <tbody id="unit-tbody-archived" style="display:none;">
-                        @foreach (var u in Model.InactiveUnits)
-                        {
-                            <tr>
-                                <td class="adm-td-strong adm-td-muted">@u.Name</td>
-                                <td>
-                                    <form asp-action="ReactivateUnit" method="post" class="adm-inline-form-tight">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@u.UnitId" />
-                                        <button type="submit" class="adm-icon-btn adm-icon-btn-restore">
-                                            <i class="fas fa-rotate-left"></i> Reactivate
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                                <th>Unit</th>
 
+                                <th>Description</th>
+
+                                <th class="adm-th-actions-sm">
+                                    Actions
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+                        <!-- ACTIVE UNITS -->
+                        <tbody id="unit-tbody">
+
+                            @foreach (var u in Model.Units)
+                            {
+                                <tr>
+
+                                    <td class="adm-td-strong">
+                                        @u.Name
+                                    </td>
+
+                                    <td class="adm-description">
+                                        @(string.IsNullOrWhiteSpace(u.Description)
+                                            ? "No description"
+                                            : u.Description)
+                                    </td>
+
+                                    <td>
+                                        <div class="adm-row-actions">
+
+                                            <button type="button"
+                                                    class="adm-icon-btn"
+                                                    data-type="unit"
+                                                    data-id="@u.UnitId"
+                                                    data-name="@u.Name"
+                                                    data-description="@u.Description"
+                                                    onclick="openEditModalFromButton(this)">
+
+                                                <i class="fas fa-pen"></i>
+                                                Edit
+
+                                            </button>
+
+                                            <form asp-action="DeactivateUnit"
+                                                  method="post"
+                                                  class="adm-inline-form-tight">
+
+                                                @Html.AntiForgeryToken()
+
+                                                <input type="hidden"
+                                                       name="id"
+                                                       value="@u.UnitId" />
+
+                                                <button type="submit"
+                                                        class="adm-icon-btn adm-icon-btn-danger">
+
+                                                    <i class="fas fa-box-archive"></i>
+                                                    Deactivate
+
+                                                </button>
+
+                                            </form>
+
+                                        </div>
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                        <!-- ARCHIVED UNITS -->
+                        <tbody id="unit-tbody-archived"
+                               style="display:none;">
+
+                            @foreach (var u in Model.InactiveUnits)
+                            {
+                                <tr>
+
+                                    <td class="adm-td-strong adm-td-muted">
+                                        @u.Name
+                                    </td>
+
+                                    <td class="adm-description adm-td-muted">
+                                        @(string.IsNullOrWhiteSpace(u.Description)
+                                            ? "No description"
+                                            : u.Description)
+                                    </td>
+
+                                    <td>
+
+                                        <form asp-action="ReactivateUnit"
+                                              method="post"
+                                              class="adm-inline-form-tight">
+
+                                            @Html.AntiForgeryToken()
+
+                                            <input type="hidden"
+                                                   name="id"
+                                                   value="@u.UnitId" />
+
+                                            <button type="submit"
+                                                    class="adm-icon-btn adm-icon-btn-restore">
+
+                                                <i class="fas fa-rotate-left"></i>
+                                                Reactivate
+
+                                            </button>
+
+                                        </form>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <!-- ACTIVE EMPTY STATE -->
                 @if (!Model.Units.Any())
                 {
-                    <div class="adm-empty-state" id="unit-empty-active">
-                        <div class="adm-empty-icon"><i class="fas fa-ruler"></i></div>
+                    <div class="adm-empty-state"
+                         id="unit-empty-active">
+
+                        <div class="adm-empty-icon">
+                            <i class="fas fa-ruler"></i>
+                        </div>
+
                         <h5>No units yet</h5>
-                        <p>Add your first unit using the form below.</p>
+
+                        <p>
+                            Add your first unit using the form below.
+                        </p>
+
                     </div>
                 }
 
+                <!-- ARCHIVED EMPTY STATE -->
                 @if (!Model.InactiveUnits.Any())
                 {
-                    <div class="adm-empty-state" id="unit-empty-archived" style="display:none;">
-                        <div class="adm-empty-icon"><i class="fas fa-box-archive"></i></div>
+                    <div class="adm-empty-state"
+                         id="unit-empty-archived"
+                         style="display:none;">
+
+                        <div class="adm-empty-icon">
+                            <i class="fas fa-box-archive"></i>
+                        </div>
+
                         <h5>Nothing archived</h5>
-                        <p>Units you deactivate will appear here and can be reactivated any time.</p>
+
+                        <p>
+                            Units you deactivate will appear here
+                            and can be reactivated any time.
+                        </p>
+
                     </div>
                 }
+
             </div>
 
-            <form asp-action="AddUnit" method="post" class="adm-add-bar">
+            <!-- PAGINATION -->
+            <div class="adm-table-pagination"
+                 id="unit-pagination">
+
+                <div class="adm-pagination-left">
+                    <span id="unit-results-info">
+                        Showing 0 of 0
+                    </span>
+                </div>
+
+                <div class="adm-pagination-right">
+
+                    <button type="button"
+                            class="adm-page-btn"
+                            id="unit-prev"
+                            onclick="changeTablePage('unit', -1)">
+
+                        <i class="fas fa-chevron-left"></i>
+
+                    </button>
+
+                    <span class="adm-page-info"
+                          id="unit-page-info">
+                        Page 1
+                    </span>
+
+                    <button type="button"
+                            class="adm-page-btn"
+                            id="unit-next"
+                            onclick="changeTablePage('unit', 1)">
+
+                        <i class="fas fa-chevron-right"></i>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+            <!-- ADD UNIT -->
+            <form asp-action="AddUnit"
+                  method="post"
+                  class="adm-add-bar">
+
                 @Html.AntiForgeryToken()
-                <input name="name" required placeholder="Add unit (e.g. mg/dL, mmol/L)…" />
-                <button type="submit" class="adm-btn adm-btn-sm">
-                    <i class="fas fa-plus"></i> Add
+
+                <input name="name"
+                       required
+                       placeholder="Add unit (e.g. mg/dL, mmol/L)…" />
+
+                <input name="description"
+                       placeholder="Description…" />
+
+                <button type="submit"
+                        class="adm-btn adm-btn-sm">
+
+                    <i class="fas fa-plus"></i>
+                    Add
+
                 </button>
+
             </form>
+
         </div>
 
     </div>
 
 </div>
 
+<!-- ==========================================
+     EDIT MODAL (shared by Sample Types + Units)
+=========================================== -->
+<div id="editModal" class="adm-modal-overlay" style="display:none;">
+    <div class="adm-modal">
+
+        <h3 id="editModalTitle">Edit Item</h3>
+
+        <form id="editModalForm" method="post">
+
+            @Html.AntiForgeryToken()
+
+            <input type="hidden" name="id" id="editModalId" />
+
+            <label for="editModalName">Name</label>
+            <input type="text"
+                   name="name"
+                   id="editModalName"
+                   required />
+
+            <label for="editModalDescription">Description</label>
+            <input type="text"
+                   name="description"
+                   id="editModalDescription" />
+
+            <div class="adm-modal-actions">
+
+                <button type="button"
+                        class="adm-icon-btn"
+                        onclick="closeEditModal()">
+                    Cancel
+                </button>
+
+                <button type="submit"
+                        class="adm-btn adm-btn-sm">
+                    Save
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+
 @section Scripts {
+
     <script>
-        // Generic tab switcher — works for both the Sample Types and Units
-        // panels independently, keyed by a prefix ('sampletype' or 'unit')
-        // so switching one panel's tab never touches the other.
+
+        /* ==========================================================
+           PAGINATION / ROW-COUNT STATE
+           One shared engine drives both the Sample Types and Units
+           tables, keyed by prefix ('sampletype' | 'unit'), so both
+           tables behave exactly the same way as the Conditions page.
+        ========================================================== */
+
+        var tableState = {
+            sampletype: { page: { active: 1, archived: 1 }, pageSize: 10 },
+            unit: { page: { active: 1, archived: 1 }, pageSize: 10 }
+        };
+
+        function getCurrentType(prefix) {
+
+            var activeTab = document.querySelector(
+                '[data-tbody="' + prefix + '-tbody"].is-active, ' +
+                '[data-tbody="' + prefix + '-tbody-archived"].is-active'
+            );
+
+            if (!activeTab) {
+                return 'active';
+            }
+
+            return activeTab.dataset.tbody === prefix + '-tbody-archived'
+                ? 'archived'
+                : 'active';
+        }
+
+        function renderTable(prefix) {
+
+            var type = getCurrentType(prefix);
+
+            var tbody = document.getElementById(
+                prefix + '-tbody' + (type === 'archived' ? '-archived' : '')
+            );
+
+            if (!tbody) {
+                return;
+            }
+
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            var state = tableState[prefix];
+
+            var allResults = state.pageSize === 'all';
+            var pageSize = allResults ? rows.length : state.pageSize;
+
+            if (!pageSize || pageSize < 1) {
+                pageSize = 10;
+            }
+
+            var totalPages = allResults
+                ? 1
+                : Math.max(1, Math.ceil(rows.length / pageSize));
+
+            if (state.page[type] > totalPages) {
+                state.page[type] = totalPages;
+            }
+
+            var currentPage = state.page[type];
+
+            var start = allResults ? 0 : (currentPage - 1) * pageSize;
+            var end = allResults ? rows.length : start + pageSize;
+
+            rows.forEach(function(row) {
+                row.style.display = 'none';
+            });
+
+            rows.slice(start, end).forEach(function(row) {
+                row.style.display = '';
+            });
+
+            updateTablePagination(
+                prefix, rows.length, currentPage, totalPages, allResults, start, end
+            );
+        }
+
+        function updateTablePagination(prefix, total, currentPage, totalPages, allResults, start, end) {
+
+            var pagination = document.getElementById(prefix + '-pagination');
+
+            if (!pagination) {
+                return;
+            }
+
+            if (total === 0) {
+                pagination.style.display = 'none';
+                return;
+            }
+
+            if (allResults) {
+                start = 0;
+                end = total;
+            }
+
+            var showingStart = start + 1;
+            var showingEnd = Math.min(end, total);
+
+            document.getElementById(prefix + '-results-info').textContent =
+                'Showing ' + showingStart + '–' + showingEnd + ' of ' + total;
+
+            document.getElementById(prefix + '-page-info').textContent =
+                allResults ? 'All' : 'Page ' + currentPage + ' of ' + totalPages;
+
+            var prevBtn = document.getElementById(prefix + '-prev');
+            var nextBtn = document.getElementById(prefix + '-next');
+
+            prevBtn.disabled = allResults || currentPage <= 1;
+            nextBtn.disabled = allResults || currentPage >= totalPages;
+
+            pagination.style.display = 'flex';
+        }
+
+        function changeTablePage(prefix, direction) {
+
+            var type = getCurrentType(prefix);
+            var state = tableState[prefix];
+
+            state.page[type] += direction;
+
+            if (state.page[type] < 1) {
+                state.page[type] = 1;
+            }
+
+            renderTable(prefix);
+        }
+
+        function changeTablePageSize(prefix, selectEl) {
+
+            var value = selectEl.value;
+
+            tableState[prefix].pageSize = value === 'all' ? 'all' : parseInt(value);
+            tableState[prefix].page.active = 1;
+            tableState[prefix].page.archived = 1;
+
+            renderTable(prefix);
+        }
+
+
+        /* ==========================================================
+           TABS
+        ========================================================== */
+
         function switchTab(tabBtn, prefix) {
+
             var panel = tabBtn.closest('.adm-panel');
-            panel.querySelectorAll('.adm-tab').forEach(function(t) { t.classList.remove('is-active'); });
+
+            panel.querySelectorAll('.adm-tab')
+                .forEach(function(t) {
+                    t.classList.remove('is-active');
+                });
+
             tabBtn.classList.add('is-active');
 
             document.getElementById(prefix + '-tbody').style.display = 'none';
+
             document.getElementById(prefix + '-tbody-archived').style.display = 'none';
+
             document.getElementById(tabBtn.dataset.tbody).style.display = '';
 
-            var activeEmpty = document.getElementById(prefix + '-empty-active');
-            var archivedEmpty = document.getElementById(prefix + '-empty-archived');
-            if (activeEmpty) activeEmpty.style.display = tabBtn.dataset.tbody === (prefix + '-tbody') ? '' : 'none';
-            if (archivedEmpty) archivedEmpty.style.display = tabBtn.dataset.tbody === (prefix + '-tbody-archived') ? '' : 'none';
+            var activeEmpty =
+                document.getElementById(prefix + '-empty-active');
+
+            var archivedEmpty =
+                document.getElementById(prefix + '-empty-archived');
+
+            if (activeEmpty) {
+
+                activeEmpty.style.display =
+                    tabBtn.dataset.tbody === prefix + '-tbody'
+                        ? ''
+                        : 'none';
+
+            }
+
+            if (archivedEmpty) {
+
+                archivedEmpty.style.display =
+                    tabBtn.dataset.tbody === prefix + '-tbody-archived'
+                        ? ''
+                        : 'none';
+
+            }
+
+            tableState[prefix].page.active = 1;
+            tableState[prefix].page.archived = 1;
+
+            renderTable(prefix);
         }
+
+        // ===========================
+        // EDIT MODAL
+        // ===========================
+
+        var editModalUrls = {
+            sampletype: '@Url.Action("EditSampleType", "Admin")',
+            unit: '@Url.Action("EditUnit", "Admin")'
+        };
+
+        function openEditModalFromButton(btn) {
+
+            var type = btn.dataset.type;
+            var id = btn.dataset.id;
+            var name = btn.dataset.name;
+            var description = btn.dataset.description;
+
+            document.getElementById('editModalId').value = id;
+            document.getElementById('editModalName').value = name;
+            document.getElementById('editModalDescription').value = description || '';
+
+            document.getElementById('editModalTitle').innerText =
+                type === 'sampletype' ? 'Edit Sample Type' : 'Edit Unit';
+
+            document.getElementById('editModalForm').action = editModalUrls[type];
+
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // Close modal on overlay click (but not when clicking inside the card)
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeEditModal();
+            }
+        });
+
+        // ===========================
+        // INITIALISE
+        // ===========================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            renderTable('sampletype');
+            renderTable('unit');
+        });
+
     </script>
+
 }
 
+
 <style>
+
     :root {
         --adm-paper: #F0F7F6;
         --adm-raised: #FFFFFF;
@@ -329,6 +1018,7 @@
         --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
     }
 
+
     .adm-page {
         max-width: 1280px;
         margin: 0 auto;
@@ -337,7 +1027,9 @@
         font-family: 'Inter', sans-serif;
     }
 
-    /* ============ ALERTS ============ */
+
+    /* ALERTS */
+
     .adm-alert {
         display: flex;
         align-items: center;
@@ -371,14 +1063,16 @@
             text-decoration: underline;
         }
 
-    /* ============ PAGE BANNER ============ */
+
+    /* PAGE BANNER */
+
     .adm-page-banner {
         position: relative;
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 24px;
-        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        background: linear-gradient( 125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end) );
         border-radius: var(--adm-radius);
         padding: 26px 32px;
         margin-bottom: 22px;
@@ -390,7 +1084,7 @@
     .adm-page-banner-pattern {
         position: absolute;
         inset: 0;
-        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        background-image: radial-gradient( circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45% ), radial-gradient( circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40% );
         pointer-events: none;
     }
 
@@ -466,12 +1160,14 @@
             margin-top: 2px;
         }
 
-    /* ============ BUTTONS ============ */
+
+    /* BUTTONS */
+
     .adm-btn {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        background: linear-gradient( 125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end) );
         color: #fff;
         border: none;
         border-radius: var(--adm-radius-sm);
@@ -495,7 +1191,9 @@
         flex-shrink: 0;
     }
 
-    /* ============ PANELS ============ */
+
+    /* PANELS */
+
     .adm-panel {
         background: var(--adm-raised);
         border-radius: var(--adm-radius);
@@ -534,7 +1232,9 @@
         border-radius: 999px;
     }
 
-    /* ============ SPLIT LAYOUT ============ */
+
+    /* SPLIT LAYOUT */
+
     .adm-split {
         display: grid;
         grid-template-columns: 1.7fr 1fr;
@@ -546,11 +1246,20 @@
         grid-template-columns: 1fr 1fr;
     }
 
+
     .adm-inline-form-tight {
         display: inline-flex;
     }
 
-    /* ============ TABS ============ */
+    .adm-row-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+
+    /* TABS */
+
     .adm-tabs {
         display: flex;
         gap: 6px;
@@ -590,20 +1299,82 @@
         color: var(--adm-teal-deep);
     }
 
-    /* ============ TABLE ============ */
+
+    /* SHOW-ROWS TOOLBAR */
+
+    .adm-toolbar-mini {
+        display: flex;
+        justify-content: flex-end;
+        padding: 14px 26px 0;
+    }
+
+    .adm-show-control {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--adm-ink-soft);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+        .adm-show-control select {
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 7px 10px;
+            min-width: 64px;
+            font-size: 12.5px;
+            font-family: 'Inter', sans-serif;
+            color: var(--adm-ink);
+            background: var(--adm-raised);
+        }
+
+
+    /* TABLE */
+
     .adm-table-wrap {
         padding: 16px 0 6px;
-        overflow-x: auto;
     }
 
     .adm-table-wrap-flush {
         padding-bottom: 0;
     }
 
+    .adm-table-scroll {
+        width: 100%;
+        max-width: 100%;
+        max-height: 430px;
+        overflow-y: auto;
+        overflow-x: auto;
+        box-sizing: border-box;
+        scrollbar-width: thin;
+        scrollbar-color: var(--adm-line-strong) var(--adm-paper);
+    }
+
+        .adm-table-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .adm-table-scroll::-webkit-scrollbar-track {
+            background: var(--adm-paper);
+            border-radius: 10px;
+        }
+
+        .adm-table-scroll::-webkit-scrollbar-thumb {
+            background: var(--adm-line-strong);
+            border-radius: 10px;
+        }
+
+            .adm-table-scroll::-webkit-scrollbar-thumb:hover {
+                background: var(--adm-teal);
+            }
+
     .adm-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 13.5px;
+        min-width: 520px;
     }
 
         .adm-table th {
@@ -616,10 +1387,13 @@
             color: var(--adm-ink-faint);
             background: var(--adm-paper);
             border-bottom: 1px solid var(--adm-line);
+            position: sticky;
+            top: 0;
+            z-index: 5;
         }
 
     .adm-th-actions-sm {
-        width: 130px;
+        width: 180px;
     }
 
     .adm-table td {
@@ -638,6 +1412,7 @@
 
     .adm-td-strong {
         font-weight: 600;
+        min-width: 120px;
     }
 
     .adm-td-muted {
@@ -645,7 +1420,15 @@
         font-weight: 500;
     }
 
-    /* ============ ROW ACTIONS ============ */
+    .adm-description {
+        color: var(--adm-ink-soft);
+        line-height: 1.5;
+        min-width: 180px;
+    }
+
+
+    /* ROW ACTIONS */
+
     .adm-icon-btn {
         display: inline-flex;
         align-items: center;
@@ -662,6 +1445,12 @@
         transition: background .15s, color .15s, border-color .15s;
     }
 
+        .adm-icon-btn:hover {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+            border-color: var(--adm-teal-dim);
+        }
+
     .adm-icon-btn-danger:hover {
         background: var(--adm-red-dim);
         color: var(--adm-red);
@@ -674,7 +1463,65 @@
         border-color: var(--adm-teal-dim);
     }
 
-    /* ============ ADD BAR (bottom-of-panel inline add) ============ */
+
+    /* PAGINATION */
+
+    .adm-page-btn {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--adm-line-strong);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all .15s;
+    }
+
+        .adm-page-btn:hover:not(:disabled) {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+            border-color: var(--adm-teal);
+        }
+
+        .adm-page-btn:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+        }
+
+    .adm-page-info {
+        min-width: 90px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--adm-ink-soft);
+        font-weight: 600;
+    }
+
+    .adm-table-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 26px 18px;
+        border-top: 1px solid var(--adm-line);
+    }
+
+    .adm-pagination-left {
+        color: var(--adm-ink-faint);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .adm-pagination-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+
+    /* ADD BAR */
+
     .adm-add-bar {
         display: flex;
         gap: 10px;
@@ -691,9 +1538,18 @@
             font-size: 13px;
             font-family: 'Inter', sans-serif;
             background: var(--adm-raised);
+            min-width: 0;
         }
 
-    /* ============ EMPTY STATE ============ */
+            .adm-add-bar input:focus {
+                outline: none;
+                border-color: var(--adm-teal);
+                box-shadow: 0 0 0 3px var(--adm-teal-dim);
+            }
+
+
+    /* EMPTY STATE */
+
     .adm-empty-state {
         padding: 48px 30px;
         text-align: center;
@@ -729,8 +1585,70 @@
         line-height: 1.6;
     }
 
-    /* ============ RESPONSIVE ============ */
+
+    /* EDIT MODAL */
+
+    .adm-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(16, 44, 39, 0.45);
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 16px;
+    }
+
+    .adm-modal {
+        background: var(--adm-raised);
+        border-radius: var(--adm-radius);
+        padding: 24px 26px;
+        width: 100%;
+        max-width: 380px;
+        box-shadow: var(--adm-shadow);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+        .adm-modal h3 {
+            font-family: 'Poppins', sans-serif;
+            margin: 0 0 6px;
+            font-size: 16.5px;
+            color: var(--adm-ink);
+        }
+
+        .adm-modal label {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--adm-ink-soft);
+        }
+
+        .adm-modal input {
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 9px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13.5px;
+        }
+
+            .adm-modal input:focus {
+                outline: none;
+                border-color: var(--adm-teal);
+                box-shadow: 0 0 0 3px var(--adm-teal-dim);
+            }
+
+    .adm-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 8px;
+    }
+
+
+    /* RESPONSIVE */
+
     @@media (max-width: 900px) {
+
         .adm-split,
         .adm-split-even {
             grid-template-columns: 1fr;
@@ -738,6 +1656,7 @@
     }
 
     @@media (max-width: 640px) {
+
         .adm-page {
             padding: 20px 16px 50px;
         }
@@ -755,5 +1674,15 @@
         .adm-add-bar {
             flex-direction: column;
         }
+
+        .adm-table-pagination {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .adm-toolbar-mini {
+            justify-content: flex-start;
+        }
     }
+
 </style>

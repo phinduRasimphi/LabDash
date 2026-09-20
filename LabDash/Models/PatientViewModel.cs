@@ -1,6 +1,4 @@
-﻿
-
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace LabDash.Models
 {
@@ -80,26 +78,129 @@ namespace LabDash.Models
         public bool IsAbnormal { get; set; }
         public DateTime ResultDate { get; set; }
         public string Category { get; set; } = "";
+        public string DoctorName { get; set; } = "";
+        public string TechnicianNotes { get; set; } = "";
+
 
         // e.g. "4.0 – 11.0 x10³/µL"
         public string NormalRange => $"{NormalMin} – {NormalMax} {Unit}";
     }
 
-    // ── 4. Medical History ───────────────────────────────────
     public class MedicalHistoryViewModel
     {
-        public List<string> Conditions { get; set; } = new();
-        public List<string> Allergies { get; set; } = new();
-        public List<string> Medication { get; set; } = new();
+        public List<ConditionRecordViewModel> Conditions { get; set; } = new();
+        public List<AllergyRecordViewModel> Allergies { get; set; } = new();
+        public List<MedicationRecordViewModel> Medications { get; set; } = new();
+    }
+
+    public class ConditionRecordViewModel
+    {
+        public string Name { get; set; } = "";
+        public string? CategoryName { get; set; }
+        public DateTime? DiagnosisDate { get; set; }
+        public string? Severity { get; set; }       // Mild | Moderate | Severe
+        public string? RecordedByDoctorName { get; set; }
+        public string? Notes { get; set; }
+
+        public string SeverityCssClass => (Severity ?? "").ToLower() switch
+        {
+            "severe" => "mh-sev-severe",
+            "moderate" => "mh-sev-moderate",
+            "mild" => "mh-sev-mild",
+            _ => "mh-sev-unknown"
+        };
+    }
+
+    public class AllergyRecordViewModel
+    {
+        public string Name { get; set; } = "";
+        public string? CategoryName { get; set; }
+        public DateTime? RecordedDate { get; set; }
+        public string? Severity { get; set; }
+        public string? RecordedByDoctorName { get; set; }
+        public string? Notes { get; set; }
+
+        public string SeverityCssClass => (Severity ?? "").ToLower() switch
+        {
+            "severe" => "mh-sev-severe",
+            "moderate" => "mh-sev-moderate",
+            "mild" => "mh-sev-mild",
+            _ => "mh-sev-unknown"
+        };
+    }
+
+    public class MedicationRecordViewModel
+    {
+        public string Name { get; set; } = "";
+        public string? CategoryName { get; set; }
+        public string? Dosage { get; set; }
+        public string? Frequency { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? RecordedByDoctorName { get; set; }
+        public string? Notes { get; set; }
+
+        public bool IsActive => EndDate == null || EndDate >= DateTime.Today;
     }
 
     // ── 5. Consent ───────────────────────────────────────────
+    // Doctors here are LabUser accounts in the "Doctor" role (Identity
+    // string IDs) — there is no separate Doctor table in this project.
+    // Access is granted per TestRequestItem (e.g. just "Glucose" inside a
+    // Full Blood Count request), not per whole TestRequest.
     public class ConsentViewModel
     {
+        public List<ActiveConsentViewModel> ActiveGrants { get; set; } = new();
+        public List<TestRequestOptionViewModel> AvailableRequests { get; set; } = new();
+
+        // Doctors linked to this patient's own test requests — the only
+        // doctors that should ever appear in the grant dropdown.
+        public List<DoctorSearchResultViewModel> LinkedDoctors { get; set; } = new();
+    }
+
+    public class ActiveConsentViewModel
+    {
+        public int ConsentID { get; set; }
+        public string DoctorId { get; set; } = "";
         public string DoctorName { get; set; } = "";
         public string HPCSANumber { get; set; } = "";
-        public bool AccessGranted { get; set; }
-        public DateTime? GrantedDate { get; set; }
+        public DateTime GrantedDate { get; set; }
+
+        // Exactly which test items this doctor can currently see, so the
+        // patient can revoke access one item at a time.
+        public List<GrantedItemViewModel> GrantedItems { get; set; } = new();
+    }
+
+    // One row this doctor currently has access to (one test component).
+    public class GrantedItemViewModel
+    {
+        public int ConsentItemAccessID { get; set; }
+        public int RequestID { get; set; }
+        public string TestName { get; set; } = "";
+    }
+
+    public class TestRequestOptionViewModel
+    {
+        public int RequestID { get; set; }
+        public string Label { get; set; } = "";   // e.g. "Blood Work, Lipid Panel"
+
+        // The individual tests inside this request that can be granted
+        // separately (e.g. Glucose, Cholesterol within a Full Blood Count).
+        public List<TestRequestItemOptionViewModel> Items { get; set; } = new();
+    }
+
+    // One selectable test component within a request.
+    public class TestRequestItemOptionViewModel
+    {
+        public int TestRequestItemID { get; set; }
+        public string TestName { get; set; } = "";
+    }
+
+    public class DoctorSearchResultViewModel
+    {
+        public string DoctorId { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string HPCSANumber { get; set; } = "";
     }
 
     // ── 6. Reports ───────────────────────────────────────────

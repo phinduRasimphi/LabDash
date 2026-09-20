@@ -53,6 +53,13 @@ public class LabUser : IdentityUser
     public string? HPCSANumber { get; set; }
 
 
+    [StringLength(100)]
+    [Display(Name = "Address Line 1")]
+    public string? AddressLine1 { get; set; }
+
+    [StringLength(100)]
+    [Display(Name = "Address Line 2")]
+    public string? AddressLine2 { get; set; }
     [Required]
     [Display(Name = "Creation Date of Account")]
     [DataType(DataType.DateTime)]

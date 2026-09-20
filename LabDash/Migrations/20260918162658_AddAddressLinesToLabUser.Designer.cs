@@ -4,6 +4,7 @@ using LabDash.Areas.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    partial class LabDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918162658_AddAddressLinesToLabUser")]
+    partial class AddAddressLinesToLabUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -226,30 +229,6 @@ namespace LabDash.Migrations
                     b.HasKey("CategoryId");
 
                     b.ToTable("Categories");
-                });
-
-            modelBuilder.Entity("LabDash.Models.ConsentItemAccess", b =>
-                {
-                    b.Property<int>("ConsentItemAccessID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ConsentItemAccessID"));
-
-                    b.Property<int>("ConsentID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TestRequestItemID")
-                        .HasColumnType("int");
-
-                    b.HasKey("ConsentItemAccessID");
-
-                    b.HasIndex("TestRequestItemID");
-
-                    b.HasIndex("ConsentID", "TestRequestItemID")
-                        .IsUnique();
-
-                    b.ToTable("ConsentItemAccesses");
                 });
 
             modelBuilder.Entity("LabDash.Models.ConsentRequestAccess", b =>
@@ -1052,7 +1031,7 @@ namespace LabDash.Migrations
                     b.Property<int>("TestCategoryId")
                         .HasColumnType("int");
 
-                    b.Property<int>("TurnaroundTimeMinutes")
+                    b.Property<int>("TurnaroundTimeHours")
                         .HasColumnType("int");
 
                     b.Property<string>("UnitOfMeasurement")
@@ -1292,25 +1271,6 @@ namespace LabDash.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("LabDash.Models.ConsentItemAccess", b =>
-                {
-                    b.HasOne("LabDash.Models.PatientDoctorConsent", "Consent")
-                        .WithMany("ConsentItemAccesses")
-                        .HasForeignKey("ConsentID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Models.TestRequestItem", "TestRequestItem")
-                        .WithMany()
-                        .HasForeignKey("TestRequestItemID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Consent");
-
-                    b.Navigation("TestRequestItem");
                 });
 
             modelBuilder.Entity("LabDash.Models.ConsentRequestAccess", b =>
@@ -1736,8 +1696,6 @@ namespace LabDash.Migrations
 
             modelBuilder.Entity("LabDash.Models.PatientDoctorConsent", b =>
                 {
-                    b.Navigation("ConsentItemAccesses");
-
                     b.Navigation("ConsentRequestAccesses");
                 });
 

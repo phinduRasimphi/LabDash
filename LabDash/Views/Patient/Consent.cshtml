@@ -12,7 +12,7 @@
 <div class="cs-wrap">
 
     <!-- ==========================================
-        BANNER
+        BANNER (unchanged)
     =========================================== -->
     <div class="cs-banner">
         <div class="cs-banner-pattern"></div>
@@ -37,13 +37,21 @@
         </div>
     }
 
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="cs-toast" style="background:#FDEDEC; color:#922B21; border-left-color:#C0392B;">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span>@TempData["ErrorMessage"]</span>
+        </div>
+    }
+
     <!-- ==========================================
-        REASSURANCE STRIP
+        REASSURANCE STRIP (unchanged)
     =========================================== -->
     <div class="cs-status-strip">
         <div class="cs-status-left">
             <span class="cs-status-dot"></span>
-            <span><strong>You're in control</strong> &middot; doctors only see the specific requests you grant, and access can be revoked at any time</span>
+            <span><strong>You're in control</strong> &middot; doctors only see the specific tests you grant, and access can be revoked at any time</span>
         </div>
         <i class="fas fa-shield-halved"></i>
     </div>
@@ -56,17 +64,70 @@
         <div class="cs-panel">
             <div class="cs-panel-head">
                 <span><i class="fa-solid fa-id-badge"></i> Doctor Access</span>
-                <span class="cs-panel-tag">0 active</span>
+                <span class="cs-panel-tag">@Model.ActiveGrants.Count active</span>
             </div>
 
             <div class="cs-panel-body">
-                <div class="cs-badge-slot">
-                    <div class="cs-badge-outline">
-                        <i class="fa-solid fa-user-lock"></i>
+                @if (!Model.ActiveGrants.Any())
+                {
+                    <div class="cs-badge-slot">
+                        <div class="cs-badge-outline">
+                            <i class="fa-solid fa-user-lock"></i>
+                        </div>
+                        <h5>No active access grants</h5>
+                        <p>No doctors currently have access to your medical records. Grant access from the panel to the right, and their access will appear here.</p>
                     </div>
-                    <h5>No active access grants</h5>
-                    <p>No doctors currently have access to your medical records. Grant access from the panel to the right, and their access badge will appear here.</p>
-                </div>
+                }
+                else
+                {
+                    @foreach (var grant in Model.ActiveGrants)
+                    {
+                        <div class="cs-grant-card">
+                            <div class="cs-grant-card-top">
+                                <div class="cs-grant-info">
+                                    <h5>@grant.DoctorName</h5>
+                                    <p>
+                                        @if (!string.IsNullOrEmpty(grant.HPCSANumber))
+                                        {
+                                            <span>HPCSA @grant.HPCSANumber &middot; </span>
+                                        }
+                                        Granted @grant.GrantedDate.ToString("dd MMM yyyy")
+                                    </p>
+                                </div>
+                                <form asp-action="RevokeConsent" method="post" onsubmit="return confirm('Revoke all access for this doctor?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="consentId" value="@grant.ConsentID" />
+                                    <button type="submit" class="cs-revoke-btn">
+                                        <i class="fa-solid fa-ban"></i> Revoke All
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div class="cs-grant-items">
+                                @foreach (var group in grant.GrantedItems.GroupBy(i => i.RequestID))
+                                {
+                                    <div class="cs-grant-item-group">
+                                        <span class="cs-grant-item-group-label">REQ-@group.Key</span>
+                                        <div class="cs-grant-item-list">
+                                            @foreach (var item in group)
+                                            {
+                                                <form asp-action="RevokeItemAccess" method="post" class="cs-item-tag-form"
+                                                      onsubmit="return confirm('Revoke access to @item.TestName?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="consentItemAccessId" value="@item.ConsentItemAccessID" />
+                                                    <button type="submit" class="cs-item-tag" title="Revoke @item.TestName">
+                                                        <span>@item.TestName</span>
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
             </div>
         </div>
 
@@ -81,67 +142,86 @@
             <div class="cs-panel-body">
 
                 <div class="cs-steps">
-                    <div class="cs-step-item"><span class="cs-step-num">1</span> Search doctor</div>
+                    <div class="cs-step-item"><span class="cs-step-num">1</span> Select doctor</div>
                     <div class="cs-step-connector"></div>
-                    <div class="cs-step-item"><span class="cs-step-num">2</span> Select requests</div>
+                    <div class="cs-step-item"><span class="cs-step-num">2</span> Select tests</div>
                     <div class="cs-step-connector"></div>
                     <div class="cs-step-item"><span class="cs-step-num">3</span> Grant access</div>
                 </div>
 
-                <div class="cs-field">
-                    <label>Doctor Search</label>
-                    <div class="cs-input-wrap">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" class="cs-input" placeholder="Enter doctor name or HPCSA number..." />
-                    </div>
-                </div>
+                <form id="consentForm" asp-action="GrantConsent" method="post">
+                    @Html.AntiForgeryToken()
 
-                <div class="cs-field">
-                    <label>Select Test Requests to Share</label>
+                    <div class="cs-field">
+                        <label>Doctor</label>
 
-                    <div class="cs-chip-grid">
-                        <input type="checkbox" id="cs-req-1041" class="cs-chip-input" />
-                        <label for="cs-req-1041" class="cs-chip">
-                            <span class="cs-chip-id">REQ-1041</span>
-                            <span class="cs-chip-type">Blood Work</span>
-                            <i class="fa-solid fa-check cs-chip-check"></i>
-                        </label>
-
-                        <input type="checkbox" id="cs-req-0987" class="cs-chip-input" />
-                        <label for="cs-req-0987" class="cs-chip">
-                            <span class="cs-chip-id">REQ-0987</span>
-                            <span class="cs-chip-type">X-Ray</span>
-                            <i class="fa-solid fa-check cs-chip-check"></i>
-                        </label>
-
-                        <input type="checkbox" id="cs-req-0921" class="cs-chip-input" />
-                        <label for="cs-req-0921" class="cs-chip">
-                            <span class="cs-chip-id">REQ-0921</span>
-                            <span class="cs-chip-type">MRI Results</span>
-                            <i class="fa-solid fa-check cs-chip-check"></i>
-                        </label>
-
-                        <input type="checkbox" id="cs-req-0870" class="cs-chip-input" />
-                        <label for="cs-req-0870" class="cs-chip">
-                            <span class="cs-chip-id">REQ-0870</span>
-                            <span class="cs-chip-type">Lipid Panel</span>
-                            <i class="fa-solid fa-check cs-chip-check"></i>
-                        </label>
+                        @if (!Model.LinkedDoctors.Any())
+                        {
+                            <small class="cs-hint">No doctors are linked to your test requests yet, so there's no one to grant access to.</small>
+                        }
+                        else
+                        {
+                            <div class="cs-input-wrap cs-select-wrap">
+                                <i class="fa-solid fa-user-doctor"></i>
+                                <select id="doctorSelect" name="doctorId" class="cs-select">
+                                    <option value="">Select a doctor&hellip;</option>
+                                    @foreach (var doc in Model.LinkedDoctors)
+                                    {
+                                        <option value="@doc.DoctorId">
+                                            @doc.FullName@(string.IsNullOrEmpty(doc.HPCSANumber) ? "" : $" — HPCSA {doc.HPCSANumber}")
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                        }
                     </div>
 
-                    <small class="cs-hint">Tap a request to include it. You can select more than one.</small>
-                </div>
+                    <div class="cs-field">
+                        <label>Select Tests to Share</label>
 
-                <button type="button" class="cs-submit">
-                    <i class="fas fa-check"></i> Grant Access &amp; Notify Doctor
-                </button>
+                        @if (!Model.AvailableRequests.Any())
+                        {
+                            <small class="cs-hint">You don't have any test requests yet, so there's nothing to share.</small>
+                        }
+                        else
+                        {
+                            <div class="cs-request-groups">
+                                @foreach (var req in Model.AvailableRequests)
+                                {
+                                    <div class="cs-request-group">
+                                        <div class="cs-request-group-head">
+                                            <span class="cs-chip-id">REQ-@req.RequestID</span>
+                                            <span class="cs-request-group-label">@(string.IsNullOrEmpty(req.Label) ? "Test Request" : req.Label)</span>
+                                        </div>
+                                        <div class="cs-chip-grid">
+                                            @foreach (var item in req.Items)
+                                            {
+                                                <input type="checkbox" id="cs-item-@item.TestRequestItemID" name="itemIds"
+                                                       value="@item.TestRequestItemID" class="cs-chip-input" />
+                                                <label for="cs-item-@item.TestRequestItemID" class="cs-chip">
+                                                    <span class="cs-chip-type">@item.TestName</span>
+                                                    <i class="fa-solid fa-check cs-chip-check"></i>
+                                                </label>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            <small class="cs-hint">Tap a test to include it &mdash; you can select individual tests from any request. The doctor will only see exactly what you check.</small>
+                        }
+                    </div>
+
+                    <button type="submit" class="cs-submit" id="grantBtn" disabled>
+                        <i class="fas fa-check"></i> Grant Access &amp; Notify Doctor
+                    </button>
+                </form>
             </div>
         </div>
 
     </div>
 
     <!-- ==========================================
-        FOOTER
+        FOOTER (unchanged)
     =========================================== -->
     <div class="cs-footer">
         <hr />
@@ -432,6 +512,134 @@
         margin: 0 auto;
     }
 
+    /* ============ GRANT CARD (active access) ============ */
+    .cs-grant-card {
+        background: var(--cs-paper);
+        border: 1.5px solid var(--cs-line-strong);
+        border-radius: var(--cs-radius-sm);
+        padding: 14px 16px;
+        margin-bottom: 12px;
+    }
+
+        .cs-grant-card:last-child {
+            margin-bottom: 0;
+        }
+
+    .cs-grant-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+    }
+
+    .cs-grant-info h5 {
+        margin: 0 0 3px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--cs-ink);
+    }
+
+    .cs-grant-info p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--cs-ink-soft);
+    }
+
+    .cs-revoke-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 1.5px solid #E4B8B4;
+        background: #FDF3F2;
+        color: #B3413B;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 8px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .2s, border-color .2s;
+    }
+
+        .cs-revoke-btn:hover {
+            background: #FBE5E3;
+            border-color: #D89A95;
+        }
+
+    /* ============ GRANTED ITEMS (per-test revoke) ============ */
+    .cs-grant-items {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--cs-line-strong);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .cs-grant-item-group {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .cs-grant-item-group-label {
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 700;
+        font-size: 11px;
+        color: var(--cs-teal-deep);
+        background: var(--cs-teal-dim);
+        padding: 5px 9px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    .cs-grant-item-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        flex: 1;
+    }
+
+    .cs-item-tag-form {
+        display: inline-flex;
+    }
+
+    .cs-item-tag {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: #fff;
+        border: 1.5px solid var(--cs-line-strong);
+        color: var(--cs-ink);
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 11.5px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background .15s, border-color .15s, color .15s;
+    }
+
+        .cs-item-tag i {
+            font-size: 10px;
+            color: var(--cs-ink-faint);
+            transition: color .15s;
+        }
+
+        .cs-item-tag:hover {
+            background: #FDF3F2;
+            border-color: #E4B8B4;
+            color: #B3413B;
+        }
+
+            .cs-item-tag:hover i {
+                color: #B3413B;
+            }
+
     /* ============ STEP TRACKER ============ */
     .cs-steps {
         display: flex;
@@ -524,6 +732,57 @@
         color: var(--cs-ink);
     }
 
+    /* ============ DOCTOR SELECT (dropdown) ============ */
+    .cs-select-wrap {
+        padding-right: 10px;
+    }
+
+    .cs-select {
+        flex: 1;
+        border: none;
+        background: transparent;
+        outline: none;
+        padding: 12px 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: var(--cs-ink);
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+    }
+
+        .cs-select:invalid {
+            color: var(--cs-ink-faint);
+        }
+
+    /* ============ REQUEST GROUPS (per-test selection) ============ */
+    .cs-request-groups {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .cs-request-group {
+        background: var(--cs-paper);
+        border: 1.5px solid var(--cs-line-strong);
+        border-radius: var(--cs-radius-sm);
+        padding: 14px 14px 16px;
+    }
+
+    .cs-request-group-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+
+    .cs-request-group-label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--cs-ink-soft);
+    }
+
     /* ============ CHIP MULTISELECT ============ */
     .cs-chip-grid {
         display: grid;
@@ -543,7 +802,7 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
-        background: var(--cs-paper);
+        background: #fff;
         border: 1.5px solid var(--cs-line-strong);
         border-radius: var(--cs-radius-sm);
         padding: 12px 34px 12px 14px;
@@ -615,12 +874,19 @@
         font-size: 14.5px;
         cursor: pointer;
         box-shadow: 0 10px 24px rgba(10, 90, 80, 0.22);
-        transition: transform .2s, box-shadow .2s;
+        transition: transform .2s, box-shadow .2s, opacity .2s;
     }
 
         .cs-submit:hover {
             transform: translateY(-2px);
             box-shadow: 0 14px 28px rgba(10, 90, 80, 0.28);
+        }
+
+        .cs-submit:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
     /* ============ FOOTER ============ */
@@ -678,5 +944,58 @@
             align-items: flex-start;
             gap: 10px;
         }
+
+        .cs-grant-card-top {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
     }
 </style>
+
+<script>
+    (function() {
+        const doctorSelect = document.getElementById('doctorSelect');
+        const grantBtn = document.getElementById('grantBtn');
+        const form = document.getElementById('consentForm');
+
+        if (!form || !grantBtn) return;
+
+        function getCheckedItems() {
+            return form.querySelectorAll('input[name="itemIds"]:checked');
+        }
+
+        function refreshButtonState() {
+            const hasDoctor = !!(doctorSelect && doctorSelect.value);
+            const hasItems = getCheckedItems().length > 0;
+            grantBtn.disabled = !(hasDoctor && hasItems);
+        }
+
+        if (doctorSelect) {
+            doctorSelect.addEventListener('change', refreshButtonState);
+        }
+
+        form.addEventListener('change', function(e) {
+            if (e.target && e.target.name === 'itemIds') {
+                refreshButtonState();
+            }
+        });
+
+        form.addEventListener('submit', function(e) {
+            const hasDoctor = !!(doctorSelect && doctorSelect.value);
+
+            if (!hasDoctor) {
+                e.preventDefault();
+                alert('Please select a doctor.');
+                return;
+            }
+
+            if (getCheckedItems().length === 0) {
+                e.preventDefault();
+                alert('Please select at least one test to share.');
+            }
+        });
+
+        refreshButtonState();
+    })();
+</script>

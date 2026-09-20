@@ -16,6 +16,21 @@
     <!-- ==========================================
         CONSOLE HEADER
     =========================================== -->
+    @{
+        var total = Model?.Count ?? 0;
+        var completed = Model?.Count(x => x.Status?.ToLower() == "completed") ?? 0;
+        var pending = Model?.Count(x => x.Status?.ToLower() == "pending") ?? 0;
+        var urgent = Model?.Count(x => !string.IsNullOrEmpty(x.Urgency) &&
+            (x.Urgency.ToLower() == "high" || x.Urgency.ToLower() == "urgent")) ?? 0;
+        var completedPercent = total > 0 ? Math.Round((double)completed / total * 100) : 0;
+
+        var distinctStatuses = Model?
+            .Select(x => string.IsNullOrWhiteSpace(x.Status) ? "Unknown" : x.Status.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(s => s)
+            .ToList() ?? new List<string>();
+    }
+
     <div class="rq-console">
         <div class="rq-console-scan"></div>
         <div class="rq-console-left">
@@ -23,23 +38,27 @@
             <h1>My Test Requests</h1>
             <p>Every order, from draw to result — tracked the way the lab tracks it.</p>
         </div>
-        <div class="rq-console-readout">
-            <span class="rq-readout-label">Total on file</span>
-            <span class="rq-readout-num">@Model.Count.ToString("D3")</span>
+
+        <div class="rq-console-right">
+            @if (total > 0)
+            {
+                <div class="rq-console-ring" style="--rq-pct: @completedPercent">
+                    <div class="rq-ring-inner">
+                        <span>@completedPercent.ToString("0")%</span>
+                        <small>Released</small>
+                    </div>
+                </div>
+            }
+            <div class="rq-console-readout">
+                <span class="rq-readout-label">Total on file</span>
+                <span class="rq-readout-num">@Model.Count.ToString("D3")</span>
+            </div>
         </div>
     </div>
 
     <!-- ==========================================
         SUMMARY TICKER
     =========================================== -->
-    @{
-        var total = Model?.Count ?? 0;
-        var completed = Model?.Count(x => x.Status?.ToLower() == "completed") ?? 0;
-        var pending = Model?.Count(x => x.Status?.ToLower() == "pending") ?? 0;
-        var urgent = Model?.Count(x => !string.IsNullOrEmpty(x.Urgency) &&
-            (x.Urgency.ToLower() == "high" || x.Urgency.ToLower() == "urgent")) ?? 0;
-    }
-
     @if (total > 0)
     {
         <div class="rq-ticker">
@@ -67,14 +86,52 @@
     }
 
     <!-- ==========================================
+        TOOLBAR — search, status filter, sort, export
+    =========================================== -->
+    @if (total > 0)
+    {
+        <div class="rq-toolbar">
+
+            <div class="rq-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="rqSearchInput" placeholder="Search by doctor or test..." aria-label="Search test requests">
+            </div>
+
+            <div class="rq-filter-chips" role="tablist" aria-label="Filter by status">
+                <button type="button" class="rq-chip active" data-status-filter="all">All</button>
+                @foreach (var s in distinctStatuses)
+                {
+                    <button type="button" class="rq-chip" data-status-filter="@s.ToLower()">@s</button>
+                }
+                <button type="button" class="rq-chip rq-chip-urgent" data-urgent-filter="true">
+                    <i class="fa-solid fa-bolt"></i> Urgent only
+                </button>
+            </div>
+
+            <div class="rq-toolbar-actions">
+                <select id="rqSortSelect" class="rq-sort" aria-label="Sort requests">
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="urgent">Urgent first</option>
+                </select>
+                <button type="button" id="rqExportBtn" class="rq-export">
+                    <i class="fa-solid fa-file-arrow-down"></i> Export CSV
+                </button>
+            </div>
+
+        </div>
+    }
+
+    <!-- ==========================================
         REQUISITION TICKETS
     =========================================== -->
     @if (Model != null && Model.Any())
     {
-        <div class="rq-list">
+        <div class="rq-list" id="rqList">
             @foreach (var r in Model.OrderByDescending(x => x.RequestDate))
             {
-                var statusLower = r.Status?.ToLower();
+                var statusRaw = string.IsNullOrWhiteSpace(r.Status) ? "Unknown" : r.Status.Trim();
+                var statusLower = statusRaw.ToLower();
                 var isCancelled = statusLower == "cancelled";
                 var stageIndex = statusLower switch
                 {
@@ -85,7 +142,17 @@
                 var isUrgent = !string.IsNullOrEmpty(r.Urgency) &&
                     (r.Urgency.ToLower() == "high" || r.Urgency.ToLower() == "urgent");
 
-                <div class="rq-card @(isCancelled ? "rq-card-cancelled" : "")">
+                var testsList = r.Tests ?? new List<string>();
+                var visibleTestCount = 3;
+
+                <div class="rq-card @(isCancelled ? "rq-card-cancelled" : "") @(isUrgent && !isCancelled ? "rq-card-urgent" : "")"
+                     data-id="@r.RequestID"
+                     data-doctor="@r.DoctorName"
+                     data-date="@r.RequestDate.ToString("yyyy-MM-dd")"
+                     data-status="@statusLower"
+                     data-status-label="@statusRaw"
+                     data-urgent="@isUrgent.ToString().ToLower()"
+                     data-tests="@string.Join("|", testsList)">
 
                     @if (isUrgent && !isCancelled)
                     {
@@ -95,6 +162,9 @@
                     <div class="rq-stub">
                         <div class="rq-barcode" aria-hidden="true"></div>
                         <div class="rq-stub-id">#@r.RequestID</div>
+                        <button type="button" class="rq-copy-btn" data-copy="#@r.RequestID" title="Copy request ID" aria-label="Copy request ID">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
                     </div>
 
                     <div class="rq-perf"></div>
@@ -110,8 +180,20 @@
                             </a>
                         </div>
 
-                        <div class="rq-tests" title="@string.Join(", ", r.Tests)">
-                            @string.Join(" &middot; ", r.Tests)
+                        <div class="rq-tests-wrap">
+                            <div class="rq-tests-chips" id="tests-@r.RequestID">
+                                @for (int t = 0; t < testsList.Count; t++)
+                                {
+                                    <span class="rq-test-chip @(t >= visibleTestCount ? "rq-test-extra" : "")">@testsList[t]</span>
+                                }
+                            </div>
+                            @if (testsList.Count > visibleTestCount)
+                            {
+                                <button type="button" class="rq-tests-toggle" data-target="tests-@r.RequestID">
+                                    <span class="rq-tests-toggle-label">+@(testsList.Count - visibleTestCount) more</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </button>
+                            }
                         </div>
 
                         @if (isCancelled)
@@ -142,6 +224,12 @@
                     </div>
                 </div>
             }
+        </div>
+
+        <div class="rq-no-matches" id="rqNoMatches">
+            <i class="fa-solid fa-filter-circle-xmark"></i>
+            <p>No requests match your filters.</p>
+            <button type="button" id="rqClearFilters">Clear filters</button>
         </div>
     }
     else
@@ -182,6 +270,7 @@
         --rq-console-a: #14201C;
         --rq-console-b: #0A1210;
         --rq-teal: #0EA39A;
+        --rq-teal-deep: #0B7F78;
         --rq-teal-dim: #E0F3F1;
         --rq-green: #3F8F5F;
         --rq-green-dim: #E5F3EA;
@@ -256,13 +345,57 @@
         max-width: 380px;
     }
 
-    .rq-console-readout {
+    .rq-console-right {
         position: relative;
         z-index: 1;
-        text-align: right;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        flex-shrink: 0;
         border-left: 1px solid rgba(255,255,255,.14);
         padding-left: 26px;
+    }
+
+    .rq-console-ring {
+        width: 74px;
+        height: 74px;
+        border-radius: 50%;
         flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: conic-gradient(var(--rq-teal) calc(var(--rq-pct) * 1%), rgba(255,255,255,.12) 0);
+    }
+
+    .rq-ring-inner {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--rq-console-b);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rq-ring-inner span {
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 700;
+        color: #F5F7F6;
+        font-size: 14px;
+        line-height: 1;
+    }
+
+    .rq-ring-inner small {
+        margin-top: 3px;
+        font-size: 7px;
+        color: rgba(245,247,246,.5);
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .rq-console-readout {
+        text-align: right;
     }
 
     .rq-readout-label {
@@ -290,7 +423,7 @@
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 14px;
-        margin-bottom: 22px;
+        margin-bottom: 18px;
     }
 
     .rq-tick {
@@ -310,21 +443,10 @@
         height: 3px;
     }
 
-    .rq-bar-ink {
-        background: var(--rq-ink);
-    }
-
-    .rq-bar-green {
-        background: var(--rq-green);
-    }
-
-    .rq-bar-amber {
-        background: var(--rq-amber);
-    }
-
-    .rq-bar-red {
-        background: var(--rq-red);
-    }
+    .rq-bar-ink { background: var(--rq-ink); }
+    .rq-bar-green { background: var(--rq-green); }
+    .rq-bar-amber { background: var(--rq-amber); }
+    .rq-bar-red { background: var(--rq-red); }
 
     .rq-tick-num {
         display: block;
@@ -343,12 +465,112 @@
         font-weight: 500;
     }
 
+    /* ============ TOOLBAR ============ */
+    .rq-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+        background: var(--rq-raised);
+        border-radius: 12px;
+        box-shadow: var(--rq-shadow-sm);
+        padding: 12px 16px;
+    }
+
+    .rq-search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--rq-paper);
+        border: 1px solid var(--rq-line);
+        border-radius: 999px;
+        padding: 8px 14px;
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .rq-search i { color: var(--rq-ink-faint); font-size: 12px; }
+
+    .rq-search input {
+        border: none;
+        background: transparent;
+        outline: none;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        color: var(--rq-ink);
+        width: 100%;
+    }
+
+    .rq-search input::placeholder { color: var(--rq-ink-faint); }
+
+    .rq-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .rq-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-paper);
+        color: var(--rq-ink-soft);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+
+    .rq-chip:hover { border-color: var(--rq-teal); color: var(--rq-teal-deep); }
+    .rq-chip.active { background: var(--rq-ink); border-color: var(--rq-ink); color: #fff; }
+    .rq-chip-urgent.active { background: var(--rq-red); border-color: var(--rq-red); color: #fff; }
+
+    .rq-toolbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-left: auto;
+    }
+
+    .rq-sort {
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-paper);
+        color: var(--rq-ink-soft);
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-family: 'Inter', sans-serif;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .rq-export {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        border: none;
+        background: var(--rq-ink);
+        color: #fff;
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-family: 'Inter', sans-serif;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .15s ease;
+    }
+
+    .rq-export:hover { background: var(--rq-teal-deep); }
+
     /* ============ TICKET LIST ============ */
     .rq-list {
         display: flex;
         flex-direction: column;
         gap: 14px;
     }
+
+    .rq-hidden { display: none !important; }
 
     .rq-card {
         position: relative;
@@ -360,13 +582,20 @@
         transition: box-shadow .2s, transform .2s;
     }
 
-        .rq-card:hover {
-            box-shadow: var(--rq-shadow);
-            transform: translateY(-2px);
-        }
+    .rq-card:hover {
+        box-shadow: var(--rq-shadow);
+        transform: translateY(-2px);
+    }
 
-    .rq-card-cancelled {
-        opacity: .72;
+    .rq-card-cancelled { opacity: .72; }
+
+    .rq-card-urgent {
+        animation: rqUrgentGlow 2.4s ease-in-out infinite;
+    }
+
+    @@keyframes rqUrgentGlow {
+        0%, 100% { box-shadow: var(--rq-shadow-sm), 0 0 0 1.5px rgba(176,70,63,.18); }
+        50% { box-shadow: var(--rq-shadow-sm), 0 0 0 3.5px rgba(176,70,63,.32); }
     }
 
     .rq-flag {
@@ -414,6 +643,24 @@
         color: var(--rq-ink-soft);
     }
 
+    .rq-copy-btn {
+        border: none;
+        background: rgba(0,0,0,.05);
+        color: var(--rq-ink-faint);
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 9px;
+        transition: all .15s ease;
+    }
+
+    .rq-copy-btn:hover { background: var(--rq-teal-dim); color: var(--rq-teal-deep); }
+    .rq-copy-btn.rq-copied { background: var(--rq-green-dim); color: var(--rq-green); }
+
     .rq-perf {
         position: relative;
         width: 0;
@@ -421,23 +668,18 @@
         flex-shrink: 0;
     }
 
-        .rq-perf::before, .rq-perf::after {
-            content: "";
-            position: absolute;
-            left: -8px;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: var(--rq-paper);
-        }
+    .rq-perf::before, .rq-perf::after {
+        content: "";
+        position: absolute;
+        left: -8px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--rq-paper);
+    }
 
-        .rq-perf::before {
-            top: -8px;
-        }
-
-        .rq-perf::after {
-            bottom: -8px;
-        }
+    .rq-perf::before { top: -8px; }
+    .rq-perf::after { bottom: -8px; }
 
     .rq-body {
         flex: 1;
@@ -466,10 +708,7 @@
         gap: 8px;
     }
 
-        .rq-doctor i {
-            color: var(--rq-teal);
-            font-size: 13px;
-        }
+    .rq-doctor i { color: var(--rq-teal); font-size: 13px; }
 
     .rq-date {
         font-family: 'IBM Plex Mono', monospace;
@@ -494,24 +733,47 @@
         transition: border-color .2s, gap .2s;
     }
 
-        .rq-view:hover {
-            color: var(--rq-teal);
-            text-decoration: none;
-            border-color: var(--rq-teal);
-            gap: 10px;
-        }
-
-    .rq-tests {
-        font-size: 13px;
-        color: var(--rq-ink-soft);
-        line-height: 1.6;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        cursor: help;
+    .rq-view:hover {
+        color: var(--rq-teal);
+        text-decoration: none;
+        border-color: var(--rq-teal);
+        gap: 10px;
     }
+
+    /* ============ TEST CHIPS ============ */
+    .rq-tests-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .rq-tests-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .rq-test-chip {
+        background: var(--rq-teal-dim);
+        color: var(--rq-teal-deep);
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-size: 11.5px;
+        font-weight: 600;
+    }
+
+    .rq-test-extra { display: none; }
+    .rq-tests-chips.rq-expanded .rq-test-extra { display: inline-flex; }
+
+    .rq-tests-toggle {
+        align-self: flex-start;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: none;
+        background: none;
+        color: var(--rq-ink-faint);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10.5px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .rq-tests-toggle:hover { color: var(--rq-teal-deep); }
+    .rq-tests-toggle i { font-size: 9px; transition: transform .2s ease; }
+    .rq-tests-toggle.rq-open i { transform: rotate(180deg); }
 
     /* ============ LIFECYCLE RAIL ============ */
     .rq-rail {
@@ -539,9 +801,7 @@
         z-index: 0;
     }
 
-        .rq-step-line.rq-filled {
-            background: var(--rq-teal);
-        }
+    .rq-step-line.rq-filled { background: var(--rq-teal); }
 
     .rq-step-dot {
         width: 11px;
@@ -553,13 +813,8 @@
         margin-bottom: 6px;
     }
 
-    .rq-step.rq-filled .rq-step-dot {
-        background: var(--rq-teal);
-    }
-
-    .rq-step.rq-done .rq-step-dot {
-        background: var(--rq-green);
-    }
+    .rq-step.rq-filled .rq-step-dot { background: var(--rq-teal); }
+    .rq-step.rq-done .rq-step-dot { background: var(--rq-green); }
 
     .rq-step.rq-active .rq-step-dot {
         background: var(--rq-teal);
@@ -568,13 +823,8 @@
     }
 
     @@keyframes rqPulse {
-        0%, 100% {
-            box-shadow: 0 0 0 4px var(--rq-teal-dim);
-        }
-
-        50% {
-            box-shadow: 0 0 0 7px var(--rq-teal-dim);
-        }
+        0%, 100% { box-shadow: 0 0 0 4px var(--rq-teal-dim); }
+        50% { box-shadow: 0 0 0 7px var(--rq-teal-dim); }
     }
 
     .rq-step-label {
@@ -585,19 +835,9 @@
         color: var(--rq-ink-faint);
     }
 
-    .rq-step.rq-filled .rq-step-label {
-        color: var(--rq-ink-soft);
-    }
-
-    .rq-step.rq-active .rq-step-label {
-        color: var(--rq-teal);
-        font-weight: 600;
-    }
-
-    .rq-step.rq-done .rq-step-label {
-        color: var(--rq-green);
-        font-weight: 600;
-    }
+    .rq-step.rq-filled .rq-step-label { color: var(--rq-ink-soft); }
+    .rq-step.rq-active .rq-step-label { color: var(--rq-teal); font-weight: 600; }
+    .rq-step.rq-done .rq-step-label { color: var(--rq-green); font-weight: 600; }
 
     .rq-cancelled-rail {
         display: flex;
@@ -610,7 +850,37 @@
         border-top: 1px dashed var(--rq-line);
     }
 
-    /* ============ EMPTY STATE ============ */
+    /* ============ NO MATCHES / EMPTY STATE ============ */
+    .rq-no-matches {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        text-align: center;
+        padding: 40px 20px;
+        background: var(--rq-raised);
+        border-radius: var(--rq-radius);
+        box-shadow: var(--rq-shadow-sm);
+        color: var(--rq-ink-soft);
+    }
+
+    .rq-no-matches i { font-size: 22px; color: var(--rq-ink-faint); }
+
+    .rq-no-matches button {
+        margin-top: 6px;
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-paper);
+        border-radius: 999px;
+        padding: 7px 16px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--rq-ink-soft);
+        font-family: 'Inter', sans-serif;
+    }
+
+    .rq-no-matches button:hover { border-color: var(--rq-teal); color: var(--rq-teal-deep); }
+
     .rq-empty {
         background: var(--rq-raised);
         border-radius: var(--rq-radius);
@@ -648,16 +918,13 @@
     }
 
     /* ============ FOOTER ============ */
-    .rq-footer {
-        margin-top: 36px;
-        text-align: center;
-    }
+    .rq-footer { margin-top: 36px; text-align: center; }
 
-        .rq-footer hr {
-            border: none;
-            border-top: 1px solid var(--rq-line);
-            margin-bottom: 20px;
-        }
+    .rq-footer hr {
+        border: none;
+        border-top: 1px solid var(--rq-line);
+        margin-bottom: 20px;
+    }
 
     .rq-footer-content {
         display: flex;
@@ -670,19 +937,12 @@
         font-family: 'IBM Plex Mono', monospace;
     }
 
-        .rq-footer-content i {
-            color: var(--rq-teal);
-        }
-
-    .rq-footer-divider {
-        color: var(--rq-line-strong);
-    }
+    .rq-footer-content i { color: var(--rq-teal); }
+    .rq-footer-divider { color: var(--rq-line-strong); }
 
     /* ============ RESPONSIVE ============ */
     @@media (max-width: 700px) {
-        .rq-ticker {
-            grid-template-columns: repeat(2, 1fr);
-        }
+        .rq-ticker { grid-template-columns: repeat(2, 1fr); }
 
         .rq-console {
             flex-direction: column;
@@ -690,31 +950,204 @@
             gap: 18px;
         }
 
-        .rq-console-readout {
+        .rq-console-right {
             border-left: none;
             border-top: 1px solid rgba(255,255,255,.14);
             padding-left: 0;
             padding-top: 16px;
-            text-align: left;
             width: 100%;
+            justify-content: space-between;
         }
+
+        .rq-toolbar { flex-direction: column; align-items: stretch; }
+        .rq-toolbar-actions { margin-left: 0; justify-content: space-between; }
     }
 
     @@media (max-width: 560px) {
-        .rq-wrap {
-            padding: 20px 14px 50px;
-        }
-
-        .rq-stub {
-            width: 60px;
-        }
-
-        .rq-stub-id {
-            font-size: 10px;
-        }
-
-        .rq-step-label {
-            display: none;
-        }
+        .rq-wrap { padding: 20px 14px 50px; }
+        .rq-stub { width: 60px; }
+        .rq-stub-id { font-size: 10px; }
+        .rq-step-label { display: none; }
+        .rq-console-ring { width: 56px; height: 56px; }
+        .rq-ring-inner { width: 42px; height: 42px; }
+        .rq-ring-inner span { font-size: 11px; }
     }
 </style>
+
+<script>
+    (function () {
+        // ---------------------------------------------
+        // Copy request ID to clipboard
+        // ---------------------------------------------
+        document.querySelectorAll('.rq-copy-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var text = btn.getAttribute('data-copy');
+                var icon = btn.querySelector('i');
+
+                function showCopied() {
+                    icon.classList.remove('fa-copy');
+                    icon.classList.add('fa-check');
+                    btn.classList.add('rq-copied');
+                    setTimeout(function () {
+                        icon.classList.remove('fa-check');
+                        icon.classList.add('fa-copy');
+                        btn.classList.remove('rq-copied');
+                    }, 1500);
+                }
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(showCopied).catch(function () { });
+                } else {
+                    var ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try { document.execCommand('copy'); showCopied(); } catch (e) { }
+                    document.body.removeChild(ta);
+                }
+            });
+        });
+
+        // ---------------------------------------------
+        // Expand/collapse test chips
+        // ---------------------------------------------
+        document.querySelectorAll('.rq-tests-toggle').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var target = document.getElementById(btn.getAttribute('data-target'));
+                if (!target) return;
+                var expanded = target.classList.toggle('rq-expanded');
+                btn.classList.toggle('rq-open', expanded);
+                var label = btn.querySelector('.rq-tests-toggle-label');
+                var extraCount = target.querySelectorAll('.rq-test-extra').length;
+                if (label) { label.textContent = expanded ? 'Show less' : ('+' + extraCount + ' more'); }
+            });
+        });
+
+        // ---------------------------------------------
+        // Search + status filter + urgent toggle + sort
+        // ---------------------------------------------
+        var list = document.getElementById('rqList');
+        if (!list) { return; }
+
+        var searchInput = document.getElementById('rqSearchInput');
+        var sortSelect = document.getElementById('rqSortSelect');
+        var statusChips = document.querySelectorAll('[data-status-filter]');
+        var urgentChip = document.querySelector('[data-urgent-filter]');
+        var noMatches = document.getElementById('rqNoMatches');
+        var clearBtn = document.getElementById('rqClearFilters');
+
+        var state = { search: '', status: 'all', urgentOnly: false };
+
+        function applyFilters() {
+            var cards = list.querySelectorAll('.rq-card');
+            var visibleCount = 0;
+
+            cards.forEach(function (card) {
+                var haystack = ((card.dataset.doctor || '') + ' ' + (card.dataset.tests || '')).toLowerCase();
+                var matchesSearch = state.search === '' || haystack.indexOf(state.search) !== -1;
+                var matchesStatus = state.status === 'all' || card.dataset.status === state.status;
+                var matchesUrgent = !state.urgentOnly || card.dataset.urgent === 'true';
+
+                var visible = matchesSearch && matchesStatus && matchesUrgent;
+                card.classList.toggle('rq-hidden', !visible);
+                if (visible) { visibleCount++; }
+            });
+
+            if (noMatches) {
+                noMatches.style.display = visibleCount === 0 ? 'flex' : 'none';
+            }
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                state.search = searchInput.value.trim().toLowerCase();
+                applyFilters();
+            });
+        }
+
+        statusChips.forEach(function (chip) {
+            chip.addEventListener('click', function () {
+                statusChips.forEach(function (c) { c.classList.remove('active'); });
+                chip.classList.add('active');
+                state.status = chip.getAttribute('data-status-filter');
+                applyFilters();
+            });
+        });
+
+        if (urgentChip) {
+            urgentChip.addEventListener('click', function () {
+                state.urgentOnly = !state.urgentOnly;
+                urgentChip.classList.toggle('active', state.urgentOnly);
+                applyFilters();
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                state = { search: '', status: 'all', urgentOnly: false };
+                if (searchInput) { searchInput.value = ''; }
+                statusChips.forEach(function (c) { c.classList.toggle('active', c.getAttribute('data-status-filter') === 'all'); });
+                if (urgentChip) { urgentChip.classList.remove('active'); }
+                applyFilters();
+            });
+        }
+
+        if (sortSelect) {
+            sortSelect.addEventListener('change', function () {
+                var value = sortSelect.value;
+                var cards = Array.prototype.slice.call(list.querySelectorAll('.rq-card'));
+
+                cards.sort(function (a, b) {
+                    if (value === 'urgent') {
+                        var au = a.dataset.urgent === 'true', bu = b.dataset.urgent === 'true';
+                        if (au !== bu) { return au ? -1 : 1; }
+                        return b.dataset.date.localeCompare(a.dataset.date);
+                    }
+                    if (value === 'oldest') { return a.dataset.date.localeCompare(b.dataset.date); }
+                    return b.dataset.date.localeCompare(a.dataset.date);
+                });
+
+                cards.forEach(function (c) { list.appendChild(c); });
+            });
+        }
+
+        // ---------------------------------------------
+        // CSV export (respects current filters)
+        // ---------------------------------------------
+        var exportBtn = document.getElementById('rqExportBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function () {
+                var rows = [['Request ID', 'Doctor', 'Date', 'Status', 'Urgent', 'Tests']];
+
+                list.querySelectorAll('.rq-card:not(.rq-hidden)').forEach(function (card) {
+                    rows.push([
+                        card.dataset.id || '',
+                        card.dataset.doctor || '',
+                        card.dataset.date || '',
+                        card.dataset.statusLabel || '',
+                        card.dataset.urgent === 'true' ? 'Yes' : 'No',
+                        (card.dataset.tests || '').split('|').join('; ')
+                    ]);
+                });
+
+                var csv = rows.map(function (row) {
+                    return row.map(function (field) {
+                        return '"' + String(field).replace(/"/g, '""') + '"';
+                    }).join(',');
+                }).join('\n');
+
+                var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'test-requests.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+    })();
+</script>

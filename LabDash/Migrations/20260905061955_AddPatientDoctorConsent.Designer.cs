@@ -4,6 +4,7 @@ using LabDash.Areas.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    partial class LabDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260905061955_AddPatientDoctorConsent")]
+    partial class AddPatientDoctorConsent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -29,14 +32,6 @@ namespace LabDash.Migrations
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
-
-                    b.Property<string>("AddressLine1")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("AddressLine2")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -153,8 +148,10 @@ namespace LabDash.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("CategoryId")
-                        .HasColumnType("int");
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(250)
@@ -164,8 +161,6 @@ namespace LabDash.Migrations
                         .HasColumnType("bit");
 
                     b.HasKey("AllergyId");
-
-                    b.HasIndex("CategoryId");
 
                     b.ToTable("Allergies");
                 });
@@ -226,30 +221,6 @@ namespace LabDash.Migrations
                     b.HasKey("CategoryId");
 
                     b.ToTable("Categories");
-                });
-
-            modelBuilder.Entity("LabDash.Models.ConsentItemAccess", b =>
-                {
-                    b.Property<int>("ConsentItemAccessID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ConsentItemAccessID"));
-
-                    b.Property<int>("ConsentID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TestRequestItemID")
-                        .HasColumnType("int");
-
-                    b.HasKey("ConsentItemAccessID");
-
-                    b.HasIndex("TestRequestItemID");
-
-                    b.HasIndex("ConsentID", "TestRequestItemID")
-                        .IsUnique();
-
-                    b.ToTable("ConsentItemAccesses");
                 });
 
             modelBuilder.Entity("LabDash.Models.ConsentRequestAccess", b =>
@@ -438,8 +409,10 @@ namespace LabDash.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MedicationId"));
 
-                    b.Property<int>("CategoryId")
-                        .HasColumnType("int");
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(250)
@@ -454,8 +427,6 @@ namespace LabDash.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("MedicationId");
-
-                    b.HasIndex("CategoryId");
 
                     b.ToTable("Medications");
                 });
@@ -514,45 +485,6 @@ namespace LabDash.Migrations
                     b.ToTable("Patients");
                 });
 
-            modelBuilder.Entity("LabDash.Models.PatientAllergy", b =>
-                {
-                    b.Property<int>("PatientAllergyId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PatientAllergyId"));
-
-                    b.Property<int>("AllergyId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("PatientID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RecordedByDoctorId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("RecordedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Severity")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("PatientAllergyId");
-
-                    b.HasIndex("AllergyId");
-
-                    b.HasIndex("PatientID");
-
-                    b.HasIndex("RecordedByDoctorId");
-
-                    b.ToTable("PatientAllergies");
-                });
-
             modelBuilder.Entity("LabDash.Models.PatientDoctorConsent", b =>
                 {
                     b.Property<int>("ConsentID")
@@ -581,91 +513,6 @@ namespace LabDash.Migrations
                     b.HasIndex("PatientID");
 
                     b.ToTable("PatientDoctorConsents");
-                });
-
-            modelBuilder.Entity("LabDash.Models.PatientMedicalCondition", b =>
-                {
-                    b.Property<int>("PatientMedicalConditionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PatientMedicalConditionId"));
-
-                    b.Property<DateTime?>("DiagnosisDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("MedicalConditionId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("PatientID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RecordedByDoctorId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Severity")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("PatientMedicalConditionId");
-
-                    b.HasIndex("MedicalConditionId");
-
-                    b.HasIndex("PatientID");
-
-                    b.HasIndex("RecordedByDoctorId");
-
-                    b.ToTable("PatientMedicalConditions");
-                });
-
-            modelBuilder.Entity("LabDash.Models.PatientMedication", b =>
-                {
-                    b.Property<int>("PatientMedicationId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PatientMedicationId"));
-
-                    b.Property<string>("Dosage")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Frequency")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("MedicationId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("PatientID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RecordedByDoctorId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("PatientMedicationId");
-
-                    b.HasIndex("MedicationId");
-
-                    b.HasIndex("PatientID");
-
-                    b.HasIndex("RecordedByDoctorId");
-
-                    b.ToTable("PatientMedications");
                 });
 
             modelBuilder.Entity("LabDash.Models.Sample", b =>
@@ -1052,7 +899,7 @@ namespace LabDash.Migrations
                     b.Property<int>("TestCategoryId")
                         .HasColumnType("int");
 
-                    b.Property<int>("TurnaroundTimeMinutes")
+                    b.Property<int>("TurnaroundTimeHours")
                         .HasColumnType("int");
 
                     b.Property<string>("UnitOfMeasurement")
@@ -1283,36 +1130,6 @@ namespace LabDash.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("LabDash.Models.Allergy", b =>
-                {
-                    b.HasOne("LabDash.Models.Category", "Category")
-                        .WithMany("Allergies")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("LabDash.Models.ConsentItemAccess", b =>
-                {
-                    b.HasOne("LabDash.Models.PatientDoctorConsent", "Consent")
-                        .WithMany("ConsentItemAccesses")
-                        .HasForeignKey("ConsentID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Models.TestRequestItem", "TestRequestItem")
-                        .WithMany()
-                        .HasForeignKey("TestRequestItemID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Consent");
-
-                    b.Navigation("TestRequestItem");
-                });
-
             modelBuilder.Entity("LabDash.Models.ConsentRequestAccess", b =>
                 {
                     b.HasOne("LabDash.Models.PatientDoctorConsent", "Consent")
@@ -1373,48 +1190,12 @@ namespace LabDash.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("LabDash.Models.Medication", b =>
-                {
-                    b.HasOne("LabDash.Models.Category", "Category")
-                        .WithMany("Medications")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-                });
-
             modelBuilder.Entity("LabDash.Models.Patient", b =>
                 {
                     b.HasOne("LabDash.Areas.Identity.Data.LabUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction);
-                });
-
-            modelBuilder.Entity("LabDash.Models.PatientAllergy", b =>
-                {
-                    b.HasOne("LabDash.Models.Allergy", "Allergy")
-                        .WithMany()
-                        .HasForeignKey("AllergyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Models.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Areas.Identity.Data.LabUser", "RecordedByDoctor")
-                        .WithMany()
-                        .HasForeignKey("RecordedByDoctorId");
-
-                    b.Navigation("Allergy");
-
-                    b.Navigation("Patient");
-
-                    b.Navigation("RecordedByDoctor");
                 });
 
             modelBuilder.Entity("LabDash.Models.PatientDoctorConsent", b =>
@@ -1434,56 +1215,6 @@ namespace LabDash.Migrations
                     b.Navigation("Doctor");
 
                     b.Navigation("Patient");
-                });
-
-            modelBuilder.Entity("LabDash.Models.PatientMedicalCondition", b =>
-                {
-                    b.HasOne("LabDash.Models.MedicalCondition", "MedicalCondition")
-                        .WithMany()
-                        .HasForeignKey("MedicalConditionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Models.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Areas.Identity.Data.LabUser", "RecordedByDoctor")
-                        .WithMany()
-                        .HasForeignKey("RecordedByDoctorId");
-
-                    b.Navigation("MedicalCondition");
-
-                    b.Navigation("Patient");
-
-                    b.Navigation("RecordedByDoctor");
-                });
-
-            modelBuilder.Entity("LabDash.Models.PatientMedication", b =>
-                {
-                    b.HasOne("LabDash.Models.Medication", "Medication")
-                        .WithMany()
-                        .HasForeignKey("MedicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Models.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LabDash.Areas.Identity.Data.LabUser", "RecordedByDoctor")
-                        .WithMany()
-                        .HasForeignKey("RecordedByDoctorId");
-
-                    b.Navigation("Medication");
-
-                    b.Navigation("Patient");
-
-                    b.Navigation("RecordedByDoctor");
                 });
 
             modelBuilder.Entity("LabDash.Models.Sample", b =>
@@ -1717,11 +1448,7 @@ namespace LabDash.Migrations
 
             modelBuilder.Entity("LabDash.Models.Category", b =>
                 {
-                    b.Navigation("Allergies");
-
                     b.Navigation("MedicalConditions");
-
-                    b.Navigation("Medications");
                 });
 
             modelBuilder.Entity("LabDash.Models.Consumable", b =>
@@ -1736,8 +1463,6 @@ namespace LabDash.Migrations
 
             modelBuilder.Entity("LabDash.Models.PatientDoctorConsent", b =>
                 {
-                    b.Navigation("ConsentItemAccesses");
-
                     b.Navigation("ConsentRequestAccesses");
                 });
 

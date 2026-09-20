@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LabDash.Models
 {
@@ -12,8 +13,10 @@ namespace LabDash.Models
         public string MedicationName { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(50)]
-        public string Category { get; set; } = string.Empty;
+        public int CategoryId { get; set; }
+
+        [ForeignKey(nameof(CategoryId))]
+        public Category? Category { get; set; }
 
         [StringLength(250)]
         public string? Description { get; set; }
