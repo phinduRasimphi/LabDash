@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using LabDash.Helpers;
 using System.Security.Claims;
 namespace LabDash.Controllers
 {
@@ -52,6 +53,11 @@ namespace LabDash.Controllers
         {
             return User.Identity?.Name ?? "System";
         }
+        public IActionResult DataQuality()
+        {
+            SetSidebarData("DataQuality");
+            return View(DataQualityChecker.Run(_context));
+        }
         // ==========================================================
         // INDEX
         // ==========================================================
@@ -65,125 +71,60 @@ namespace LabDash.Controllers
         public IActionResult Dashboard()
         {
             SetSidebarData("Dashboard");
-            var userId =
-                User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             var vm = new AdminDashboardViewModel
             {
-                ConditionCount =
-                    _context.MedicalConditions
-                        .Count(x => x.IsActive),
-                AllergyCount =
-                    _context.Allergies
-                        .Count(x => x.IsActive),
-                MedicationCount =
-                    _context.Medications
-                        .Count(x => x.IsActive),
-                UserCount =
-                    _context.Users.Count(),
-                RecentConditions =
-                    _context.MedicalConditions
-                        .Include(x => x.Category)
-                        .Where(x => x.IsActive)
-                        .OrderByDescending(
-                            x => x.MedicalConditionId)
-                        .Take(5)
-                        .ToList(),
-                RecentMedications =
-                    _context.Medications
-                        .Include(x => x.Category)
-                        .Where(x => x.IsActive)
-                        .OrderByDescending(
-                            x => x.MedicationId)
-                        .Take(5)
-                        .ToList()
+                ConditionCount = _context.MedicalConditions.Count(x => x.IsActive),
+                AllergyCount = _context.Allergies.Count(x => x.IsActive),
+                MedicationCount = _context.Medications.Count(x => x.IsActive),
+
+                RecentChanges = _context.AuditLogs
+                    .OrderByDescending(x => x.ActionDate)
+                    .Take(6)
+                    .ToList(),
+
+                Warnings = BuildReferenceDataWarnings()
             };
-            if (!string.IsNullOrEmpty(userId))
-            {
-                var patient =
-                    _context.Patients
-                        .FirstOrDefault(
-                            p => p.UserId == userId);
-                if (patient != null)
-                {
-                    vm.PatientProfile =
-                        new PatientProfileViewModel
-                        {
-                            PatientID =
-                                patient.PatientID,
-                            Name =
-                                patient.Name ?? "",
-                            Surname =
-                                patient.Surname ?? "",
-                            IDNumber =
-                                patient.IDNumber ?? "",
-                            DateOfBirth =
-                                patient.DOB,
-                            Cellphone =
-                                patient.CellphoneNumber ?? "",
-                            Email =
-                                patient.Email ?? "",
-                            HomeAddress =
-                                patient.HomeAddress ?? ""
-                        };
-                    var patientRequests =
-                        _context.TestRequests
-                            .Where(r =>
-                                r.PatientId ==
-                                patient.PatientID)
-                            .OrderByDescending(
-                                r => r.RequestDate)
-                            .ToList();
-                    vm.PatientTotalRequests =
-                        patientRequests.Count;
-                    vm.PatientPendingRequests =
-                        patientRequests.Count(r =>
-                            r.Status == "Submitted" ||
-                            r.Status == "Samples Received");
-                    vm.PatientResultsReady =
-                        patientRequests.Count(r =>
-                            r.Status == "Completed" ||
-                            r.Status == "Released");
-                    var patientRequestIds =
-                        patientRequests
-                            .Select(r => r.RequestId)
-                            .ToList();
-                    vm.PatientAbnormalCount =
-                        _context.TestResults
-                            .Include(r =>
-                                r.TestRequestItem)
-                            .Where(r =>
-                                patientRequestIds.Contains(
-                                    r.TestRequestItem.RequestId)
-                                &&
-                                r.IsAbnormal)
-                            .Count();
-                    vm.PatientRecentRequests =
-                        patientRequests
-                            .Take(5)
-                            .Select(r =>
-                                new TestRequestViewModel
-                                {
-                                    RequestID =
-                                        r.RequestId.ToString(),
-                                    RequestDate =
-                                        r.RequestDate,
-                                    DoctorName =
-                                        r.RequestingDoctorId
-                                        ?? "N/A",
-                                    Urgency =
-                                        r.Urgency
-                                        ?? "Routine",
-                                    Status =
-                                        r.Status
-                                        ?? "Submitted",
-                                    Tests =
-                                        new List<string>()
-                                })
-                            .ToList();
-                }
-            }
+
             return View(vm);
         }
+
+        private List<string> BuildReferenceDataWarnings()
+        {
+            var warnings = new List<string>();
+
+            if (!_context.MedicalConditions.Any(x => x.IsActive))
+                warnings.Add("There are no active conditions.");
+            if (!_context.Allergies.Any(x => x.IsActive))
+                warnings.Add("There are no active allergies.");
+            if (!_context.Medications.Any(x => x.IsActive))
+                warnings.Add("There are no active medications.");
+
+            // Active records whose category has been archived
+            int inArchivedCategory =
+                _context.MedicalConditions.Count(x => x.IsActive && x.Category != null && !x.Category.IsActive) +
+                _context.Allergies.Count(x => x.IsActive && x.Category != null && !x.Category.IsActive) +
+                _context.Medications.Count(x => x.IsActive && x.Category != null && !x.Category.IsActive);
+
+            if (inArchivedCategory > 0)
+                warnings.Add($"{inArchivedCategory} active record(s) belong to an archived category.");
+
+            // Duplicate names within each table (done in memory; these tables are small)
+            int duplicates =
+                CountDuplicateNames(_context.MedicalConditions.Where(x => x.IsActive).Select(x => x.ConditionName).ToList()) +
+                CountDuplicateNames(_context.Allergies.Where(x => x.IsActive).Select(x => x.AllergyName).ToList()) +
+                CountDuplicateNames(_context.Medications.Where(x => x.IsActive).Select(x => x.MedicationName).ToList());
+
+            if (duplicates > 0)
+                warnings.Add($"{duplicates} duplicated name(s) found within conditions, allergies or medications.");
+
+            return warnings;
+        }
+
+        private static int CountDuplicateNames(IEnumerable<string?> names) =>
+            names.Where(n => !string.IsNullOrWhiteSpace(n))
+                 .GroupBy(n => n!.Trim(), StringComparer.OrdinalIgnoreCase)
+                 .Count(g => g.Count() > 1);
         // ==========================================================
         // CONDITIONS
         // ==========================================================

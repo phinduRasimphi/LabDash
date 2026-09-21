@@ -6,27 +6,11 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LabDash.Migrations
 {
     /// <inheritdoc />
-    public partial class initializeLabDashDB : Migration
+    public partial class LabDash : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "Allergies",
-                columns: table => new
-                {
-                    AllergyId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    AllergyName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Category = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Allergies", x => x.AllergyId);
-                });
-
             migrationBuilder.CreateTable(
                 name: "AspNetRoles",
                 columns: table => new
@@ -53,6 +37,8 @@ namespace LabDash.Migrations
                     SouthAfricanID = table.Column<string>(type: "nvarchar(13)", maxLength: 13, nullable: false),
                     EmployeeNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     HPCSANumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    AddressLine1 = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    AddressLine2 = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Timestamp_AccountCreated = table.Column<DateTime>(type: "datetime2", nullable: false),
                     MustChangePassword = table.Column<bool>(type: "bit", nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -126,22 +112,6 @@ namespace LabDash.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Consumables", x => x.ConsumableID);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Medications",
-                columns: table => new
-                {
-                    MedicationId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    MedicationName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Category = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Medications", x => x.MedicationId);
                 });
 
             migrationBuilder.CreateTable(
@@ -338,6 +308,28 @@ namespace LabDash.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Allergies",
+                columns: table => new
+                {
+                    AllergyId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    AllergyName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    CategoryId = table.Column<int>(type: "int", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Allergies", x => x.AllergyId);
+                    table.ForeignKey(
+                        name: "FK_Allergies_Categories_CategoryId",
+                        column: x => x.CategoryId,
+                        principalTable: "Categories",
+                        principalColumn: "CategoryId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "MedicalConditions",
                 columns: table => new
                 {
@@ -353,6 +345,28 @@ namespace LabDash.Migrations
                     table.PrimaryKey("PK_MedicalConditions", x => x.MedicalConditionId);
                     table.ForeignKey(
                         name: "FK_MedicalConditions_Categories_CategoryId",
+                        column: x => x.CategoryId,
+                        principalTable: "Categories",
+                        principalColumn: "CategoryId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Medications",
+                columns: table => new
+                {
+                    MedicationId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MedicationName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    CategoryId = table.Column<int>(type: "int", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Medications", x => x.MedicationId);
+                    table.ForeignKey(
+                        name: "FK_Medications_Categories_CategoryId",
                         column: x => x.CategoryId,
                         principalTable: "Categories",
                         principalColumn: "CategoryId",
@@ -394,7 +408,7 @@ namespace LabDash.Migrations
                     Category = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     RequiredSampleType = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     UnitOfMeasurement = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    TurnaroundTimeHours = table.Column<int>(type: "int", nullable: false),
+                    TurnaroundTimeMinutes = table.Column<int>(type: "int", nullable: false),
                     ReferenceRangeLow = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     ReferenceRangeHigh = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     TestCategoryId = table.Column<int>(type: "int", nullable: false)
@@ -407,6 +421,34 @@ namespace LabDash.Migrations
                         column: x => x.TestCategoryId,
                         principalTable: "TestCategories",
                         principalColumn: "TestCategoryId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PatientDoctorConsents",
+                columns: table => new
+                {
+                    ConsentID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PatientID = table.Column<int>(type: "int", nullable: false),
+                    DoctorId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    GrantedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PatientDoctorConsents", x => x.ConsentID);
+                    table.ForeignKey(
+                        name: "FK_PatientDoctorConsents_AspNetUsers_DoctorId",
+                        column: x => x.DoctorId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PatientDoctorConsents_Patients_PatientID",
+                        column: x => x.PatientID,
+                        principalTable: "Patients",
+                        principalColumn: "PatientID",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -443,6 +485,113 @@ namespace LabDash.Migrations
                         column: x => x.PatientId,
                         principalTable: "Patients",
                         principalColumn: "PatientID");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PatientAllergies",
+                columns: table => new
+                {
+                    PatientAllergyId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PatientID = table.Column<int>(type: "int", nullable: false),
+                    AllergyId = table.Column<int>(type: "int", nullable: false),
+                    RecordedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Severity = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    RecordedByDoctorId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PatientAllergies", x => x.PatientAllergyId);
+                    table.ForeignKey(
+                        name: "FK_PatientAllergies_Allergies_AllergyId",
+                        column: x => x.AllergyId,
+                        principalTable: "Allergies",
+                        principalColumn: "AllergyId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PatientAllergies_AspNetUsers_RecordedByDoctorId",
+                        column: x => x.RecordedByDoctorId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PatientAllergies_Patients_PatientID",
+                        column: x => x.PatientID,
+                        principalTable: "Patients",
+                        principalColumn: "PatientID",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PatientMedicalConditions",
+                columns: table => new
+                {
+                    PatientMedicalConditionId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PatientID = table.Column<int>(type: "int", nullable: false),
+                    MedicalConditionId = table.Column<int>(type: "int", nullable: false),
+                    DiagnosisDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Severity = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    RecordedByDoctorId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PatientMedicalConditions", x => x.PatientMedicalConditionId);
+                    table.ForeignKey(
+                        name: "FK_PatientMedicalConditions_AspNetUsers_RecordedByDoctorId",
+                        column: x => x.RecordedByDoctorId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PatientMedicalConditions_MedicalConditions_MedicalConditionId",
+                        column: x => x.MedicalConditionId,
+                        principalTable: "MedicalConditions",
+                        principalColumn: "MedicalConditionId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PatientMedicalConditions_Patients_PatientID",
+                        column: x => x.PatientID,
+                        principalTable: "Patients",
+                        principalColumn: "PatientID",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PatientMedications",
+                columns: table => new
+                {
+                    PatientMedicationId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PatientID = table.Column<int>(type: "int", nullable: false),
+                    MedicationId = table.Column<int>(type: "int", nullable: false),
+                    Dosage = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Frequency = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    StartDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    RecordedByDoctorId = table.Column<string>(type: "nvarchar(450)", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PatientMedications", x => x.PatientMedicationId);
+                    table.ForeignKey(
+                        name: "FK_PatientMedications_AspNetUsers_RecordedByDoctorId",
+                        column: x => x.RecordedByDoctorId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_PatientMedications_Medications_MedicationId",
+                        column: x => x.MedicationId,
+                        principalTable: "Medications",
+                        principalColumn: "MedicationId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PatientMedications_Patients_PatientID",
+                        column: x => x.PatientID,
+                        principalTable: "Patients",
+                        principalColumn: "PatientID",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -553,6 +702,32 @@ namespace LabDash.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ConsentRequestAccess",
+                columns: table => new
+                {
+                    ConsentAccessID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ConsentID = table.Column<int>(type: "int", nullable: false),
+                    RequestID = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ConsentRequestAccess", x => x.ConsentAccessID);
+                    table.ForeignKey(
+                        name: "FK_ConsentRequestAccess_PatientDoctorConsents_ConsentID",
+                        column: x => x.ConsentID,
+                        principalTable: "PatientDoctorConsents",
+                        principalColumn: "ConsentID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ConsentRequestAccess_TestRequests_RequestID",
+                        column: x => x.RequestID,
+                        principalTable: "TestRequests",
+                        principalColumn: "RequestId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "SampleReceives",
                 columns: table => new
                 {
@@ -636,6 +811,32 @@ namespace LabDash.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ConsentItemAccesses",
+                columns: table => new
+                {
+                    ConsentItemAccessID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ConsentID = table.Column<int>(type: "int", nullable: false),
+                    TestRequestItemID = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ConsentItemAccesses", x => x.ConsentItemAccessID);
+                    table.ForeignKey(
+                        name: "FK_ConsentItemAccesses_PatientDoctorConsents_ConsentID",
+                        column: x => x.ConsentID,
+                        principalTable: "PatientDoctorConsents",
+                        principalColumn: "ConsentID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ConsentItemAccesses_TestRequestItems_TestRequestItemID",
+                        column: x => x.TestRequestItemID,
+                        principalTable: "TestRequestItems",
+                        principalColumn: "TestRequestItemId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "TestResults",
                 columns: table => new
                 {
@@ -704,6 +905,11 @@ namespace LabDash.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_Allergies_CategoryId",
+                table: "Allergies",
+                column: "CategoryId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
                 column: "RoleId");
@@ -757,6 +963,27 @@ namespace LabDash.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ConsentItemAccesses_ConsentID_TestRequestItemID",
+                table: "ConsentItemAccesses",
+                columns: new[] { "ConsentID", "TestRequestItemID" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ConsentItemAccesses_TestRequestItemID",
+                table: "ConsentItemAccesses",
+                column: "TestRequestItemID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ConsentRequestAccess_ConsentID",
+                table: "ConsentRequestAccess",
+                column: "ConsentID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ConsentRequestAccess_RequestID",
+                table: "ConsentRequestAccess",
+                column: "RequestID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ConsumableOrderItems_ConsumableId",
                 table: "ConsumableOrderItems",
                 column: "ConsumableId");
@@ -775,6 +1002,66 @@ namespace LabDash.Migrations
                 name: "IX_MedicalConditions_CategoryId",
                 table: "MedicalConditions",
                 column: "CategoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Medications_CategoryId",
+                table: "Medications",
+                column: "CategoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientAllergies_AllergyId",
+                table: "PatientAllergies",
+                column: "AllergyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientAllergies_PatientID",
+                table: "PatientAllergies",
+                column: "PatientID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientAllergies_RecordedByDoctorId",
+                table: "PatientAllergies",
+                column: "RecordedByDoctorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientDoctorConsents_DoctorId",
+                table: "PatientDoctorConsents",
+                column: "DoctorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientDoctorConsents_PatientID",
+                table: "PatientDoctorConsents",
+                column: "PatientID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientMedicalConditions_MedicalConditionId",
+                table: "PatientMedicalConditions",
+                column: "MedicalConditionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientMedicalConditions_PatientID",
+                table: "PatientMedicalConditions",
+                column: "PatientID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientMedicalConditions_RecordedByDoctorId",
+                table: "PatientMedicalConditions",
+                column: "RecordedByDoctorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientMedications_MedicationId",
+                table: "PatientMedications",
+                column: "MedicationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientMedications_PatientID",
+                table: "PatientMedications",
+                column: "PatientID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PatientMedications_RecordedByDoctorId",
+                table: "PatientMedications",
+                column: "RecordedByDoctorId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Patients_UserId",
@@ -881,9 +1168,6 @@ namespace LabDash.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Allergies");
-
-            migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
 
             migrationBuilder.DropTable(
@@ -902,13 +1186,22 @@ namespace LabDash.Migrations
                 name: "AuditLogs");
 
             migrationBuilder.DropTable(
+                name: "ConsentItemAccesses");
+
+            migrationBuilder.DropTable(
+                name: "ConsentRequestAccess");
+
+            migrationBuilder.DropTable(
                 name: "ConsumableOrderItems");
 
             migrationBuilder.DropTable(
-                name: "MedicalConditions");
+                name: "PatientAllergies");
 
             migrationBuilder.DropTable(
-                name: "Medications");
+                name: "PatientMedicalConditions");
+
+            migrationBuilder.DropTable(
+                name: "PatientMedications");
 
             migrationBuilder.DropTable(
                 name: "SampleReceives");
@@ -941,10 +1234,19 @@ namespace LabDash.Migrations
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
+                name: "PatientDoctorConsents");
+
+            migrationBuilder.DropTable(
                 name: "ConsumableOrders");
 
             migrationBuilder.DropTable(
-                name: "Categories");
+                name: "Allergies");
+
+            migrationBuilder.DropTable(
+                name: "MedicalConditions");
+
+            migrationBuilder.DropTable(
+                name: "Medications");
 
             migrationBuilder.DropTable(
                 name: "Consumables");
@@ -954,6 +1256,9 @@ namespace LabDash.Migrations
 
             migrationBuilder.DropTable(
                 name: "Suppliers");
+
+            migrationBuilder.DropTable(
+                name: "Categories");
 
             migrationBuilder.DropTable(
                 name: "TestRequests");

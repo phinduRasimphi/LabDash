@@ -1,0 +1,269 @@
+﻿@using LabDash.Helpers
+@model List<DataQualityCheck>
+@{
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "DataQuality";
+    ViewData["ActivePage"] = "DataQuality";
+    var issues = Model.Count(c => !c.Passed && !c.Advisory);
+    var suggestions = Model.Count(c => !c.Passed && c.Advisory);
+}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="dq-wrap">
+
+    <a class="dq-back" href="@Url.Action("Index", "Dashboard")">
+        <i class="fa-solid fa-arrow-left"></i> Back to dashboard
+    </a>
+
+    <div class="dq-head">
+        <h1>Data quality checks</h1>
+        <p>Automatic checks on your reference data. Click any item to open the page where you can fix it.</p>
+    </div>
+
+    <div class="dq-summary @(issues == 0 ? "is-ok" : "is-warn")">
+        <i class="fa-solid @(issues == 0 ? "fa-circle-check" : "fa-triangle-exclamation")"></i>
+        <div>
+            @if (issues == 0)
+            {
+                <strong>All checks passed</strong>
+                <span>@(suggestions == 0 ? "Nothing needs your attention." : suggestions + " suggestion(s) below.")</span>
+            }
+            else
+            {
+                <strong>@issues @(issues == 1 ? "check needs" : "checks need") attention</strong>
+                <span>Work through the items below.</span>
+            }
+        </div>
+    </div>
+
+    @foreach (var check in Model)
+    {
+        var state = check.Passed ? "is-ok" : (check.Advisory ? "is-info" : "is-warn");
+
+        <section class="dq-card @state">
+            <header class="dq-card-head">
+                <div class="dq-card-icon">
+                    <i class="fa-solid @(check.Passed ? "fa-check" : (check.Advisory ? "fa-lightbulb" : "fa-exclamation"))"></i>
+                </div>
+                <div class="dq-card-title">
+                    <h3>@check.Title</h3>
+                    <p>@check.Description</p>
+                </div>
+                <span class="dq-badge">@(check.Passed ? "Passed" : check.Count + (check.Count == 1 ? " item" : " items"))</span>
+            </header>
+
+            @if (!check.Passed)
+            {
+                <ul class="dq-items">
+                    @foreach (var item in check.Items)
+                    {
+                        <li>
+                            <a href="@Url.Action(item.Action, "Admin")">
+                                <span>@item.Text</span>
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+
+</div>
+
+<style>
+    .dq-wrap {
+        --ink: #102C27;
+        --soft: #52716C;
+        --faint: #8FA9A3;
+        --line: #E1EEEC;
+        --teal: #0E8C7F;
+        --teal-deep: #0A5850;
+        --teal-dim: #E3F4F1;
+        --orange: #B76A2C;
+        --orange-dim: #FBEEE1;
+        --gold: #B4862A;
+        --gold-dim: #FBF1DA;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 26px 24px 60px;
+        font-family: 'Inter', sans-serif;
+        color: var(--ink);
+    }
+
+    .dq-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--teal-deep);
+        font-weight: 600;
+        font-size: 13.5px;
+        text-decoration: none;
+        margin-bottom: 18px;
+    }
+
+        .dq-back:hover {
+            text-decoration: underline;
+        }
+
+    .dq-head h1 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 26px;
+        margin: 0 0 6px;
+    }
+
+    .dq-head p {
+        margin: 0 0 22px;
+        color: var(--soft);
+        font-size: 14px;
+    }
+
+    .dq-summary {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 18px 22px;
+        border-radius: 16px;
+        margin-bottom: 22px;
+        background: #fff;
+        box-shadow: 0 3px 10px rgba(10,60,55,.06);
+        border-left: 4px solid var(--teal);
+    }
+
+        .dq-summary i {
+            font-size: 24px;
+            color: var(--teal);
+        }
+
+        .dq-summary div {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .dq-summary span {
+            color: var(--soft);
+            font-size: 13px;
+        }
+
+        .dq-summary.is-warn {
+            border-left-color: var(--orange);
+        }
+
+            .dq-summary.is-warn i {
+                color: var(--orange);
+            }
+
+    .dq-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 3px 10px rgba(10,60,55,.06);
+        margin-bottom: 16px;
+        overflow: hidden;
+    }
+
+    .dq-card-head {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 18px 22px;
+    }
+
+    .dq-card-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--teal-dim);
+        color: var(--teal);
+    }
+
+    .dq-card.is-warn .dq-card-icon {
+        background: var(--orange-dim);
+        color: var(--orange);
+    }
+
+    .dq-card.is-info .dq-card-icon {
+        background: var(--gold-dim);
+        color: var(--gold);
+    }
+
+    .dq-card-title {
+        flex: 1;
+        min-width: 0;
+    }
+
+        .dq-card-title h3 {
+            margin: 0 0 3px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 16px;
+        }
+
+        .dq-card-title p {
+            margin: 0;
+            color: var(--soft);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+    .dq-badge {
+        flex-shrink: 0;
+        font-size: 11.5px;
+        font-weight: 700;
+        padding: 6px 13px;
+        border-radius: 999px;
+        background: var(--teal-dim);
+        color: var(--teal-deep);
+    }
+
+    .dq-card.is-warn .dq-badge {
+        background: var(--orange-dim);
+        color: var(--orange);
+    }
+
+    .dq-card.is-info .dq-badge {
+        background: var(--gold-dim);
+        color: var(--gold);
+    }
+
+    .dq-items {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--line);
+    }
+
+        .dq-items li {
+            border-bottom: 1px solid var(--line);
+        }
+
+            .dq-items li:last-child {
+                border-bottom: none;
+            }
+
+        .dq-items a {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 22px;
+            color: var(--ink);
+            text-decoration: none;
+            font-size: 13.5px;
+        }
+
+            .dq-items a:hover {
+                background: var(--teal-dim);
+            }
+
+            .dq-items a i {
+                color: var(--teal);
+                font-size: 12px;
+            }
+</style>

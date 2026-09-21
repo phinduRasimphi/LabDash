@@ -27,7 +27,11 @@ namespace LabDash.Models
         public int AllergyCount { get; set; }
         public int MedicationCount { get; set; }
         public int UserCount { get; set; }
-
+        public List<AuditLog> RecentChanges { get; set; } = new();
+        public List<string> Warnings { get; set; } = new();
+        public List<string> ActivityLabels { get; set; } = new();
+        public List<int> ActivityCounts { get; set; } = new();
+        public Dictionary<string, int> ActivityByAction { get; set; } = new();
         public List<MedicalCondition> RecentConditions { get; set; } = new();
         public List<Medication> RecentMedications { get; set; } = new();
 

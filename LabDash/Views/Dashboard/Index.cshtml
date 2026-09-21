@@ -13,14 +13,29 @@
 
 
 @if (SignInManager.IsSignedIn(User))
-{
-    if (User.IsInRole("Admin"))
+if (User.IsInRole("Admin"))
 {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 
     <div class="adm-wrap">
+        @{
+            var warnings = Model.Warnings ?? new List<string>();
+            var healthy = warnings.Count == 0;
+            var activityTotal = (Model.ActivityCounts ?? new List<int>()).Sum();
+
+            var byAction = Model.ActivityByAction ?? new Dictionary<string, int>();
+            int CountOf(string key) => byAction.TryGetValue(key, out var found) ? found : 0;
+
+            string BadgeClass(string action) => (action ?? "").ToLowerInvariant() switch
+            {
+                "created" => "is-created",
+                "updated" => "is-updated",
+                "deactivated" or "deleted" => "is-removed",
+                "reactivated" => "is-restored",
+                _ => ""
+            };
+        }
 
         <!-- ==========================================
             HEADER
@@ -53,13 +68,33 @@
         <!-- ==========================================
             SYSTEM STATUS STRIP
         =========================================== -->
-        <div class="adm-status-strip">
-            <div class="adm-status-left">
-                <span class="adm-status-dot"></span>
-                <span><strong>All systems operational</strong> &middot; core reference databases secure, 0 warnings flagged</span>
+        <div class="adm-status-strip @(healthy ? "" : "adm-status-warn")">
+            <div class="adm-status-body">
+                <div class="adm-status-left">
+                    <span class="adm-status-dot"></span>
+                    @if (healthy)
+                    {
+                        <span><strong>Reference data looks healthy</strong> &middot; all checks passed, 0 warnings</span>
+                    }
+                    else
+                    {
+                        <span><strong>@warnings.Count @(warnings.Count == 1 ? "item needs" : "items need") attention</strong></span>
+                    }
+                </div>
+
+                @if (!healthy)
+                {
+                    <ul class="adm-status-list">
+                        @foreach (var w in warnings)
+                        {
+                            <li>@w</li>
+                        }
+                    </ul>
+                }
             </div>
-            <a class="adm-status-link" href="@Url.Action("SystemTables", "Admin")">
-                Verify tables <i class="fa-solid fa-arrow-right"></i>
+
+            <a class="adm-status-link" href="@Url.Action("DataQuality", "Admin")">
+                Review checks <i class="fa-solid fa-arrow-right"></i>
             </a>
         </div>
 
@@ -128,102 +163,161 @@
             <a href="@Url.Action("Conditions", "Admin")" class="adm-action">
                 <div class="adm-action-icon"><i class="fa-solid fa-heart-pulse"></i></div>
                 <h5>Manage conditions</h5>
-                <p>Add, edit, or retire medical condition classifications used across patient records.</p>
+                <p>Add, edit, or retire condition classifications and their categories.</p>
                 <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
 
-            <!-- Not wired to a controller yet — shown as a disabled preview card -->
-            <div class="adm-action adm-action-disabled" aria-disabled="true">
-                <span class="adm-soon-badge">Coming soon</span>
+            <a href="@Url.Action("Allergies", "Admin")" class="adm-action">
                 <div class="adm-action-icon"><i class="fa-solid fa-allergies"></i></div>
                 <h5>Manage allergies</h5>
-                <p>Add, edit, or retire allergy reference records used across patient records.</p>
+                <p>Add, edit, or retire allergy records and their categories.</p>
                 <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-            </div>
+            </a>
 
-            <div class="adm-action adm-action-disabled" aria-disabled="true">
-                <span class="adm-soon-badge">Coming soon</span>
+            <a href="@Url.Action("Medications", "Admin")" class="adm-action">
                 <div class="adm-action-icon"><i class="fa-solid fa-pills"></i></div>
                 <h5>Manage medications</h5>
-                <p>Add, edit, or retire medications available in the patient medical history.</p>
+                <p>Add, edit, or retire medications and their categories.</p>
                 <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-            </div>
+            </a>
 
-            <div class="adm-action adm-action-disabled" aria-disabled="true">
-                <span class="adm-soon-badge">Coming soon</span>
-                <div class="adm-action-icon"><i class="fa-solid fa-tags"></i></div>
-                <h5>Manage categories</h5>
-                <p>Maintain the category lists used to group conditions, allergies, and medications.</p>
+            <a href="@Url.Action("AuditLog", "Admin")" class="adm-action">
+                <div class="adm-action-icon"><i class="fa-solid fa-clipboard-list"></i></div>
+                <h5>Audit log</h5>
+                <p>Review who created, changed, or deactivated reference data and when.</p>
                 <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-            </div>
+            </a>
 
             <a href="@Url.Action("SystemTables", "Admin")" class="adm-action">
                 <div class="adm-action-icon"><i class="fa-solid fa-database"></i></div>
                 <h5>System tables</h5>
-                <p>Inspect and verify the integrity of the underlying reference tables.</p>
+                <p>Manage sample types and units used across requests and results.</p>
                 <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
 
-            <div class="adm-action adm-action-disabled" aria-disabled="true">
-                <span class="adm-soon-badge">Coming soon</span>
+            <a href="@Url.Action("DataQuality", "Admin")" class="adm-action">
                 <div class="adm-action-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
                 <h5>Data quality checks</h5>
-                <p>Find duplicate names, uncategorized items, and empty categories automatically.</p>
+                <p>Find duplicate names, archived-category records, and empty tables automatically.</p>
                 <span class="adm-action-go"><i class="fa-solid fa-arrow-right"></i></span>
-            </div>
+            </a>
 
         </div>
 
         <!-- ==========================================
-            BREAKDOWN + RECENT DATA
+            INSIGHTS: RECENT CHANGES + ACTIVITY
         =========================================== -->
         <div class="adm-section-head adm-mt-lg">
             <div>
                 <h3>Reference data insights</h3>
-                <p>How your reference records are distributed, and what's changed recently.</p>
+                <p>Recent changes, and how much activity there has been over the last 30 days.</p>
             </div>
         </div>
 
         <div class="adm-split">
 
-            <!-- Recently added / changed reference data — honest empty state until wired to real data -->
+            <!-- LEFT: recent changes feed (from the audit log) -->
             <div class="adm-panel">
                 <div class="adm-panel-head">
                     <span><i class="fa-solid fa-clock-rotate-left"></i> Recent reference data changes</span>
                     <span class="adm-panel-tag">Reference data</span>
                 </div>
-                <div class="adm-empty-state">
-                    <div class="adm-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
-                    <h5>Nothing to show yet</h5>
-                    <p>Once conditions, allergies, and medications are being managed, the most recently
-                       added or edited records will appear here automatically.</p>
-                </div>
+
+                @if (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
+                {
+                    <ul class="adm-feed">
+                        @foreach (var log in Model.RecentChanges)
+                        {
+                            <li class="adm-feed-item">
+                                <span class="adm-feed-badge @BadgeClass(log.Action)">@log.Action</span>
+                                <div class="adm-feed-text">
+                                    <strong>@log.TableName</strong>
+                                    <span>@log.Details</span>
+                                    <small>@log.UserName &middot; @log.ActionDate.ToString("dd MMM yyyy, HH:mm")</small>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                    <a class="adm-panel-foot" href="@Url.Action("AuditLog", "Admin")">View full audit log &rarr;</a>
+                }
+                else
+                {
+                    <div class="adm-empty-state">
+                        <div class="adm-empty-icon"><i class="fa-regular fa-folder-open"></i></div>
+                        <h5>Nothing to show yet</h5>
+                        <p>Once conditions, allergies, and medications are being managed, the most recent changes will appear here automatically.</p>
+                    </div>
+                }
             </div>
 
-            <!-- Real breakdown chart built from Model counts you already have -->
+            <!-- RIGHT: activity over time (range toggle, KPIs, trend, chart, what changed) -->
             <div class="adm-panel">
                 <div class="adm-panel-head">
-                    <span><i class="fa-solid fa-chart-pie"></i> Reference data breakdown</span>
+                    <span><i class="fa-solid fa-chart-line"></i> Activity over time</span>
+                    <div class="adm-range" role="group" aria-label="Choose a date range">
+                        <button type="button" class="adm-range-btn" data-range="7">7D</button>
+                        <button type="button" class="adm-range-btn" data-range="14">14D</button>
+                        <button type="button" class="adm-range-btn is-active" data-range="30">30D</button>
+                    </div>
                 </div>
-                <div class="adm-chart-body">
-                    <canvas id="adminBreakdownChart"></canvas>
-                    <div class="adm-chart-legend">
-                        <div class="adm-legend-row">
-                            <span class="adm-legend-dot" style="background:var(--adm-teal)"></span>
-                            <span>Conditions</span>
-                            <strong>@Model.ConditionCount</strong>
+
+                <div class="adm-activity-body">
+
+                    <div class="adm-kpis">
+                        <div class="adm-kpi">
+                            <small>Total changes</small>
+                            <strong id="adminActTotal">@activityTotal</strong>
+                            <em id="adminActRange">last 30 days</em>
                         </div>
-                        <div class="adm-legend-row">
-                            <span class="adm-legend-dot" style="background:var(--adm-purple)"></span>
-                            <span>Allergies</span>
-                            <strong>@Model.AllergyCount</strong>
+                        <div class="adm-kpi">
+                            <small>Daily average</small>
+                            <strong id="adminActAvg">0.0</strong>
+                            <em>changes per day</em>
                         </div>
-                        <div class="adm-legend-row">
-                            <span class="adm-legend-dot" style="background:var(--adm-blue)"></span>
-                            <span>Medications</span>
-                            <strong>@Model.MedicationCount</strong>
+                        <div class="adm-kpi">
+                            <small>Busiest day</small>
+                            <strong id="adminActBusiest">&mdash;</strong>
+                            <em id="adminActBusiestSub">no activity yet</em>
                         </div>
                     </div>
+
+                    <div class="adm-chart-row">
+                        <span class="adm-chart-cap">Daily changes</span>
+                        <span id="adminActTrend" class="adm-trend"></span>
+                    </div>
+
+                    <div class="adm-activity-canvas">
+                        <div id="adminActivityChart" class="adm-svgchart"></div>
+                        @if (activityTotal == 0)
+                        {
+                            <div class="adm-activity-hint">
+                                <i class="fa-regular fa-lightbulb"></i>
+                                <span>No changes yet. Add or edit a record and it will show up here.</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="adm-mix">
+                        <div class="adm-mix-head">
+                            <span>What changed</span>
+                            <small>Last 30 days</small>
+                        </div>
+
+                        <div class="adm-mix-bar">
+                            <span class="adm-mix-seg is-created" style="flex-grow:@CountOf("Created")"></span>
+                            <span class="adm-mix-seg is-updated" style="flex-grow:@CountOf("Updated")"></span>
+                            <span class="adm-mix-seg is-removed" style="flex-grow:@CountOf("Removed")"></span>
+                            <span class="adm-mix-seg is-restored" style="flex-grow:@CountOf("Restored")"></span>
+                        </div>
+
+                        <div class="adm-mix-legend">
+                            <div><span class="adm-dot is-created"></span>Added <strong>@CountOf("Created")</strong></div>
+                            <div><span class="adm-dot is-updated"></span>Edited <strong>@CountOf("Updated")</strong></div>
+                            <div><span class="adm-dot is-removed"></span>Deactivated <strong>@CountOf("Removed")</strong></div>
+                            <div><span class="adm-dot is-restored"></span>Restored <strong>@CountOf("Restored")</strong></div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -259,44 +353,238 @@
         updateAdminClock();
         setInterval(updateAdminClock, 1000);
 
-        // Reference data breakdown chart — driven entirely by the counts already
-        // passed to the view via Model, no extra controller/endpoint required.
+        // Activity over time: dependency-free SVG area chart with a 7/14/30 day toggle,
+        // KPI tiles and a trend badge. All data comes from the view model, so no extra
+        // endpoint, controller or chart library is needed.
         (function () {
-            const ctx = document.getElementById('adminBreakdownChart');
-            if (!ctx) return;
+            const box = document.getElementById('adminActivityChart');
+            if (!box) return;
 
-            const conditionCount = @Model.ConditionCount;
-            const allergyCount = @Model.AllergyCount;
-            const medicationCount = @Model.MedicationCount;
-            const total = conditionCount + allergyCount + medicationCount;
+            const allLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ActivityLabels));
+            const allCounts = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ActivityCounts));
 
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Conditions', 'Allergies', 'Medications'],
-                    datasets: [{
-                        data: [conditionCount, allergyCount, medicationCount],
-                        backgroundColor: ['#0E8C7F', '#6D4EA8', '#2C6E9E'],
-                        borderColor: '#FFFFFF',
-                        borderWidth: 3,
-                        hoverOffset: 6
-                    }]
-                },
-                options: {
-                    cutout: '68%',
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function (item) {
-                                    const value = item.raw;
-                                    const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                                    return `${item.label}: ${value} (${pct}%)`;
-                                }
-                            }
-                        }
-                    }
+            const SVG_NS = 'http://www.w3.org/2000/svg';
+            const H = 210;
+            let range = 30;
+
+            const sum = function (arr) {
+                return arr.reduce(function (a, b) { return a + b; }, 0);
+            };
+
+            const setText = function (id, text) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+
+            const svgEl = function (name, attrs) {
+                const el = document.createElementNS(SVG_NS, name);
+                Object.keys(attrs || {}).forEach(function (key) { el.setAttribute(key, attrs[key]); });
+                return el;
+            };
+
+            const tip = document.createElement('div');
+            tip.className = 'adm-svgtip';
+            box.appendChild(tip);
+
+            // ---------- chart ----------
+            function drawChart(labels, counts) {
+                const old = box.querySelector('svg');
+                if (old) box.removeChild(old);
+
+                const n = counts.length;
+                if (n === 0) return;
+
+                const W = box.clientWidth || 520;
+                const pad = { l: 34, r: 12, t: 14, b: 26 };
+                const iw = W - pad.l - pad.r;
+                const ih = H - pad.t - pad.b;
+                const base = pad.t + ih;
+
+                const top = Math.max(4, Math.max.apply(null, counts));
+                const step = Math.ceil(top / 4);
+                const yMax = step * 4;
+
+                const xAt = function (i) { return n === 1 ? pad.l + iw / 2 : pad.l + (i * iw) / (n - 1); };
+                const yAt = function (v) { return base - (v / yMax) * ih; };
+
+                const svg = svgEl('svg', {
+                    width: W,
+                    height: H,
+                    viewBox: '0 0 ' + W + ' ' + H,
+                    role: 'img',
+                    'aria-label': 'Changes per day'
+                });
+
+                const defs = svgEl('defs');
+                const grad = svgEl('linearGradient', { id: 'admActGrad', x1: 0, y1: 0, x2: 0, y2: 1 });
+                grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#0E8C7F', 'stop-opacity': '0.35' }));
+                grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#0E8C7F', 'stop-opacity': '0' }));
+                defs.appendChild(grad);
+                svg.appendChild(defs);
+
+                // horizontal grid lines + y labels (always whole numbers)
+                for (let t = 0; t <= 4; t++) {
+                    const v = t * step;
+                    const y = yAt(v);
+                    svg.appendChild(svgEl('line', { x1: pad.l, x2: W - pad.r, y1: y, y2: y, stroke: '#E1EEEC', 'stroke-width': 1 }));
+                    const lab = svgEl('text', { x: pad.l - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#8FA9A3' });
+                    lab.textContent = v;
+                    svg.appendChild(lab);
                 }
+
+                // x labels, counted back from the most recent day
+                const every = Math.max(1, Math.ceil(n / 6));
+                for (let i = n - 1; i >= 0; i -= every) {
+                    const anchor = i === n - 1 ? 'end' : (i === 0 ? 'start' : 'middle');
+                    const lab = svgEl('text', { x: xAt(i), y: H - 6, 'text-anchor': anchor, 'font-size': 11, fill: '#8FA9A3' });
+                    lab.textContent = labels[i];
+                    svg.appendChild(lab);
+                }
+
+                // smooth line + filled area
+                let line = 'M ' + xAt(0) + ' ' + yAt(counts[0]);
+                for (let i = 1; i < n; i++) {
+                    const x0 = xAt(i - 1);
+                    const y0 = yAt(counts[i - 1]);
+                    const x1 = xAt(i);
+                    const y1 = yAt(counts[i]);
+                    const xm = (x0 + x1) / 2;
+                    line += ' C ' + xm + ' ' + y0 + ', ' + xm + ' ' + y1 + ', ' + x1 + ' ' + y1;
+                }
+                const area = line + ' L ' + xAt(n - 1) + ' ' + base + ' L ' + xAt(0) + ' ' + base + ' Z';
+
+                svg.appendChild(svgEl('path', { d: area, fill: 'url(#admActGrad)' }));
+                svg.appendChild(svgEl('path', {
+                    d: line,
+                    fill: 'none',
+                    stroke: '#0E8C7F',
+                    'stroke-width': 2.5,
+                    'stroke-linecap': 'round',
+                    'stroke-linejoin': 'round'
+                }));
+
+                // dots (every day on short ranges, only busy days on long ones)
+                counts.forEach(function (v, i) {
+                    if (v > 0 || n <= 14) {
+                        svg.appendChild(svgEl('circle', { cx: xAt(i), cy: yAt(v), r: 3.5, fill: '#FFFFFF', stroke: '#0E8C7F', 'stroke-width': 2 }));
+                    }
+                });
+
+                // hover guide + tooltip
+                const guide = svgEl('line', { y1: pad.t, y2: base, stroke: '#0E8C7F', 'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: 0 });
+                const dot = svgEl('circle', { r: 5.5, fill: '#0E8C7F', stroke: '#FFFFFF', 'stroke-width': 2, opacity: 0 });
+                svg.appendChild(guide);
+                svg.appendChild(dot);
+
+                const hit = svgEl('rect', { x: pad.l, y: pad.t, width: iw, height: ih, fill: 'transparent' });
+
+                function show(evt) {
+                    const rect = svg.getBoundingClientRect();
+                    const px = evt.clientX - rect.left;
+                    let i = n === 1 ? 0 : Math.round(((px - pad.l) / iw) * (n - 1));
+                    i = Math.max(0, Math.min(n - 1, i));
+
+                    const x = xAt(i);
+                    const y = yAt(counts[i]);
+
+                    guide.setAttribute('x1', x);
+                    guide.setAttribute('x2', x);
+                    guide.setAttribute('opacity', 1);
+                    dot.setAttribute('cx', x);
+                    dot.setAttribute('cy', y);
+                    dot.setAttribute('opacity', 1);
+
+                    tip.textContent = labels[i] + ': ' + counts[i] + (counts[i] === 1 ? ' change' : ' changes');
+                    tip.style.left = Math.min(Math.max(x, 64), W - 64) + 'px';
+                    tip.style.top = Math.max(y - 12, 40) + 'px';
+                    tip.style.opacity = 1;
+                }
+
+                function hide() {
+                    guide.setAttribute('opacity', 0);
+                    dot.setAttribute('opacity', 0);
+                    tip.style.opacity = 0;
+                }
+
+                hit.addEventListener('pointermove', show);
+                hit.addEventListener('pointerdown', show);
+                hit.addEventListener('pointerleave', hide);
+                svg.appendChild(hit);
+
+                box.insertBefore(svg, tip);
+            }
+
+            // ---------- trend badge: last 7 days vs the 7 days before (uses the full 30 days of data) ----------
+            function renderTrend() {
+                const el = document.getElementById('adminActTrend');
+                if (!el) return;
+
+                const last7 = sum(allCounts.slice(-7));
+                const prev7 = sum(allCounts.slice(-14, -7));
+
+                el.className = 'adm-trend';
+                el.textContent = '';
+
+                if (last7 === 0 && prev7 === 0) return;
+
+                if (prev7 === 0) {
+                    el.textContent = '\u25B2 New activity this week';
+                    el.classList.add('is-up');
+                    return;
+                }
+
+                const pct = Math.round(((last7 - prev7) / prev7) * 100);
+
+                if (pct === 0) {
+                    el.textContent = 'Same as the previous 7 days';
+                } else if (pct > 0) {
+                    el.textContent = '\u25B2 ' + pct + '% vs previous 7 days';
+                    el.classList.add('is-up');
+                } else {
+                    el.textContent = '\u25BC ' + Math.abs(pct) + '% vs previous 7 days';
+                    el.classList.add('is-down');
+                }
+            }
+
+            // ---------- tiles + chart for the selected range ----------
+            function render() {
+                const labels = allLabels.slice(-range);
+                const counts = allCounts.slice(-range);
+
+                const total = sum(counts);
+                const max = counts.length ? Math.max.apply(null, counts) : 0;
+
+                setText('adminActTotal', total);
+                setText('adminActRange', 'last ' + range + ' days');
+                setText('adminActAvg', (total / range).toFixed(1));
+                setText('adminActBusiest', max > 0 ? labels[counts.lastIndexOf(max)] : '\u2014');
+                setText('adminActBusiestSub', max > 0 ? max + (max === 1 ? ' change' : ' changes') : 'no activity yet');
+
+                // a drawing problem must never stop the toggle or the tiles from working
+                try {
+                    drawChart(labels, counts);
+                } catch (err) {
+                    if (window.console) console.error('Activity chart failed to draw:', err);
+                }
+            }
+
+            // toggle is wired first, so it works whatever happens to the chart
+            document.querySelectorAll('.adm-range-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.querySelectorAll('.adm-range-btn').forEach(function (b) { b.classList.remove('is-active'); });
+                    btn.classList.add('is-active');
+                    range = parseInt(btn.getAttribute('data-range'), 10) || 30;
+                    render();
+                });
+            });
+
+            renderTrend();
+            render();
+
+            let resizeTimer;
+            window.addEventListener('resize', function () {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(render, 150);
             });
         })();
     </script>
@@ -479,6 +767,8 @@
             border-left: 4px solid var(--adm-teal);
         }
 
+        .adm-status-body { flex: 1; }
+
         .adm-status-left {
             display: flex;
             align-items: center;
@@ -507,6 +797,10 @@
         }
 
         .adm-status-link:hover { text-decoration: underline; }
+
+        .adm-status-warn { border-left-color: var(--adm-orange); }
+        .adm-status-warn .adm-status-dot { background: var(--adm-orange); box-shadow: 0 0 0 4px var(--adm-orange-dim); }
+        .adm-status-list { margin: 10px 0 0 22px; padding: 0; color: var(--adm-ink-soft); font-size: 13px; line-height: 1.7; }
 
         /* ============ SECTION HEADS ============ */
         .adm-section-head {
@@ -643,7 +937,7 @@
             font-size: 13px;
         }
 
-        /* Disabled "coming soon" quick action cards — no controller required */
+        /* Disabled "coming soon" card style (kept in case you add another later) */
         .adm-action-disabled {
             cursor: not-allowed;
             opacity: .68;
@@ -683,7 +977,7 @@
         /* ============ SPLIT PANELS ============ */
         .adm-split {
             display: grid;
-            grid-template-columns: 1.2fr 0.8fr;
+            grid-template-columns: 1fr 1fr;
             gap: 18px;
         }
 
@@ -724,6 +1018,18 @@
             border-radius: 999px;
         }
 
+        .adm-panel-foot {
+            display: block;
+            padding: 14px 26px;
+            border-top: 1px solid var(--adm-line);
+            color: var(--adm-teal-deep);
+            font-weight: 600;
+            font-size: 13.5px;
+            text-decoration: none;
+        }
+
+        .adm-panel-foot:hover { text-decoration: underline; }
+
         /* ============ EMPTY STATE ============ */
         .adm-empty-state {
             padding: 48px 30px;
@@ -762,47 +1068,200 @@
             line-height: 1.6;
         }
 
-        /* ============ CHART PANEL ============ */
-        .adm-chart-body {
-            padding: 24px 26px 28px;
+        /* ============ RECENT CHANGES FEED ============ */
+        .adm-feed { list-style: none; margin: 0; padding: 6px 26px 10px; }
+        .adm-feed-item { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--adm-line); }
+        .adm-feed-item:last-child { border-bottom: none; }
+        .adm-feed-badge { flex-shrink: 0; min-width: 96px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 5px 10px; border-radius: 999px; background: var(--adm-line); color: var(--adm-ink-soft); }
+        .adm-feed-badge.is-created { background: var(--adm-teal-dim); color: var(--adm-teal-deep); }
+        .adm-feed-badge.is-updated { background: var(--adm-blue-dim); color: var(--adm-blue); }
+        .adm-feed-badge.is-removed { background: var(--adm-red-dim); color: var(--adm-red); }
+        .adm-feed-badge.is-restored { background: var(--adm-gold-dim); color: var(--adm-gold); }
+        .adm-feed-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
+        .adm-feed-text strong { font-size: 13.5px; }
+        .adm-feed-text span { color: var(--adm-ink-soft); overflow-wrap: anywhere; }
+        .adm-feed-text small { color: var(--adm-ink-faint); font-size: 12px; }
+
+        /* ============ ACTIVITY PANEL ============ */
+        .adm-range {
+            display: inline-flex;
+            gap: 2px;
+            padding: 3px;
+            border-radius: 999px;
+            background: var(--adm-teal-dim);
+        }
+
+        .adm-range-btn {
+            border: 0;
+            background: transparent;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 11.5px;
+            color: var(--adm-teal-deep);
+            padding: 6px 12px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background .15s, color .15s;
+        }
+
+        .adm-range-btn:hover { background: rgba(14, 140, 127, .12); }
+        .adm-range-btn.is-active { background: var(--adm-teal); color: #fff; }
+
+        .adm-activity-body { padding: 22px 26px 26px; }
+
+        .adm-kpis {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .adm-kpi {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 18px;
+            gap: 2px;
+            min-width: 0;
+            padding: 14px 16px;
+            border-radius: var(--adm-radius-sm);
+            background: var(--adm-paper);
         }
 
-        .adm-chart-body canvas {
-            max-width: 210px;
-            max-height: 210px;
+        .adm-kpi small {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: var(--adm-ink-faint);
         }
 
-        .adm-chart-legend {
-            width: 100%;
+        .adm-kpi strong {
+            font-family: 'Poppins', sans-serif;
+            font-size: 24px;
+            line-height: 1.25;
+            color: var(--adm-ink);
+        }
+
+        .adm-kpi em { font-style: normal; font-size: 12px; color: var(--adm-ink-soft); }
+
+        .adm-chart-row {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
             gap: 10px;
+            margin-bottom: 10px;
         }
 
-        .adm-legend-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 13px;
+        .adm-chart-cap { font-size: 12.5px; font-weight: 600; color: var(--adm-ink-soft); }
+
+        .adm-trend {
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 5px 11px;
+            border-radius: 999px;
+            background: var(--adm-line);
             color: var(--adm-ink-soft);
         }
 
-        .adm-legend-row strong {
-            margin-left: auto;
-            color: var(--adm-ink);
-            font-weight: 700;
+        .adm-trend:empty { display: none; }
+        .adm-trend.is-up { background: var(--adm-teal-dim); color: var(--adm-teal-deep); }
+        .adm-trend.is-down { background: var(--adm-blue-dim); color: var(--adm-blue); }
+
+        .adm-activity-canvas { position: relative; height: 210px; }
+
+        .adm-svgchart { position: relative; width: 100%; height: 210px; }
+        .adm-svgchart svg { display: block; touch-action: pan-y; }
+
+        .adm-svgtip {
+            position: absolute;
+            z-index: 2;
+            transform: translate(-50%, -100%);
+            padding: 7px 11px;
+            border-radius: 8px;
+            background: #102C27;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .12s;
         }
 
-        .adm-legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            flex-shrink: 0;
+        .adm-activity-hint {
+            position: absolute;
+            left: 50%;
+            top: 44%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 90%;
+            padding: 9px 16px;
+            border: 1px dashed var(--adm-line-strong);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .92);
+            color: var(--adm-ink-soft);
+            font-size: 12.5px;
+            text-align: center;
+            pointer-events: none;
         }
+
+        .adm-activity-hint i { color: var(--adm-gold); }
+
+        /* "What changed" breakdown */
+        .adm-mix {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid var(--adm-line);
+        }
+
+        .adm-mix-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 10px;
+        }
+
+        .adm-mix-head span { font-size: 13px; font-weight: 700; }
+        .adm-mix-head small { color: var(--adm-ink-faint); font-size: 12px; }
+
+        .adm-mix-bar {
+            display: flex;
+            height: 10px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: var(--adm-line);
+        }
+
+        .adm-mix-seg { flex-basis: 0; min-width: 0; }
+        .adm-mix-seg.is-created { background: var(--adm-teal); }
+        .adm-mix-seg.is-updated { background: var(--adm-blue); }
+        .adm-mix-seg.is-removed { background: var(--adm-red); }
+        .adm-mix-seg.is-restored { background: var(--adm-gold); }
+
+        .adm-mix-legend {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px 18px;
+            margin-top: 12px;
+        }
+
+        .adm-mix-legend div {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12.5px;
+            color: var(--adm-ink-soft);
+        }
+
+        .adm-mix-legend strong { margin-left: auto; color: var(--adm-ink); }
+
+        .adm-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .adm-dot.is-created { background: var(--adm-teal); }
+        .adm-dot.is-updated { background: var(--adm-blue); }
+        .adm-dot.is-removed { background: var(--adm-red); }
+        .adm-dot.is-restored { background: var(--adm-gold); }
 
         /* ============ FOOTER ============ */
         .adm-footer { margin-top: 50px; text-align: center; }
@@ -850,6 +1309,8 @@
         @@media (max-width: 640px) {
             .adm-wrap { padding: 20px 16px 50px; }
             .adm-grid-4, .adm-grid-3, .adm-grid-2 { grid-template-columns: 1fr; }
+            .adm-kpis { grid-template-columns: 1fr; }
+            .adm-activity-body { padding: 18px 18px 22px; }
 
             .adm-status-strip {
                 flex-direction: column;
@@ -859,6 +1320,8 @@
         }
     </style>
 }
+
+
 
 
     
