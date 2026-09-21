@@ -12,13 +12,12 @@ namespace LabDash.Migrations
         {
             // Rename the database column
             migrationBuilder.RenameColumn(
-                name: "TurnaroundTimeHours",
-                table: "TestTypes",
-                newName: "TurnaroundTimeMinutes");
+    name: "TurnaroundTimeHours",
+    table: "TestTypes",
+    newName: "TurnaroundTimeMinutes");
 
-            // Convert existing values from hours to minutes
             migrationBuilder.Sql(
-                "UPDATE TestTypes SET TurnaroundTimeMinutes = TurnaroundTimeMinutes * 60");
+                "EXEC sp_executesql N'UPDATE TestTypes SET TurnaroundTimeMinutes = TurnaroundTimeMinutes * 60';");
         }
 
         /// <inheritdoc />

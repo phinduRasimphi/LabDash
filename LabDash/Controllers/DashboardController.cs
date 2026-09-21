@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using LabDash.Helpers;
 
 namespace LabDash.Controllers
 {
@@ -22,13 +23,13 @@ namespace LabDash.Controllers
         public async Task<IActionResult> Index()
         {
             // Admin section (unchanged from your original placeholder values)
-            var model = new AdminDashboardViewModel
+            var model = new AdminDashboardViewModel();
+            // Admin section: real reference-data counts, change feed and warnings
+            if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Admin"))
             {
-                ConditionCount = 0,
-                AllergyCount = 0,
-                MedicationCount = 0,
-                UserCount = 14
-            };
+                AdminDashboardBuilder.Populate(model, _context);
+                model.UserCount = await _context.Users.CountAsync();
+            }
 
             // Patient section: only runs for logged-in users in the Patient role
             if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Patient"))
