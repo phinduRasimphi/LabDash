@@ -47,6 +47,14 @@ namespace LabDash.Models
         
         public string? ReleaseNote { get; set; }
         public DateTime? ReleaseDate { get; set; }
+        // ================= APPOINTMENT =================
+        public DateTime? AppointmentDate { get; set; }
+
+        [StringLength(200)]
+        public string? AppointmentLocation { get; set; }
+
+        [StringLength(500)]
+        public string? AppointmentNote { get; set; }
 
         [StringLength(500)]
         public string? SampleBarcodes { get; set; }

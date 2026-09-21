@@ -15,15 +15,18 @@ namespace LabDash.Controllers
     {
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
+        private readonly SignInManager<LabUser> _signInManager;
         private readonly IEmailSender _emailSender;
 
         public DoctorController(
             LabDbContext context,
             UserManager<LabUser> userManager,
+            SignInManager<LabUser> signInManager,
             IEmailSender emailSender)
         {
             _context = context;
             _userManager = userManager;
+            _signInManager = signInManager;
             _emailSender = emailSender;
         }
 
@@ -33,8 +36,7 @@ namespace LabDash.Controllers
         // =========================================================
 
         [HttpGet]
-        public async Task<IActionResult> ManagePatients(
-            string? searchIDNumber)
+        public async Task<IActionResult> ManagePatients(string? searchIDNumber)
         {
             var vm = new ManagePatientsViewModel
             {
@@ -45,49 +47,28 @@ namespace LabDash.Controllers
             {
                 vm.HasSearched = true;
 
-                string cleanID =
-                    searchIDNumber.Trim();
+                string cleanID = searchIDNumber.Trim();
 
-                var patient =
-                    await _context.Patients
-                        .FirstOrDefaultAsync(
-                            p => p.IDNumber == cleanID
-                        );
+                var patient = await _context.Patients
+                    .FirstOrDefaultAsync(p => p.IDNumber == cleanID);
 
                 if (patient != null)
                 {
-                    vm.SearchResult =
-                        new PatientDetailsViewModel
-                        {
-                            PatientID = patient.PatientID,
-
-                            UserId = patient.UserId,
-
-                            Name = patient.Name,
-
-                            Surname = patient.Surname,
-
-                            IDNumber = patient.IDNumber,
-
-                            CellphoneNumber =
-                                patient.CellphoneNumber,
-
-                            DOB = patient.DOB,
-
-                            Email = patient.Email,
-
-                            HomeAddress =
-                                patient.HomeAddress,
-
-                            MedicalConditions =
-                                patient.MedicalConditions,
-
-                            Allergies =
-                                patient.Allergies,
-
-                            Medication =
-                                patient.Medication
-                        };
+                    vm.SearchResult = new PatientDetailsViewModel
+                    {
+                        PatientID = patient.PatientID,
+                        UserId = patient.UserId,
+                        Name = patient.Name,
+                        Surname = patient.Surname,
+                        IDNumber = patient.IDNumber,
+                        CellphoneNumber = patient.CellphoneNumber,
+                        DOB = patient.DOB,
+                        Email = patient.Email,
+                        HomeAddress = patient.HomeAddress,
+                        MedicalConditions = patient.MedicalConditions,
+                        Allergies = patient.Allergies,
+                        Medication = patient.Medication
+                    };
                 }
             }
 
@@ -95,15 +76,13 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-   
+        // MY PATIENTS
+        // GET: /Doctor/MyPatients
+        // =========================================================
+
         [HttpGet]
         public IActionResult MyPatients()
         {
-            // ---------------------------------------------------------
-            // If the doctor has already unlocked My Patients,
-            // go directly to the patient list.
-            // ---------------------------------------------------------
-
             if (HttpContext.Session.GetString("DoctorPatientAccess") == "Granted")
             {
                 return RedirectToAction(nameof(ViewMyPatients));
@@ -111,7 +90,6 @@ namespace LabDash.Controllers
 
             return View("MyPatientsPassword");
         }
-
 
         // =========================================================
         // MY PATIENTS - PASSWORD CHECK
@@ -122,15 +100,7 @@ namespace LabDash.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult MyPatientsAccess(string password)
         {
-            // ---------------------------------------------------------
-            // Password required for accessing My Patients
-            // ---------------------------------------------------------
-
             const string requiredPassword = "Password!123";
-
-            // ---------------------------------------------------------
-            // Empty password
-            // ---------------------------------------------------------
 
             if (string.IsNullOrWhiteSpace(password))
             {
@@ -142,10 +112,6 @@ namespace LabDash.Controllers
                 return View("MyPatientsPassword");
             }
 
-            // ---------------------------------------------------------
-            // Incorrect password
-            // ---------------------------------------------------------
-
             if (password != requiredPassword)
             {
                 ModelState.AddModelError(
@@ -156,25 +122,10 @@ namespace LabDash.Controllers
                 return View("MyPatientsPassword");
             }
 
-            // ---------------------------------------------------------
-            // Password is correct
-            // Give this doctor's session access
-            // ---------------------------------------------------------
+            HttpContext.Session.SetString("DoctorPatientAccess", "Granted");
 
-            HttpContext.Session.SetString(
-                "DoctorPatientAccess",
-                "Granted"
-            );
-
-            // ---------------------------------------------------------
-            // Send doctor to actual patient list
-            // ---------------------------------------------------------
-
-            return RedirectToAction(
-                nameof(ViewMyPatients)
-            );
+            return RedirectToAction(nameof(ViewMyPatients));
         }
-
 
         // =========================================================
         // VIEW MY PATIENTS
@@ -184,36 +135,17 @@ namespace LabDash.Controllers
         [HttpGet]
         public async Task<IActionResult> ViewMyPatients()
         {
-            // ---------------------------------------------------------
-            // SECURITY CHECK
-            // Prevent direct access to the patient list
-            // ---------------------------------------------------------
-
-            if (
-                HttpContext.Session.GetString(
-                    "DoctorPatientAccess"
-                ) != "Granted"
-            )
+            if (HttpContext.Session.GetString("DoctorPatientAccess") != "Granted")
             {
-                return RedirectToAction(
-                    nameof(MyPatients)
-                );
+                return RedirectToAction(nameof(MyPatients));
             }
 
-            // ---------------------------------------------------------
-            // Load patients
-            // ---------------------------------------------------------
+            var patients = await _context.Patients
+                .OrderBy(p => p.Surname)
+                .ThenBy(p => p.Name)
+                .ToListAsync();
 
-            var patients =
-                await _context.Patients
-                    .OrderBy(p => p.Surname)
-                    .ThenBy(p => p.Name)
-                    .ToListAsync();
-
-            return View(
-                "MyPatients",
-                patients
-            );
+            return View("MyPatients", patients);
         }
 
         // =========================================================
@@ -222,16 +154,13 @@ namespace LabDash.Controllers
         // =========================================================
 
         [HttpGet]
-        public IActionResult CreatePatient(
-            string? idNumber)
+        public IActionResult CreatePatient(string? idNumber)
         {
-            var vm =
-                new PatientCreateViewModel();
+            var vm = new PatientCreateViewModel();
 
             if (!string.IsNullOrWhiteSpace(idNumber))
             {
-                vm.IDNumber =
-                    idNumber.Trim();
+                vm.IDNumber = idNumber.Trim();
             }
 
             return View(vm);
@@ -244,13 +173,8 @@ namespace LabDash.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreatePatient(
-            PatientCreateViewModel model)
+        public async Task<IActionResult> CreatePatient(PatientCreateViewModel model)
         {
-            // =====================================================
-            // CHECK MODEL
-            // =====================================================
-
             if (model == null)
             {
                 ModelState.AddModelError(
@@ -258,117 +182,51 @@ namespace LabDash.Controllers
                     "Patient information could not be received."
                 );
 
-                return View(
-                    new PatientCreateViewModel()
-                );
+                return View(new PatientCreateViewModel());
             }
-
-            // =====================================================
-            // VALIDATE REQUIRED FIELDS
-            // =====================================================
 
             if (string.IsNullOrWhiteSpace(model.Name))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Name),
-                    "Patient name is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.Name), "Patient name is required.");
 
             if (string.IsNullOrWhiteSpace(model.Surname))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Surname),
-                    "Patient surname is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.Surname), "Patient surname is required.");
 
             if (string.IsNullOrWhiteSpace(model.IDNumber))
-            {
-                ModelState.AddModelError(
-                    nameof(model.IDNumber),
-                    "South African ID number is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.IDNumber), "South African ID number is required.");
 
             if (string.IsNullOrWhiteSpace(model.Email))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Email),
-                    "Email address is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.Email), "Email address is required.");
 
             if (string.IsNullOrWhiteSpace(model.CellphoneNumber))
-            {
-                ModelState.AddModelError(
-                    nameof(model.CellphoneNumber),
-                    "Cellphone number is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.CellphoneNumber), "Cellphone number is required.");
 
             if (string.IsNullOrWhiteSpace(model.HomeAddress))
-            {
-                ModelState.AddModelError(
-                    nameof(model.HomeAddress),
-                    "Home address is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.HomeAddress), "Home address is required.");
 
             if (!ModelState.IsValid)
-            {
                 return View(model);
-            }
 
-            // =====================================================
-            // CLEAN INPUT
-            // =====================================================
+            string name = model.Name?.Trim() ?? string.Empty;
+            string surname = model.Surname?.Trim() ?? string.Empty;
+            string idNumber = model.IDNumber?.Trim() ?? string.Empty;
+            string cellphone = model.CellphoneNumber?.Trim() ?? string.Empty;
+            string email = model.Email?.Trim().ToLower() ?? string.Empty;
+            string homeAddress = model.HomeAddress?.Trim() ?? string.Empty;
 
-            string name =
-                model.Name?.Trim() ?? string.Empty;
+            string medicalConditions = string.IsNullOrWhiteSpace(model.MedicalConditions)
+                ? "None"
+                : model.MedicalConditions.Trim();
 
-            string surname =
-                model.Surname?.Trim() ?? string.Empty;
+            string allergies = string.IsNullOrWhiteSpace(model.Allergies)
+                ? "None"
+                : model.Allergies.Trim();
 
-            string idNumber =
-                model.IDNumber?.Trim() ?? string.Empty;
+            string medication = string.IsNullOrWhiteSpace(model.Medication)
+                ? "None"
+                : model.Medication.Trim();
 
-            string cellphone =
-                model.CellphoneNumber?.Trim() ?? string.Empty;
-
-            string email =
-                model.Email?.Trim().ToLower() ?? string.Empty;
-
-            string homeAddress =
-                model.HomeAddress?.Trim() ?? string.Empty;
-
-            string medicalConditions =
-                string.IsNullOrWhiteSpace(
-                    model.MedicalConditions)
-                    ? "None"
-                    : model.MedicalConditions.Trim();
-
-            string allergies =
-                string.IsNullOrWhiteSpace(
-                    model.Allergies)
-                    ? "None"
-                    : model.Allergies.Trim();
-
-            string medication =
-                string.IsNullOrWhiteSpace(
-                    model.Medication)
-                    ? "None"
-                    : model.Medication.Trim();
-
-            // =====================================================
-            // CHECK DUPLICATE PATIENT ID
-            // =====================================================
-
-            bool idExists =
-                await _context.Patients
-                    .AnyAsync(
-                        p => p.IDNumber == idNumber
-                    );
+            bool idExists = await _context.Patients
+                .AnyAsync(p => p.IDNumber == idNumber);
 
             if (idExists)
             {
@@ -380,14 +238,7 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
-            // =====================================================
-            // CHECK DUPLICATE EMAIL
-            // =====================================================
-
-            var existingUser =
-                await _userManager.FindByEmailAsync(
-                    email
-                );
+            var existingUser = await _userManager.FindByEmailAsync(email);
 
             if (existingUser != null)
             {
@@ -399,17 +250,8 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
-            // =====================================================
-            // CHECK DUPLICATE SOUTH AFRICAN ID IN IDENTITY
-            // =====================================================
-
-            var existingIdUser =
-                await _userManager.Users
-                    .FirstOrDefaultAsync(
-                        u =>
-                            u.SouthAfricanID ==
-                            idNumber
-                    );
+            var existingIdUser = await _userManager.Users
+                .FirstOrDefaultAsync(u => u.SouthAfricanID == idNumber);
 
             if (existingIdUser != null)
             {
@@ -421,185 +263,95 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
-            // =====================================================
-            // GENERATE PASSWORD
-            // =====================================================
+            string generatedPassword = GenerateTemporaryPassword();
+            string patientEmployeeNumber = await GeneratePatientEmployeeNumberAsync();
 
-            string generatedPassword =
-                GenerateTemporaryPassword();
-
-            // =====================================================
-            // GENERATE UNIQUE EMPLOYEE NUMBER
-            // =====================================================
-
-            string patientEmployeeNumber =
-                await GeneratePatientEmployeeNumberAsync();
-
-            // =====================================================
-            // CREATE IDENTITY USER
-            // =====================================================
-
-            var user =
-                new LabUser
-                {
-                    UserName = email,
-
-                    Email = email,
-
-                    FirstName = name,
-
-                    LastName = surname,
-
-                    Gender = "Not Specified",
-
-                    PhoneNumb = cellphone,
-
-                    SouthAfricanID = idNumber,
-
-                    EmployeeNumber =
-                        patientEmployeeNumber,
-
-                    HPCSANumber =
-                        null,
-
-                    MustChangePassword =
-                        true
-                };
-
-            // =====================================================
-            // CREATE IDENTITY ACCOUNT
-            // =====================================================
+            var user = new LabUser
+            {
+                UserName = email,
+                Email = email,
+                FirstName = name,
+                LastName = surname,
+                Gender = "Not Specified",
+                PhoneNumb = cellphone,
+                SouthAfricanID = idNumber,
+                EmployeeNumber = patientEmployeeNumber,
+                HPCSANumber = null,
+                MustChangePassword = true
+            };
 
             IdentityResult createResult;
 
             try
             {
-                createResult =
-                    await _userManager.CreateAsync(
-                        user,
-                        generatedPassword
-                    );
+                createResult = await _userManager.CreateAsync(user, generatedPassword);
             }
             catch (Exception ex)
             {
-                string error =
-                    ex.InnerException?.Message
-                    ?? ex.Message;
+                string error = ex.InnerException?.Message ?? ex.Message;
 
                 ModelState.AddModelError(
                     string.Empty,
-                    "The patient account could not be created. " +
-                    error
+                    "The patient account could not be created. " + error
                 );
 
                 return View(model);
             }
 
-            // =====================================================
-            // IDENTITY CREATION FAILED
-            // =====================================================
-
             if (!createResult.Succeeded)
             {
                 foreach (var error in createResult.Errors)
-                {
-                    ModelState.AddModelError(
-                        string.Empty,
-                        error.Description
-                    );
-                }
+                    ModelState.AddModelError(string.Empty, error.Description);
 
                 return View(model);
             }
-
-            // =====================================================
-            // ASSIGN PATIENT ROLE
-            // =====================================================
 
             IdentityResult roleResult;
 
             try
             {
-                roleResult =
-                    await _userManager.AddToRoleAsync(
-                        user,
-                        "Patient"
-                    );
+                roleResult = await _userManager.AddToRoleAsync(user, "Patient");
             }
             catch (Exception ex)
             {
                 await _userManager.DeleteAsync(user);
 
-                string error =
-                    ex.InnerException?.Message
-                    ?? ex.Message;
+                string error = ex.InnerException?.Message ?? ex.Message;
 
                 ModelState.AddModelError(
                     string.Empty,
-                    "The Patient role could not be assigned. " +
-                    error
+                    "The Patient role could not be assigned. " + error
                 );
 
                 return View(model);
             }
-
-            // =====================================================
-            // ROLE ASSIGNMENT FAILED
-            // =====================================================
 
             if (!roleResult.Succeeded)
             {
                 await _userManager.DeleteAsync(user);
 
                 foreach (var error in roleResult.Errors)
-                {
-                    ModelState.AddModelError(
-                        string.Empty,
-                        error.Description
-                    );
-                }
+                    ModelState.AddModelError(string.Empty, error.Description);
 
                 return View(model);
             }
 
-            // =====================================================
-            // CREATE PATIENT
-            // =====================================================
-
-            var patient =
-                new Patient
-                {
-                    UserId = user.Id,
-
-                    Name = name,
-
-                    Surname = surname,
-
-                    IDNumber = idNumber,
-
-                    CellphoneNumber = cellphone,
-
-                    DOB = model.DOB,
-
-                    Email = email,
-
-                    HomeAddress = homeAddress,
-
-                    MedicalConditions =
-                        medicalConditions,
-
-                    Allergies =
-                        allergies,
-
-                    Medication =
-                        medication
-                };
+            var patient = new Patient
+            {
+                UserId = user.Id,
+                Name = name,
+                Surname = surname,
+                IDNumber = idNumber,
+                CellphoneNumber = cellphone,
+                DOB = model.DOB,
+                Email = email,
+                HomeAddress = homeAddress,
+                MedicalConditions = medicalConditions,
+                Allergies = allergies,
+                Medication = medication
+            };
 
             _context.Patients.Add(patient);
-
-            // =====================================================
-            // SAVE PATIENT
-            // =====================================================
 
             try
             {
@@ -609,14 +361,11 @@ namespace LabDash.Controllers
             {
                 await _userManager.DeleteAsync(user);
 
-                string error =
-                    ex.InnerException?.Message
-                    ?? ex.Message;
+                string error = ex.InnerException?.Message ?? ex.Message;
 
                 ModelState.AddModelError(
                     string.Empty,
-                    "The patient account could not be created. " +
-                    error
+                    "The patient account could not be created. " + error
                 );
 
                 return View(model);
@@ -625,34 +374,21 @@ namespace LabDash.Controllers
             {
                 await _userManager.DeleteAsync(user);
 
-                string error =
-                    ex.InnerException?.Message
-                    ?? ex.Message;
+                string error = ex.InnerException?.Message ?? ex.Message;
 
                 ModelState.AddModelError(
                     string.Empty,
-                    "An unexpected error occurred while saving the patient. " +
-                    error
+                    "An unexpected error occurred while saving the patient. " + error
                 );
 
                 return View(model);
             }
 
-            // =====================================================
-            // SEND LOGIN DETAILS
-            // =====================================================
-
             bool emailSent = false;
 
             try
             {
-                string? loginUrl =
-                    Url.Action(
-                        "Login",
-                        "Account",
-                        null,
-                        Request.Scheme
-                    );
+                string? loginUrl = Url.Action("Login", "Account", null, Request.Scheme);
 
                 string emailBody =
                     $@"
@@ -663,44 +399,25 @@ namespace LabDash.Controllers
                             Welcome to NMB LAB
                         </h2>
 
-                        <p>
-                            Hi {name},
-                        </p>
+                        <p>Hi {name},</p>
 
                         <p>
                             Your patient account has been
                             successfully created.
                         </p>
 
-                        <p>
-                            Your login details are:
-                        </p>
+                        <p>Your login details are:</p>
 
-                        <table
-                            cellpadding='8'
-                            cellspacing='0'
-                            style='border-collapse:collapse;'>
-
+                        <table cellpadding='8' cellspacing='0'
+                               style='border-collapse:collapse;'>
                             <tr>
-                                <td>
-                                    <strong>Username:</strong>
-                                </td>
-
-                                <td>
-                                    {email}
-                                </td>
+                                <td><strong>Username:</strong></td>
+                                <td>{email}</td>
                             </tr>
-
                             <tr>
-                                <td>
-                                    <strong>Temporary Password:</strong>
-                                </td>
-
-                                <td>
-                                    {generatedPassword}
-                                </td>
+                                <td><strong>Temporary Password:</strong></td>
+                                <td>{generatedPassword}</td>
                             </tr>
-
                         </table>
 
                         <p>
@@ -709,16 +426,15 @@ namespace LabDash.Controllers
                         </p>
 
                         <p>
-                            <a
-                                href='{loginUrl}'
-                                style='
+                            <a href='{loginUrl}'
+                               style='
                                     display:inline-block;
                                     padding:10px 18px;
                                     background:#126b65;
                                     color:white;
                                     text-decoration:none;
                                     border-radius:6px;
-                                '>
+                               '>
                                 Login to NMB LAB
                             </a>
                         </p>
@@ -730,14 +446,11 @@ namespace LabDash.Controllers
 
                         <p>
                             Regards,<br />
-                            <strong>
-                                NMB Haematology Laboratory
-                            </strong>
+                            <strong>NMB Haematology Laboratory</strong>
                         </p>
 
                     </body>
-                    </html>
-                    ";
+                    </html>";
 
                 await _emailSender.SendEmailAsync(
                     email,
@@ -749,13 +462,8 @@ namespace LabDash.Controllers
             }
             catch
             {
-                // Patient remains registered
-                // even if email fails.
+                // Patient remains registered even if email fails.
             }
-
-            // =====================================================
-            // SUCCESS MESSAGE
-            // =====================================================
 
             if (emailSent)
             {
@@ -770,9 +478,7 @@ namespace LabDash.Controllers
                     "However, the login email could not be sent.";
             }
 
-            return RedirectToAction(
-                nameof(ManagePatients)
-            );
+            return RedirectToAction(nameof(ManagePatients));
         }
 
         // =========================================================
@@ -781,61 +487,30 @@ namespace LabDash.Controllers
         // =========================================================
 
         [HttpGet]
-        public async Task<IActionResult> EditPatient(
-            int? id)
+        public async Task<IActionResult> EditPatient(int? id)
         {
-            if (id == null)
+            if (id == null) return NotFound();
+
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.PatientID == id);
+
+            if (patient == null) return NotFound();
+
+            var vm = new PatientCreateViewModel
             {
-                return NotFound();
-            }
+                Name = patient.Name,
+                Surname = patient.Surname,
+                IDNumber = patient.IDNumber,
+                DOB = patient.DOB,
+                CellphoneNumber = patient.CellphoneNumber,
+                Email = patient.Email,
+                HomeAddress = patient.HomeAddress,
+                MedicalConditions = patient.MedicalConditions,
+                Allergies = patient.Allergies,
+                Medication = patient.Medication
+            };
 
-            var patient =
-                await _context.Patients
-                    .FirstOrDefaultAsync(
-                        p => p.PatientID == id
-                    );
-
-            if (patient == null)
-            {
-                return NotFound();
-            }
-
-            var vm =
-                new PatientCreateViewModel
-                {
-                    Name =
-                        patient.Name,
-
-                    Surname =
-                        patient.Surname,
-
-                    IDNumber =
-                        patient.IDNumber,
-
-                    DOB =
-                        patient.DOB,
-
-                    CellphoneNumber =
-                        patient.CellphoneNumber,
-
-                    Email =
-                        patient.Email,
-
-                    HomeAddress =
-                        patient.HomeAddress,
-
-                    MedicalConditions =
-                        patient.MedicalConditions,
-
-                    Allergies =
-                        patient.Allergies,
-
-                    Medication =
-                        patient.Medication
-                };
-
-            ViewBag.PatientID =
-                patient.PatientID;
+            ViewBag.PatientID = patient.PatientID;
 
             return View(vm);
         }
@@ -847,163 +522,65 @@ namespace LabDash.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdatePatient(
-            PatientDetailsViewModel model)
+        public async Task<IActionResult> UpdatePatient(PatientDetailsViewModel model)
         {
-            // =====================================================
-            // CHECK MODEL
-            // =====================================================
-
             if (model == null)
             {
-                TempData["Error"] =
-                    "The patient information could not be received.";
-
-                return RedirectToAction(
-                    nameof(ManagePatients)
-                );
+                TempData["Error"] = "The patient information could not be received.";
+                return RedirectToAction(nameof(ManagePatients));
             }
-
-            // =====================================================
-            // REQUIRED FIELD VALIDATION
-            // =====================================================
 
             if (string.IsNullOrWhiteSpace(model.Name))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Name),
-                    "Patient name is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.Name), "Patient name is required.");
 
             if (string.IsNullOrWhiteSpace(model.Surname))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Surname),
-                    "Patient surname is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.Surname), "Patient surname is required.");
 
             if (string.IsNullOrWhiteSpace(model.IDNumber))
-            {
-                ModelState.AddModelError(
-                    nameof(model.IDNumber),
-                    "South African ID number is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.IDNumber), "South African ID number is required.");
 
             if (string.IsNullOrWhiteSpace(model.Email))
-            {
-                ModelState.AddModelError(
-                    nameof(model.Email),
-                    "Email address is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.Email), "Email address is required.");
 
             if (string.IsNullOrWhiteSpace(model.CellphoneNumber))
-            {
-                ModelState.AddModelError(
-                    nameof(model.CellphoneNumber),
-                    "Cellphone number is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.CellphoneNumber), "Cellphone number is required.");
 
             if (string.IsNullOrWhiteSpace(model.HomeAddress))
-            {
-                ModelState.AddModelError(
-                    nameof(model.HomeAddress),
-                    "Home address is required."
-                );
-            }
+                ModelState.AddModelError(nameof(model.HomeAddress), "Home address is required.");
 
             if (!ModelState.IsValid)
-            {
-                return View(
-                    "EditPatient",
-                    model
-                );
-            }
+                return View("EditPatient", model);
 
-            // =====================================================
-            // CLEAN VALUES SAFELY
-            // =====================================================
+            string name = model.Name?.Trim() ?? string.Empty;
+            string surname = model.Surname?.Trim() ?? string.Empty;
+            string idNumber = model.IDNumber?.Trim() ?? string.Empty;
+            string cellphone = model.CellphoneNumber?.Trim() ?? string.Empty;
+            string email = model.Email?.Trim().ToLower() ?? string.Empty;
+            string homeAddress = model.HomeAddress?.Trim() ?? string.Empty;
 
-            string name =
-                model.Name?.Trim() ??
-                string.Empty;
+            string medicalConditions = string.IsNullOrWhiteSpace(model.MedicalConditions)
+                ? "None"
+                : model.MedicalConditions.Trim();
 
-            string surname =
-                model.Surname?.Trim() ??
-                string.Empty;
+            string allergies = string.IsNullOrWhiteSpace(model.Allergies)
+                ? "None"
+                : model.Allergies.Trim();
 
-            string idNumber =
-                model.IDNumber?.Trim() ??
-                string.Empty;
+            string medication = string.IsNullOrWhiteSpace(model.Medication)
+                ? "None"
+                : model.Medication.Trim();
 
-            string cellphone =
-                model.CellphoneNumber?.Trim() ??
-                string.Empty;
-
-            string email =
-                model.Email?.Trim().ToLower() ??
-                string.Empty;
-
-            string homeAddress =
-                model.HomeAddress?.Trim() ??
-                string.Empty;
-
-            string medicalConditions =
-                string.IsNullOrWhiteSpace(
-                    model.MedicalConditions)
-                    ? "None"
-                    : model.MedicalConditions.Trim();
-
-            string allergies =
-                string.IsNullOrWhiteSpace(
-                    model.Allergies)
-                    ? "None"
-                    : model.Allergies.Trim();
-
-            string medication =
-                string.IsNullOrWhiteSpace(
-                    model.Medication)
-                    ? "None"
-                    : model.Medication.Trim();
-
-            // =====================================================
-            // FIND PATIENT
-            // =====================================================
-
-            var patient =
-                await _context.Patients
-                    .FirstOrDefaultAsync(
-                        p =>
-                            p.PatientID ==
-                            model.PatientID
-                    );
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.PatientID == model.PatientID);
 
             if (patient == null)
             {
-                TempData["Error"] =
-                    "The patient record could not be found.";
-
-                return RedirectToAction(
-                    nameof(ManagePatients)
-                );
+                TempData["Error"] = "The patient record could not be found.";
+                return RedirectToAction(nameof(ManagePatients));
             }
 
-            // =====================================================
-            // CHECK DUPLICATE PATIENT ID
-            // =====================================================
-
-            bool duplicatePatientID =
-                await _context.Patients
-                    .AnyAsync(
-                        p =>
-                            p.IDNumber == idNumber &&
-                            p.PatientID !=
-                            model.PatientID
-                    );
+            bool duplicatePatientID = await _context.Patients
+                .AnyAsync(p => p.IDNumber == idNumber && p.PatientID != model.PatientID);
 
             if (duplicatePatientID)
             {
@@ -1012,65 +589,32 @@ namespace LabDash.Controllers
                     "Another patient already uses this South African ID number."
                 );
 
-                return View(
-                    "EditPatient",
-                    model
-                );
+                return View("EditPatient", model);
             }
-
-            // =====================================================
-            // FIND IDENTITY USER
-            // =====================================================
 
             LabUser? user = null;
 
-            if (!string.IsNullOrWhiteSpace(
-                patient.UserId))
+            if (!string.IsNullOrWhiteSpace(patient.UserId))
             {
-                user =
-                    await _userManager.FindByIdAsync(
-                        patient.UserId
-                    );
+                user = await _userManager.FindByIdAsync(patient.UserId);
             }
-
-            // =====================================================
-            // CHECK IDENTITY EMAIL
-            // =====================================================
 
             if (user != null)
             {
-                var existingEmailUser =
-                    await _userManager
-                        .FindByEmailAsync(email);
+                var existingEmailUser = await _userManager.FindByEmailAsync(email);
 
-                if (
-                    existingEmailUser != null &&
-                    existingEmailUser.Id != user.Id
-                )
+                if (existingEmailUser != null && existingEmailUser.Id != user.Id)
                 {
                     ModelState.AddModelError(
                         nameof(model.Email),
                         "Another account already uses this email address."
                     );
 
-                    return View(
-                        "EditPatient",
-                        model
-                    );
+                    return View("EditPatient", model);
                 }
 
-                // =================================================
-                // CHECK IDENTITY SA ID
-                // =================================================
-
-                var existingIdUser =
-                    await _userManager.Users
-                        .FirstOrDefaultAsync(
-                            u =>
-                                u.SouthAfricanID ==
-                                idNumber &&
-                                u.Id != user.Id
-                        );
+                var existingIdUser = await _userManager.Users
+                    .FirstOrDefaultAsync(u => u.SouthAfricanID == idNumber && u.Id != user.Id);
 
                 if (existingIdUser != null)
                 {
@@ -1079,97 +623,40 @@ namespace LabDash.Controllers
                         "Another account already uses this South African ID number."
                     );
 
-                    return View(
-                        "EditPatient",
-                        model
-                    );
+                    return View("EditPatient", model);
                 }
             }
 
-            // =====================================================
-            // UPDATE PATIENT
-            // =====================================================
-
-            patient.Name =
-                name;
-
-            patient.Surname =
-                surname;
-
-            patient.IDNumber =
-                idNumber;
-
-            patient.DOB =
-                model.DOB;
-
-            patient.CellphoneNumber =
-                cellphone;
-
-            patient.Email =
-                email;
-
-            patient.HomeAddress =
-                homeAddress;
-
-            patient.MedicalConditions =
-                medicalConditions;
-
-            patient.Allergies =
-                allergies;
-
-            patient.Medication =
-                medication;
-
-            // =====================================================
-            // UPDATE IDENTITY USER
-            // =====================================================
+            patient.Name = name;
+            patient.Surname = surname;
+            patient.IDNumber = idNumber;
+            patient.DOB = model.DOB;
+            patient.CellphoneNumber = cellphone;
+            patient.Email = email;
+            patient.HomeAddress = homeAddress;
+            patient.MedicalConditions = medicalConditions;
+            patient.Allergies = allergies;
+            patient.Medication = medication;
 
             if (user != null)
             {
-                user.FirstName =
-                    name;
+                user.FirstName = name;
+                user.LastName = surname;
+                user.PhoneNumb = cellphone;
+                user.SouthAfricanID = idNumber;
+                user.Email = email;
+                user.UserName = email;
 
-                user.LastName =
-                    surname;
-
-                user.PhoneNumb =
-                    cellphone;
-
-                user.SouthAfricanID =
-                    idNumber;
-
-                user.Email =
-                    email;
-
-                user.UserName =
-                    email;
-
-                var updateUserResult =
-                    await _userManager
-                        .UpdateAsync(user);
+                var updateUserResult = await _userManager.UpdateAsync(user);
 
                 if (!updateUserResult.Succeeded)
                 {
-                    foreach (
-                        var error
-                        in updateUserResult.Errors)
-                    {
-                        ModelState.AddModelError(
-                            string.Empty,
-                            error.Description
-                        );
-                    }
+                    foreach (var error in updateUserResult.Errors)
+                        ModelState.AddModelError(string.Empty, error.Description);
 
-                    return View(
-                        "EditPatient",
-                        model
-                    );
+                    return View("EditPatient", model);
                 }
             }
-
-            // =====================================================
-            // SAVE DATABASE CHANGES
-            // =====================================================
 
             try
             {
@@ -1177,57 +664,37 @@ namespace LabDash.Controllers
             }
             catch (DbUpdateException ex)
             {
-                string databaseError =
-                    ex.InnerException?.Message
-                    ?? ex.Message;
+                string databaseError = ex.InnerException?.Message ?? ex.Message;
 
                 ModelState.AddModelError(
                     string.Empty,
-                    "The patient information could not be saved. " +
-                    databaseError
+                    "The patient information could not be saved. " + databaseError
                 );
 
-                return View(
-                    "EditPatient",
-                    model
-                );
+                return View("EditPatient", model);
             }
             catch (Exception ex)
             {
-                string error =
-                    ex.InnerException?.Message
-                    ?? ex.Message;
+                string error = ex.InnerException?.Message ?? ex.Message;
 
                 ModelState.AddModelError(
                     string.Empty,
-                    "An unexpected error occurred while saving the patient. " +
-                    error
+                    "An unexpected error occurred while saving the patient. " + error
                 );
 
-                return View(
-                    "EditPatient",
-                    model
-                );
+                return View("EditPatient", model);
             }
 
-            // =====================================================
-            // SUCCESS
-            // =====================================================
+            TempData["Success"] = "Patient record updated successfully.";
 
-            TempData["Success"] =
-                "Patient record updated successfully.";
-
-            return RedirectToAction(
-                nameof(ManagePatients)
-            );
+            return RedirectToAction(nameof(ManagePatients));
         }
 
         // =========================================================
         // GENERATE UNIQUE PATIENT EMPLOYEE NUMBER
         // =========================================================
 
-        private async Task<string>
-            GeneratePatientEmployeeNumberAsync()
+        private async Task<string> GeneratePatientEmployeeNumberAsync()
         {
             string employeeNumber;
 
@@ -1235,20 +702,12 @@ namespace LabDash.Controllers
             {
                 employeeNumber =
                     "PAT-" +
-                    RandomNumberGenerator
-                        .GetInt32(
-                            100000,
-                            999999
-                        )
-                        .ToString();
+                    RandomNumberGenerator.GetInt32(100000, 999999).ToString();
             }
             while (
-                await _userManager.Users
-                    .AnyAsync(
-                        u =>
-                            u.EmployeeNumber ==
-                            employeeNumber
-                    )
+                await _userManager.Users.AnyAsync(
+                    u => u.EmployeeNumber == employeeNumber
+                )
             );
 
             return employeeNumber;
@@ -1260,93 +719,42 @@ namespace LabDash.Controllers
 
         private string GenerateTemporaryPassword()
         {
-            const string uppercase =
-                "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const string uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const string lowercase = "abcdefghijkmnopqrstuvwxyz";
+            const string numbers = "23456789";
+            const string special = "!@#$%";
 
-            const string lowercase =
-                "abcdefghijkmnopqrstuvwxyz";
-
-            const string numbers =
-                "23456789";
-
-            const string special =
-                "!@#$%";
-
-            // -----------------------------------------------------
-            // GUARANTEE REQUIRED CHARACTER TYPES
-            // -----------------------------------------------------
-
-            var password =
-                new List<char>
-                {
-                    GetRandomCharacter(uppercase),
-
-                    GetRandomCharacter(lowercase),
-
-                    GetRandomCharacter(numbers),
-
-                    GetRandomCharacter(special)
-                };
-
-            // -----------------------------------------------------
-            // ALL CHARACTERS
-            // -----------------------------------------------------
+            var password = new List<char>
+            {
+                GetRandomCharacter(uppercase),
+                GetRandomCharacter(lowercase),
+                GetRandomCharacter(numbers),
+                GetRandomCharacter(special)
+            };
 
             const string allCharacters =
-                uppercase +
-                lowercase +
-                numbers +
-                special;
-
-            // -----------------------------------------------------
-            // GENERATE REMAINING CHARACTERS
-            // -----------------------------------------------------
+                uppercase + lowercase + numbers + special;
 
             while (password.Count < 12)
             {
-                password.Add(
-                    GetRandomCharacter(
-                        allCharacters
-                    )
-                );
+                password.Add(GetRandomCharacter(allCharacters));
             }
 
-            // -----------------------------------------------------
-            // SECURE SHUFFLE
-            // -----------------------------------------------------
-
-            for (
-                int i = password.Count - 1;
-                i > 0;
-                i--)
+            for (int i = password.Count - 1; i > 0; i--)
             {
-                int j =
-                    RandomNumberGenerator
-                        .GetInt32(
-                            i + 1
-                        );
+                int j = RandomNumberGenerator.GetInt32(i + 1);
 
-                (
-                    password[i],
-                    password[j]
-                ) =
-                (
-                    password[j],
-                    password[i]
-                );
+                (password[i], password[j]) = (password[j], password[i]);
             }
 
-            return new string(
-                password.ToArray()
-            );
+            return new string(password.ToArray());
         }
 
         // =========================================================
         // GET RANDOM CHARACTER
         // =========================================================
 
-        private char GetRandomCharacter(
-            string characters)
+        private char GetRandomCharacter(string characters)
         {
             if (string.IsNullOrEmpty(characters))
             {
@@ -1356,13 +764,207 @@ namespace LabDash.Controllers
                 );
             }
 
-            int index =
-                RandomNumberGenerator
-                    .GetInt32(
-                        characters.Length
-                    );
+            int index = RandomNumberGenerator.GetInt32(characters.Length);
 
             return characters[index];
+        }
+
+        // =========================================================
+        // DOCTOR PROFILE
+        // GET: /Doctor/DoctorProfile
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> DoctorProfile(bool edit = false)
+        {
+            var user = await _userManager.GetUserAsync(User);
+
+            if (user == null) return Challenge();
+
+            ViewBag.EditMode = edit;
+
+            return View(user);
+        }
+
+        // =========================================================
+        // DOCTOR PROFILE
+        // POST: /Doctor/DoctorProfile
+        // =========================================================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DoctorProfile(DoctorProfile model)
+        {
+            var user = await _userManager.GetUserAsync(User);
+
+            if (user == null) return Challenge();
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.EditMode = true;
+                return View(user);
+            }
+
+            // Clean input
+            string firstName = model.FirstName.Trim();
+            string lastName = model.LastName.Trim();
+            string hpcsa = model.HPCSANumber.Trim().ToUpper();
+            string employeeNumber = model.EmployeeNumber.Trim().ToUpper();
+            string email = model.Email.Trim().ToLower();
+            string phone = model.PhoneNumb.Trim();
+
+            // Unique HPCSA (excluding self)
+            bool hpcsaTaken = await _userManager.Users
+                .AnyAsync(u => u.HPCSANumber == hpcsa && u.Id != user.Id);
+
+            if (hpcsaTaken)
+            {
+                ModelState.AddModelError(
+                    nameof(model.HPCSANumber),
+                    "Another doctor already uses this HPCSA number."
+                );
+
+                ViewBag.EditMode = true;
+                return View(user);
+            }
+
+            // Unique Employee Number (excluding self)
+            bool employeeTaken = await _userManager.Users
+                .AnyAsync(u => u.EmployeeNumber == employeeNumber && u.Id != user.Id);
+
+            if (employeeTaken)
+            {
+                ModelState.AddModelError(
+                    nameof(model.EmployeeNumber),
+                    "Another account already uses this employee number."
+                );
+
+                ViewBag.EditMode = true;
+                return View(user);
+            }
+
+            // Unique Email (excluding self)
+            var emailUser = await _userManager.FindByEmailAsync(email);
+
+            if (emailUser != null && emailUser.Id != user.Id)
+            {
+                ModelState.AddModelError(
+                    nameof(model.Email),
+                    "Another account already uses this email address."
+                );
+
+                ViewBag.EditMode = true;
+                return View(user);
+            }
+
+            // Apply changes
+            user.FirstName = firstName;
+            user.LastName = lastName;
+            user.HPCSANumber = hpcsa;
+            user.EmployeeNumber = employeeNumber;
+            user.Email = email;
+            user.UserName = email;
+            user.PhoneNumb = phone;
+            user.Gender = string.IsNullOrWhiteSpace(model.Gender)
+                ? user.Gender
+                : model.Gender.Trim();
+            user.SouthAfricanID = string.IsNullOrWhiteSpace(model.SouthAfricanID)
+                ? user.SouthAfricanID
+                : model.SouthAfricanID.Trim();
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                    ModelState.AddModelError(string.Empty, error.Description);
+
+                ViewBag.EditMode = true;
+                return View(user);
+            }
+
+            await _signInManager.RefreshSignInAsync(user);
+
+            TempData["Success"] = "Profile updated successfully.";
+
+            return RedirectToAction(nameof(DoctorProfile));
+        }
+
+        // =========================================================
+        // CHANGE PASSWORD
+        // GET: /Doctor/ChangePassword
+        // =========================================================
+
+        [HttpGet]
+        public IActionResult ChangePassword()
+        {
+            return View();
+        }
+
+        // =========================================================
+        // CHANGE PASSWORD
+        // POST: /Doctor/ChangePassword
+        // =========================================================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(
+            string currentPassword,
+            string newPassword,
+            string confirmPassword)
+        {
+            var user = await _userManager.GetUserAsync(User);
+
+            if (user == null) return Challenge();
+
+            if (string.IsNullOrWhiteSpace(currentPassword))
+                ModelState.AddModelError(string.Empty, "Current password is required.");
+
+            if (string.IsNullOrWhiteSpace(newPassword))
+                ModelState.AddModelError(string.Empty, "New password is required.");
+
+            if (newPassword != confirmPassword)
+                ModelState.AddModelError(
+                    string.Empty,
+                    "New password and confirmation do not match."
+                );
+
+            if (!ModelState.IsValid)
+                return View();
+
+            var result = await _userManager.ChangePasswordAsync(
+                user,
+                currentPassword,
+                newPassword
+            );
+
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                    ModelState.AddModelError(string.Empty, error.Description);
+
+                return View();
+            }
+
+            await _signInManager.RefreshSignInAsync(user);
+
+            TempData["Success"] = "Password changed successfully.";
+
+            return RedirectToAction(nameof(DoctorProfile));
+        }
+
+        // =========================================================
+        // LOGOUT
+        // POST: /Doctor/Logout
+        // =========================================================
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Logout()
+        {
+            await _signInManager.SignOutAsync();
+
+            return RedirectToAction("Login", "Account", new { area = "Identity" });
         }
     }
 }

@@ -108,6 +108,14 @@ public class LabDbContext : IdentityDbContext<LabUser>
         // ============================================================
         // CONSENT REQUEST ACCESS (legacy)
         // ============================================================
+        // ============================================================
+        // TEST RESULT → TEST REQUEST ITEM
+        // ============================================================
+        builder.Entity<TestResult>()
+            .HasOne(r => r.TestRequestItem)
+            .WithMany(i => i.TestResults)
+            .HasForeignKey(r => r.TestRequestItemId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<ConsentRequestAccess>()
             .HasOne(a => a.TestRequest)
@@ -171,16 +179,7 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .OnDelete(DeleteBehavior.NoAction);
 
 
-        // ============================================================
-        // TEST RESULT
-        // ============================================================
-
-        builder.Entity<TestResult>()
-            .HasOne(r => r.TestRequestItem)
-            .WithMany()
-            .HasForeignKey(r => r.TestRequestItemId)
-            .OnDelete(DeleteBehavior.NoAction);
-
+      
 
         // ============================================================
         // TEST REQUEST

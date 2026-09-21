@@ -1,0 +1,510 @@
+﻿@model LabDash.Areas.Identity.Data.LabUser
+
+@{
+    ViewData["Title"] = "My Profile";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+
+    var initials =
+        (!string.IsNullOrWhiteSpace(Model.FirstName) ? Model.FirstName.Substring(0, 1) : "D") +
+        (!string.IsNullOrWhiteSpace(Model.LastName) ? Model.LastName.Substring(0, 1) : "");
+
+    var fullName = $"{Model.FirstName} {Model.LastName}".Trim();
+
+    var isEditMode = (ViewBag.EditMode == true);
+}
+
+<style>
+    .profile-page {
+        padding: 8px 10px 40px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .profile-heading {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 26px 28px;
+        margin-bottom: 22px;
+        border-radius: 17px;
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        box-shadow: 0 8px 22px rgba(13, 107, 99, .14);
+    }
+
+        .profile-heading::after {
+            content: "";
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            right: -60px;
+            bottom: -110px;
+            background: rgba(255,255,255,.055);
+        }
+
+    .profile-avatar-lg {
+        width: 76px;
+        height: 76px;
+        min-width: 76px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 20px;
+        background: rgba(255,255,255,.18);
+        border: 1px solid rgba(255,255,255,.22);
+        color: #fff;
+        font-size: 26px;
+        font-weight: 800;
+        position: relative;
+        z-index: 2;
+    }
+
+    .profile-heading-text {
+        position: relative;
+        z-index: 2;
+        flex: 1;
+    }
+
+        .profile-heading-text h1 {
+            margin: 0;
+            color: #fff;
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .profile-heading-text p {
+            margin: 6px 0 0;
+            color: rgba(255,255,255,.85);
+            font-size: 12px;
+        }
+
+    .profile-role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        padding: 5px 11px;
+        border-radius: 20px;
+        background: rgba(255,255,255,.18);
+        border: 1px solid rgba(255,255,255,.22);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 750;
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 11px;
+        margin-bottom: 18px;
+        font-size: 12px;
+        font-weight: 650;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .alert-danger {
+        background: #fff3f3;
+        color: #a44444;
+        border: 1px solid #f0cccc;
+    }
+
+    .alert-success {
+        background: #edf9f1;
+        color: #21794e;
+        border: 1px solid #c6e8d2;
+    }
+
+    .profile-card {
+        background: #fff;
+        border: 1px solid #dfeae7;
+        border-radius: 17px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(31,78,72,.055);
+    }
+
+    .profile-card-header {
+        padding: 16px 22px;
+        background: linear-gradient(180deg, #fbfefd, #f7fbfa);
+        border-bottom: 1px solid #e8efed;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .profile-card-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .profile-card-header-left i {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            background: #eaf6f4;
+            color: #0d6b63;
+            font-size: 13px;
+        }
+
+    .profile-card-header h3 {
+        margin: 0;
+        color: #173c38;
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    .profile-card-body {
+        padding: 22px;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 13px 0;
+        border-bottom: 1px solid #edf2f0;
+    }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+    .info-label {
+        color: #8a9a97;
+        font-size: 10px;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+    }
+
+    .info-value {
+        color: #294b45;
+        font-size: 13px;
+        font-weight: 700;
+        text-align: right;
+        word-break: break-word;
+        max-width: 60%;
+    }
+
+        .info-value.muted {
+            color: #879793;
+            font-weight: 500;
+        }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 6px;
+        color: #49645f;
+        font-size: 10px;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+    }
+
+    .form-input, .form-select {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1px solid #dfeae7;
+        border-radius: 10px;
+        background: #fbfdfc;
+        color: #294b45;
+        font-size: 13px;
+        font-family: inherit;
+        transition: all .18s ease;
+        box-sizing: border-box;
+    }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #1a8c82;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(26,140,130,.12);
+        }
+
+        .form-input[readonly] {
+            background: #f2f6f5;
+            color: #879793;
+            cursor: not-allowed;
+        }
+
+    .field-validation-error {
+        display: block;
+        margin-top: 4px;
+        color: #b44444;
+        font-size: 10px;
+        font-weight: 600;
+    }
+
+    .btn-primary-custom {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 10px 18px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 750;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all .2s ease;
+    }
+
+        .btn-primary-custom:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(13,107,99,.22);
+            color: #fff;
+        }
+
+    .btn-outline-custom {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: 1.5px solid #dfeae7;
+        border-radius: 9px;
+        background: #fff;
+        color: #49645f;
+        font-size: 11px;
+        font-weight: 750;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all .18s ease;
+    }
+
+        .btn-outline-custom:hover {
+            border-color: #1a8c82;
+            color: #0d6b63;
+            background: #f5fbfa;
+        }
+
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        padding-top: 12px;
+        margin-top: 8px;
+        border-top: 1px solid #edf2f0;
+    }
+
+    @@media (max-width: 900px) {
+        .profile-heading {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .profile-heading-text {
+            text-align: center;
+        }
+    }
+</style>
+
+<div class="profile-page">
+
+    <!-- HEADER -->
+    <div class="profile-heading">
+        <div class="profile-avatar-lg">@initials.ToUpper()</div>
+        <div class="profile-heading-text">
+            <h1>@fullName</h1>
+            <p>@Model.Email</p>
+            <span class="profile-role-badge">
+                <i class="fas fa-user-doctor"></i>
+                Doctor
+            </span>
+        </div>
+    </div>
+
+    <!-- SUCCESS -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">
+            <i class="fas fa-circle-check"></i>
+            @TempData["Success"]
+        </div>
+    }
+
+    <!-- VALIDATION ERRORS -->
+    @if (isEditMode && !ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-circle-exclamation"></i>
+            <div asp-validation-summary="All"></div>
+        </div>
+    }
+
+    <!-- CARD -->
+    <div class="profile-card">
+
+        <div class="profile-card-header">
+            <div class="profile-card-header-left">
+                <i class="fas fa-user"></i>
+                <h3>Profile Details</h3>
+            </div>
+
+            @if (!isEditMode)
+            {
+                <a asp-action="DoctorProfile" asp-route-edit="true" class="btn-outline-custom">
+                    <i class="fas fa-pen"></i>
+                    Edit
+                </a>
+            }
+        </div>
+
+        <div class="profile-card-body">
+
+            @if (!isEditMode)
+            {
+                <!-- ============ VIEW MODE ============ -->
+                <div class="info-row">
+                    <span class="info-label">First Name</span>
+                    <span class="info-value">@Model.FirstName</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Last Name</span>
+                    <span class="info-value">@Model.LastName</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Email</span>
+                    <span class="info-value">@Model.Email</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Phone Number</span>
+                    <span class="info-value @(string.IsNullOrWhiteSpace(Model.PhoneNumb) ? "muted" : "")">
+                        @(string.IsNullOrWhiteSpace(Model.PhoneNumb) ? "Not set" : Model.PhoneNumb)
+                    </span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Gender</span>
+                    <span class="info-value @(string.IsNullOrWhiteSpace(Model.Gender) ? "muted" : "")">
+                        @(string.IsNullOrWhiteSpace(Model.Gender) ? "Not set" : Model.Gender)
+                    </span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">HPCSA Number</span>
+                    <span class="info-value @(string.IsNullOrWhiteSpace(Model.HPCSANumber) ? "muted" : "")">
+                        @(string.IsNullOrWhiteSpace(Model.HPCSANumber) ? "Not set" : Model.HPCSANumber)
+                    </span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Employee Number</span>
+                    <span class="info-value @(string.IsNullOrWhiteSpace(Model.EmployeeNumber) ? "muted" : "")">
+                        @(string.IsNullOrWhiteSpace(Model.EmployeeNumber) ? "Not set" : Model.EmployeeNumber)
+                    </span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">South African ID</span>
+                    <span class="info-value @(string.IsNullOrWhiteSpace(Model.SouthAfricanID) ? "muted" : "")">
+                        @(string.IsNullOrWhiteSpace(Model.SouthAfricanID) ? "Not set" : Model.SouthAfricanID)
+                    </span>
+                </div>
+
+                <div class="form-actions" style="border-top:none; margin-top:18px;">
+                    <a asp-action="ChangePassword" class="btn-outline-custom">
+                        <i class="fas fa-key"></i>
+                        Change Password
+                    </a>
+                </div>
+            }
+            else
+            {
+                <!-- ============ EDIT MODE ============ -->
+                <form asp-action="DoctorProfile" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="form-group">
+                        <label class="form-label">First Name</label>
+                        <input type="text" name="FirstName" value="@Model.FirstName"
+                               class="form-input" maxlength="100" required />
+                        <span class="field-validation-error">@Html.ValidationMessage("FirstName")</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" name="LastName" value="@Model.LastName"
+                               class="form-input" maxlength="100" required />
+                        <span class="field-validation-error">@Html.ValidationMessage("LastName")</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email (Username)</label>
+                        <input type="email" name="Email" value="@Model.Email"
+                               class="form-input" maxlength="200" required />
+                        <span class="field-validation-error">@Html.ValidationMessage("Email")</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">HPCSA Number</label>
+                        <input type="text" name="HPCSANumber" value="@Model.HPCSANumber"
+                               class="form-input" maxlength="50" required />
+                        <span class="field-validation-error">@Html.ValidationMessage("HPCSANumber")</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Employee Number</label>
+                        <input type="text" name="EmployeeNumber" value="@Model.EmployeeNumber"
+                               class="form-input" maxlength="50" required />
+                        <span class="field-validation-error">@Html.ValidationMessage("EmployeeNumber")</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" name="PhoneNumb" value="@Model.PhoneNumb"
+                               class="form-input" maxlength="20" required />
+                        <span class="field-validation-error">@Html.ValidationMessage("PhoneNumb")</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <select name="Gender" class="form-select">
+                            <option value="">-- Select --</option>
+                            <option value="Male" selected="@(Model.Gender == "Male")">Male</option>
+                            <option value="Female" selected="@(Model.Gender == "Female")">Female</option>
+                            <option value="Other" selected="@(Model.Gender == "Other")">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">South African ID</label>
+                        <input type="text" name="SouthAfricanID" value="@Model.SouthAfricanID"
+                               class="form-input" maxlength="50" />
+                    </div>
+
+                    <!-- ============ FORM ACTIONS ============ -->
+                    <div class="form-actions">
+                        <a asp-action="DoctorProfile" class="btn-outline-custom">
+                            <i class="fas fa-times"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="btn-primary-custom">
+                            <i class="fas fa-floppy-disk"></i>
+                            Save Changes
+                        </button>
+                    </div>
+
+                </form>
+            }
+
+        </div>
+    </div>
+
+</div>
