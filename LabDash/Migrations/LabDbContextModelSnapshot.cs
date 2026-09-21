@@ -167,7 +167,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Allergies", (string)null);
+                    b.ToTable("Allergies");
                 });
 
             modelBuilder.Entity("LabDash.Models.AuditLog", b =>
@@ -201,7 +201,7 @@ namespace LabDash.Migrations
 
                     b.HasKey("AuditLogId");
 
-                    b.ToTable("AuditLogs", (string)null);
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("LabDash.Models.Category", b =>
@@ -225,7 +225,7 @@ namespace LabDash.Migrations
 
                     b.HasKey("CategoryId");
 
-                    b.ToTable("Categories", (string)null);
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("LabDash.Models.ConsentItemAccess", b =>
@@ -249,7 +249,7 @@ namespace LabDash.Migrations
                     b.HasIndex("ConsentID", "TestRequestItemID")
                         .IsUnique();
 
-                    b.ToTable("ConsentItemAccesses", (string)null);
+                    b.ToTable("ConsentItemAccesses");
                 });
 
             modelBuilder.Entity("LabDash.Models.ConsentRequestAccess", b =>
@@ -272,7 +272,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("RequestID");
 
-                    b.ToTable("ConsentRequestAccess", (string)null);
+                    b.ToTable("ConsentRequestAccess");
                 });
 
             modelBuilder.Entity("LabDash.Models.Consumable", b =>
@@ -315,7 +315,7 @@ namespace LabDash.Migrations
 
                     b.HasKey("ConsumableID");
 
-                    b.ToTable("Consumables", (string)null);
+                    b.ToTable("Consumables");
                 });
 
             modelBuilder.Entity("LabDash.Models.ConsumableOrder", b =>
@@ -356,7 +356,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("ConsumableOrders", (string)null);
+                    b.ToTable("ConsumableOrders");
                 });
 
             modelBuilder.Entity("LabDash.Models.ConsumableOrderItem", b =>
@@ -397,7 +397,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("ConsumableOrderId");
 
-                    b.ToTable("ConsumableOrderItems", (string)null);
+                    b.ToTable("ConsumableOrderItems");
                 });
 
             modelBuilder.Entity("LabDash.Models.MedicalCondition", b =>
@@ -427,7 +427,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("MedicalConditions", (string)null);
+                    b.ToTable("MedicalConditions");
                 });
 
             modelBuilder.Entity("LabDash.Models.Medication", b =>
@@ -457,7 +457,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Medications", (string)null);
+                    b.ToTable("Medications");
                 });
 
             modelBuilder.Entity("LabDash.Models.Patient", b =>
@@ -511,7 +511,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Patients", (string)null);
+                    b.ToTable("Patients");
                 });
 
             modelBuilder.Entity("LabDash.Models.PatientAllergy", b =>
@@ -550,7 +550,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("RecordedByDoctorId");
 
-                    b.ToTable("PatientAllergies", (string)null);
+                    b.ToTable("PatientAllergies");
                 });
 
             modelBuilder.Entity("LabDash.Models.PatientDoctorConsent", b =>
@@ -580,7 +580,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("PatientID");
 
-                    b.ToTable("PatientDoctorConsents", (string)null);
+                    b.ToTable("PatientDoctorConsents");
                 });
 
             modelBuilder.Entity("LabDash.Models.PatientMedicalCondition", b =>
@@ -619,7 +619,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("RecordedByDoctorId");
 
-                    b.ToTable("PatientMedicalConditions", (string)null);
+                    b.ToTable("PatientMedicalConditions");
                 });
 
             modelBuilder.Entity("LabDash.Models.PatientMedication", b =>
@@ -665,7 +665,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("RecordedByDoctorId");
 
-                    b.ToTable("PatientMedications", (string)null);
+                    b.ToTable("PatientMedications");
                 });
 
             modelBuilder.Entity("LabDash.Models.Sample", b =>
@@ -701,7 +701,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("TestRequestId");
 
-                    b.ToTable("Samples", (string)null);
+                    b.ToTable("Samples");
                 });
 
             modelBuilder.Entity("LabDash.Models.SampleReceive", b =>
@@ -741,7 +741,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("RequestId");
 
-                    b.ToTable("SampleReceives", (string)null);
+                    b.ToTable("SampleReceives");
                 });
 
             modelBuilder.Entity("LabDash.Models.SampleTypeLookup", b =>
@@ -766,7 +766,7 @@ namespace LabDash.Migrations
 
                     b.HasKey("SampleTypeLookupId");
 
-                    b.ToTable("SampleTypeLookups", (string)null);
+                    b.ToTable("SampleTypeLookups");
                 });
 
             modelBuilder.Entity("LabDash.Models.Supplier", b =>
@@ -794,7 +794,7 @@ namespace LabDash.Migrations
 
                     b.HasKey("SupplierId");
 
-                    b.ToTable("Suppliers", (string)null);
+                    b.ToTable("Suppliers");
                 });
 
             modelBuilder.Entity("LabDash.Models.TechnicianAssignment", b =>
@@ -818,7 +818,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("TestTypeId");
 
-                    b.ToTable("TechnicianAssignments", (string)null);
+                    b.ToTable("TechnicianAssignments");
                 });
 
             modelBuilder.Entity("LabDash.Models.TechnicianTestType", b =>
@@ -842,7 +842,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("TestTypeId");
 
-                    b.ToTable("TechnicianTestTypes", (string)null);
+                    b.ToTable("TechnicianTestTypes");
                 });
 
             modelBuilder.Entity("LabDash.Models.TestCategory", b =>
@@ -864,7 +864,7 @@ namespace LabDash.Migrations
 
                     b.HasKey("TestCategoryId");
 
-                    b.ToTable("TestCategories", (string)null);
+                    b.ToTable("TestCategories");
                 });
 
             modelBuilder.Entity("LabDash.Models.TestRequest", b =>
@@ -921,7 +921,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("RequestingDoctorId");
 
-                    b.ToTable("TestRequests", (string)null);
+                    b.ToTable("TestRequests");
                 });
 
             modelBuilder.Entity("LabDash.Models.TestRequestItem", b =>
@@ -959,7 +959,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("TestTypeId");
 
-                    b.ToTable("TestRequestItems", (string)null);
+                    b.ToTable("TestRequestItems");
                 });
 
             modelBuilder.Entity("LabDash.Models.TestResult", b =>
@@ -1017,7 +1017,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("VerifiedByTechnicianId");
 
-                    b.ToTable("TestResults", (string)null);
+                    b.ToTable("TestResults");
                 });
 
             modelBuilder.Entity("LabDash.Models.TestType", b =>
@@ -1052,7 +1052,7 @@ namespace LabDash.Migrations
                     b.Property<int>("TestCategoryId")
                         .HasColumnType("int");
 
-                    b.Property<int>("TurnaroundTimeHours")
+                    b.Property<int>("TurnaroundTimeMinutes")
                         .HasColumnType("int");
 
                     b.Property<string>("UnitOfMeasurement")
@@ -1062,7 +1062,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("TestCategoryId");
 
-                    b.ToTable("TestTypes", (string)null);
+                    b.ToTable("TestTypes");
                 });
 
             modelBuilder.Entity("LabDash.Models.TestTypeConsumable", b =>
@@ -1088,7 +1088,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("TestTypeId");
 
-                    b.ToTable("TestTypeConsumables", (string)null);
+                    b.ToTable("TestTypeConsumables");
                 });
 
             modelBuilder.Entity("LabDash.Models.TestVerification", b =>
@@ -1122,7 +1122,7 @@ namespace LabDash.Migrations
 
                     b.HasIndex("VerifiedByTechnicianId");
 
-                    b.ToTable("TestVerifications", (string)null);
+                    b.ToTable("TestVerifications");
                 });
 
             modelBuilder.Entity("LabDash.Models.Unit", b =>
@@ -1147,7 +1147,7 @@ namespace LabDash.Migrations
 
                     b.HasKey("UnitId");
 
-                    b.ToTable("Units", (string)null);
+                    b.ToTable("Units");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
