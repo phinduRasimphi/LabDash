@@ -520,9 +520,9 @@
                                                                            name="notes"
                                                                            value="" />
 
-                                                                    <button type="submit"
+                                                                    <button type="button"
                                                                             class="receive-btn"
-                                                                            onclick="return confirm('Receive this sample?');">
+                                                                            onclick="openReceiveModal(this)">
 
                                                                         <i class="fa-solid fa-vial-circle-check"></i>
 
@@ -625,6 +625,41 @@
                 }
 
             </div>
+
+        </div>
+
+    </div>
+
+</div>
+<!-- RECEIVE SAMPLE MODAL -->
+<div id="receiveModal" class="receive-modal-overlay">
+
+    <div class="receive-modal">
+
+        <div class="receive-modal-icon">
+            <i class="fa-solid fa-vials"></i>
+        </div>
+
+        <h2>Receive Laboratory Sample?</h2>
+
+        <p>
+            Are you sure you want to receive this laboratory sample?
+        </p>
+
+        <div class="receive-modal-actions">
+
+            <button type="button"
+                    class="receive-cancel-btn"
+                    onclick="closeReceiveModal()">
+                Cancel
+            </button>
+
+            <button type="button"
+                    class="receive-confirm-btn"
+                    onclick="confirmReceiveSample()">
+                <i class="fa-solid fa-vial-circle-check"></i>
+                Receive Sample
+            </button>
 
         </div>
 
@@ -1127,7 +1162,164 @@
         font-weight: 700;
         font-size: 11px;
     }
+    /* =====================================================
+       RECEIVE SAMPLE MODAL
+    ===================================================== */
 
+    .receive-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.58);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+        .receive-modal-overlay.show {
+            display: flex;
+        }
+
+    .receive-modal {
+        width: 100%;
+        max-width: 430px;
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 30px 30px 28px;
+        text-align: center;
+        box-shadow: 0 20px 55px rgba(0, 0, 0, 0.25);
+        animation: receiveModalIn 0.2s ease-out;
+    }
+
+    @@keyframes receiveModalIn {
+
+        from {
+            opacity: 0;
+            transform: translateY(15px) scale(0.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+
+    /* ICON */
+
+    .receive-modal-icon {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 18px;
+        border-radius: 50%;
+        background: #0e8178;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 25px;
+        box-shadow: 0 6px 16px rgba(14, 129, 120, 0.25);
+    }
+
+
+    /* TITLE */
+
+    .receive-modal h2 {
+        margin: 0 0 10px;
+        color: #26363b;
+        font-size: 21px;
+        font-weight: 700;
+    }
+
+
+    /* MESSAGE */
+
+    .receive-modal p {
+        margin: 0 auto;
+        max-width: 330px;
+        color: #7b8790;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+
+    /* BUTTON AREA */
+
+    .receive-modal-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 25px;
+    }
+
+
+    /* CANCEL */
+
+    .receive-cancel-btn {
+        min-width: 90px;
+        height: 42px;
+        padding: 0 18px;
+        border: 1px solid #d5dde0;
+        border-radius: 9px;
+        background: #f8fafb;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .receive-cancel-btn:hover {
+            background: #edf1f2;
+            border-color: #c5d0d4;
+        }
+
+
+    /* CONFIRM */
+
+    .receive-confirm-btn {
+        min-width: 145px;
+        height: 42px;
+        padding: 0 18px;
+        border: none;
+        border-radius: 9px;
+        background: #0e8178;
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+    }
+
+        .receive-confirm-btn:hover {
+            background: #086b64;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 12px rgba(14, 129, 120, 0.25);
+        }
+
+
+    /* MOBILE */
+
+    @@media (max-width: 500px) {
+
+        .receive-modal {
+            padding: 25px 20px;
+        }
+
+        .receive-modal-actions {
+            flex-direction: column;
+        }
+
+        .receive-cancel-btn,
+        .receive-confirm-btn {
+            width: 100%;
+        }
+    }
 
     /* FOOTER */
 
@@ -1267,6 +1459,78 @@
                 });
 
             });
+        /* =====================================================
+           RECEIVE SAMPLE MODAL
+        ===================================================== */
+
+        let selectedReceiveForm = null;
+
+        function openReceiveModal(button) {
+
+            // Find the form containing the clicked Receive button
+            selectedReceiveForm = button.closest(".receive-form");
+
+            // Show modal
+            const modal = document.getElementById("receiveModal");
+
+            if (modal) {
+                modal.classList.add("show");
+            }
+        }
+
+
+        function closeReceiveModal() {
+
+            const modal = document.getElementById("receiveModal");
+
+            if (modal) {
+                modal.classList.remove("show");
+            }
+
+            selectedReceiveForm = null;
+        }
+
+
+        function confirmReceiveSample() {
+
+            if (!selectedReceiveForm) {
+                return;
+            }
+
+            // Submit the original ReceiveSample form
+            selectedReceiveForm.submit();
+
+            // Close modal
+            closeReceiveModal();
+        }
+
+
+        /* Close modal when clicking outside it */
+
+        document.addEventListener("click", function(event) {
+
+            const modal = document.getElementById("receiveModal");
+
+            if (!modal) {
+                return;
+            }
+
+            if (event.target === modal) {
+                closeReceiveModal();
+            }
+
+        });
+
+
+        /* Close modal with ESC */
+
+        document.addEventListener("keydown", function(event) {
+
+            if (event.key === "Escape") {
+                closeReceiveModal();
+            }
+
+        });
 
     </script>
 

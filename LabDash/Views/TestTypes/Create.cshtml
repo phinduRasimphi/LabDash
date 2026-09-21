@@ -27,7 +27,7 @@
     .card {
         border: none;
         border-radius: 12px;
-        box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
     }
 
     .card-header {
@@ -50,7 +50,7 @@
         .form-control:focus,
         .form-select:focus {
             border-color: #0f766e;
-            box-shadow: 0 0 0 0.2rem rgba(15,118,110,.15);
+            box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15);
         }
 
     .btn-teal {
@@ -72,7 +72,7 @@
         border-radius: 10px;
         padding: 14px;
         margin-bottom: 12px;
-        transition: 0.2s ease;
+        transition: all 0.2s ease;
     }
 
         .consumable-item:hover {
@@ -83,6 +83,7 @@
         .consumable-item.selected {
             background: #f0fdfa;
             border-color: #0f766e;
+            box-shadow: 0 0 0 1px #0f766e;
         }
 
     .quantity-input:disabled {
@@ -94,6 +95,34 @@
         font-size: 12px;
         color: #64748b;
         margin-top: 5px;
+    }
+
+    .consumable-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+        .consumable-checkbox:checked {
+            background-color: #0f766e;
+            border-color: #0f766e;
+        }
+
+    .consumable-label {
+        cursor: pointer;
+        margin-left: 5px;
+    }
+
+    .required-star {
+        color: #dc2626;
+    }
+
+    .validation-summary-valid {
+        display: none;
+    }
+
+    .validation-summary-errors {
+        display: block;
     }
 
 </style>
@@ -112,6 +141,7 @@
            style="color:#0f766e;">
 
             <i class="fa-solid fa-arrow-left me-2"></i>
+
             Back to Test Types
 
         </a>
@@ -183,6 +213,8 @@
 
                                 Test Name
 
+                                <span class="required-star">*</span>
+
                             </label>
 
                             <input asp-for="Name"
@@ -204,6 +236,8 @@
                                    class="form-label fw-semibold">
 
                                 Test Category
+
+                                <span class="required-star">*</span>
 
                             </label>
 
@@ -232,6 +266,8 @@
                                    class="form-label fw-semibold">
 
                                 Required Sample Type
+
+                                <span class="required-star">*</span>
 
                             </label>
 
@@ -286,9 +322,19 @@
                                 <option value="g/mL">g/mL</option>
                                 <option value="k/µL">k/µL</option>
                                 <option value="x10³/µL">x10³/µL</option>
+                                <option value="×10⁹/L">×10⁹/L</option>
                                 <option value="mmol/L">mmol/L</option>
                                 <option value="mg/dL">mg/dL</option>
+                                <option value="mg/L">mg/L</option>
+                                <option value="ng/mL">ng/mL</option>
+                                <option value="pmol/L">pmol/L</option>
+                                <option value="seconds">seconds</option>
+                                <option value="Ratio">Ratio</option>
                                 <option value="%">%</option>
+                                <option value="Report">Report</option>
+                                <option value="Detected/Not Detected">
+                                    Detected / Not Detected
+                                </option>
 
                             </select>
 
@@ -312,6 +358,8 @@
                             <div class="row g-3">
 
 
+                                <!-- MINIMUM -->
+
                                 <div class="col-md-6">
 
                                     <label asp-for="ReferenceRangeLow"
@@ -333,6 +381,8 @@
 
                                 </div>
 
+
+                                <!-- MAXIMUM -->
 
                                 <div class="col-md-6">
 
@@ -368,6 +418,8 @@
                                    class="form-label fw-semibold">
 
                                 Turnaround Time
+
+                                <span class="required-star">*</span>
 
                             </label>
 
@@ -418,7 +470,9 @@
                         </h5>
 
                         <small class="text-muted">
+
                             Select the consumables used for this test.
+
                         </small>
 
                     </div>
@@ -427,8 +481,7 @@
                     <div class="card-body p-4">
 
 
-                        @if (consumables != null &&
-                             consumables.Any())
+                        @if (consumables != null && consumables.Any())
                         {
 
                             foreach (var consumable in consumables)
@@ -447,7 +500,7 @@
                                                value="@consumable.ConsumableID"
                                                id="consumable_@consumable.ConsumableID" />
 
-                                        <label class="form-check-label fw-semibold"
+                                        <label class="form-check-label fw-semibold consumable-label"
                                                for="consumable_@consumable.ConsumableID">
 
                                             @consumable.Name
@@ -459,7 +512,7 @@
 
                                     <!-- QUANTITY -->
 
-                                    <div class="mt-2">
+                                    <div class="mt-3">
 
                                         <label class="form-label small text-muted">
 
@@ -468,9 +521,10 @@
                                         </label>
 
                                         <input type="number"
-                                               name=""
+                                               name="ConsumableQuantities[@consumable.ConsumableID]"
                                                value="1"
                                                min="1"
+                                               step="1"
                                                class="form-control quantity-input"
                                                disabled />
 
@@ -524,6 +578,8 @@
                     <a asp-action="Index"
                        class="btn btn-light">
 
+                        <i class="fa-solid fa-xmark me-2"></i>
+
                         Cancel
 
                     </a>
@@ -541,14 +597,18 @@
 
 @section Scripts {
 
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    @await Html.PartialAsync("_ValidationScriptsPartial")
 
 
     <script>
 
         document.addEventListener("DOMContentLoaded", function() {
+
+            /*
+             * =====================================================
+             * CONSUMABLE CHECKBOXES
+             * =====================================================
+             */
 
             const checkboxes =
                 document.querySelectorAll(".consumable-checkbox");
@@ -561,6 +621,11 @@
                     const container =
                         checkbox.closest("[data-consumable-container]");
 
+                    if (!container) {
+                        return;
+                    }
+
+
                     const quantityInput =
                         container.querySelector(".quantity-input");
 
@@ -568,31 +633,40 @@
                         container.querySelector(".consumable-help");
 
 
+                    if (!quantityInput) {
+                        return;
+                    }
+
+
+                    /*
+                     * SELECTED
+                     */
+
                     if (checkbox.checked) {
 
-                        // Enable quantity
                         quantityInput.disabled = false;
 
-                        // IMPORTANT:
-                        // Add the name so ASP.NET receives it
-                        quantityInput.name =
-                            "ConsumableQuantities";
+                        quantityInput.focus();
 
                         container.classList.add("selected");
 
-                        helpText.textContent =
-                            "Enter the quantity required for one test.";
+                        if (helpText) {
+
+                            helpText.textContent =
+                                "Enter the quantity required for one test.";
+
+                        }
 
                     }
+
+
+                    /*
+                     * NOT SELECTED
+                     */
+
                     else {
 
-                        // Disable quantity
                         quantityInput.disabled = true;
-
-                        // IMPORTANT:
-                        // Remove name so unselected quantities
-                        // are NOT submitted
-                        quantityInput.removeAttribute("name");
 
                         quantityInput.value = 1;
 
@@ -600,8 +674,12 @@
 
                         container.classList.remove("selected");
 
-                        helpText.textContent =
-                            "Select the consumable first.";
+                        if (helpText) {
+
+                            helpText.textContent =
+                                "Select the consumable first.";
+
+                        }
 
                     }
 
@@ -610,77 +688,103 @@
             });
 
 
-            // =====================================================
-            // CLIENT-SIDE VALIDATION
-            // =====================================================
+            /*
+             * =====================================================
+             * FORM VALIDATION
+             * =====================================================
+             */
 
             const form =
                 document.getElementById("createTestTypeForm");
 
 
-            form.addEventListener("submit", function(event) {
+            if (form) {
 
-                const selectedConsumables =
-                    document.querySelectorAll(
-                        ".consumable-checkbox:checked"
-                    );
+                form.addEventListener("submit", function(event) {
 
-
-                let valid = true;
-
-
-                selectedConsumables.forEach(function(checkbox) {
-
-                    const container =
-                        checkbox.closest(
-                            "[data-consumable-container]"
+                    const selectedConsumables =
+                        document.querySelectorAll(
+                            ".consumable-checkbox:checked"
                         );
 
 
-                    const quantityInput =
-                        container.querySelector(
-                            ".quantity-input"
+                    let valid = true;
+
+
+                    /*
+                     * Check every selected consumable
+                     */
+
+                    selectedConsumables.forEach(function(checkbox) {
+
+                        const container =
+                            checkbox.closest(
+                                "[data-consumable-container]"
+                            );
+
+
+                        if (!container) {
+                            return;
+                        }
+
+
+                        const quantityInput =
+                            container.querySelector(
+                                ".quantity-input"
+                            );
+
+
+                        if (!quantityInput) {
+                            return;
+                        }
+
+
+                        const quantity =
+                            parseInt(quantityInput.value, 10);
+
+
+                        if (isNaN(quantity) || quantity <= 0) {
+
+                            valid = false;
+
+                            quantityInput.classList.add(
+                                "is-invalid"
+                            );
+
+                        }
+                        else {
+
+                            quantityInput.classList.remove(
+                                "is-invalid"
+                            );
+
+                        }
+
+                    });
+
+
+                    /*
+                     * Stop submission if a selected consumable
+                     * has an invalid quantity.
+                     */
+
+                    if (!valid) {
+
+                        event.preventDefault();
+
+                        alert(
+                            "Please provide a quantity greater than zero for every selected consumable."
                         );
 
-
-                    const quantity =
-                        parseInt(quantityInput.value);
-
-
-                    if (isNaN(quantity) ||
-                        quantity <= 0) {
-
-                        valid = false;
-
-                        quantityInput.classList.add(
-                            "is-invalid"
-                        );
-
-                    }
-                    else {
-
-                        quantityInput.classList.remove(
-                            "is-invalid"
-                        );
-
+                        return false;
                     }
 
                 });
 
-
-                if (!valid) {
-
-                    event.preventDefault();
-
-                    alert(
-                        "Please enter a quantity greater than zero for every selected consumable."
-                    );
-
-                }
-
-            });
+            }
 
         });
 
     </script>
+
 }
