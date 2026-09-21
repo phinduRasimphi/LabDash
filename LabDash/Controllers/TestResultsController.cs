@@ -9,8 +9,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LabDash.Controllers
 {
-    public record PatientKey(int PatientID, string Name, string Surname, string IDNumber);
-
     [Authorize(Roles = "Doctor")]
     public class TestResultController : Controller
     {
@@ -34,18 +32,19 @@ namespace LabDash.Controllers
             _pdfGenerator = pdfGenerator;
         }
 
+        // =========================================================
+        // INDEX
         // GET: /TestResult?abnormalOnly=true&search=kamogelo
+        // =========================================================
+
         public async Task<IActionResult> Index(bool abnormalOnly = false, string? search = null)
         {
             var doctor = await _userManager.GetUserAsync(User);
             if (doctor == null) return Forbid();
 
             var query = _context.TestResults
-                .Include(r => r.TestRequestItem)
-                    .ThenInclude(i => i.TestType)
-                .Include(r => r.TestRequestItem)
-                    .ThenInclude(i => i.TestRequest)
-                        .ThenInclude(tr => tr.Patient)
+                .Include(r => r.TestRequestItem).ThenInclude(i => i.TestType)
+                .Include(r => r.TestRequestItem).ThenInclude(i => i.TestRequest).ThenInclude(tr => tr.Patient)
                 .Include(r => r.VerifiedByTechnician)
                 .Where(r => r.TestRequestItem.TestRequest.RequestingDoctorId == doctor.Id);
 
@@ -68,12 +67,9 @@ namespace LabDash.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
+            // Group by the actual Patient entity
             var grouped = results
-                .GroupBy(r => new PatientKey(
-                    r.TestRequestItem.TestRequest.Patient.PatientID,
-                    r.TestRequestItem.TestRequest.Patient.Name,
-                    r.TestRequestItem.TestRequest.Patient.Surname,
-                    r.TestRequestItem.TestRequest.Patient.IDNumber))
+                .GroupBy(r => r.TestRequestItem.TestRequest.Patient)
                 .OrderBy(g => g.Key.Surname)
                 .ThenBy(g => g.Key.Name)
                 .ToList();
@@ -83,31 +79,30 @@ namespace LabDash.Controllers
 
             return View(grouped);
         }
+
+        // =========================================================
+        // ALERTS
         // GET: /TestResult/Alerts?from=2026-09-16&to=2026-09-21
+        // =========================================================
+
         public async Task<IActionResult> Alerts(DateTime? from = null, DateTime? to = null)
         {
             var doctor = await _userManager.GetUserAsync(User);
             if (doctor == null) return Forbid();
 
-            // Default: last 5 days
             var toDate = to?.Date ?? DateTime.Today;
             var fromDate = from?.Date ?? toDate.AddDays(-5);
 
-            // Ensure from <= to
             if (fromDate > toDate)
             {
                 (fromDate, toDate) = (toDate, fromDate);
             }
 
-            // Include the full "to" day (until midnight)
             var toInclusive = toDate.AddDays(1).AddSeconds(-1);
 
             var alerts = await _context.TestResults
-                .Include(r => r.TestRequestItem)
-                    .ThenInclude(i => i.TestType)
-                .Include(r => r.TestRequestItem)
-                    .ThenInclude(i => i.TestRequest)
-                        .ThenInclude(tr => tr.Patient)
+                .Include(r => r.TestRequestItem).ThenInclude(i => i.TestType)
+                .Include(r => r.TestRequestItem).ThenInclude(i => i.TestRequest).ThenInclude(tr => tr.Patient)
                 .Include(r => r.VerifiedByTechnician)
                 .Where(r =>
                     r.IsAbnormal &&
@@ -125,18 +120,19 @@ namespace LabDash.Controllers
             return View(alerts);
         }
 
+        // =========================================================
+        // REQUEST
         // GET: /TestResult/Request/5
+        // =========================================================
+
         public async Task<IActionResult> Request(int id)
         {
             var doctor = await _userManager.GetUserAsync(User);
             if (doctor == null) return Forbid();
 
             var results = await _context.TestResults
-                .Include(r => r.TestRequestItem)
-                    .ThenInclude(i => i.TestType)
-                .Include(r => r.TestRequestItem)
-                    .ThenInclude(i => i.TestRequest)
-                        .ThenInclude(tr => tr.Patient)
+                .Include(r => r.TestRequestItem).ThenInclude(i => i.TestType)
+                .Include(r => r.TestRequestItem).ThenInclude(i => i.TestRequest).ThenInclude(tr => tr.Patient)
                 .Include(r => r.VerifiedByTechnician)
                 .Where(r => r.TestRequestItem.TestRequest.RequestId == id &&
                             r.TestRequestItem.TestRequest.RequestingDoctorId == doctor.Id)
@@ -148,7 +144,7 @@ namespace LabDash.Controllers
 
             var request = results[0].TestRequestItem.TestRequest;
 
-            // AUTO-PROMOTE: if all items are completed but the parent isn't, fix it
+            // AUTO-PROMOTE
             if (request.Status != "Completed" &&
                 request.Status != "Released by doctor" &&
                 request.Status != "AppointmentScheduled")
@@ -183,7 +179,11 @@ namespace LabDash.Controllers
             return View("RequestResults", results);
         }
 
+        // =========================================================
+        // SCHEDULE APPOINTMENT
         // POST: /TestResult/ScheduleAppointment
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ScheduleAppointment(
@@ -197,8 +197,7 @@ namespace LabDash.Controllers
 
             var request = await _context.TestRequests
                 .Include(r => r.Patient)
-                .Include(r => r.TestRequestItems)
-                    .ThenInclude(i => i.TestType)
+                .Include(r => r.TestRequestItems).ThenInclude(i => i.TestType)
                 .FirstOrDefaultAsync(r => r.RequestId == requestId &&
                                           r.RequestingDoctorId == doctor.Id);
 
@@ -249,7 +248,11 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(Request), new { id = requestId });
         }
 
+        // =========================================================
+        // RELEASE RESULTS
         // POST: /TestResult/ReleaseResults
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReleaseResults(int requestId, string? releaseNote)
@@ -259,8 +262,7 @@ namespace LabDash.Controllers
 
             var request = await _context.TestRequests
                 .Include(r => r.Patient)
-                .Include(r => r.TestRequestItems)
-                    .ThenInclude(i => i.TestType)
+                .Include(r => r.TestRequestItems).ThenInclude(i => i.TestType)
                 .FirstOrDefaultAsync(r => r.RequestId == requestId &&
                                           r.RequestingDoctorId == doctor.Id);
 
@@ -295,7 +297,11 @@ namespace LabDash.Controllers
             return RedirectToAction(nameof(Request), new { id = requestId });
         }
 
+        // =========================================================
+        // SEND RESULTS AS PDF
         // POST: /TestResult/SendResultsPdf
+        // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SendResultsPdf(int requestId, string? message)
@@ -306,11 +312,8 @@ namespace LabDash.Controllers
             var request = await _context.TestRequests
                 .Include(r => r.Patient)
                 .Include(r => r.RequestingDoctor)
-                .Include(r => r.TestRequestItems)
-                    .ThenInclude(i => i.TestType)
-                .Include(r => r.TestRequestItems)
-                    .ThenInclude(i => i.TestResults)
-                        .ThenInclude(res => res.VerifiedByTechnician)
+                .Include(r => r.TestRequestItems).ThenInclude(i => i.TestType)
+                .Include(r => r.TestRequestItems).ThenInclude(i => i.TestResults).ThenInclude(res => res.VerifiedByTechnician)
                 .FirstOrDefaultAsync(r => r.RequestId == requestId &&
                                           r.RequestingDoctorId == doctor.Id);
 
@@ -324,7 +327,6 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Request), new { id = requestId });
             }
 
-            // Build report data
             var data = new VerifiedResultsReportData
             {
                 RequestId = request.RequestId,
@@ -351,10 +353,8 @@ namespace LabDash.Controllers
                     .ToList()
             };
 
-            // Generate the PDF
             var pdfBytes = _pdfGenerator.Generate(data);
 
-            // Email it
             var htmlBody = $@"
                 <p>Dear {request.Patient.Name},</p>
                 <p>{(string.IsNullOrWhiteSpace(message)
