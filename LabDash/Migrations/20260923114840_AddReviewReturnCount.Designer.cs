@@ -4,6 +4,7 @@ using LabDash.Areas.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    partial class LabDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260923114840_AddReviewReturnCount")]
+    partial class AddReviewReturnCount
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -460,61 +463,6 @@ namespace LabDash.Migrations
                     b.ToTable("Medications");
                 });
 
-            modelBuilder.Entity("LabDash.Models.Notification", b =>
-                {
-                    b.Property<int>("NotificationID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NotificationID"));
-
-                    b.Property<string>("ActorUserId")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsRead")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LinkUrl")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("RecipientUserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int?>("RelatedConsentID")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("RelatedPatientID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("NotificationID");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("RecipientUserId", "IsRead");
-
-                    b.ToTable("Notifications");
-                });
-
             modelBuilder.Entity("LabDash.Models.Patient", b =>
                 {
                     b.Property<int>("PatientID")
@@ -929,17 +877,6 @@ namespace LabDash.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RequestId"));
-
-                    b.Property<DateTime?>("AppointmentDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("AppointmentLocation")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("AppointmentNote")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("CancellationReason")
                         .HasColumnType("nvarchar(max)");
@@ -1453,17 +1390,6 @@ namespace LabDash.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("LabDash.Models.Notification", b =>
-                {
-                    b.HasOne("LabDash.Areas.Identity.Data.LabUser", "Recipient")
-                        .WithMany()
-                        .HasForeignKey("RecipientUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Recipient");
-                });
-
             modelBuilder.Entity("LabDash.Models.Patient", b =>
                 {
                     b.HasOne("LabDash.Areas.Identity.Data.LabUser", null)
@@ -1679,9 +1605,9 @@ namespace LabDash.Migrations
                         .IsRequired();
 
                     b.HasOne("LabDash.Models.TestRequestItem", "TestRequestItem")
-                        .WithMany("TestResults")
+                        .WithMany()
                         .HasForeignKey("TestRequestItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("LabDash.Areas.Identity.Data.LabUser", "VerifiedByTechnician")
@@ -1838,11 +1764,6 @@ namespace LabDash.Migrations
                     b.Navigation("Samples");
 
                     b.Navigation("TestRequestItems");
-                });
-
-            modelBuilder.Entity("LabDash.Models.TestRequestItem", b =>
-                {
-                    b.Navigation("TestResults");
                 });
 
             modelBuilder.Entity("LabDash.Models.TestType", b =>

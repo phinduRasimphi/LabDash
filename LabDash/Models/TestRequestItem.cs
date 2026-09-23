@@ -26,5 +26,7 @@ namespace LabDash.Models
 
         public virtual ICollection<TestResult> TestResults { get; set; }
             = new List<TestResult>();
+
+        public int ReviewReturnCount { get; set; } = 0;
     }
 }
