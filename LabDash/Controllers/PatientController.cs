@@ -1,5 +1,6 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
+using LabDash.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -15,20 +16,19 @@ namespace LabDash.Controllers
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
         private readonly IEmailSender _emailSender;
+        private readonly NotificationService _notifications;
 
         public PatientController(
             LabDbContext context,
             UserManager<LabUser> userManager,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            NotificationService notifications)
         {
             _context = context;
             _userManager = userManager;
             _emailSender = emailSender;
+            _notifications = notifications;
         }
-
-        // ============================================================
-        // CURRENT PATIENT
-        // ============================================================
 
         private async Task<Patient?> GetCurrentPatientAsync()
         {
@@ -538,6 +538,22 @@ namespace LabDash.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+
+            // --------------------------------------------------------
+            // IN-APP NOTIFICATION FOR THE DOCTOR
+            // --------------------------------------------------------
+            await _notifications.SendToUserAsync(
+                recipientUserId: doctorId,
+                title: "New consent granted",
+                message: $"{patient.Name} {patient.Surname} granted you access to " +
+                         $"{validItemIds.Count} test item(s).",
+                type: "ConsentGranted",
+                linkUrl: null,
+                relatedConsentId: consent.ConsentID,
+                relatedPatientId: patient.PatientID,
+                actorUserId: patient.UserId
+            );
 
 
             // --------------------------------------------------------

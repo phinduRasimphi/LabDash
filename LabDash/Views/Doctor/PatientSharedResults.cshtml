@@ -1,0 +1,351 @@
+﻿@model LabDash.ViewModels.PatientSharedResultsViewModel
+@{
+    ViewData["Title"] = "Shared Results";
+    ViewData["ActivePage"] = "SharedWithMe";
+}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+    .psr-wrap {
+        font-family: 'Inter', sans-serif;
+        color: #102C27;
+    }
+
+    .psr-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #0E8C7F;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13.5px;
+        margin-bottom: 18px;
+    }
+
+        .psr-back:hover {
+            text-decoration: underline;
+            color: #0A5850;
+        }
+
+    .psr-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 26px 30px;
+        box-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+        margin-bottom: 24px;
+        border-top: 4px solid #0E8C7F;
+    }
+
+    .psr-patient {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 20px;
+    }
+
+    .psr-avatar {
+        width: 62px;
+        height: 62px;
+        border-radius: 50%;
+        background: #E3F4F1;
+        color: #0A5850;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .psr-patient h1 {
+        font-family: 'Poppins', sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0 0 4px;
+    }
+
+    .psr-patient .meta {
+        font-size: 13px;
+        color: #52716C;
+    }
+
+        .psr-patient .meta i {
+            color: #0E8C7F;
+            margin-right: 4px;
+        }
+
+    .psr-summary {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+    }
+
+    .psr-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        background: #E3F4F1;
+        color: #0E8C7F;
+    }
+
+        .psr-pill.abn {
+            background: #F7E8E7;
+            color: #B0463F;
+        }
+
+    .psr-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+    }
+
+        .psr-table th {
+            text-align: left;
+            background: #F0F7F6;
+            padding: 14px 18px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: #0A5850;
+            font-weight: 700;
+        }
+
+        .psr-table td {
+            padding: 15px 18px;
+            border-bottom: 1px solid #E1EEEC;
+            font-size: 13.5px;
+            vertical-align: top;
+        }
+
+        .psr-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .psr-table tr:hover td {
+            background: #FAFDFC;
+        }
+
+    .psr-test-name {
+        font-weight: 700;
+        color: #0A5850;
+        margin-bottom: 2px;
+    }
+
+    .psr-cat {
+        font-size: 11.5px;
+        color: #8FA9A3;
+        font-style: italic;
+    }
+
+    .psr-value {
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 600;
+        font-size: 14.5px;
+    }
+
+        .psr-value.normal {
+            color: #2E8B57;
+        }
+
+        .psr-value.abnormal {
+            color: #B0463F;
+            font-weight: 700;
+        }
+
+    .psr-no-result {
+        color: #8FA9A3;
+        font-style: italic;
+        font-size: 12.5px;
+    }
+
+    .psr-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+    }
+
+        .psr-badge.stat {
+            background: #F7E8E7;
+            color: #B0463F;
+        }
+
+        .psr-badge.urgent {
+            background: #FBEEE1;
+            color: #B76A2C;
+        }
+
+        .psr-badge.routine {
+            background: #E3F4F1;
+            color: #0E8C7F;
+        }
+
+    .psr-notes {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #52716C;
+        background: #F5FAF9;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border-left: 3px solid #CCE3DF;
+    }
+
+    .psr-empty {
+        background: #fff;
+        border-radius: 18px;
+        padding: 50px 30px;
+        text-align: center;
+        color: #52716C;
+        box-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+    }
+
+        .psr-empty i {
+            font-size: 46px;
+            color: #CCE3DF;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .psr-empty h3 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            color: #102C27;
+            margin: 0 0 6px;
+        }
+</style>
+
+<div class="psr-wrap">
+
+    <a class="psr-back"
+       asp-controller="Doctor"
+       asp-action="SharedWithMe">
+        <i class="fa-solid fa-arrow-left"></i> Back to Shared With Me
+    </a>
+
+    <!-- Patient header -->
+    <div class="psr-card">
+        <div class="psr-patient">
+            <div class="psr-avatar">
+                @(Model.Name.Length > 0 ? Model.Name[0] : '?')@(Model.Surname.Length > 0 ? Model.Surname[0] : '?')
+            </div>
+            <div>
+                <h1>@Model.FullName</h1>
+                <div class="meta">
+                    <i class="fa-solid fa-id-card"></i> @Model.IDNumber
+                    &nbsp;·&nbsp;
+                    <i class="fa-solid fa-envelope"></i> @Model.Email
+                </div>
+            </div>
+        </div>
+
+        <div class="psr-summary">
+            <span class="psr-pill">
+                <i class="fa-solid fa-file-medical"></i>
+                @Model.TotalItems shared item@(Model.TotalItems == 1 ? "" : "s")
+            </span>
+            @if (Model.AbnormalCount > 0)
+            {
+                <span class="psr-pill abn">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    @Model.AbnormalCount abnormal
+                </span>
+            }
+        </div>
+    </div>
+
+    <!-- Results table -->
+    @if (Model.Results == null || !Model.Results.Any())
+    {
+        <div class="psr-empty">
+            <i class="fa-solid fa-lock"></i>
+            <h3>No records shared</h3>
+            <p>This patient hasn't shared any test results with you.</p>
+        </div>
+    }
+    else
+    {
+        <table class="psr-table">
+            <thead>
+                <tr>
+                    <th>Test</th>
+                    <th>Request</th>
+                    <th>Result</th>
+                    <th>Captured</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Results)
+                {
+                    <tr>
+                        <td>
+                            <div class="psr-test-name">@r.TestName</div>
+                            @if (!string.IsNullOrWhiteSpace(r.Category))
+                            {
+                                <div class="psr-cat">@r.Category</div>
+                            }
+                        </td>
+                        <td>
+                            <span class="psr-badge @(r.Urgency.ToLower())">@r.Urgency</span>
+                            <div style="font-size:12px;color:#8FA9A3;margin-top:4px;">
+                                #@r.RequestID · @r.RequestDate.ToString("dd MMM yyyy")
+                            </div>
+                            <div style="font-size:12px;color:#8FA9A3;">
+                                @r.RequestStatus
+                            </div>
+                        </td>
+                        <td>
+                            @if (r.HasResult)
+                            {
+                                <div class="psr-value @(r.IsAbnormal ? "abnormal" : "normal")">
+                                    @r.ResultValue
+                                    @if (!string.IsNullOrWhiteSpace(r.Unit))
+                                    {
+                                        <span style="font-size:12px;font-weight:500;">@r.Unit</span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(r.TechnicianNotes))
+                                {
+                                    <div class="psr-notes">
+                                        <i class="fa-solid fa-note-sticky"></i>
+                                        @r.TechnicianNotes
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <span class="psr-no-result">Not yet available</span>
+                            }
+                        </td>
+                        <td>
+                            @if (r.DateCaptured.HasValue)
+                            {
+                                @r.DateCaptured.Value.ToString("dd MMM yyyy")
+                                <div style="font-size:11.5px;color:#8FA9A3;">
+                                    @r.DateCaptured.Value.ToString("HH:mm")
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="psr-no-result">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

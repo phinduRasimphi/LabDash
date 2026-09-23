@@ -514,7 +514,156 @@ namespace LabDash.Controllers
 
             return View(vm);
         }
+        // =========================================================
+        // SHARED WITH ME
+        // GET: /Doctor/SharedWithMe
+        // Lists patients who granted the logged-in doctor consent.
+        // =========================================================
 
+        [HttpGet]
+        public async Task<IActionResult> SharedWithMe()
+        {
+            var user = await _userManager.GetUserAsync(User);
+
+            if (user == null) return Challenge();
+
+            string doctorId = user.Id;
+
+            // One row per patient who has an active consent to this doctor.
+            var grants = await _context.PatientDoctorConsents
+                .Where(c => c.DoctorId == doctorId && c.IsActive)
+                .Include(c => c.ConsentItemAccesses)
+                .Include(c => c.Patient)
+                .ToListAsync();
+
+            var vm = new SharedWithMeViewModel
+            {
+                Patients = grants
+                    // Hide consents that were revoked down to zero items.
+                    .Where(c => c.ConsentItemAccesses.Any())
+                    .GroupBy(c => c.PatientID)
+                    .Select(g =>
+                    {
+                        var first = g.First();
+                        var patient = first.Patient;
+
+                        return new SharedPatientViewModel
+                        {
+                            PatientID = first.PatientID,
+                            Name = patient?.Name ?? "Unknown",
+                            Surname = patient?.Surname ?? "",
+                            IDNumber = patient?.IDNumber ?? "",
+                            Email = patient?.Email ?? "",
+                            SharedItemCount = g.Sum(c => c.ConsentItemAccesses.Count),
+                            LastGrantedDate = g.Max(c => c.GrantedDate)
+                        };
+                    })
+                    .OrderByDescending(p => p.LastGrantedDate)
+                    .ToList()
+            };
+
+            return View(vm);
+        }
+
+        // =========================================================
+        // PATIENT SHARED RESULTS
+        // GET: /Doctor/PatientSharedResults/5
+        // Shows only the test items this patient granted to this doctor.
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> PatientSharedResults(int patientId)
+        {
+            var user = await _userManager.GetUserAsync(User);
+
+            if (user == null) return Challenge();
+
+            string doctorId = user.Id;
+
+            // Load the patient first.
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.PatientID == patientId);
+
+            if (patient == null) return NotFound();
+
+            // Which TestRequestItem IDs has this doctor been granted?
+            // Only items linked to an ACTIVE consent belonging to THIS doctor
+            // and THIS patient.
+            var grantedItemIds = await _context.ConsentItemAccesses
+                .Where(a =>
+                    a.Consent != null &&
+                    a.Consent.DoctorId == doctorId &&
+                    a.Consent.PatientID == patientId &&
+                    a.Consent.IsActive)
+                .Select(a => a.TestRequestItemID)
+                .Distinct()
+                .ToListAsync();
+
+            if (grantedItemIds.Count == 0)
+            {
+                // Doctor has no consent for this patient — show empty page.
+                return View(new PatientSharedResultsViewModel
+                {
+                    PatientID = patient.PatientID,
+                    Name = patient.Name,
+                    Surname = patient.Surname,
+                    IDNumber = patient.IDNumber,
+                    Email = patient.Email,
+                    Results = new List<SharedResultViewModel>()
+                });
+            }
+
+            // Load the items + their request + their results.
+            var items = await _context.TestRequestItems
+                .Where(i => grantedItemIds.Contains(i.TestRequestItemId))
+                .Include(i => i.TestType)
+                .Include(i => i.TestRequest)
+                .Include(i => i.TestResults)
+                .OrderByDescending(i => i.TestRequest.RequestDate)
+                .ToListAsync();
+
+            var vm = new PatientSharedResultsViewModel
+            {
+                PatientID = patient.PatientID,
+                Name = patient.Name,
+                Surname = patient.Surname,
+                IDNumber = patient.IDNumber,
+                Email = patient.Email,
+                Results = items.Select(i =>
+                {
+                    var latestResult = i.TestResults
+                        .OrderByDescending(r => r.DateCaptured)
+                        .FirstOrDefault();
+
+                    return new SharedResultViewModel
+                    {
+                        RequestID = i.TestRequest.RequestId,
+                        RequestDate = i.TestRequest.RequestDate,
+                        Urgency = string.IsNullOrWhiteSpace(i.TestRequest.Urgency)
+                            ? "Routine"
+                            : i.TestRequest.Urgency,
+                        RequestStatus = string.IsNullOrWhiteSpace(i.TestRequest.Status)
+                            ? "Submitted"
+                            : i.TestRequest.Status,
+
+                        TestRequestItemID = i.TestRequestItemId,
+                        TestName = i.TestType?.Name ?? "Unknown Test",
+                        Category = i.TestType?.Category ?? "",
+
+                        ResultValue = latestResult?.ResultValue ?? "",
+                        Unit = latestResult?.Units ?? "",
+                        IsAbnormal = latestResult?.IsAbnormal ?? false,
+                        DateCaptured = latestResult?.DateCaptured,
+                        TechnicianNotes =
+                            !string.IsNullOrWhiteSpace(latestResult?.VerificationNote)
+                                ? latestResult!.VerificationNote
+                                : (latestResult?.Comments ?? "")
+                    };
+                }).ToList()
+            };
+
+            return View(vm);
+        }
         // =========================================================
         // UPDATE PATIENT
         // POST: /Doctor/UpdatePatient

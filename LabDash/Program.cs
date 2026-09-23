@@ -23,7 +23,7 @@ builder.Services.AddSession();
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
-
+builder.Services.AddScoped<LabDash.Services.NotificationService>();
 builder.Services.AddScoped<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IEmailAttachmentSender, EmailSender>();
 builder.Services.AddScoped<IVerifiedResultsPdfGenerator, VerifiedResultsPdfGenerator>();

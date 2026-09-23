@@ -1,0 +1,214 @@
+﻿@model LabDash.ViewModels.SharedWithMeViewModel
+@{
+    ViewData["Title"] = "Shared With Me";
+    ViewData["ActivePage"] = "SharedWithMe";
+}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    .swm-wrap {
+        font-family: 'Inter', sans-serif;
+        color: #102C27;
+    }
+
+    .swm-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+        .swm-header h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            margin: 0 0 4px;
+        }
+
+        .swm-header p {
+            margin: 0;
+            color: #52716C;
+            font-size: 13.5px;
+        }
+
+    .swm-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+    }
+
+    @@media (max-width: 1100px) {
+        .swm-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .swm-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .swm-card {
+        display: block;
+        text-decoration: none;
+        color: #102C27;
+        background: #FFFFFF;
+        border-radius: 18px;
+        box-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+        padding: 22px;
+        position: relative;
+        overflow: hidden;
+        transition: transform .25s ease, box-shadow .25s ease;
+        border-top: 4px solid #0E8C7F;
+    }
+
+        .swm-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 14px 32px rgba(10, 60, 55, 0.15);
+            color: #102C27;
+            text-decoration: none;
+        }
+
+    .swm-card-top {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .swm-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #E3F4F1;
+        color: #0A5850;
+        font-weight: 700;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .swm-card-top h3 {
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        font-size: 16.5px;
+        font-weight: 700;
+    }
+
+    .swm-id {
+        font-size: 12px;
+        color: #8FA9A3;
+    }
+
+    .swm-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #E1EEEC;
+        padding-top: 14px;
+        margin-top: 6px;
+    }
+
+    .swm-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: #E3F4F1;
+        color: #0E8C7F;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+        .swm-pill i {
+            font-size: 11px;
+        }
+
+    .swm-date {
+        font-size: 12px;
+        color: #8FA9A3;
+    }
+
+    .swm-empty {
+        background: #FFFFFF;
+        border-radius: 18px;
+        padding: 50px 30px;
+        text-align: center;
+        color: #52716C;
+        box-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+    }
+
+        .swm-empty i {
+            font-size: 46px;
+            color: #CCE3DF;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .swm-empty h3 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            color: #102C27;
+            margin: 0 0 6px;
+        }
+
+        .swm-empty p {
+            margin: 0;
+            font-size: 13.5px;
+        }
+</style>
+
+<div class="swm-wrap">
+    <div class="swm-header">
+        <div>
+            <h1><i class="fa-solid fa-user-shield"></i> Shared With Me</h1>
+            <p>Patients who have granted you access to their test results.</p>
+        </div>
+    </div>
+
+    @if (Model.Patients == null || !Model.Patients.Any())
+    {
+        <div class="swm-empty">
+            <i class="fa-solid fa-inbox"></i>
+            <h3>No shared records yet</h3>
+            <p>When a patient grants you consent to view their test results, they'll appear here.</p>
+        </div>
+    }
+    else
+    {
+        <div class="swm-grid">
+            @foreach (var p in Model.Patients)
+            {
+                <a class="swm-card"
+                   asp-controller="Doctor"
+                   asp-action="PatientSharedResults"
+                   asp-route-patientId="@p.PatientID">
+
+                    <div class="swm-card-top">
+                        <div class="swm-avatar">@p.Initials</div>
+                        <div>
+                            <h3>@p.FullName</h3>
+                            <div class="swm-id">ID: @p.IDNumber</div>
+                        </div>
+                    </div>
+
+                    <div class="swm-meta">
+                        <span class="swm-pill">
+                            <i class="fa-solid fa-file-medical"></i>
+                            @p.SharedItemCount item@(p.SharedItemCount == 1 ? "" : "s")
+                        </span>
+                        <span class="swm-date">
+                            @p.LastGrantedDate.ToString("dd MMM yyyy")
+                        </span>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>

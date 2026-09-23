@@ -40,6 +40,8 @@ public class LabDbContext : IdentityDbContext<LabUser>
 
     public DbSet<Sample> Samples { get; set; }
 
+    public DbSet<Notification> Notifications { get; set; }
+
     public DbSet<AuditLog> AuditLogs { get; set; }
 
     public DbSet<Category> Categories { get; set; }
@@ -178,8 +180,22 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .HasForeignKey(t => t.TestTypeId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // ============================================================
+        // NOTIFICATION
+        // ============================================================
 
-      
+        builder.Entity<Notification>()
+            .HasOne(n => n.Recipient)
+            .WithMany()
+            .HasForeignKey(n => n.RecipientUserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Notification>()
+            .HasIndex(n => new { n.RecipientUserId, n.IsRead });
+
+        builder.Entity<Notification>()
+            .HasIndex(n => n.CreatedAt);
+
 
         // ============================================================
         // TEST REQUEST

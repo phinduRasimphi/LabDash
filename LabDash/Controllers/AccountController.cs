@@ -1,5 +1,6 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
+using LabDash.Services;                       // <-- ADDED
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -16,26 +17,24 @@ namespace LabDash.Controllers
         private readonly IUserStore<LabUser> _userStore;
         private readonly SignInManager<LabUser> _signInManager;
         private readonly IEmailSender _emailSender;
+        private readonly NotificationService _notifications;   // <-- ADDED
 
-        public AccountController(LabDbContext dbContext,
+        public AccountController(
+            LabDbContext dbContext,
             UserManager<LabUser> userManager,
             RoleManager<IdentityRole> roleManager,
             IUserStore<LabUser> userStore,
-
-          IEmailSender emailSender,
-
-
-
-            SignInManager<LabUser> signInManager)
-
+            IEmailSender emailSender,
+            SignInManager<LabUser> signInManager,
+            NotificationService notifications)                 // <-- ADDED
         {
             _userManager = userManager;
             _context = dbContext;
             _roleManager = roleManager;
             _userStore = userStore;
-
             _signInManager = signInManager;
             _emailSender = emailSender;
+            _notifications = notifications;                    // <-- ADDED
         }
 
 
@@ -174,6 +173,7 @@ namespace LabDash.Controllers
 
             return View(model);
         }
+
         [HttpGet]
         public IActionResult ForgotPassword()
         {
@@ -282,6 +282,7 @@ namespace LabDash.Controllers
 
             return View(model);
         }
+
         [HttpGet]
         public IActionResult ResetPasswordConfirmation()
         {
@@ -326,7 +327,7 @@ namespace LabDash.Controllers
 
             await _userManager.AddToRoleAsync(user, "Patient");
 
-            _context.Patients.Add(new Patient
+            var newPatient = new Patient                       // <-- CHANGED: capture reference
             {
                 UserId = user.Id,
                 Name = model.Name,
@@ -336,8 +337,26 @@ namespace LabDash.Controllers
                 CellphoneNumber = model.CellphoneNumber,
                 HomeAddress = model.HomeAddress,
                 Email = model.Email
-            });
-            await _context.SaveChangesAsync();
+            };
+
+            _context.Patients.Add(newPatient);
+            await _context.SaveChangesAsync();                 // <-- newPatient.PatientID now populated
+
+
+            // --------------------------------------------------------
+            // IN-APP NOTIFICATION: notify every Doctor that a new
+            // patient profile was created.
+            // --------------------------------------------------------
+            await _notifications.SendToRoleAsync(
+                roleName: "Doctor",
+                title: "New patient registered",
+                message: $"{newPatient.Name} {newPatient.Surname} has created a patient profile.",
+                type: "NewPatient",
+                linkUrl: Url.Action("SharedWithMe", "Doctor"),   // <-- CHANGED: doctor's own page
+                relatedPatientId: newPatient.PatientID,
+                actorUserId: user.Id
+            );
+
 
             var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             var callbackUrl = Url.Action("EmailVerified", "Account",
@@ -361,7 +380,7 @@ namespace LabDash.Controllers
             return result.Succeeded ? View("EmailConfirmed") : View("Error");
         }
 
-        
+
 
     }
 }
