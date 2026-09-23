@@ -1,6 +1,6 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
-using LabDash.Services;                       // <-- ADDED
+using LabDash.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -10,14 +10,13 @@ namespace LabDash.Controllers
 {
     public class AccountController : Controller
     {
-
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IUserStore<LabUser> _userStore;
         private readonly SignInManager<LabUser> _signInManager;
         private readonly IEmailSender _emailSender;
-        private readonly NotificationService _notifications;   // <-- ADDED
+        private readonly NotificationService _notifications;
 
         public AccountController(
             LabDbContext dbContext,
@@ -26,7 +25,7 @@ namespace LabDash.Controllers
             IUserStore<LabUser> userStore,
             IEmailSender emailSender,
             SignInManager<LabUser> signInManager,
-            NotificationService notifications)                 // <-- ADDED
+            NotificationService notifications)
         {
             _userManager = userManager;
             _context = dbContext;
@@ -34,7 +33,7 @@ namespace LabDash.Controllers
             _userStore = userStore;
             _signInManager = signInManager;
             _emailSender = emailSender;
-            _notifications = notifications;                    // <-- ADDED
+            _notifications = notifications;
         }
 
 
@@ -70,80 +69,62 @@ namespace LabDash.Controllers
                     {
                         TempData["SuccessMessage"] = "Welcome to your work environment!";
 
+                        // ---------- ADMIN ----------
                         if (await _userManager.IsInRoleAsync(user, "Admin"))
                         {
                             string applicationName = "LabDash";
-
                             string supportEmail = "LabDashSupport@gmail.com";
+
                             await _emailSender.SendEmailAsync(model.Email, "Confirm your email",
-                           $"<html> <head> <style> body {{ font-family: Arial, sans-serif; }} " +
+                                $"<html><head><style> body {{ font-family: Arial, sans-serif; }}" +
+                                $" padding: 10px 20px;" +
+                                $" text-decoration: none; border-radius: 5px; }}" +
+                                $".cta-button:hover {{ background-color: #265580; }}" +
+                                $".footer {{ margin-top: 20px; font-size: 12px; color: #888; }}" +
+                                $"</style></head><body>" +
+                                $"<h1>Welcome to {applicationName}!</h1>" +
+                                $"<p>Dear User</p>" +
+                                $"<p>Thank you for registering with {applicationName}! We're excited to have you on board as our friend. Before you can start using your daily activites, please confirm your email address by clicking the button below:</p>" +
+                                $"<p><a class='cta-button' href=LabDashSupport>Confirm Email Address</a></p>" +
+                                $"<p>If you did not register for an account with {applicationName}, please ignore this email. It's possible that someone entered your email address by mistake.</p>" +
+                                $"<p>If you have any questions or need assistance, please don't hesitate to contact our support team at {supportEmail}.</p>" +
+                                $"<div class='footer'><p>Thank you for logging to ,</p><p>{applicationName} Team</p></div>" +
+                                $"</body></html>");
 
-                           $" padding: 10px 20px;" +
-                           $" text-decoration: none; border-radius: 5px; }}" +
-                           $".cta-button:hover {{ background-color: #265580; }}" +
-                           $".footer {{ margin-top: 20px; font-size: 12px; color: #888; }}" +
-       $"  </style>" +
-       $"</head>" +
-       $"<body>" +
-       $"" +
-       $"<h1>Welcome to {applicationName}!</h1>" +
-       $"<p>Dear User</p>" +
-       $"<p>Thank you for registering with {applicationName}! We're excited to have you on board as our friend. Before you can start using your daily activites, please confirm your email address by clicking the button below:</p>" +
-       $"<p><a class='cta-button' href=LabDashSupport>Confirm Email Address</a></p>" +
-       $"  <p>If you did not register for an account with {applicationName}, please ignore this email. It's possible that someone entered your email address by mistake.</p>" +
-       $"<p>If you have any questions or need assistance, please don't hesitate to contact our support team at {supportEmail}.</p>" +
-       $"<div class='footer'>" +
-       $" <p>Thank you for logging to ,</p>" +
-       $" <p>{applicationName} Team</p>" +
-       $"</div>" +
-       $" </body>" +
-       $"</html>");
                             return RedirectToAction("Index", "Dashboard");
-
                         }
 
+                        // ---------- PATIENT ----------
                         if (await _userManager.IsInRoleAsync(user, "Patient"))
                         {
                             string applicationName = "LabDash";
-
                             string supportEmail = "LabDashSupport@gmail.com";
                             string RealAccount = "labdashrsa@gmail.com";
 
                             var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
-
                             var callbackUrl = $"https://3f60-41-145-194-166.ngrok-free.app/Registerdefowo/EmailVerified?userId={user.Id}&code={Uri.EscapeDataString(code)}";
-                            await _emailSender.SendEmailAsync(RealAccount, "Confirm your email",
-                           $"<html> <head> <style> body {{ font-family: Arial, sans-serif; }} " +
 
-                           $" padding: 10px 20px;" +
-                           $" text-decoration: none; border-radius: 5px; }}" +
-                           $".cta-button:hover {{ background-color: #265580; }}" +
-                           $".footer {{ margin-top: 20px; font-size: 12px; color: #888; }}" +
-       $"  </style>" +
-       $"</head>" +
-       $"<body>" +
-       $"" +
-       $"<h1>Welcome to {applicationName}!</h1>" +
-       $"<p>Dear User</p>" +
-       $"<p>Thank you for registering with {applicationName}! We're excited to have you on board as our friend. Before you can start using your daily activites, please confirm your email address by clicking the button below:</p>" +
-       $"<p><a class='cta-button' href=LabDashSupport>Confirm Email Address</a></p>" +
-       $"  <p>If you did not register for an account with {applicationName}, please ignore this email. It's possible that someone entered your email address by mistake.</p>" +
-       $"<p>If you have any questions or need assistance, please don't hesitate to contact our support team at {supportEmail}.</p>" +
-       $"<div class='footer'>" +
-       $" <p>Thank you for logging to ,</p>" +
-       $" <p>{applicationName} Team</p>" +
-       $"</div>" +
-       $" </body>" +
-       $"</html>");
+                            await _emailSender.SendEmailAsync(RealAccount, "Confirm your email",
+                                $"<html><head><style> body {{ font-family: Arial, sans-serif; }}" +
+                                $" padding: 10px 20px;" +
+                                $" text-decoration: none; border-radius: 5px; }}" +
+                                $".cta-button:hover {{ background-color: #265580; }}" +
+                                $".footer {{ margin-top: 20px; font-size: 12px; color: #888; }}" +
+                                $"</style></head><body>" +
+                                $"<h1>Welcome to {applicationName}!</h1>" +
+                                $"<p>Dear User</p>" +
+                                $"<p>Thank you for registering with {applicationName}! We're excited to have you on board as our friend. Before you can start using your daily activites, please confirm your email address by clicking the button below:</p>" +
+                                $"<p><a class='cta-button' href=LabDashSupport>Confirm Email Address</a></p>" +
+                                $"<p>If you did not register for an account with {applicationName}, please ignore this email. It's possible that someone entered your email address by mistake.</p>" +
+                                $"<p>If you have any questions or need assistance, please don't hesitate to contact our support team at {supportEmail}.</p>" +
+                                $"<div class='footer'><p>Thank you for logging to ,</p><p>{applicationName} Team</p></div>" +
+                                $"</body></html>");
 
                             return RedirectToAction("Index", "Dashboard");
-
-
                         }
 
-
-
+                        // ---------- OTHER ROLES ----------
                         if (await _userManager.IsInRoleAsync(user, "Lab_Technician"))
                             return RedirectToAction("Index", "Dashboard");
 
@@ -151,10 +132,9 @@ namespace LabDash.Controllers
                             return RedirectToAction("Index", "Dashboard");
 
                         if (await _userManager.IsInRoleAsync(user, "Doctor"))
-                            return RedirectToAction("Index", "Dashboard");
+                            return RedirectToAction("Index", "DoctorHome");
 
-                        return RedirectToAction("Index", "Home");
-                    }
+                    }   // ← THIS was the missing closing brace
 
                     if (result.IsLockedOut)
                     {
@@ -230,7 +210,7 @@ namespace LabDash.Controllers
             }
             catch (Exception ex)
             {
-                //  _logger?.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
+                // _logger?.LogError(ex, "Failed to send password reset email to {Email}", user.Email);
             }
 
             return RedirectToAction("ForgotPasswordConfirmation", "Account");
@@ -327,7 +307,7 @@ namespace LabDash.Controllers
 
             await _userManager.AddToRoleAsync(user, "Patient");
 
-            var newPatient = new Patient                       // <-- CHANGED: capture reference
+            var newPatient = new Patient
             {
                 UserId = user.Id,
                 Name = model.Name,
@@ -340,8 +320,7 @@ namespace LabDash.Controllers
             };
 
             _context.Patients.Add(newPatient);
-            await _context.SaveChangesAsync();                 // <-- newPatient.PatientID now populated
-
+            await _context.SaveChangesAsync();
 
             // --------------------------------------------------------
             // IN-APP NOTIFICATION: notify every Doctor that a new
@@ -352,11 +331,10 @@ namespace LabDash.Controllers
                 title: "New patient registered",
                 message: $"{newPatient.Name} {newPatient.Surname} has created a patient profile.",
                 type: "NewPatient",
-                linkUrl: Url.Action("SharedWithMe", "Doctor"),   // <-- CHANGED: doctor's own page
+                linkUrl: Url.Action("SharedWithMe", "Doctor"),
                 relatedPatientId: newPatient.PatientID,
                 actorUserId: user.Id
             );
-
 
             var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             var callbackUrl = Url.Action("EmailVerified", "Account",
@@ -372,15 +350,11 @@ namespace LabDash.Controllers
 
         [HttpGet]
         public async Task<IActionResult> EmailVerified(string userId, string code)
-
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) return NotFound();
             var result = await _userManager.ConfirmEmailAsync(user, Uri.UnescapeDataString(code));
             return result.Succeeded ? View("EmailConfirmed") : View("Error");
         }
-
-
-
     }
 }

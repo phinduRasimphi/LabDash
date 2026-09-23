@@ -1,0 +1,1303 @@
+﻿@model LabDash.Models.DoctorDashboardModel
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["ActivePage"] = "Dashboard";
+}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+
+<style>
+    :root {
+        --db-paper: #F0F7F6;
+        --db-raised: #FFFFFF;
+        --db-ink: #102C27;
+        --db-ink-soft: #52716C;
+        --db-ink-faint: #8FA9A3;
+        --db-line: #E1EEEC;
+        --db-line-strong: #CCE3DF;
+        --db-teal: #0E8C7F;
+        --db-teal-deep: #0A5850;
+        --db-teal-dim: #E3F4F1;
+        --db-blue: #2C6E9E;
+        --db-blue-dim: #E4F0F9;
+        --db-green: #2E8B57;
+        --db-green-dim: #E4F5EB;
+        --db-purple: #6D4EA8;
+        --db-purple-dim: #EEE8F9;
+        --db-red: #B0463F;
+        --db-red-dim: #F7E8E7;
+        --db-orange: #B76A2C;
+        --db-orange-dim: #FBEEE1;
+        --db-gold: #B4862A;
+        --db-gold-dim: #FBF1DA;
+        --db-radius: 20px;
+        --db-radius-sm: 13px;
+        --db-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+        --db-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
+    }
+
+    .db-wrap {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0 0 40px;
+        color: var(--db-ink);
+        font-family: 'Inter', sans-serif;
+        animation: dbFadeIn .5s ease;
+    }
+
+    @@keyframes dbFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes dbRingPulse {
+        0% {
+            transform: scale(0.9);
+            opacity: .8;
+        }
+
+        100% {
+            transform: scale(1.35);
+            opacity: 0;
+        }
+    }
+
+    @@keyframes dbSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@keyframes dbHighlight {
+        0% {
+            background: rgba(14,140,127,0.18);
+        }
+
+        100% {
+            background: transparent;
+        }
+    }
+
+    .db-banner {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        background: linear-gradient(125deg, #12A392, #0A4F48);
+        border-radius: var(--db-radius);
+        padding: 32px 36px;
+        margin-bottom: 22px;
+        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
+    }
+
+    .db-banner-pattern {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--db-radius);
+        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        pointer-events: none;
+    }
+
+    .db-banner-left {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .db-banner-icon {
+        position: relative;
+        width: 76px;
+        height: 76px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.16);
+        border: 2px solid rgba(255,255,255,.32);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 30px;
+        flex-shrink: 0;
+    }
+
+    .db-icon-ring {
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(255,255,255,.4);
+        animation: dbRingPulse 2.4s ease-out infinite;
+    }
+
+    .db-banner-text h1 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 26px;
+        margin: 0 0 4px;
+        color: #fff;
+    }
+
+        .db-banner-text h1 span {
+            color: #E9FFFB;
+        }
+
+    .db-banner-text p {
+        margin: 0 0 14px;
+        color: rgba(255,255,255,.85);
+        font-size: 14.5px;
+    }
+
+    .db-pills {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .db-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 15px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.16);
+        color: #fff;
+        font-size: 12.5px;
+    }
+
+    .db-banner-right {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        position: relative;
+        z-index: 2;
+        flex-shrink: 0;
+    }
+
+    .db-bell-wrap {
+        position: relative;
+    }
+
+    .db-bell-btn {
+        position: relative;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(255,255,255,.3);
+        background: rgba(255,255,255,.14);
+        color: #fff;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background .2s, transform .2s;
+    }
+
+        .db-bell-btn:hover {
+            background: rgba(255,255,255,.24);
+            transform: translateY(-1px);
+        }
+
+    .db-bell-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #e53935;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        box-shadow: 0 0 0 2px rgba(10,79,72,.35);
+    }
+
+        .db-bell-badge.d-none {
+            display: none;
+        }
+
+    .db-bell-panel {
+        position: absolute;
+        top: calc(100% + 12px);
+        right: 0;
+        width: 360px;
+        max-height: 70vh;
+        overflow-y: auto;
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 18px 50px rgba(10, 60, 55, 0.35);
+        border: 1px solid var(--db-line);
+        z-index: 9999;
+        display: none;
+        color: var(--db-ink);
+        text-align: left;
+    }
+
+        .db-bell-panel.open {
+            display: block;
+        }
+
+    .db-bell-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--db-line);
+        background: #F0F7F6;
+        border-radius: 14px 14px 0 0;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+        .db-bell-header strong {
+            font-size: 14px;
+        }
+
+    .db-bell-markall {
+        background: none;
+        border: none;
+        color: var(--db-teal);
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0;
+    }
+
+        .db-bell-markall:hover {
+            text-decoration: underline;
+        }
+
+    .db-bell-empty {
+        padding: 28px 16px;
+        text-align: center;
+        color: var(--db-ink-faint);
+        font-size: 13px;
+    }
+
+    .db-bell-item {
+        display: block;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--db-line);
+        text-decoration: none;
+        color: var(--db-ink);
+        transition: background .15s ease;
+    }
+
+        .db-bell-item:last-child {
+            border-bottom: none;
+        }
+
+        .db-bell-item:hover {
+            background: #F5FAF9;
+            text-decoration: none;
+            color: var(--db-ink);
+        }
+
+        .db-bell-item.unread {
+            background: #EAF6F4;
+        }
+
+        .db-bell-item .t {
+            font-weight: 700;
+            font-size: 13.5px;
+            margin-bottom: 3px;
+            color: var(--db-teal-deep);
+        }
+
+        .db-bell-item .m {
+            font-size: 12.5px;
+            color: var(--db-ink-soft);
+            line-height: 1.45;
+        }
+
+        .db-bell-item .d {
+            font-size: 11.5px;
+            color: var(--db-ink-faint);
+            font-style: italic;
+            margin-top: 4px;
+        }
+
+    .db-clock {
+        min-width: 230px;
+        text-align: left;
+        border-left: 1px solid rgba(255,255,255,.28);
+        padding-left: 28px;
+    }
+
+        .db-clock small {
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: #DFF9F8;
+            font-size: 11px;
+        }
+
+    #currentDate {
+        margin-top: 6px;
+        font-size: 14px;
+        color: #fff;
+    }
+
+    #currentTime {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 26px;
+        font-weight: 600;
+        color: #fff;
+        margin-top: 2px;
+    }
+
+    .db-refresh-row {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 18px;
+        margin-top: 6px;
+    }
+
+    .db-refresh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--db-line);
+        background: #fff;
+        color: var(--db-teal-deep);
+        font: 600 13px 'Inter', sans-serif;
+        padding: 9px 18px;
+        border-radius: 999px;
+        cursor: pointer;
+        box-shadow: var(--db-shadow-sm);
+        transition: background .2s, transform .2s, box-shadow .2s;
+    }
+
+        .db-refresh-btn:hover {
+            background: var(--db-teal-dim);
+            box-shadow: var(--db-shadow);
+        }
+
+        .db-refresh-btn:active {
+            transform: scale(.97);
+        }
+
+        .db-refresh-btn.is-loading {
+            pointer-events: none;
+            opacity: .8;
+        }
+
+            .db-refresh-btn.is-loading i {
+                animation: dbSpin .8s linear infinite;
+            }
+
+    .db-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+        margin-top: 22px;
+    }
+
+        .db-section-head h3 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            margin: 0 0 3px;
+        }
+
+        .db-section-head p {
+            margin: 0;
+            color: var(--db-ink-soft);
+            font-size: 13.5px;
+        }
+
+    .db-mt-lg {
+        margin-top: 44px;
+    }
+
+    .db-grid {
+        display: grid;
+        gap: 18px;
+    }
+
+    .db-grid-4 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .db-grid-2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .db-stat {
+        background: var(--db-raised);
+        border-radius: var(--db-radius);
+        box-shadow: var(--db-shadow-sm);
+        padding: 22px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        border-top: 3px solid var(--db-teal);
+        transition: transform .2s, box-shadow .2s;
+        text-decoration: none;
+        color: inherit;
+    }
+
+        .db-stat:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--db-shadow);
+            text-decoration: none;
+            color: inherit;
+        }
+
+    .db-stat-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .db-stat .num {
+        font-family: 'Poppins', sans-serif;
+        font-size: 27px;
+        font-weight: 700;
+        color: var(--db-ink);
+        transition: color .3s;
+        border-radius: 6px;
+        padding: 2px 4px;
+    }
+
+        .db-stat .num.changed {
+            animation: dbHighlight 1.4s ease;
+        }
+
+    .db-stat h5 {
+        margin: 2px 0 0;
+        font-size: 13.5px;
+        font-weight: 600;
+    }
+
+    .db-stat small {
+        color: var(--db-ink-faint);
+        font-size: 12px;
+    }
+
+    .db-stat-icon {
+        width: 54px;
+        height: 54px;
+        border-radius: 15px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 21px;
+    }
+
+    .c-teal {
+        background: var(--db-teal-dim);
+        color: var(--db-teal);
+    }
+
+    .c-blue {
+        background: var(--db-blue-dim);
+        color: var(--db-blue);
+    }
+
+    .c-green {
+        background: var(--db-green-dim);
+        color: var(--db-green);
+    }
+
+    .c-purple {
+        background: var(--db-purple-dim);
+        color: var(--db-purple);
+    }
+
+    .c-red {
+        background: var(--db-red-dim);
+        color: var(--db-red);
+    }
+
+    .c-orange {
+        background: var(--db-orange-dim);
+        color: var(--db-orange);
+    }
+
+    .c-gold {
+        background: var(--db-gold-dim);
+        color: var(--db-gold);
+    }
+
+    .db-chart {
+        background: var(--db-raised);
+        border-radius: var(--db-radius);
+        box-shadow: var(--db-shadow);
+        padding: 24px 26px;
+        overflow: hidden;
+    }
+
+    .db-chart-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 18px;
+    }
+
+        .db-chart-head h4 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 15.5px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .db-chart-head h4 i {
+                color: var(--db-teal);
+            }
+
+        .db-chart-head small {
+            color: var(--db-ink-faint);
+            font-size: 12px;
+        }
+
+    .db-chart-canvas {
+        position: relative;
+        height: 240px;
+    }
+
+    .db-split {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 18px;
+    }
+
+    .db-panel {
+        background: var(--db-raised);
+        border-radius: var(--db-radius);
+        box-shadow: var(--db-shadow);
+        overflow: hidden;
+    }
+
+    .db-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 26px;
+        border-bottom: 1px solid var(--db-line);
+    }
+
+        .db-panel-head span:first-child {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 15.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .db-panel-head span:first-child i {
+                color: var(--db-teal);
+            }
+
+    .db-panel-tag {
+        background: var(--db-teal-dim);
+        color: var(--db-teal-deep);
+        padding: 6px 13px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+    }
+
+    .db-panel-link {
+        color: var(--db-teal-deep);
+        font-weight: 600;
+        font-size: 13px;
+        text-decoration: none;
+    }
+
+        .db-panel-link:hover {
+            text-decoration: underline;
+        }
+
+    .db-shared-list {
+        list-style: none;
+        margin: 0;
+        padding: 6px 26px 14px;
+    }
+
+    .db-shared-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--db-line);
+        text-decoration: none;
+        color: inherit;
+    }
+
+        .db-shared-item:last-child {
+            border-bottom: none;
+        }
+
+        .db-shared-item:hover {
+            color: var(--db-teal-deep);
+            text-decoration: none;
+        }
+
+    .db-shared-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: var(--db-teal-dim);
+        color: var(--db-teal-deep);
+        font-weight: 700;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .db-shared-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .db-shared-name {
+        font-weight: 700;
+        font-size: 13.5px;
+        color: var(--db-ink);
+    }
+
+    .db-shared-meta {
+        font-size: 12px;
+        color: var(--db-ink-soft);
+    }
+
+    .db-shared-pill {
+        background: var(--db-teal-dim);
+        color: var(--db-teal-deep);
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 700;
+    }
+
+    .db-notif-list {
+        list-style: none;
+        margin: 0;
+        padding: 6px 26px 14px;
+    }
+
+    .db-notif-item {
+        display: block;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--db-line);
+        text-decoration: none;
+        color: inherit;
+    }
+
+        .db-notif-item:last-child {
+            border-bottom: none;
+        }
+
+        .db-notif-item:hover {
+            color: var(--db-teal-deep);
+            text-decoration: none;
+        }
+
+    .db-notif-title {
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--db-teal-deep);
+    }
+
+    .db-notif-msg {
+        font-size: 12.5px;
+        color: var(--db-ink-soft);
+        margin-top: 2px;
+        line-height: 1.5;
+    }
+
+    .db-notif-time {
+        font-size: 11.5px;
+        color: var(--db-ink-faint);
+        font-style: italic;
+        margin-top: 4px;
+    }
+
+    .db-empty {
+        padding: 40px 26px;
+        text-align: center;
+        color: var(--db-ink-soft);
+    }
+
+        .db-empty i {
+            display: block;
+            font-size: 38px;
+            color: var(--db-line-strong);
+            margin-bottom: 10px;
+        }
+
+        .db-empty h5 {
+            margin: 0 0 4px;
+            font-size: 14px;
+            color: var(--db-ink);
+        }
+
+        .db-empty p {
+            margin: 0;
+            font-size: 12.5px;
+            line-height: 1.6;
+        }
+
+    .db-action {
+        display: block;
+        text-decoration: none;
+        color: var(--db-ink);
+        background: var(--db-raised);
+        border-radius: var(--db-radius);
+        padding: 26px 22px;
+        box-shadow: var(--db-shadow-sm);
+        position: relative;
+        overflow: hidden;
+        transition: transform .25s, box-shadow .25s;
+    }
+
+        .db-action::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--db-teal), var(--db-teal-deep));
+        }
+
+        .db-action:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--db-shadow);
+            color: var(--db-ink);
+            text-decoration: none;
+        }
+
+            .db-action:hover .db-action-go {
+                transform: translateX(4px);
+                opacity: 1;
+            }
+
+    .db-action-icon {
+        width: 54px;
+        height: 54px;
+        margin-bottom: 14px;
+        border-radius: 16px;
+        background: var(--db-teal-dim);
+        color: var(--db-teal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 23px;
+    }
+
+    .db-action h5 {
+        font-weight: 700;
+        margin: 0 0 8px;
+        font-size: 15px;
+    }
+
+    .db-action p {
+        color: var(--db-ink-soft);
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .db-action-go {
+        display: inline-flex;
+        margin-top: 12px;
+        color: var(--db-teal);
+        opacity: .5;
+        transition: transform .2s, opacity .2s;
+        font-size: 13px;
+    }
+
+    .db-footer {
+        margin-top: 50px;
+        text-align: center;
+    }
+
+        .db-footer hr {
+            border: none;
+            border-top: 1px solid var(--db-line);
+            margin-bottom: 22px;
+        }
+
+    .db-footer-content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        color: var(--db-ink-faint);
+        font-size: 13px;
+    }
+
+        .db-footer-content i {
+            color: var(--db-teal);
+        }
+
+    .db-footer-divider {
+        color: var(--db-line-strong);
+    }
+
+    @@media (max-width: 1100px) {
+        .db-grid-4 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .db-grid-2 {
+            grid-template-columns: 1fr;
+        }
+
+        .db-split {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 900px) {
+        .db-banner {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 24px;
+        }
+
+        .db-banner-right {
+            width: 100%;
+            flex-direction: row-reverse;
+            justify-content: space-between;
+        }
+
+        .db-clock {
+            width: auto;
+            border-left: none;
+            border-right: 1px solid rgba(255,255,255,.28);
+            padding-left: 0;
+            padding-right: 20px;
+        }
+
+        .db-banner-left {
+            flex-direction: column;
+            text-align: center;
+            width: 100%;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .db-grid-4 {
+            grid-template-columns: 1fr;
+        }
+
+        .db-chart-canvas {
+            height: 200px;
+        }
+
+        .db-bell-panel {
+            width: calc(100vw - 40px);
+            right: -12px;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .db-wrap, .db-icon-ring, .db-refresh-btn.is-loading i {
+            animation: none;
+        }
+    }
+</style>
+
+<div class="db-wrap">
+
+    <!-- BANNER -->
+    <div class="db-banner">
+        <div class="db-banner-pattern"></div>
+
+        <div class="db-banner-left">
+            <div class="db-banner-icon">
+                <span class="db-icon-ring"></span>
+                <i class="fa-solid fa-stethoscope"></i>
+            </div>
+            <div class="db-banner-text">
+                <h1>Welcome, <span>Dr. @Model.DoctorFullName</span></h1>
+                <p>Your clinical overview and shared patient results</p>
+                <div class="db-pills">
+                    <span class="db-pill">
+                        <i class="fa-solid fa-user-shield"></i>
+                        @Model.SharedPatientCount patient@(Model.SharedPatientCount == 1 ? "" : "s") shared with you
+                    </span>
+                    @if (Model.RecentConsentCount > 0)
+                    {
+                        <span class="db-pill">
+                            <i class="fa-solid fa-bell"></i>
+                            @Model.RecentConsentCount new consent@(Model.RecentConsentCount == 1 ? "" : "s") this week
+                        </span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="db-banner-right">
+
+            <!-- BELL -->
+            <div class="db-bell-wrap">
+                <button type="button"
+                        id="dbBellBtn"
+                        class="db-bell-btn"
+                        aria-label="Notifications">
+                    <i class="fa-solid fa-bell"></i>
+                    <span id="dbBellBadge" class="db-bell-badge d-none">0</span>
+                </button>
+
+                <div id="dbBellPanel" class="db-bell-panel">
+                    <div class="db-bell-header">
+                        <strong>Notifications</strong>
+                        <button type="button"
+                                id="dbBellMarkAll"
+                                class="db-bell-markall">
+                            Mark all read
+                        </button>
+                    </div>
+                    <div id="dbBellEmpty" class="db-bell-empty">No notifications yet.</div>
+                    <div id="dbBellList"></div>
+                </div>
+            </div>
+
+            <!-- CLOCK -->
+            <div class="db-clock">
+                <small>Today's date</small>
+                <div id="currentDate"></div>
+                <div id="currentTime"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- REFRESH -->
+    <div class="db-refresh-row">
+        <button type="button" id="dbRefreshBtn" class="db-refresh-btn" aria-label="Refresh dashboard">
+            <i class="fa-solid fa-rotate"></i>
+            <span id="dbRefreshLabel">Refresh</span>
+        </button>
+    </div>
+
+    <!-- LIVE PANELS -->
+    <div id="dbPanels">
+        @await Html.PartialAsync("_DashboardPanels", Model)
+    </div>
+
+</div>
+
+<script>
+    (function () {
+        // ---------------- CLOCK ----------------
+        function updateClock() {
+            var d = document.getElementById('currentDate');
+            var t = document.getElementById('currentTime');
+            if (!d || !t) return;
+
+            var now = new Date();
+            d.textContent = now.toLocaleDateString("en-ZA", {
+                weekday: "long", day: "numeric", month: "long", year: "numeric"
+            });
+            t.textContent = now.toLocaleTimeString("en-ZA", {
+                hour: "2-digit", minute: "2-digit", second: "2-digit"
+            });
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // ---------------- CHARTS ----------------
+        var resultsChart = null;
+        var consentChart = null;
+
+        function readChartData() {
+            var el = document.getElementById('db-chart-data');
+            if (!el) return null;
+            try { return JSON.parse(el.textContent); } catch (e) { return null; }
+        }
+
+        function chartOptions() {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#102C27',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 10,
+                        cornerRadius: 8,
+                        displayColors: false
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#52716C', font: { size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#E1EEEC' },
+                        ticks: { color: '#52716C', font: { size: 11 }, precision: 0 }
+                    }
+                },
+                elements: {
+                    point: { radius: 3, hoverRadius: 6, backgroundColor: '#fff', borderWidth: 2 },
+                    line: { tension: 0.35, borderWidth: 2.5 }
+                }
+            };
+        }
+
+        function drawCharts() {
+            if (typeof Chart === 'undefined') return;
+            var data = readChartData();
+            if (!data) return;
+
+            var rEl = document.getElementById('resultsChart');
+            if (rEl) {
+                if (resultsChart) resultsChart.destroy();
+                resultsChart = new Chart(rEl, {
+                    type: 'line',
+                    data: {
+                        labels: data.resultsLabels,
+                        datasets: [{
+                            label: 'Results captured',
+                            data: data.resultsCounts,
+                            borderColor: '#0E8C7F',
+                            backgroundColor: 'rgba(14,140,127,0.12)',
+                            pointBorderColor: '#0E8C7F',
+                            fill: true
+                        }]
+                    },
+                    options: chartOptions()
+                });
+            }
+
+            var cEl = document.getElementById('consentChart');
+            if (cEl) {
+                if (consentChart) consentChart.destroy();
+                consentChart = new Chart(cEl, {
+                    type: 'line',
+                    data: {
+                        labels: data.consentLabels,
+                        datasets: [{
+                            label: 'Consent grants',
+                            data: data.consentCounts,
+                            borderColor: '#B4862A',
+                            backgroundColor: 'rgba(180,134,42,0.12)',
+                            pointBorderColor: '#B4862A',
+                            fill: true
+                        }]
+                    },
+                    options: chartOptions()
+                });
+            }
+        }
+
+        drawCharts();
+
+        // ---------------- COUNTERS ----------------
+        function animateCounters() {
+            document.querySelectorAll('#dbPanels [data-counter]').forEach(function (el) {
+                var target = parseInt(el.dataset.counter, 10) || 0;
+                var from = parseInt(el.textContent, 10) || 0;
+                if (from === target) return;
+
+                el.classList.add('changed');
+                var start = performance.now();
+                var dur = 600;
+
+                function step(now) {
+                    var p = Math.min((now - start) / dur, 1);
+                    var val = Math.round(from + (target - from) * (1 - Math.pow(1 - p, 3)));
+                    el.textContent = val;
+                    if (p < 1) requestAnimationFrame(step);
+                    else {
+                        el.textContent = target;
+                        setTimeout(function () { el.classList.remove('changed'); }, 1400);
+                    }
+                }
+                requestAnimationFrame(step);
+            });
+        }
+
+        // ---------------- REFRESH ----------------
+        var refreshBtn = document.getElementById('dbRefreshBtn');
+        var refreshLbl = document.getElementById('dbRefreshLabel');
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async function () {
+                refreshBtn.classList.add('is-loading');
+                if (refreshLbl) refreshLbl.textContent = 'Refreshing…';
+
+                try {
+                    var res = await fetch('@Url.Action("RefreshPanel", "DoctorHome")', {
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                    var html = await res.text();
+                    document.getElementById('dbPanels').innerHTML = html;
+
+                    drawCharts();
+                    animateCounters();
+                    refreshBellBadge();
+                } catch (err) {
+                    console.error('Refresh failed:', err);
+                } finally {
+                    refreshBtn.classList.remove('is-loading');
+                    if (refreshLbl) refreshLbl.textContent = 'Refresh';
+                }
+            });
+        }
+
+        // ---------------- BELL ----------------
+        var bellBtn   = document.getElementById('dbBellBtn');
+        var bellBadge = document.getElementById('dbBellBadge');
+        var bellPanel = document.getElementById('dbBellPanel');
+        var bellEmpty = document.getElementById('dbBellEmpty');
+        var bellList  = document.getElementById('dbBellList');
+        var bellMarkAll = document.getElementById('dbBellMarkAll');
+
+        var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+        var token = tokenEl ? tokenEl.value : '';
+
+        function refreshBellBadge() {
+            if (!bellBadge) return;
+            fetch('/Notifications/UnreadCount')
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                    if (!data) return;
+                    if (data.count > 0) {
+                        bellBadge.textContent = data.count;
+                        bellBadge.classList.remove('d-none');
+                    } else {
+                        bellBadge.classList.add('d-none');
+                    }
+                })
+                .catch(function () {});
+        }
+
+        function bellTimeAgo(iso) {
+            var s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+            if (s < 60)    return s + 's ago';
+            if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+            if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+            return Math.floor(s / 86400) + 'd ago';
+        }
+
+        function esc(s) {
+            return (s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+            });
+        }
+
+        function loadBellList() {
+            if (!bellList) return;
+            bellList.innerHTML = '';
+
+            fetch('/Notifications/Latest?take=12')
+                .then(function (r) { return r.ok ? r.json() : []; })
+                .then(function (items) {
+                    if (!items || items.length === 0) {
+                        if (bellEmpty) bellEmpty.style.display = '';
+                        return;
+                    }
+                    if (bellEmpty) bellEmpty.style.display = 'none';
+
+                    items.forEach(function (n) {
+                        var a = document.createElement('a');
+                        a.href = '#';
+                        a.className = 'db-bell-item' + (n.isRead ? '' : ' unread');
+                        a.innerHTML =
+                            '<div class="t">' + esc(n.title) + '</div>' +
+                            '<div class="m">' + esc(n.message) + '</div>' +
+                            '<div class="d">' + bellTimeAgo(n.createdAt) + '</div>';
+
+                        a.addEventListener('click', function (e) {
+                            e.preventDefault();
+
+                            fetch('/Notifications/MarkRead/' + n.id, {
+                                method: 'POST',
+                                headers: { 'RequestVerificationToken': token }
+                            }).then(function () {
+                                refreshBellBadge();
+                                if (n.url && n.url.length > 0) {
+                                    window.location.href = n.url;
+                                } else {
+                                    loadBellList();
+                                }
+                            });
+                        });
+
+                        bellList.appendChild(a);
+                    });
+                })
+                .catch(function () {});
+        }
+
+        function closeBellPanel() { bellPanel.classList.remove('open'); }
+        function toggleBellPanel() {
+            if (bellPanel.classList.contains('open')) {
+                closeBellPanel();
+            } else {
+                bellPanel.classList.add('open');
+                loadBellList();
+            }
+        }
+
+        if (bellBtn && bellPanel) {
+            bellBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                toggleBellPanel();
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!bellPanel.classList.contains('open')) return;
+                if (bellPanel.contains(e.target) || bellBtn.contains(e.target)) return;
+                closeBellPanel();
+            });
+        }
+
+        if (bellMarkAll) {
+            bellMarkAll.addEventListener('click', function (e) {
+                e.stopPropagation();
+                fetch('/Notifications/MarkAllRead', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': token }
+                }).then(function () {
+                    refreshBellBadge();
+                    loadBellList();
+                });
+            });
+        }
+
+        refreshBellBadge();
+        setInterval(refreshBellBadge, 30000);
+    })();
+</script>

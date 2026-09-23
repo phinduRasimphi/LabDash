@@ -22,6 +22,14 @@ namespace LabDash.Controllers
 
         public async Task<IActionResult> Index()
         {
+            // ---------------------------------------------------------
+            // DOCTOR REDIRECT — doctors use their own dashboard.
+            // ---------------------------------------------------------
+            if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Doctor"))
+            {
+                return RedirectToAction("Index", "DoctorHome");
+            }
+
             // Admin section (unchanged from your original placeholder values)
             var model = new AdminDashboardViewModel();
             // Admin section: real reference-data counts, change feed and warnings
@@ -108,6 +116,3 @@ namespace LabDash.Controllers
         }
     }
 }
-
-
-   

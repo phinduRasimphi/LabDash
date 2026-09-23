@@ -1,0 +1,407 @@
+﻿@using LabDash.Areas.Identity.Data
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<LabUser> SignInManager
+@inject UserManager<LabUser> UserManager
+@{
+    var currentUser = await UserManager.GetUserAsync(User);
+    var fullName = currentUser?.FullName ?? User.Identity?.Name ?? "Doctor";
+    var initials = string.Join("", fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                                            .Take(2)
+                                            .Select(n => n[0]))
+                                            .ToUpper();
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewBag.Title - NMB LAB Doctor</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/DoctorDashboard.css" asp-append-version="true" />
+
+    @await RenderSectionAsync("Head", required: false)
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #eef3f7;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* ========== DOCTOR CONTAINER ========== */
+        .doctor-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ========== SIDEBAR ========== */
+        .doctor-sidebar {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #0F5E56;
+            padding: 25px 0;
+            width: 280px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+            .doctor-sidebar::-webkit-scrollbar {
+                width: 5px;
+            }
+
+            .doctor-sidebar::-webkit-scrollbar-track {
+                background: #0F5E56;
+            }
+
+            .doctor-sidebar::-webkit-scrollbar-thumb {
+                background: #5eead4;
+                border-radius: 10px;
+            }
+
+        .doctor-logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: white;
+            padding-left: 22px;
+            margin-bottom: 30px;
+        }
+
+            .doctor-logo span {
+                color: #f3c04d;
+            }
+
+        .doctor-logo-row {
+            display: flex;
+            align-items: center;
+            padding: 0 22px;
+            margin-bottom: 30px;
+        }
+
+            .doctor-logo-row .doctor-logo {
+                padding-left: 0;
+                margin-bottom: 0;
+            }
+
+        /* ========== USER CARD ========== */
+        .doctor-user-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            background: #0F766E;
+            border-radius: 14px;
+            border: 1px solid #0B5A54;
+            margin: 0 22px 20px;
+            max-width: fit-content;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+            .doctor-user-card:hover {
+                box-shadow: 0 6px 16px rgba(16, 24, 40, 0.22);
+                transform: translateY(-1px);
+            }
+
+        .doctor-user-initials {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #E6FFFA;
+            color: #0F766E;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .doctor-user-card-text h4 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+            line-height: 1.3;
+        }
+
+        .doctor-user-online {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 2px;
+            font-size: 12.5px;
+            color: #B7EFE8;
+        }
+
+        .doctor-online-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ADE80;
+            animation: doctorPulseDot 2s infinite;
+        }
+
+        @@keyframes doctorPulseDot {
+            0% {
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5);
+            }
+
+            70% {
+                box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+            }
+        }
+
+        /* ========== MENU ========== */
+        .doctor-menu {
+            list-style: none;
+            margin: 0;
+            padding: 0 22px;
+            flex: 1;
+        }
+
+        .doctor-menu-title {
+            color: rgba(255,255,255,.5);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            padding: 22px 0 10px;
+        }
+
+        .doctor-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 4px;
+            color: rgba(255,255,255,.92);
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: background .2s ease, color .2s ease;
+        }
+
+            .doctor-menu li a i {
+                width: 20px;
+                font-size: 17px;
+                text-align: center;
+                color: rgba(255,255,255,.85);
+            }
+
+            .doctor-menu li a:hover {
+                background: rgba(255,255,255,0.06);
+            }
+
+            .doctor-menu li a.active {
+                background: rgba(255,255,255,0.12);
+                color: #fff;
+                border-left: 3px solid #f3c04d;
+            }
+
+                .doctor-menu li a.active i {
+                    color: #fff;
+                }
+
+        /* ========== SIDEBAR FOOTER ========== */
+        .doctor-sidebar-footer {
+            margin-top: auto;
+            padding: 20px 22px 10px;
+            border-top: 1px solid rgba(255,255,255,.15);
+        }
+
+            .doctor-sidebar-footer ul {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
+
+            .doctor-sidebar-footer li a {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                padding: 12px 4px;
+                color: rgba(255,255,255,.92);
+                text-decoration: none;
+                font-size: 16px;
+                font-weight: 500;
+                border-radius: 8px;
+                transition: background .2s ease;
+            }
+
+                .doctor-sidebar-footer li a i {
+                    width: 20px;
+                    font-size: 17px;
+                    text-align: center;
+                    color: rgba(255,255,255,.85);
+                }
+
+                .doctor-sidebar-footer li a:hover {
+                    background: rgba(255,255,255,0.06);
+                }
+
+        .doctor-footer-copy {
+            color: rgba(255,255,255,.4);
+            font-size: 11.5px;
+            text-align: center;
+            padding: 14px 0 4px;
+            margin: 0;
+        }
+
+        .doctor-logout-link {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 4px;
+            width: 100%;
+            background: none;
+            border: none;
+            text-align: left;
+            color: rgba(255,255,255,.92);
+            font-size: 16px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background .2s ease;
+        }
+
+            .doctor-logout-link i {
+                width: 20px;
+                font-size: 17px;
+                text-align: center;
+                color: rgba(255,255,255,.85);
+            }
+
+            .doctor-logout-link:hover {
+                background: rgba(255,255,255,0.06);
+            }
+
+        /* ========== MAIN CONTENT ========== */
+        .doctor-main-content {
+            margin-left: 280px;
+            padding: 30px;
+            background: #F0F7F6;
+            min-height: 100vh;
+            width: calc(100% - 280px);
+            overflow-y: auto;
+        }
+
+        .doctor-page-content {
+            padding: 0;
+        }
+
+        @@media (max-width: 900px) {
+            .doctor-sidebar {
+                width: 220px;
+            }
+
+            .doctor-main-content {
+                margin-left: 220px;
+                width: calc(100% - 220px);
+            }
+        }
+
+        @@media (max-width: 640px) {
+            .doctor-sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 15px 0;
+            }
+
+            .doctor-main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 15px;
+            }
+
+            .doctor-container {
+                flex-direction: column;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    @Html.AntiForgeryToken()
+
+    <div class="doctor-container">
+        <aside class="doctor-sidebar">
+
+            <!-- LOGO (bell removed — it now lives on the dashboard banner) -->
+            <div class="doctor-logo-row">
+                <div class="doctor-logo">NMB<span>LAB</span></div>
+            </div>
+
+            <!-- USER CARD -->
+            <div class="doctor-user-card">
+                <div class="doctor-user-initials">@initials</div>
+                <div class="doctor-user-card-text">
+                    <h4>@fullName</h4>
+                    <div class="doctor-user-online">
+                        <span class="doctor-online-dot"></span>
+                        <span>Online</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MENU -->
+            <ul class="doctor-menu">
+                <li class="doctor-menu-title">MAIN</li>
+                <li><a href="@Url.Action("Index", "DoctorHome")" class="@(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "active" : "")"><i class="fa-solid fa-gauge"></i> Dashboard</a></li>
+
+                <li class="doctor-menu-title">PATIENTS</li>
+                <li><a href="@Url.Action("ManagePatients", "Doctor")" class="@(ViewData["ActivePage"]?.ToString() == "ManagePatients" ? "active" : "")"><i class="fa-solid fa-users"></i> Manage Patients</a></li>
+                <li><a href="@Url.Action("SharedWithMe", "Doctor")" class="@(ViewData["ActivePage"]?.ToString() == "SharedWithMe" ? "active" : "")"><i class="fa-solid fa-user-shield"></i> Consented Patients</a></li>
+
+                <li class="doctor-menu-title">TEST REQUESTS</li>
+                <li><a href="@Url.Action("Create", "TestRequest")"><i class="fa-solid fa-flask"></i> New Test Request</a></li>
+                <li><a href="@Url.Action("Index", "TestRequest")"><i class="fa-solid fa-eye"></i> View Test Request</a></li>
+                <li><a href="@Url.Action("Track", "TestRequest")"><i class="fa-solid fa-chart-line"></i> Track Requests</a></li>
+
+                <li class="doctor-menu-title">RESULTS</li>
+                <li><a href="@Url.Action("Index", "TestResult")"><i class="fa-solid fa-file-medical"></i> View Results</a></li>
+                <li><a href="@Url.Action("Alerts", "TestResult")"><i class="fa-solid fa-bell"></i> Alerts</a></li>
+
+                <li class="doctor-menu-title">REPORTS</li>
+                <li><a href="@Url.Action("Reports", "Doctor")"><i class="fa-solid fa-file-pdf"></i> Generate Reports</a></li>
+            </ul>
+
+            <!-- FOOTER -->
+            <div class="doctor-sidebar-footer">
+                <ul>
+                    <li><a href="@Url.Action("DoctorProfile", "Doctor")"><i class="fa-solid fa-circle-user"></i> Profile</a></li>
+                    <li>
+                        <form asp-controller="Doctor" asp-action="Logout" method="post">
+                            <button type="submit" class="doctor-logout-link"><i class="fa-solid fa-right-from-bracket"></i> Log Out</button>
+                        </form>
+                    </li>
+                </ul>
+                <p class="doctor-footer-copy">LabDASH © 2026</p>
+            </div>
+        </aside>
+
+        <main class="doctor-main-content">
+            <section class="doctor-page-content">
+                @RenderBody()
+                @await RenderSectionAsync("Scripts", required: false)
+            </section>
+        </main>
+    </div>
+</body>
+</html>
