@@ -23,7 +23,6 @@ builder.Services.AddSession();
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
-builder.Services.AddTransient<IEmailSender, EmailSender>();
 
 builder.Services.AddScoped<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IEmailAttachmentSender, EmailSender>();
@@ -168,7 +167,7 @@ using (var scope = app.Services.CreateScope())
         user.LastName = "Makuwa";
         user.SouthAfricanID = "9503150000000";  //  ADDED
         user.HPCSANumber = "HPCSA123456";
-        user.EmployeeNumber = null;
+        user.EmployeeNumber = "EMP007";
         user.PhoneNumb = "0824773857";
         user.Gender = "Female";
         user.Timestamp_AccountCreated = DateTime.Now;
