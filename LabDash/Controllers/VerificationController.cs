@@ -1,5 +1,4 @@
 ﻿using LabDash.Areas.Identity.Data;
-using LabDash.Enums;
 using LabDash.Models;
 using LabDash.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -30,6 +29,7 @@ namespace LabDash.Controllers
         // ============================================================
         // VERIFICATION QUEUE
         // ============================================================
+
         [HttpGet]
         public async Task<IActionResult> Index()
         {
@@ -40,9 +40,11 @@ namespace LabDash.Controllers
 
 
             // --------------------------------------------------------
-            // LOAD ALL COMPLETED RESULTS THAT HAVE NOT BEEN VERIFIED
+            // LOAD COMPLETED RESULTS WAITING FOR VERIFICATION
             // --------------------------------------------------------
+
             var results = await _context.TestResults
+
                 .Include(r => r.TestRequestItem)
                     .ThenInclude(i => i.TestType)
 
@@ -59,22 +61,23 @@ namespace LabDash.Controllers
                     r.TestRequestItem.Status == "Completed" &&
                     r.CapturedByTechnicianId != technician.Id
                 )
+
                 .OrderBy(r => r.DateCaptured)
+
                 .ToListAsync();
 
 
-            // --------------------------------------------------------
-            // SEND INFORMATION TO VIEW
-            // --------------------------------------------------------
             ViewBag.CurrentTechnicianId = technician.Id;
 
             return View(results);
         }
 
 
+
         // ============================================================
         // VERIFICATION HISTORY
         // ============================================================
+
         [HttpGet]
         public async Task<IActionResult> History(int id)
         {
@@ -89,50 +92,69 @@ namespace LabDash.Controllers
                     i => i.TestRequestItemId == id
                 );
 
+
             if (item == null)
                 return NotFound();
 
 
             var result = await _context.TestResults
+
                 .Include(r => r.CapturedByTechnician)
+
                 .Include(r => r.VerifiedByTechnician)
+
                 .FirstOrDefaultAsync(
                     r => r.TestRequestItemId == id
                 );
 
 
             var history = await _context.TestVerifications
+
                 .Include(v => v.VerifiedByTechnician)
+
                 .Where(v =>
                     v.TestRequestItemId == id
                 )
+
                 .OrderByDescending(v => v.VerificationDate)
+
                 .ToListAsync();
 
 
             ViewBag.TestItem = item;
-            ViewBag.Patient = item.TestRequest?.Patient;
-            ViewBag.CurrentResult = result;
+
+            ViewBag.Patient =
+                item.TestRequest?.Patient;
+
+            ViewBag.CurrentResult =
+                result;
+
 
             return View(history);
         }
 
 
+
         // ============================================================
         // OPEN VERIFICATION PAGE
         // ============================================================
+
         [HttpGet]
         public async Task<IActionResult> Verify(int id)
         {
-            var technician = await _userManager.GetUserAsync(User);
+            var technician =
+                await _userManager.GetUserAsync(User);
+
 
             if (technician == null)
                 return Challenge();
 
 
+
             // --------------------------------------------------------
             // LOAD TEST ITEM
             // --------------------------------------------------------
+
             var item = await _context.TestRequestItems
 
                 .Include(i => i.TestType)
@@ -146,18 +168,24 @@ namespace LabDash.Controllers
                     i => i.TestRequestItemId == id
                 );
 
+
             if (item == null)
                 return NotFound();
 
 
+
             // --------------------------------------------------------
-            // LOAD RESULT
+            // LOAD CURRENT RESULT
             // --------------------------------------------------------
+
             var result = await _context.TestResults
+
                 .Include(r => r.CapturedByTechnician)
+
                 .FirstOrDefaultAsync(
                     r => r.TestRequestItemId == id
                 );
+
 
             if (result == null)
             {
@@ -168,9 +196,11 @@ namespace LabDash.Controllers
             }
 
 
+
             // --------------------------------------------------------
             // RESULT MUST BE COMPLETED
             // --------------------------------------------------------
+
             if (result.Status != "Completed")
             {
                 TempData["Error"] =
@@ -180,9 +210,11 @@ namespace LabDash.Controllers
             }
 
 
+
             // --------------------------------------------------------
             // TECHNICIAN CANNOT VERIFY OWN RESULT
             // --------------------------------------------------------
+
             if (result.CapturedByTechnicianId == technician.Id)
             {
                 TempData["Error"] =
@@ -192,9 +224,11 @@ namespace LabDash.Controllers
             }
 
 
+
             // --------------------------------------------------------
             // PREVENT DOUBLE VERIFICATION
             // --------------------------------------------------------
+
             if (!string.IsNullOrEmpty(
                 result.VerifiedByTechnicianId))
             {
@@ -205,16 +239,37 @@ namespace LabDash.Controllers
             }
 
 
-            // --------------------------------------------------------
+
+            // ========================================================
+            // COUNT RETURNED-FOR-REVIEW HISTORY
+            // ========================================================
+
+            var reviewReturnCount =
+                await _context.TestVerifications
+
+                    .CountAsync(v =>
+                        v.TestRequestItemId == id &&
+                        v.Status == "To Be Reviewed"
+                    );
+
+
+
+            // ========================================================
             // SEND DATA TO VIEW
-            // --------------------------------------------------------
-            ViewBag.TestItem = item;
+            // ========================================================
+
+            ViewBag.TestItem =
+                item;
 
             ViewBag.Patient =
                 item.TestRequest?.Patient;
 
             ViewBag.Result =
                 result;
+
+            ViewBag.ReviewReturnCount =
+                reviewReturnCount;
+
 
 
             return View(new TestVerification
@@ -228,23 +283,29 @@ namespace LabDash.Controllers
         }
 
 
+
         // ============================================================
         // SAVE VERIFICATION
         // ============================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Verify(
             TestVerification verification)
         {
-            var technician = await _userManager.GetUserAsync(User);
+            var technician =
+                await _userManager.GetUserAsync(User);
+
 
             if (technician == null)
                 return Challenge();
 
 
+
             // --------------------------------------------------------
             // VALIDATE ID
             // --------------------------------------------------------
+
             if (verification.TestRequestItemId <= 0)
             {
                 TempData["Error"] =
@@ -254,9 +315,11 @@ namespace LabDash.Controllers
             }
 
 
+
             // --------------------------------------------------------
             // LOAD ITEM
             // --------------------------------------------------------
+
             var item = await _context.TestRequestItems
 
                 .Include(i => i.TestType)
@@ -265,22 +328,29 @@ namespace LabDash.Controllers
                     .ThenInclude(r => r.Patient)
 
                 .FirstOrDefaultAsync(
-                    i => i.TestRequestItemId ==
-                         verification.TestRequestItemId
+                    i =>
+                        i.TestRequestItemId ==
+                        verification.TestRequestItemId
                 );
+
 
             if (item == null)
                 return NotFound();
 
 
+
             // --------------------------------------------------------
             // LOAD RESULT
             // --------------------------------------------------------
+
             var result = await _context.TestResults
+
                 .FirstOrDefaultAsync(
-                    r => r.TestRequestItemId ==
-                         verification.TestRequestItemId
+                    r =>
+                        r.TestRequestItemId ==
+                        verification.TestRequestItemId
                 );
+
 
             if (result == null)
             {
@@ -291,9 +361,11 @@ namespace LabDash.Controllers
             }
 
 
+
             // --------------------------------------------------------
             // CHECK RESULT STATUS
             // --------------------------------------------------------
+
             if (result.Status != "Completed")
             {
                 TempData["Error"] =
@@ -303,10 +375,13 @@ namespace LabDash.Controllers
             }
 
 
+
             // --------------------------------------------------------
             // CANNOT VERIFY OWN RESULT
             // --------------------------------------------------------
-            if (result.CapturedByTechnicianId == technician.Id)
+
+            if (result.CapturedByTechnicianId ==
+                technician.Id)
             {
                 TempData["Error"] =
                     "You cannot verify your own laboratory result.";
@@ -315,9 +390,11 @@ namespace LabDash.Controllers
             }
 
 
+
             // --------------------------------------------------------
             // PREVENT DOUBLE VERIFICATION
             // --------------------------------------------------------
+
             if (!string.IsNullOrEmpty(
                 result.VerifiedByTechnicianId))
             {
@@ -326,6 +403,7 @@ namespace LabDash.Controllers
 
                 return RedirectToAction(nameof(Index));
             }
+
 
 
             // ========================================================
@@ -347,9 +425,11 @@ namespace LabDash.Controllers
             }
 
 
-            // --------------------------------------------------------
+
+            // ========================================================
             // REVIEW NOTE REQUIRED
-            // --------------------------------------------------------
+            // ========================================================
+
             if (verification.Status == "To Be Reviewed" &&
                 string.IsNullOrWhiteSpace(
                     verification.VerificationNotes))
@@ -364,6 +444,7 @@ namespace LabDash.Controllers
                         id = verification.TestRequestItemId
                     });
             }
+
 
 
             // ========================================================
@@ -388,7 +469,9 @@ namespace LabDash.Controllers
                     verification.VerificationNotes
             };
 
+
             _context.TestVerifications.Add(history);
+
 
 
             // ========================================================
@@ -414,6 +497,7 @@ namespace LabDash.Controllers
             }
 
 
+
             // ========================================================
             // RESULT RETURNED FOR REVIEW
             // ========================================================
@@ -423,8 +507,9 @@ namespace LabDash.Controllers
                 result.Status =
                     "To Be Reviewed";
 
-                // VERY IMPORTANT:
-                // This technician did NOT verify the result.
+
+                // This technician did not verify it.
+
                 result.VerifiedByTechnicianId =
                     null;
 
@@ -434,14 +519,18 @@ namespace LabDash.Controllers
                 result.VerificationNote =
                     verification.VerificationNotes;
 
+
                 item.Status =
                     "To Be Reviewed";
 
+
                 // Return the test to the technician
-                // who originally captured it.
+                // who originally captured the result.
+
                 item.AssignedTechnicianId =
                     result.CapturedByTechnicianId;
             }
+
 
 
             // ========================================================
@@ -462,6 +551,7 @@ namespace LabDash.Controllers
             }
 
 
+
             // ========================================================
             // IF VERIFIED, CHECK ENTIRE REQUEST
             // ========================================================
@@ -470,9 +560,11 @@ namespace LabDash.Controllers
             {
                 var allVerified =
                     await _context.TestRequestItems
+
                         .Where(x =>
                             x.RequestId ==
                             item.RequestId)
+
                         .AllAsync(x =>
                             x.Status == "Verified");
 
@@ -482,12 +574,15 @@ namespace LabDash.Controllers
                     item.TestRequest.Status =
                         "Verified";
 
+
                     await _context.SaveChangesAsync();
+
 
 
                     // ------------------------------------------------
                     // NOTIFY DOCTOR
                     // ------------------------------------------------
+
                     try
                     {
                         await _notificationService
@@ -496,11 +591,12 @@ namespace LabDash.Controllers
                     }
                     catch
                     {
-                        // Do not break verification if
-                        // email notification fails.
+                        // Do not break verification
+                        // if email notification fails.
                     }
                 }
             }
+
 
 
             // ========================================================
@@ -517,6 +613,7 @@ namespace LabDash.Controllers
                 TempData["Success"] =
                     "Laboratory result returned to the capturing technician for review.";
             }
+
 
 
             return RedirectToAction(nameof(Index));

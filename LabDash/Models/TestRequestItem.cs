@@ -22,5 +22,7 @@ namespace LabDash.Models
         public virtual LabUser? AssignedTechnician { get; set; }
         public DateTime? StartDateTime { get; set; }
         public DateTime? CompletionDateTime { get; set; }
+
+        public int ReviewReturnCount { get; set; } = 0;
     }
 }
