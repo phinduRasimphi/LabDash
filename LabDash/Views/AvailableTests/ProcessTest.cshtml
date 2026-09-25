@@ -1,45 +1,35 @@
 ﻿@model LabDash.Models.TestRequestItem
 
+@using LabDash.Models
+
 @{
     ViewData["Title"] = "Process Laboratory Test";
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
-    var testItem = ViewBag.TestItem as LabDash.Models.TestRequestItem;
-    var testType = ViewBag.TestType as LabDash.Models.TestType;
-    var patient = ViewBag.Patient as LabDash.Models.Patient;
-    var testRequest = ViewBag.TestRequest as LabDash.Models.TestRequest;
+    var testItem = ViewBag.TestItem as TestRequestItem ?? Model;
+    var testType = ViewBag.TestType as TestType;
+    var patient = ViewBag.Patient as Patient;
+    var request = ViewBag.TestRequest as TestRequest;
 
-    var isOverdue = ViewBag.IsOverdue is bool overdue && overdue;
+    bool isOverdue = ViewBag.IsOverdue != null &&
+                     (bool)ViewBag.IsOverdue;
 
-    int progress = 0;
+    int progressPercentage = ViewBag.ProgressPercentage != null
+        ? Convert.ToInt32(ViewBag.ProgressPercentage)
+        : 0;
 
-    if (ViewBag.ProgressPercentage != null)
-    {
-        progress = Convert.ToInt32(ViewBag.ProgressPercentage);
-    }
+    string dueDateTime = ViewBag.DueDateTime?.ToString()
+        ?? "Not available";
 
-    if (progress < 0)
-    {
-        progress = 0;
-    }
+    string timeRemaining = ViewBag.TimeRemaining?.ToString()
+        ?? "Not available";
 
-    if (progress > 100)
-    {
-        progress = 100;
-    }
+    var consumables = ViewBag.Consumables as IEnumerable<dynamic>
+                      ?? Enumerable.Empty<dynamic>();
 
-    var status = Model?.Status ?? "In Progress";
+    string status = testItem?.Status ?? "Submitted";
 
-    var steps = new[]
-    {
-        "Submitted",
-        "Samples Received",
-        "In Progress",
-        "Completed",
-        "Verified"
-    };
-
-    var statusIndex = status switch
+    int statusIndex = status switch
     {
         "Verified" => 4,
         "Completed" => 3,
@@ -48,39 +38,56 @@
         _ => 0
     };
 
-    string FormatDate(DateTime? date)
+    string patientName = patient != null
+        ? $"{patient.Name} {patient.Surname}"
+        : "Patient information unavailable";
+
+    string referenceRange = testType != null
+        ? $"{testType.ReferenceRangeLow} - {testType.ReferenceRangeHigh}"
+        : "Not specified";
+
+    string turnaroundTime = "Not specified";
+
+    if (testType != null && testType.TurnaroundTimeMinutes > 0)
     {
-        return date.HasValue
-            ? date.Value.ToString("dd MMM yyyy, HH:mm")
-            : "Not available";
-    }
+        int hours = testType.TurnaroundTimeMinutes / 60;
+        int minutes = testType.TurnaroundTimeMinutes % 60;
 
-    var dueDateTime = ViewBag.DueDateTime as DateTime?;
-
-    TimeSpan? timeRemaining = null;
-
-    if (ViewBag.TimeRemaining != null)
-    {
-        try
+        if (hours > 0 && minutes > 0)
         {
-            timeRemaining = (TimeSpan)ViewBag.TimeRemaining;
+            turnaroundTime = $"{hours} hr {minutes} min";
         }
-        catch
+        else if (hours > 0)
         {
-            timeRemaining = null;
+            turnaroundTime = $"{hours} hr";
+        }
+        else
+        {
+            turnaroundTime = $"{minutes} min";
         }
     }
-
-    var consumables = ViewBag.Consumables as IEnumerable<dynamic>;
 }
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap"
+      rel="stylesheet" />
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
 
 <style>
 
     /* =========================================================
-           GLOBAL PAGE
+           PROCESS LABORATORY TEST
+           COMPLETE PAGE
+           ========================================================= */
+
+
+    /* =========================================================
+           GLOBAL
            ========================================================= */
 
     .pt-page {
@@ -91,12 +98,15 @@
         font-family: 'Inter', sans-serif;
     }
 
-        .pt-page * {
+        .pt-page *,
+        .pt-page *::before,
+        .pt-page *::after {
             box-sizing: border-box;
         }
 
+
     /* =========================================================
-           TOP HEADER - TEAL
+           HEADER
            ========================================================= */
 
     .pt-header {
@@ -108,6 +118,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 20px;
         margin-bottom: 20px;
         box-shadow: 0 12px 28px rgba(4, 103, 96, 0.18);
         color: white;
@@ -121,7 +132,7 @@
             right: -80px;
             top: -120px;
             border-radius: 50%;
-            background: rgba(255,255,255,0.07);
+            background: rgba(255, 255, 255, 0.07);
         }
 
     .pt-header-left {
@@ -136,8 +147,8 @@
         width: 62px;
         height: 62px;
         border-radius: 16px;
-        background: rgba(255,255,255,0.15);
-        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.18);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -164,7 +175,7 @@
 
     .pt-header p {
         margin: 4px 0 0;
-        color: rgba(255,255,255,0.78);
+        color: rgba(255, 255, 255, 0.78);
         font-size: 12px;
     }
 
@@ -176,9 +187,9 @@
         gap: 8px;
         padding: 10px 16px;
         border-radius: 30px;
-        background: rgba(255,255,255,0.96);
+        background: rgba(255, 255, 255, 0.96);
         color: #087a70;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 800;
         white-space: nowrap;
     }
@@ -188,12 +199,12 @@
         height: 8px;
         border-radius: 50%;
         background: #18c779;
-        box-shadow: 0 0 0 4px rgba(24,199,121,0.12);
+        box-shadow: 0 0 0 4px rgba(24, 199, 121, 0.12);
     }
+
 
     /* =========================================================
            SAMPLE BEING TESTED
-           WHITE / LIGHT SECTION
            ========================================================= */
 
     .pt-selected-test {
@@ -275,11 +286,12 @@
             height: 8px;
             background: #20c878;
             border-radius: 50%;
-            box-shadow: 0 0 0 4px rgba(32,200,120,0.10);
+            box-shadow: 0 0 0 4px rgba(32, 200, 120, 0.10);
         }
 
+
     /* =========================================================
-           MAIN INFORMATION GRID
+           MAIN GRID
            ========================================================= */
 
     .pt-main-grid {
@@ -297,8 +309,9 @@
         box-shadow: 0 8px 24px rgba(20, 70, 82, 0.06);
     }
 
+
     /* =========================================================
-           CARD HEADERS
+           CARD HEADER
            ========================================================= */
 
     .pt-card-header {
@@ -309,14 +322,11 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 12px;
         font-family: 'Poppins', sans-serif;
         font-size: 13px;
         font-weight: 800;
     }
-
-        .pt-card-header.blue {
-            background: linear-gradient( 135deg, #087a70, #099286 );
-        }
 
     .pt-card-header-title {
         display: flex;
@@ -329,16 +339,17 @@
         }
 
     .pt-card-header > span {
-        font-size: 10px;
-        color: rgba(255,255,255,0.82);
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.82);
     }
 
     .pt-card-body {
         padding: 22px;
     }
 
+
     /* =========================================================
-           PATIENT INFORMATION
+           INFORMATION GRID
            ========================================================= */
 
     .pt-info-grid {
@@ -351,10 +362,6 @@
         padding: 13px 0;
         border-bottom: 1px solid #e4edef;
     }
-
-        .pt-info-item:nth-last-child(-n+2) {
-            border-bottom: none;
-        }
 
         .pt-info-item span {
             display: block;
@@ -372,7 +379,234 @@
             font-size: 12px;
             font-weight: 800;
             line-height: 1.4;
+            word-break: break-word;
         }
+
+
+    /* =========================================================
+           DIVIDER
+           ========================================================= */
+
+    .pt-divider {
+        height: 1px;
+        background: #e1eaed;
+        margin: 19px 0 16px;
+    }
+
+
+    /* =========================================================
+           SUBSECTION TITLE
+           ========================================================= */
+
+    .pt-subsection-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 13px;
+        color: #123b4c;
+        font-family: 'Poppins', sans-serif;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+        .pt-subsection-title i {
+            color: #087a70;
+            font-size: 13px;
+        }
+
+
+    /* =========================================================
+           CLINICAL INFORMATION
+           ========================================================= */
+
+    .pt-clinical-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 11px;
+    }
+
+    .pt-clinical-card {
+        min-height: 105px;
+        padding: 14px;
+        border-radius: 13px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        border: 1px solid transparent;
+        transition: .2s ease;
+    }
+
+        .pt-clinical-card:hover {
+            transform: translateY(-2px);
+        }
+
+    .pt-clinical-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 14px;
+    }
+
+    .pt-clinical-card span {
+        display: block;
+        text-transform: uppercase;
+        font-size: 7px;
+        font-weight: 800;
+        letter-spacing: .5px;
+        margin-bottom: 5px;
+    }
+
+    .pt-clinical-card strong {
+        display: block;
+        font-size: 10px;
+        line-height: 1.5;
+        font-weight: 800;
+        word-break: break-word;
+    }
+
+
+    /* =========================================================
+           ALLERGIES - RED
+           ========================================================= */
+
+    .pt-clinical-card.allergy {
+        background: #fff0f2;
+        border-color: #f3cbd1;
+    }
+
+        .pt-clinical-card.allergy .pt-clinical-icon {
+            background: #ffe0e4;
+            color: #d52f49;
+            border: 1px solid #f4c3ca;
+        }
+
+        .pt-clinical-card.allergy span {
+            color: #b52b40;
+        }
+
+        .pt-clinical-card.allergy strong {
+            color: #7d2635;
+        }
+
+
+    /* =========================================================
+           MEDICAL CONDITIONS - YELLOW
+           ========================================================= */
+
+    .pt-clinical-card.condition {
+        background: #fff7e2;
+        border-color: #f0dfad;
+    }
+
+        .pt-clinical-card.condition .pt-clinical-icon {
+            background: #ffedb9;
+            color: #b77d00;
+            border: 1px solid #f0d98e;
+        }
+
+        .pt-clinical-card.condition span {
+            color: #a16f00;
+        }
+
+        .pt-clinical-card.condition strong {
+            color: #765600;
+        }
+
+
+    /* =========================================================
+           MEDICATION - LIGHT TEAL
+           ========================================================= */
+
+    .pt-clinical-card.medication {
+        background: #e8f7f5;
+        border-color: #c9e8e3;
+    }
+
+        .pt-clinical-card.medication .pt-clinical-icon {
+            background: #d5efeb;
+            color: #087a70;
+            border: 1px solid #bfe2dc;
+        }
+
+        .pt-clinical-card.medication span {
+            color: #087a70;
+        }
+
+        .pt-clinical-card.medication strong {
+            color: #145f5a;
+        }
+
+
+    /* =========================================================
+           DOCTOR NOTES
+           ========================================================= */
+
+    .pt-notes {
+        background: #edf7fa;
+        border: 1px solid #d3e8ee;
+        border-left: 4px solid #087a70;
+        border-radius: 12px;
+        padding: 14px 16px;
+        color: #31566d;
+        font-size: 11px;
+        line-height: 1.6;
+        display: flex;
+        align-items: flex-start;
+        gap: 11px;
+    }
+
+    .pt-notes-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: #dceff2;
+        color: #087a70;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 13px;
+    }
+
+    .pt-notes-content {
+        flex: 1;
+    }
+
+    .pt-notes-title {
+        display: block;
+        color: #087a70;
+        text-transform: uppercase;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: .5px;
+        margin-bottom: 4px;
+    }
+
+    .pt-notes p {
+        margin: 0;
+        color: #31566d;
+        font-size: 11px;
+        line-height: 1.6;
+    }
+
+    .pt-empty {
+        background: #f1f7f8;
+        border: 1px dashed #cfdee2;
+        border-radius: 12px;
+        padding: 13px;
+        color: #66818e;
+        font-size: 10px;
+    }
+
+        .pt-empty i {
+            color: #087a70;
+            margin-right: 6px;
+        }
+
 
     /* =========================================================
            TEST INFORMATION
@@ -430,8 +664,9 @@
         font-weight: 800;
     }
 
+
     /* =========================================================
-           TEST REFERENCE INFORMATION
+           TEST INFO BOXES
            ========================================================= */
 
     .pt-test-info-grid {
@@ -534,6 +769,7 @@
         font-weight: 800;
     }
 
+
     /* =========================================================
            GENERAL PANELS
            ========================================================= */
@@ -555,6 +791,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 10px;
         font-family: 'Poppins', sans-serif;
         font-size: 13px;
         font-weight: 800;
@@ -570,115 +807,6 @@
         padding: 21px;
     }
 
-    /* =========================================================
-           CLINICAL INFORMATION
-           ========================================================= */
-
-    .pt-clinical-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 13px;
-    }
-
-    .pt-clinical-card {
-        min-height: 82px;
-        padding: 14px;
-        border-radius: 13px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        border: 1px solid transparent;
-    }
-
-        .pt-clinical-card.allergy {
-            background: #fff0f2;
-            border-color: #f5dfe3;
-        }
-
-        .pt-clinical-card.condition {
-            background: #fff7e5;
-            border-color: #f1e7ca;
-        }
-
-        .pt-clinical-card.medication {
-            background: #e9f7f5;
-            border-color: #d3ebe7;
-        }
-
-    .pt-clinical-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: rgba(255,255,255,0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .allergy .pt-clinical-icon {
-        color: #d53d56;
-    }
-
-    .condition .pt-clinical-icon {
-        color: #b78300;
-    }
-
-    .medication .pt-clinical-icon {
-        color: #087a70;
-    }
-
-    .pt-clinical-card span {
-        display: block;
-        color: #718999;
-        text-transform: uppercase;
-        font-size: 8px;
-        font-weight: 800;
-        letter-spacing: .4px;
-        margin-bottom: 4px;
-    }
-
-    .pt-clinical-card strong {
-        display: block;
-        color: #153b4d;
-        font-size: 11px;
-        line-height: 1.45;
-    }
-
-    /* =========================================================
-           DOCTOR NOTES
-           ========================================================= */
-
-    .pt-notes {
-        background: #edf7fa;
-        border: 1px solid #dcebef;
-        border-radius: 12px;
-        padding: 16px 18px;
-        color: #31566d;
-        font-size: 12px;
-        line-height: 1.6;
-        display: flex;
-        gap: 12px;
-    }
-
-        .pt-notes i {
-            color: #087a70;
-            font-size: 17px;
-        }
-
-    .pt-empty {
-        background: #f1f7f8;
-        border: 1px dashed #cfdee2;
-        border-radius: 12px;
-        padding: 15px;
-        color: #66818e;
-        font-size: 11px;
-    }
-
-        .pt-empty i {
-            color: #087a70;
-            margin-right: 7px;
-        }
 
     /* =========================================================
            TURNAROUND
@@ -688,7 +816,8 @@
     .pt-header-danger {
         padding: 6px 10px;
         border-radius: 20px;
-        font-size: 9px;
+        font-size: 8px;
+        font-weight: 800;
     }
 
     .pt-header-success {
@@ -704,7 +833,6 @@
     .pt-turnaround-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 0;
     }
 
     .pt-time-card {
@@ -763,6 +891,7 @@
         height: 100%;
         background: linear-gradient( 90deg, #087a70, #20a99b );
         border-radius: 20px;
+        transition: width .4s ease;
     }
 
     .pt-progress-caption {
@@ -771,13 +900,14 @@
         font-size: 9px;
     }
 
+
     /* =========================================================
            TEST PROGRESS
            ========================================================= */
 
     .pt-progress-badge {
-        background: rgba(255,255,255,0.16);
-        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.18);
         padding: 6px 10px;
         border-radius: 20px;
         font-size: 9px;
@@ -803,7 +933,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 3px 10px rgba(8,122,112,0.08);
+        box-shadow: 0 3px 10px rgba(8, 122, 112, 0.08);
     }
 
     .pt-current-step-notice strong {
@@ -890,6 +1020,7 @@
         font-weight: 800;
     }
 
+
     /* =========================================================
            CONSUMABLES
            ========================================================= */
@@ -933,17 +1064,17 @@
                 color: #123b4c;
             }
 
+                .pt-table td strong i {
+                    color: #087a70;
+                    margin-right: 7px;
+                }
+
     .pt-stock {
         display: inline-flex;
         align-items: center;
         gap: 6px;
         font-weight: 800;
     }
-
-        .pt-stock small {
-            font-size: 7px;
-            font-weight: 800;
-        }
 
         .pt-stock.good {
             color: #087a70;
@@ -957,11 +1088,13 @@
         text-align: center;
         padding: 24px !important;
         color: #8095a1 !important;
+        font-size: 10px;
     }
 
         .pt-no-data i {
             margin-right: 7px;
         }
+
 
     /* =========================================================
            ACTIVITY
@@ -998,6 +1131,7 @@
             display: block;
             color: #123b4c;
             font-size: 10px;
+            word-break: break-word;
         }
 
     .pt-status-text {
@@ -1007,14 +1141,16 @@
         color: #087a70 !important;
     }
 
-        .pt-status-text span {
+        .pt-status-text > span {
             width: 7px;
             height: 7px;
             border-radius: 50%;
             background: #20c878;
             display: inline-block;
             margin: 0;
+            flex-shrink: 0;
         }
+
 
     /* =========================================================
            ACTIONS
@@ -1032,10 +1168,6 @@
         display: flex;
         align-items: center;
         gap: 10px;
-    }
-
-    .pt-complete-form {
-        margin: 0;
     }
 
     .pt-btn {
@@ -1066,25 +1198,23 @@
 
         .pt-btn-back:hover {
             background: #eaf7f5;
+            color: #087a70;
         }
-
-    .pt-btn-complete {
-        background: #087a70;
-        color: white;
-    }
 
     .pt-btn-results {
         background: linear-gradient( 135deg, #087a70, #099286 );
         color: white;
-        box-shadow: 0 5px 13px rgba(8,122,112,0.18);
+        box-shadow: 0 5px 13px rgba(8, 122, 112, 0.18);
     }
 
         .pt-btn-results:hover {
-            box-shadow: 0 7px 17px rgba(8,122,112,0.25);
+            color: white;
+            box-shadow: 0 7px 17px rgba(8, 122, 112, 0.25);
         }
 
+
     /* =========================================================
-           RESPONSIVE
+           RESPONSIVE - TABLET
            ========================================================= */
 
     @@media (max-width: 1100px) {
@@ -1094,7 +1224,7 @@
         }
 
         .pt-clinical-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
         }
 
         .pt-activity-grid {
@@ -1106,6 +1236,11 @@
                 border-right: none;
             }
     }
+
+
+    /* =========================================================
+           RESPONSIVE - MOBILE
+           ========================================================= */
 
     @@media (max-width: 800px) {
 
@@ -1137,6 +1272,10 @@
             grid-template-columns: 1fr;
         }
 
+        .pt-clinical-grid {
+            grid-template-columns: 1fr;
+        }
+
         .pt-turnaround-grid {
             grid-template-columns: 1fr;
         }
@@ -1162,14 +1301,8 @@
             flex-direction: column;
         }
 
-        .pt-btn,
-        .pt-complete-form,
-        .pt-complete-form button {
+        .pt-btn {
             width: 100%;
-        }
-
-        .pt-stepper-wrapper {
-            overflow-x: auto;
         }
 
         .pt-stepper {
@@ -1191,27 +1324,96 @@
                 }
     }
 
+
+    /* =========================================================
+           SMALL MOBILE
+           ========================================================= */
+
+    @@media (max-width: 500px) {
+
+        .pt-page {
+            padding: 12px;
+        }
+
+        .pt-header {
+            padding: 22px;
+        }
+
+        .pt-header-left {
+            gap: 12px;
+        }
+
+        .pt-header-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 22px;
+        }
+
+        .pt-header h1 {
+            font-size: 22px;
+        }
+
+        .pt-selected-test {
+            padding: 20px;
+        }
+
+        .pt-selected-title h2 {
+            font-size: 19px;
+        }
+
+        .pt-card-body,
+        .pt-panel-body {
+            padding: 17px;
+        }
+
+        .pt-lab-test-name {
+            font-size: 17px;
+        }
+
+        .pt-clinical-card {
+            min-height: 82px;
+            padding: 13px;
+        }
+
+        .pt-clinical-icon {
+            width: 38px;
+            height: 38px;
+        }
+
+        .pt-stepper {
+            min-width: 550px;
+        }
+    }
+
 </style>
 
 
+<!-- =========================================================
+     PAGE
+     ========================================================= -->
+
 <div class="pt-page">
 
-    <!-- =========================================================
-         HEADER
-         ========================================================= -->
+
+    <!-- =====================================================
+         PAGE HEADER
+         ===================================================== -->
 
     <div class="pt-header">
 
         <div class="pt-header-left">
 
             <div class="pt-header-icon">
+
                 <i class="fa-solid fa-flask-vial"></i>
+
             </div>
+
 
             <div>
 
                 <div class="pt-header-kicker">
-                    LABORATORY TEST PROCESSING
+                    Laboratory Processing
                 </div>
 
                 <h1>
@@ -1226,40 +1428,45 @@
 
         </div>
 
+
         <div class="pt-header-status">
 
             <span class="pt-live-dot"></span>
 
-            IN PROGRESS
+            @status
 
         </div>
 
     </div>
 
 
-    <!-- =========================================================
+
+    <!-- =====================================================
          SAMPLE BEING TESTED
-         ONLY SAMPLE INFORMATION
-         ========================================================= -->
+         ===================================================== -->
 
     <div class="pt-selected-test">
 
         <div class="pt-selected-top">
 
+
             <div class="pt-selected-title">
 
                 <div class="pt-sample-icon">
+
                     <i class="fa-solid fa-vial"></i>
+
                 </div>
+
 
                 <div>
 
                     <span class="pt-section-kicker">
-                        SAMPLE BEING TESTED
+                        Sample Being Tested
                     </span>
 
                     <h2>
-                        @(testType?.RequiredSampleType ?? "Sample not specified")
+                        @(testType?.RequiredSampleType ?? "Sample")
                     </h2>
 
                     <p>
@@ -1269,6 +1476,7 @@
                 </div>
 
             </div>
+
 
             <div class="pt-processing-badge">
 
@@ -1283,17 +1491,20 @@
     </div>
 
 
-    <!-- =========================================================
+
+    <!-- =====================================================
          PATIENT + TEST INFORMATION
-         ========================================================= -->
+         ===================================================== -->
 
     <div class="pt-main-grid">
 
-        <!-- =====================================================
+
+        <!-- =================================================
              PATIENT INFORMATION
-             ===================================================== -->
+             ================================================= -->
 
         <div class="pt-card">
+
 
             <div class="pt-card-header">
 
@@ -1301,15 +1512,22 @@
 
                     <i class="fa-solid fa-user"></i>
 
-                    Patient Information
+                    <span>
+                        Patient Information
+                    </span>
 
                 </div>
 
             </div>
 
+
             <div class="pt-card-body">
 
+
+                <!-- PATIENT DETAILS -->
+
                 <div class="pt-info-grid">
+
 
                     <div class="pt-info-item">
 
@@ -1318,9 +1536,7 @@
                         </span>
 
                         <strong>
-                            @(patient != null
-                                ? $"{patient.Name} {patient.Surname}"
-                                : "Not available")
+                            @patientName
                         </strong>
 
                     </div>
@@ -1334,32 +1550,6 @@
 
                         <strong>
                             @(patient?.IDNumber ?? "Not available")
-                        </strong>
-
-                    </div>
-
-
-                    <div class="pt-info-item">
-
-                        <span>
-                            Cellphone
-                        </span>
-
-                        <strong>
-                            @(patient?.CellphoneNumber ?? "Not available")
-                        </strong>
-
-                    </div>
-
-
-                    <div class="pt-info-item">
-
-                        <span>
-                            Email
-                        </span>
-
-                        <strong>
-                            @(patient?.Email ?? "Not available")
                         </strong>
 
                     </div>
@@ -1383,48 +1573,247 @@
                     <div class="pt-info-item">
 
                         <span>
-                            Request Status
+                            Contact Number
                         </span>
 
                         <strong>
-                            @(testRequest?.Status ?? "In Progress")
+                            @(patient?.CellphoneNumber ?? "Not available")
+                        </strong>
+
+                    </div>
+
+
+                    <div class="pt-info-item">
+
+                        <span>
+                            Email Address
+                        </span>
+
+                        <strong>
+                            @(patient?.Email ?? "Not available")
                         </strong>
 
                     </div>
 
                 </div>
 
+
+
+                <!-- =================================================
+                     CLINICAL INFORMATION
+                     ================================================= -->
+
+                <div class="pt-divider"></div>
+
+
+                <div class="pt-subsection-title">
+
+                    <i class="fa-solid fa-notes-medical"></i>
+
+                    <span>
+                        Patient Clinical Information
+                    </span>
+
+                </div>
+
+
+                <div class="pt-clinical-grid">
+
+
+                    <!-- ALLERGIES -->
+
+                    <div class="pt-clinical-card allergy">
+
+                        <div class="pt-clinical-icon">
+
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <span>
+                                Allergies
+                            </span>
+
+                            <strong>
+
+                                @(string.IsNullOrWhiteSpace(patient?.Allergies)
+                                    ? "No allergies recorded"
+                                    : patient.Allergies)
+
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- MEDICAL CONDITIONS -->
+
+                    <div class="pt-clinical-card condition">
+
+                        <div class="pt-clinical-icon">
+
+                            <i class="fa-solid fa-heart-pulse"></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <span>
+                                Medical Conditions
+                            </span>
+
+                            <strong>
+
+                                @(string.IsNullOrWhiteSpace(patient?.MedicalConditions)
+                                    ? "No medical conditions recorded"
+                                    : patient.MedicalConditions)
+
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- MEDICATION -->
+
+                    <div class="pt-clinical-card medication">
+
+                        <div class="pt-clinical-icon">
+
+                            <i class="fa-solid fa-pills"></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <span>
+                                Medication
+                            </span>
+
+                            <strong>
+
+                                @(string.IsNullOrWhiteSpace(patient?.Medication)
+                                    ? "No medication recorded"
+                                    : patient.Medication)
+
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- =================================================
+                     DOCTOR'S CLINICAL NOTES
+                     ================================================= -->
+
+                <div class="pt-divider"></div>
+
+
+                <div class="pt-subsection-title">
+
+                    <i class="fa-solid fa-user-doctor"></i>
+
+                    <span>
+                        Doctor's Clinical Notes
+                    </span>
+
+                </div>
+
+
+                @if (!string.IsNullOrWhiteSpace(request?.ClinicalNotes))
+                {
+                    <div class="pt-notes">
+
+
+                        <div class="pt-notes-icon">
+
+                            <i class="fa-solid fa-stethoscope"></i>
+
+                        </div>
+
+
+                        <div class="pt-notes-content">
+
+                            <span class="pt-notes-title">
+                                Clinical Notes
+                            </span>
+
+                            <p>
+                                @request.ClinicalNotes
+                            </p>
+
+                        </div>
+
+
+                    </div>
+                }
+                else
+                {
+                    <div class="pt-empty">
+
+                        <i class="fa-solid fa-circle-info"></i>
+
+                        No clinical notes were provided by the doctor.
+
+                    </div>
+                }
+
+
             </div>
 
         </div>
 
 
-        <!-- =====================================================
+
+        <!-- =================================================
              TEST INFORMATION
-             ===================================================== -->
+             ================================================= -->
 
         <div class="pt-card">
 
+
             <div class="pt-card-header">
+
 
                 <div class="pt-card-header-title">
 
                     <i class="fa-solid fa-flask"></i>
 
-                    Test Information
+                    <span>
+                        Test Information
+                    </span>
 
                 </div>
 
+
                 <span>
-                    TR-@(testItem?.RequestId.ToString() ?? "N/A")
+                    TR-@testItem?.RequestId
                 </span>
+
 
             </div>
 
 
             <div class="pt-card-body">
 
+
+                <!-- LABORATORY TEST -->
+
                 <div class="pt-lab-test">
+
 
                     <div class="pt-lab-test-icon">
 
@@ -1432,155 +1821,202 @@
 
                     </div>
 
+
                     <div>
 
                         <div class="pt-lab-test-label">
-                            LABORATORY TEST
+                            Laboratory Test
                         </div>
+
 
                         <div class="pt-lab-test-name">
-                            @(testType?.Name ?? "Laboratory Test")
+
+                            @(testType?.Name
+                                ?? "Test information unavailable")
+
                         </div>
 
-                        <span class="pt-category-pill">
+
+                        <div class="pt-category-pill">
 
                             <i class="fa-solid fa-layer-group"></i>
 
-                            @(testType?.Category ?? "Not specified")
+                            @(testType?.Category
+                                ?? "Not specified")
 
-                        </span>
+                        </div>
 
                     </div>
 
                 </div>
 
 
+
+                <!-- TEST DETAILS -->
+
                 <div class="pt-test-info-grid">
 
-                    <!-- SAMPLE -->
+
+                    <!-- SAMPLE TYPE -->
 
                     <div class="pt-test-info-box sample">
 
+
                         <div class="pt-test-info-icon">
+
                             <i class="fa-solid fa-droplet"></i>
+
                         </div>
+
 
                         <span>
                             Sample Type
                         </span>
 
+
                         <strong>
-                            @(testType?.RequiredSampleType ?? "Not specified")
+
+                            @(testType?.RequiredSampleType
+                                ?? "Not specified")
+
                         </strong>
 
+
                     </div>
+
 
 
                     <!-- UNIT -->
 
                     <div class="pt-test-info-box unit">
 
+
                         <div class="pt-test-info-icon">
+
                             <i class="fa-solid fa-ruler"></i>
+
                         </div>
+
 
                         <span>
                             Unit of Measurement
                         </span>
 
+
                         <strong>
-                            @(string.IsNullOrWhiteSpace(testType?.UnitOfMeasurement)
-                                ? "Not specified"
-                                : testType.UnitOfMeasurement)
+
+                            @(testType?.UnitOfMeasurement
+                                ?? "Not specified")
+
                         </strong>
 
+
                     </div>
+
 
 
                     <!-- REFERENCE RANGE -->
 
                     <div class="pt-test-info-box reference">
 
+
                         <div class="pt-test-info-icon">
+
                             <i class="fa-solid fa-chart-line"></i>
+
                         </div>
+
 
                         <span>
                             Reference Range
                         </span>
 
+
                         <strong>
-
-                            @if (testType?.ReferenceRangeLow.HasValue == true &&
-                                 testType?.ReferenceRangeHigh.HasValue == true)
-                            {
-                                @($"{testType.ReferenceRangeLow:0.##} - {testType.ReferenceRangeHigh:0.##}")
-                            }
-                            else
-                            {
-                                @:Not specified
-                            }
-
+                            @referenceRange
                         </strong>
+
 
                     </div>
 
 
-                    <!-- TURNAROUND -->
+
+                    <!-- TURNAROUND TIME -->
 
                     <div class="pt-test-info-box time">
 
+
                         <div class="pt-test-info-icon">
+
                             <i class="fa-solid fa-clock"></i>
+
                         </div>
+
 
                         <span>
                             Turnaround Time
                         </span>
 
+
                         <strong>
-                            @(testType?.TurnaroundTimeMinutes.ToString() ?? "0") minutes
+                            @turnaroundTime
                         </strong>
 
+
                     </div>
+
 
 
                     <!-- REQUEST NUMBER -->
 
                     <div class="pt-test-info-box request">
 
+
                         <div class="pt-test-info-icon">
+
                             <i class="fa-solid fa-hashtag"></i>
+
                         </div>
+
 
                         <span>
                             Request Number
                         </span>
 
+
                         <strong>
-                            #@(testItem?.RequestId.ToString() ?? "N/A")
+                            #@testItem?.RequestId
                         </strong>
 
+
                     </div>
+
 
 
                     <!-- TEST ITEM -->
 
                     <div class="pt-test-info-box item">
 
+
                         <div class="pt-test-info-icon">
+
                             <i class="fa-solid fa-barcode"></i>
+
                         </div>
+
 
                         <span>
                             Test Item
                         </span>
 
+
                         <strong>
-                            #@(testItem?.TestRequestItemId.ToString() ?? "N/A")
+                            #@testItem?.TestRequestItemId
                         </strong>
 
+
                     </div>
+
 
                 </div>
 
@@ -1591,199 +2027,24 @@
     </div>
 
 
-    <!-- =========================================================
-         PATIENT CLINICAL INFORMATION
-         ========================================================= -->
 
-    <div class="pt-panel">
-
-        <div class="pt-panel-header">
-
-            <div>
-
-                <i class="fa-solid fa-notes-medical"></i>
-
-                Patient Clinical Information
-
-            </div>
-
-        </div>
-
-
-        <div class="pt-panel-body">
-
-            <div class="pt-clinical-grid">
-
-                <!-- ALLERGIES -->
-
-                <div class="pt-clinical-card allergy">
-
-                    <div class="pt-clinical-icon">
-
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-
-                    </div>
-
-                    <div>
-
-                        <span>
-                            Allergies
-                        </span>
-
-                        @if (string.IsNullOrWhiteSpace(patient?.Allergies))
-                        {
-                            <strong>
-                                None recorded
-                            </strong>
-                        }
-                        else
-                        {
-                            <strong>
-                                @patient.Allergies
-                            </strong>
-                        }
-
-                    </div>
-
-                </div>
-
-
-                <!-- CONDITIONS -->
-
-                <div class="pt-clinical-card condition">
-
-                    <div class="pt-clinical-icon">
-
-                        <i class="fa-solid fa-heart-pulse"></i>
-
-                    </div>
-
-                    <div>
-
-                        <span>
-                            Medical Conditions
-                        </span>
-
-                        @if (string.IsNullOrWhiteSpace(patient?.MedicalConditions))
-                        {
-                            <strong>
-                                None recorded
-                            </strong>
-                        }
-                        else
-                        {
-                            <strong>
-                                @patient.MedicalConditions
-                            </strong>
-                        }
-
-                    </div>
-
-                </div>
-
-
-                <!-- MEDICATION -->
-
-                <div class="pt-clinical-card medication">
-
-                    <div class="pt-clinical-icon">
-
-                        <i class="fa-solid fa-pills"></i>
-
-                    </div>
-
-                    <div>
-
-                        <span>
-                            Current Medication
-                        </span>
-
-                        @if (string.IsNullOrWhiteSpace(patient?.Medication))
-                        {
-                            <strong>
-                                None recorded
-                            </strong>
-                        }
-                        else
-                        {
-                            <strong>
-                                @patient.Medication
-                            </strong>
-                        }
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- =========================================================
-         DOCTOR'S CLINICAL NOTES
-         ========================================================= -->
-
-    <div class="pt-panel">
-
-        <div class="pt-panel-header">
-
-            <div>
-
-                <i class="fa-solid fa-file-medical"></i>
-
-                Doctor's Clinical Notes
-
-            </div>
-
-        </div>
-
-
-        <div class="pt-panel-body">
-
-            @if (string.IsNullOrWhiteSpace(testRequest?.ClinicalNotes))
-            {
-                <div class="pt-empty">
-
-                    <i class="fa-solid fa-file-circle-check"></i>
-
-                    No clinical notes were supplied.
-
-                </div>
-            }
-            else
-            {
-                <div class="pt-notes">
-
-                    <i class="fa-solid fa-quote-left"></i>
-
-                    <span>
-                        @testRequest.ClinicalNotes
-                    </span>
-
-                </div>
-            }
-
-        </div>
-
-    </div>
-
-
-    <!-- =========================================================
+    <!-- =====================================================
          TURNAROUND TIME
-         ========================================================= -->
+         ===================================================== -->
 
     <div class="pt-panel">
 
+
         <div class="pt-panel-header">
+
 
             <div>
 
                 <i class="fa-solid fa-clock"></i>
 
-                Turnaround Time
+                <span>
+                    Turnaround Time
+                </span>
 
             </div>
 
@@ -1791,39 +2052,34 @@
             @if (isOverdue)
             {
                 <span class="pt-header-danger">
-
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-
                     OVERDUE
-
                 </span>
             }
             else
             {
                 <span class="pt-header-success">
-
-                    <i class="fa-solid fa-circle-check"></i>
-
-                    ON TIME
-
+                    ON TRACK
                 </span>
             }
+
 
         </div>
 
 
         <div class="pt-panel-body">
 
+
             <div class="pt-turnaround-grid">
+
 
                 <div class="pt-time-card">
 
                     <span>
-                        Started
+                        Expected Turnaround
                     </span>
 
                     <strong>
-                        @FormatDate(Model.StartDateTime)
+                        @turnaroundTime
                     </strong>
 
                 </div>
@@ -1836,9 +2092,7 @@
                     </span>
 
                     <strong>
-                        @(dueDateTime.HasValue
-                            ? dueDateTime.Value.ToString("dd MMM yyyy, HH:mm")
-                            : "Not available")
+                        @dueDateTime
                     </strong>
 
                 </div>
@@ -1847,113 +2101,109 @@
                 <div class="pt-time-card">
 
                     <span>
-                        Time Remaining
+
+                        @(isOverdue
+                            ? "Status"
+                            : "Time Remaining")
+
                     </span>
 
-                    @if (isOverdue)
-                    {
-                        <strong style="color:#cf3d52;">
-
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-
-                            Overdue
-
-                        </strong>
-                    }
-                    else if (timeRemaining.HasValue)
-                    {
-                        var remaining = timeRemaining.Value;
-
-                        if (remaining.TotalSeconds <= 0)
-                        {
-                            <strong style="color:#cf3d52;">
-                                Overdue
-                            </strong>
-                        }
-                        else
-                        {
-                            <strong style="color:#087a70;">
-
-                                @($"{remaining.Days}d {remaining.Hours}h {remaining.Minutes}m")
-
-                            </strong>
-                        }
-                    }
-                    else
-                    {
-                        <strong>
-                            Not available
-                        </strong>
-                    }
-
-                </div>
-
-            </div>
-
-
-            <div class="pt-progress-section">
-
-                <div class="pt-progress-heading">
-
-                    <span>
-                        Turnaround Progress
-                    </span>
 
                     <strong>
-                        @progress%
+
+                        @(isOverdue
+                            ? "OVERDUE"
+                            : timeRemaining)
+
                     </strong>
 
                 </div>
 
+
+            </div>
+
+
+            <!-- PROGRESS -->
+
+            <div class="pt-progress-section">
+
+
+                <div class="pt-progress-heading">
+
+                    <span>
+                        Processing Progress
+                    </span>
+
+                    <strong>
+                        @progressPercentage%
+                    </strong>
+
+                </div>
+
+
                 <div class="pt-progress-track">
 
                     <div class="pt-progress-fill"
-                         style="width:@progress%;">
+                         style="width:@progressPercentage%;">
                     </div>
 
                 </div>
 
+
                 <div class="pt-progress-caption">
 
-                    @progress% of the allocated turnaround time has elapsed.
+                    Current laboratory test progress
 
                 </div>
 
+
             </div>
+
 
         </div>
 
     </div>
 
 
-    <!-- =========================================================
+
+    <!-- =====================================================
          TEST PROGRESS
-         ========================================================= -->
+         ===================================================== -->
 
     <div class="pt-panel">
 
+
         <div class="pt-panel-header">
+
 
             <div>
 
                 <i class="fa-solid fa-list-check"></i>
 
-                Test Progress
+                <span>
+                    Test Progress
+                </span>
 
             </div>
 
+
             <span class="pt-progress-badge">
 
-                @progress% Complete
+                @progressPercentage%
 
             </span>
+
 
         </div>
 
 
         <div class="pt-panel-body">
 
+
+            <!-- CURRENT STATUS -->
+
             <div class="pt-current-step-notice">
+
 
                 <div class="pt-current-step-icon">
 
@@ -1961,282 +2211,449 @@
 
                 </div>
 
+
                 <div>
 
                     <strong>
-                        Currently processing: @(testType?.Name ?? "Laboratory Test")
+                        Current Status: @status
                     </strong>
 
                     <span>
-
-                        The test is currently at the
-                        <b>@status</b>
-                        stage.
-
+                        The laboratory test is currently at this stage of processing.
                     </span>
 
                 </div>
 
+
             </div>
 
 
-            <div class="pt-stepper-wrapper">
+
+            <!-- STEPPER -->
+
+            <div style="overflow-x:auto;">
+
 
                 <div class="pt-stepper">
 
-                    @for (var i = 0; i < steps.Length; i++)
-                    {
-                        var isDone = i < statusIndex;
-                        var isCurrent = i == statusIndex;
 
-                        <div class="pt-step @(isDone ? "done" : "") @(isCurrent ? "current" : "")">
+                    <!-- SUBMITTED -->
 
-                            <div class="pt-step-circle">
-
-                                @if (isDone)
-                                {
-                                    <i class="fa-solid fa-check"></i>
-                                }
-                                else if (isCurrent)
-                                {
-                                    <i class="fa-solid fa-flask"></i>
-                                }
-                                else
-                                {
-                                    <span>
-                                        @(i + 1)
-                                    </span>
-                                }
-
-                            </div>
+                    <div class="pt-step
+                        @(statusIndex >= 0 ? "done" : "")
+                        @(statusIndex == 0 ? "current" : "")">
 
 
-                            <span class="pt-step-label">
+                        <div class="pt-step-circle">
 
-                                @steps[i]
-
-                                @if (isCurrent)
-                                {
-                                    <small>
-                                        CURRENT
-                                    </small>
-                                }
-
-                            </span>
+                            @if (statusIndex > 0)
+                            {
+                                <i class="fa-solid fa-check"></i>
+                            }
+                            else
+                            {
+                                <span>1</span>
+                            }
 
                         </div>
-                    }
+
+
+                        <span class="pt-step-label">
+
+                            Submitted
+
+                            @if (statusIndex == 0)
+                            {
+                                <small>Current</small>
+                            }
+
+                        </span>
+
+
+                    </div>
+
+
+
+                    <!-- SAMPLES RECEIVED -->
+
+                    <div class="pt-step
+                        @(statusIndex >= 1 ? "done" : "")
+                        @(statusIndex == 1 ? "current" : "")">
+
+
+                        <div class="pt-step-circle">
+
+                            @if (statusIndex > 1)
+                            {
+                                <i class="fa-solid fa-check"></i>
+                            }
+                            else
+                            {
+                                <span>2</span>
+                            }
+
+                        </div>
+
+
+                        <span class="pt-step-label">
+
+                            Samples Received
+
+                            @if (statusIndex == 1)
+                            {
+                                <small>Current</small>
+                            }
+
+                        </span>
+
+
+                    </div>
+
+
+
+                    <!-- IN PROGRESS -->
+
+                    <div class="pt-step
+                        @(statusIndex >= 2 ? "done" : "")
+                        @(statusIndex == 2 ? "current" : "")">
+
+
+                        <div class="pt-step-circle">
+
+                            @if (statusIndex > 2)
+                            {
+                                <i class="fa-solid fa-check"></i>
+                            }
+                            else
+                            {
+                                <span>3</span>
+                            }
+
+                        </div>
+
+
+                        <span class="pt-step-label">
+
+                            In Progress
+
+                            @if (statusIndex == 2)
+                            {
+                                <small>Current</small>
+                            }
+
+                        </span>
+
+
+                    </div>
+
+
+
+                    <!-- COMPLETED -->
+
+                    <div class="pt-step
+                        @(statusIndex >= 3 ? "done" : "")
+                        @(statusIndex == 3 ? "current" : "")">
+
+
+                        <div class="pt-step-circle">
+
+                            @if (statusIndex > 3)
+                            {
+                                <i class="fa-solid fa-check"></i>
+                            }
+                            else
+                            {
+                                <span>4</span>
+                            }
+
+                        </div>
+
+
+                        <span class="pt-step-label">
+
+                            Completed
+
+                            @if (statusIndex == 3)
+                            {
+                                <small>Current</small>
+                            }
+
+                        </span>
+
+
+                    </div>
+
+
+
+                    <!-- VERIFIED -->
+
+                    <div class="pt-step
+                        @(statusIndex >= 4 ? "done" : "")
+                        @(statusIndex == 4 ? "current" : "")">
+
+
+                        <div class="pt-step-circle">
+
+                            @if (statusIndex >= 4)
+                            {
+                                <i class="fa-solid fa-check"></i>
+                            }
+                            else
+                            {
+                                <span>5</span>
+                            }
+
+                        </div>
+
+
+                        <span class="pt-step-label">
+
+                            Verified
+
+                            @if (statusIndex == 4)
+                            {
+                                <small>Current</small>
+                            }
+
+                        </span>
+
+
+                    </div>
+
 
                 </div>
 
             </div>
+
 
         </div>
 
     </div>
 
 
-    <!-- =========================================================
+
+    <!-- =====================================================
          CONSUMABLES
-         ========================================================= -->
+         ===================================================== -->
 
     <div class="pt-panel">
 
+
         <div class="pt-panel-header">
+
 
             <div>
 
                 <i class="fa-solid fa-boxes-stacked"></i>
 
-                Consumables Used
+                <span>
+                    Consumables
+                </span>
 
             </div>
+
 
             <span class="pt-consumable-rule">
-
-                Warning below 150
-
+                Required for test
             </span>
 
-        </div>
-
-
-        <div class="pt-table-wrapper">
-
-            <table class="pt-table">
-
-                <thead>
-
-                    <tr>
-
-                        <th>
-                            Consumable
-                        </th>
-
-                        <th>
-                            Description
-                        </th>
-
-                        <th>
-                            Quantity Used
-                        </th>
-
-                        <th>
-                            Remaining Stock
-                        </th>
-
-                    </tr>
-
-                </thead>
-
-
-                <tbody>
-
-                    @if (consumables != null && consumables.Any())
-                    {
-                        foreach (var item in consumables)
-                        {
-                            <tr>
-
-                                <td>
-
-                                    <strong>
-                                        @(item.Consumable?.Name ?? "Unknown consumable")
-                                    </strong>
-
-                                </td>
-
-
-                                <td>
-                                    @(item.Consumable?.Description ?? "—")
-                                </td>
-
-
-                                <td>
-                                    @item.QuantityRequired
-                                </td>
-
-
-                                <td>
-
-                                    @if (item.Consumable != null)
-                                    {
-                                        var stockLevel = Convert.ToInt32(item.Consumable.StockLevel);
-
-                                        if (stockLevel < 150)
-                                        {
-                                            <span class="pt-stock low">
-
-                                                <i class="fa-solid fa-triangle-exclamation"></i>
-
-                                                @stockLevel
-
-                                                <small>
-                                                    LOW STOCK
-                                                </small>
-
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span class="pt-stock good">
-
-                                                <i class="fa-solid fa-circle-check"></i>
-
-                                                @stockLevel
-
-                                                <small>
-                                                    STOCK OK
-                                                </small>
-
-                                            </span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span>
-                                            —
-                                        </span>
-                                    }
-
-                                </td>
-
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr>
-
-                            <td colspan="4"
-                                class="pt-no-data">
-
-                                <i class="fa-solid fa-box-open"></i>
-
-                                No consumables recorded for this test.
-
-                            </td>
-
-                        </tr>
-                    }
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-
-    <!-- =========================================================
-         ACTIVITY SUMMARY
-         ========================================================= -->
-
-    <div class="pt-panel">
-
-        <div class="pt-panel-header">
-
-            <div>
-
-                <i class="fa-solid fa-clock-rotate-left"></i>
-
-                Activity Summary
-
-            </div>
 
         </div>
 
 
         <div class="pt-panel-body">
 
+
+            @if (consumables.Any())
+            {
+
+                <div class="pt-table-wrapper">
+
+
+                    <table class="pt-table">
+
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Consumable
+                                </th>
+
+                                <th>
+                                    Quantity Required
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+
+                            @foreach (var consumable in consumables)
+                            {
+
+                                <tr>
+
+
+                                    <td>
+
+                                        <strong>
+
+                                            <i class="fa-solid fa-vial"></i>
+
+                                            @(consumable.Consumable?.Name
+                                                ?? "Consumable")
+
+                                        </strong>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        @consumable.QuantityRequired
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <span class="pt-stock good">
+
+                                            <i class="fa-solid fa-circle-check"></i>
+
+                                            Available
+
+                                        </span>
+
+                                    </td>
+
+
+                                </tr>
+
+                            }
+
+
+                        </tbody>
+
+
+                    </table>
+
+
+                </div>
+
+            }
+            else
+            {
+
+                <div class="pt-no-data">
+
+                    <i class="fa-solid fa-box-open"></i>
+
+                    No consumables have been assigned to this test.
+
+                </div>
+
+            }
+
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ACTIVITY SUMMARY
+         ===================================================== -->
+
+    <div class="pt-panel">
+
+
+        <div class="pt-panel-header">
+
+
+            <div>
+
+                <i class="fa-solid fa-chart-line"></i>
+
+                <span>
+                    Activity Summary
+                </span>
+
+            </div>
+
+
+        </div>
+
+
+        <div class="pt-panel-body">
+
+
             <div class="pt-activity-grid">
 
+
+                <!-- REQUEST -->
+
                 <div>
 
                     <span>
-                        Test Started
+                        Request
                     </span>
 
                     <strong>
-                        @FormatDate(Model.StartDateTime)
+                        #@testItem?.RequestId
                     </strong>
 
                 </div>
 
 
+
+                <!-- TEST ITEM -->
+
                 <div>
 
                     <span>
-                        Technician
+                        Test Item
                     </span>
 
                     <strong>
-                        @(Model.AssignedTechnician?.FullName ?? "Not available")
+                        #@testItem?.TestRequestItemId
                     </strong>
 
                 </div>
 
+
+
+                <!-- STARTED -->
+
+                <div>
+
+                    <span>
+                        Started
+                    </span>
+
+                    <strong>
+
+                        @(testItem?.StartDateTime != null
+                            ? testItem.StartDateTime.Value.ToString("dd MMM yyyy HH:mm")
+                            : "Not started")
+
+                    </strong>
+
+                </div>
+
+
+
+                <!-- CURRENT STATUS -->
 
                 <div>
 
@@ -2248,78 +2665,64 @@
 
                         <span></span>
 
-                        @Model.Status
+                        @status
 
                     </strong>
 
                 </div>
 
-
-                <div>
-
-                    <span>
-                        Expected Completion
-                    </span>
-
-                    <strong>
-                        @(dueDateTime.HasValue
-                            ? dueDateTime.Value.ToString("dd MMM yyyy, HH:mm")
-                            : "Not available")
-                    </strong>
-
-                </div>
 
             </div>
+
 
         </div>
 
     </div>
 
 
-    <!-- =========================================================
-         ACTIONS
-         ========================================================= -->
+
+    <!-- =====================================================
+         ACTION BUTTONS
+         ===================================================== -->
 
     <div class="pt-actions">
 
-        <a asp-action="InProgress"
+
+        <a asp-controller="AvailableTests"
+           asp-action="InProgress"
            class="pt-btn pt-btn-back">
 
             <i class="fa-solid fa-arrow-left"></i>
 
-            Back to In Progress
+            Back to Tests In Progress
 
         </a>
 
 
-        <div class="pt-actions-right">
+        @if (testItem != null)
+        {
 
-            <form asp-action="CompleteTest"
-                  method="post"
-                  class="pt-complete-form">
-
-                @Html.AntiForgeryToken()
-
-                <input type="hidden"
-                       name="id"
-                       value="@Model.TestRequestItemId" />
-
-            </form>
+            <div class="pt-actions-right">
 
 
-            <a asp-controller="CaptureResults"
-               asp-action="Capture"
-               asp-route-id="@Model.TestRequestItemId"
-               class="pt-btn pt-btn-results">
+                <a asp-controller="CaptureResults"
+                   asp-action="Capture"
+                   asp-route-id="@testItem.TestRequestItemId"
+                   class="pt-btn pt-btn-results">
 
-                <i class="fa-solid fa-vial-circle-check"></i>
+                    <i class="fa-solid fa-pen-to-square"></i>
 
-                Capture Results
+                    Capture Results
 
-            </a>
+                </a>
 
-        </div>
+
+            </div>
+
+        }
+
 
     </div>
+
 
 </div>

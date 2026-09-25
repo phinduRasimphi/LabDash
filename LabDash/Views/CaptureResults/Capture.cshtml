@@ -12,26 +12,18 @@
     var urgency = test?.TestRequest?.Urgency;
     var status = test?.Status;
 
-    var urgencyBadgeClass =
-        urgency == "STAT" ? "badge-stat" :
-        urgency == "Urgent" ? "badge-urgent" :
-        "badge-routine";
-
-    var statusBadgeClass =
-        status == "Completed" ? "badge-completed" :
-        status == "In Progress" ? "badge-progress" :
-        "badge-routine";
-
     var hasDefinedRange = !string.IsNullOrWhiteSpace(Model.ReferenceRange);
 
-    /*
-     * Process Test style:
-     * 1 = Submitted
-     * 2 = Samples Received
-     * 3 = In Progress
-     * 4 = Completed
-     * 5 = Verified
-     */
+    var urgencyClass =
+        urgency == "STAT" ? "urgency-stat" :
+        urgency == "Urgent" ? "urgency-urgent" :
+        "urgency-routine";
+
+    var statusClass =
+        status == "Completed" ? "status-completed" :
+        status == "In Progress" ? "status-progress" :
+        "status-routine";
+
     var currentStep = status switch
     {
         "Submitted" => 1,
@@ -41,6 +33,11 @@
         "Verified" => 5,
         _ => 3
     };
+
+    var testName = test?.TestType?.Name ?? "Laboratory Test";
+    var category = test?.TestType?.Category ?? "Not specified";
+    var sampleType = test?.TestType?.RequiredSampleType ?? "Not specified";
+    var unit = test?.TestType?.UnitOfMeasurement ?? "";
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,42 +51,32 @@
 
 <style>
 
+    /* =========================================================
+           COLOUR SYSTEM
+           ========================================================= */
+
     :root {
-        --teal-950: #003b35;
-        --teal-900: #004d45;
-        --teal-800: #005b52;
-        --teal-700: #00695c;
-        --teal-600: #00796b;
-        --teal-500: #009688;
-        --teal-400: #26a69a;
-
-        --teal-soft: #eef8f7;
-        --teal-soft-2: #e5f4f2;
-
-        --ink: #173a3a;
-        --muted: #66807d;
-
-        --line: #dfeceb;
+        --teal: #008f83;
+        --teal-dark: #006f67;
+        --teal-deep: #005c55;
+        --teal-light: #e8f7f5;
+        --teal-soft: #f1faf8;
+        --teal-border: #ccebe7;
+        --teal-bright: #00a99a;
+        --text: #173a3a;
+        --muted: #718785;
+        --border: #dcebea;
         --white: #ffffff;
-
         --danger: #dc3545;
         --danger-soft: #fff1f2;
-
-        --warning: #c98700;
-        --warning-soft: #fff8e8;
-
-        --info: #0d6efd;
-        --info-soft: #edf4ff;
-
+        --warning: #c58a00;
+        --warning-soft: #fff7df;
         --success: #198754;
-        --success-soft: #edf9f2;
-
-        --shadow-sm: 0 5px 18px rgba(0, 69, 61, .07);
-        --shadow-md: 0 12px 30px rgba(0, 69, 61, .10);
-
-        --radius-lg: 20px;
-        --radius-md: 14px;
-        --radius-sm: 10px;
+        --success-soft: #eaf8f0;
+        --info: #2785a8;
+        --info-soft: #edf7fb;
+        --shadow-sm: 0 5px 18px rgba(0, 111, 103, .07);
+        --shadow-md: 0 10px 28px rgba(0, 111, 103, .11);
     }
 
     * {
@@ -97,145 +84,139 @@
     }
 
     body {
-        background: #f4faf9;
-        color: var(--ink);
-        font-family: 'Inter', 'Segoe UI', sans-serif;
-    }
-
-    .capture-page {
-        max-width: 1480px;
-        margin: 30px auto 50px;
-        padding: 0 18px;
+        background: #f3faf9;
+        color: var(--text);
+        font-family: 'Inter', sans-serif;
     }
 
     /* =========================================================
-       PAGE HEADER
-       ========================================================= */
+           MAIN PAGE
+           ========================================================= */
+
+    .capture-page {
+        width: 100%;
+        max-width: 1480px;
+        margin: 25px auto 50px;
+        padding: 0 22px;
+    }
+
+    /* =========================================================
+           HEADER
+           ========================================================= */
 
     .capture-header {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(135deg, var(--teal-500), var(--teal-950));
-        border-radius: var(--radius-lg);
-        padding: 30px 34px;
+        background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+        border-radius: 20px;
+        padding: 27px 31px;
         color: white;
         box-shadow: var(--shadow-md);
-        margin-bottom: 22px;
+        margin-bottom: 20px;
     }
 
-    .capture-header::before {
-        content: "";
-        position: absolute;
-        width: 240px;
-        height: 240px;
-        right: -80px;
-        top: -110px;
-        border-radius: 50%;
-        background: rgba(255,255,255,.07);
-    }
-
-    .capture-header::after {
-        content: "";
-        position: absolute;
-        width: 150px;
-        height: 150px;
-        right: 120px;
-        bottom: -100px;
-        border-radius: 50%;
-        background: rgba(255,255,255,.04);
-    }
+        .capture-header::after {
+            content: "";
+            position: absolute;
+            width: 230px;
+            height: 230px;
+            right: -80px;
+            top: -110px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.07);
+        }
 
     .header-content {
         position: relative;
         z-index: 2;
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        gap: 25px;
+        justify-content: space-between;
+        gap: 20px;
     }
 
     .header-title {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 15px;
     }
 
     .header-icon {
-        width: 62px;
-        height: 62px;
+        width: 58px;
+        height: 58px;
         border-radius: 16px;
         background: rgba(255,255,255,.14);
+        border: 1px solid rgba(255,255,255,.18);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 27px;
-        border: 1px solid rgba(255,255,255,.12);
+        font-size: 25px;
     }
 
     .capture-header h1 {
         margin: 0;
         font-family: 'Poppins', sans-serif;
-        font-size: 29px;
+        font-size: 28px;
         font-weight: 800;
-        letter-spacing: -.02em;
     }
 
     .capture-header p {
-        margin: 5px 0 0;
-        font-size: 14px;
-        opacity: .88;
+        margin: 4px 0 0;
+        font-size: 13px;
+        opacity: .9;
     }
 
-    .header-test-badge {
+    .header-test {
+        position: relative;
+        z-index: 3;
+        min-width: 230px;
+        padding: 12px 17px;
+        border-radius: 13px;
         background: rgba(255,255,255,.13);
         border: 1px solid rgba(255,255,255,.18);
-        border-radius: 14px;
-        padding: 14px 18px;
-        min-width: 230px;
-        text-align: right;
     }
 
-    .header-test-badge small {
-        display: block;
-        opacity: .75;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        margin-bottom: 3px;
-    }
+        .header-test small {
+            display: block;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            opacity: .75;
+            margin-bottom: 3px;
+        }
 
-    .header-test-badge strong {
-        font-size: 17px;
-    }
+        .header-test strong {
+            font-size: 15px;
+        }
 
     /* =========================================================
-       PROCESS STEPPER
-       ========================================================= */
+           WORKFLOW
+           ========================================================= */
 
     .workflow-card {
         background: white;
-        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        border-radius: 18px;
         box-shadow: var(--shadow-sm);
-        padding: 22px 25px;
-        margin-bottom: 22px;
-        border: 1px solid var(--line);
+        padding: 20px 24px;
+        margin-bottom: 20px;
     }
 
     .workflow-title {
         display: flex;
         align-items: center;
-        gap: 9px;
-        font-size: 14px;
+        gap: 8px;
+        color: var(--teal-dark);
+        font-size: 13px;
         font-weight: 800;
-        color: var(--teal-800);
-        margin-bottom: 22px;
         text-transform: uppercase;
         letter-spacing: .04em;
+        margin-bottom: 18px;
     }
 
-    .workflow-title i {
-        color: var(--teal-500);
-    }
+        .workflow-title i {
+            color: var(--teal);
+        }
 
     .workflow {
         display: flex;
@@ -250,31 +231,30 @@
         position: relative;
     }
 
-    .workflow-step:last-child {
-        flex: 0 0 auto;
-    }
+        .workflow-step:last-child {
+            flex: 0 0 auto;
+        }
 
     .step-circle {
-        width: 40px;
-        height: 40px;
+        width: 39px;
+        height: 39px;
+        min-width: 39px;
         border-radius: 50%;
         background: #edf2f1;
-        color: #81918f;
+        color: #879795;
+        border: 3px solid white;
+        box-shadow: 0 0 0 1px #dce6e4;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 12px;
         font-weight: 800;
-        font-size: 13px;
-        border: 3px solid white;
-        box-shadow: 0 0 0 1px #dbe6e4;
-        position: relative;
         z-index: 2;
-        flex-shrink: 0;
     }
 
     .step-label {
-        margin-left: 9px;
-        font-size: 11px;
+        margin-left: 8px;
+        font-size: 10px;
         font-weight: 700;
         color: #82908e;
         white-space: nowrap;
@@ -282,55 +262,56 @@
 
     .step-line {
         height: 3px;
-        background: #e4eceb;
         flex: 1;
         margin: 0 9px;
+        background: #e3ecea;
         border-radius: 20px;
     }
 
     .workflow-step.completed .step-circle {
-        background: var(--teal-600);
+        background: var(--teal);
         color: white;
-        box-shadow: 0 0 0 1px var(--teal-600);
+        box-shadow: 0 0 0 1px var(--teal);
     }
 
     .workflow-step.completed .step-label {
-        color: var(--teal-700);
+        color: var(--teal-dark);
     }
 
     .workflow-step.current .step-circle {
-        background: var(--teal-500);
+        background: var(--teal-bright);
         color: white;
-        box-shadow: 0 0 0 5px rgba(0,150,136,.13);
+        box-shadow: 0 0 0 5px rgba(0,143,131,.13);
     }
 
     .workflow-step.current .step-label {
-        color: var(--teal-800);
+        color: var(--teal-dark);
         font-weight: 800;
     }
 
     .workflow-step.completed + .workflow-step .step-line {
-        background: var(--teal-500);
+        background: var(--teal);
     }
 
     /* =========================================================
-       RETURNED FOR REVIEW
-       ========================================================= */
+           REVIEW ALERT
+           ========================================================= */
 
     .review-alert {
         background: var(--warning-soft);
-        border: 1px solid #f1d795;
+        border: 1px solid #efdca2;
         border-left: 5px solid var(--warning);
-        border-radius: var(--radius-md);
-        padding: 17px 20px;
-        margin-bottom: 22px;
+        border-radius: 13px;
+        padding: 16px 18px;
+        margin-bottom: 20px;
     }
 
     .review-alert-header {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 9px;
         color: #765300;
+        font-size: 13px;
         font-weight: 800;
         margin-bottom: 5px;
     }
@@ -338,537 +319,729 @@
     .review-alert p {
         margin: 0;
         color: #6f5a2d;
-        font-size: 14px;
-        line-height: 1.6;
+        font-size: 13px;
+        line-height: 1.5;
     }
 
     /* =========================================================
-       MAIN INFORMATION CARDS
-       ========================================================= */
+           IMPORTANT:
+           PATIENT LEFT / TEST RIGHT
+           CSS GRID IS USED INSTEAD OF BOOTSTRAP ROW/COLUMNS
+           ========================================================= */
 
-    .info-card {
-        background: white;
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        box-shadow: var(--shadow-sm);
-        border: 1px solid var(--line);
-        height: 100%;
-        margin-bottom: 22px;
+    .information-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 20px;
+        width: 100%;
+        margin-bottom: 20px;
     }
 
-    .card-header-custom {
-        background: linear-gradient(135deg, var(--teal-700), var(--teal-600));
+    .information-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        min-width: 0;
+    }
+
+    /* =========================================================
+           CARD HEADERS
+           ========================================================= */
+
+    .information-card-header {
+        background: var(--teal);
         color: white;
-        padding: 15px 21px;
+        min-height: 54px;
+        padding: 15px 20px;
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: 10px;
-        font-size: 15px;
+    }
+
+    .information-card-header-left {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 14px;
         font-weight: 800;
     }
 
-    .card-header-custom i {
-        font-size: 15px;
+        .information-card-header-left i {
+            font-size: 14px;
+        }
+
+    .header-request-number {
+        font-size: 10px;
+        font-weight: 800;
+        background: rgba(255,255,255,.15);
+        border-radius: 20px;
+        padding: 6px 10px;
     }
 
-    .card-body-custom {
-        padding: 22px;
+    .information-card-body {
+        padding: 20px;
     }
 
     /* =========================================================
-       PATIENT DETAILS
-       ========================================================= */
+           PATIENT
+           ========================================================= */
 
     .patient-identity {
         display: flex;
         align-items: center;
         gap: 14px;
-        padding-bottom: 18px;
-        border-bottom: 1px solid var(--line);
-        margin-bottom: 18px;
+        padding-bottom: 17px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 16px;
     }
 
     .patient-avatar {
-        width: 52px;
-        height: 52px;
+        width: 53px;
+        height: 53px;
+        min-width: 53px;
         border-radius: 15px;
-        background: var(--teal-soft-2);
-        color: var(--teal-700);
+        background: var(--teal-light);
+        color: var(--teal);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 22px;
-        flex-shrink: 0;
+        font-size: 21px;
     }
 
-    .patient-identity h4 {
+    .patient-name {
         margin: 0 0 3px;
+        font-family: 'Poppins', sans-serif;
         font-size: 18px;
         font-weight: 800;
-        color: var(--ink);
+        color: var(--text);
     }
 
-    .patient-identity span {
-        font-size: 12px;
+    .patient-subtitle {
         color: var(--muted);
+        font-size: 11px;
     }
 
-    .detail-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 15px;
-        padding: 9px 0;
-        border-bottom: 1px solid #f0f4f3;
-        font-size: 13.5px;
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 25px;
     }
 
-    .detail-row:last-child {
-        border-bottom: none;
+    .detail-item {
+        padding: 11px 0;
+        border-bottom: 1px solid #edf3f2;
+        min-width: 0;
     }
 
     .detail-label {
-        color: var(--muted);
-        font-weight: 600;
+        display: block;
+        color: #78908d;
+        font-size: 9px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        margin-bottom: 4px;
     }
 
     .detail-value {
-        color: var(--ink);
-        font-weight: 700;
-        text-align: right;
-    }
-
-    /* =========================================================
-       ALERT INFORMATION
-       ========================================================= */
-
-    .clinical-alert {
-        border-radius: 12px;
-        padding: 14px 16px;
-        margin-top: 14px;
-    }
-
-    .clinical-alert-title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        color: var(--text);
         font-size: 12px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin-bottom: 7px;
-    }
-
-    .clinical-alert p {
-        margin: 0;
-        font-size: 13.5px;
-        line-height: 1.55;
-    }
-
-    .alert-allergy {
-        background: var(--danger-soft);
-        border-left: 4px solid var(--danger);
-    }
-
-    .alert-allergy .clinical-alert-title {
-        color: var(--danger);
-    }
-
-    .alert-medical {
-        background: var(--warning-soft);
-        border-left: 4px solid var(--warning);
-    }
-
-    .alert-medical .clinical-alert-title {
-        color: var(--warning);
-    }
-
-    .alert-medication {
-        background: var(--info-soft);
-        border-left: 4px solid var(--info);
-    }
-
-    .alert-medication .clinical-alert-title {
-        color: var(--info);
+        font-weight: 700;
+        word-break: break-word;
     }
 
     /* =========================================================
-       TEST INFORMATION
-       ========================================================= */
+           TEST INFORMATION - HIGHLIGHTED
+           ========================================================= */
 
-    .test-name-box {
-        background: var(--teal-soft);
-        border: 1px solid #d5ece8;
-        border-radius: 13px;
+    .test-highlight {
+        background: var(--teal-light);
+        border: 1px solid var(--teal-border);
+        border-radius: 14px;
         padding: 16px;
         margin-bottom: 17px;
     }
 
-    .test-name-box small {
-        display: block;
-        text-transform: uppercase;
-        font-size: 10px;
+    .test-highlight-top {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+    }
+
+    .test-highlight-icon {
+        width: 52px;
+        height: 52px;
+        min-width: 52px;
+        border-radius: 14px;
+        background: white;
+        border: 1px solid var(--teal-border);
+        color: var(--teal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .test-highlight-label {
+        color: var(--teal-dark);
+        font-size: 9px;
         font-weight: 800;
+        text-transform: uppercase;
         letter-spacing: .08em;
-        color: var(--muted);
-        margin-bottom: 4px;
+        margin-bottom: 3px;
     }
 
-    .test-name-box strong {
-        font-size: 19px;
-        color: var(--teal-800);
+    .test-highlight-name {
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        color: var(--teal-dark);
+        font-size: 20px;
+        font-weight: 800;
     }
 
-    .badge-status {
+    .category-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: white;
+        border: 1px solid var(--teal-border);
+        color: var(--teal-dark);
+        border-radius: 20px;
+        padding: 5px 9px;
+        margin-top: 8px;
+        font-size: 9px;
+        font-weight: 800;
+    }
+
+    /* =========================================================
+           SAMPLE TYPE - STRONGLY HIGHLIGHTED
+           ========================================================= */
+
+    .sample-highlight {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 17px;
+    }
+
+    .sample-box,
+    .unit-box {
+        min-height: 82px;
+        border-radius: 14px;
+        padding: 14px;
+        border: 1px solid var(--teal-border);
+        background: #eff9f7;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+    }
+
+    .sample-box {
+        background: linear-gradient(135deg, #e5f7f4, #f4fbfa);
+        border: 2px solid #bde4df;
+    }
+
+    .sample-box-icon,
+    .unit-box-icon {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 11px;
+        background: white;
+        color: var(--teal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+
+    .sample-label,
+    .unit-label {
+        display: block;
+        color: #71908b;
+        font-size: 8px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        margin-bottom: 3px;
+    }
+
+    .sample-value,
+    .unit-value {
+        display: block;
+        color: var(--teal-dark);
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    /* =========================================================
+           TEST DETAILS
+           ========================================================= */
+
+    .test-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .test-detail-box {
+        background: #f7fbfa;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+    }
+
+    .test-detail-label {
+        display: block;
+        color: #78908d;
+        font-size: 8px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin-bottom: 5px;
+    }
+
+    .test-detail-value {
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    /* =========================================================
+           BADGES
+           ========================================================= */
+
+    .urgency-badge,
+    .status-badge {
         display: inline-flex;
         align-items: center;
         gap: 5px;
         border-radius: 20px;
-        padding: 5px 11px;
-        font-size: 11.5px;
+        padding: 6px 10px;
+        font-size: 9px;
         font-weight: 800;
     }
 
-    .badge-stat {
+    .urgency-stat {
         background: var(--danger-soft);
         color: var(--danger);
     }
 
-    .badge-urgent {
+    .urgency-urgent {
         background: var(--warning-soft);
-        color: var(--warning);
+        color: #9a6c00;
     }
 
-    .badge-routine {
-        background: #eef2f2;
-        color: #657472;
+    .urgency-routine {
+        background: var(--teal-light);
+        color: var(--teal-dark);
     }
 
-    .badge-progress {
-        background: var(--info-soft);
-        color: var(--info);
+    .status-progress {
+        background: var(--teal-light);
+        color: var(--teal-dark);
     }
 
-    .badge-completed {
+    .status-completed {
         background: var(--success-soft);
         color: var(--success);
     }
 
-    /* =========================================================
-       CLINICAL NOTES
-       ========================================================= */
-
-    .clinical-notes {
-        background: #f8fbfb;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 15px;
-        margin-top: 18px;
+    .status-routine {
+        background: #edf4f3;
+        color: #607572;
     }
 
-    .clinical-notes-title {
-        color: var(--teal-700);
-        font-size: 12px;
+    /* =========================================================
+           DOCTOR CLINICAL NOTES
+           ========================================================= */
+
+    .clinical-notes {
+        background: #f0faf8;
+        border: 1px solid var(--teal-border);
+        border-left: 5px solid var(--teal);
+        border-radius: 13px;
+        padding: 15px 16px;
+        margin-top: 5px;
+    }
+
+    .clinical-notes-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--teal-dark);
+        font-size: 11px;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: .04em;
-        margin-bottom: 7px;
+        margin-bottom: 8px;
     }
+
+        .clinical-notes-header i {
+            color: var(--teal);
+        }
 
     .clinical-notes p {
         margin: 0;
-        font-size: 13.5px;
+        color: var(--text);
+        font-size: 12px;
         line-height: 1.6;
-        color: var(--ink);
+    }
+
+    .no-notes {
+        color: var(--muted) !important;
+        font-style: italic;
     }
 
     /* =========================================================
-       RESULT CARD
-       ========================================================= */
+           PATIENT CLINICAL ALERTS
+           ========================================================= */
+
+    .patient-alerts {
+        margin-top: 16px;
+    }
+
+    .patient-alert {
+        border-radius: 11px;
+        padding: 12px 14px;
+        margin-top: 10px;
+    }
+
+    .patient-alert-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+
+    .patient-alert p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .allergy-alert {
+        background: #fff1f2;
+        border-left: 4px solid var(--danger);
+    }
+
+        .allergy-alert .patient-alert-title {
+            color: var(--danger);
+        }
+
+    .medical-alert {
+        background: #fff8e7;
+        border-left: 4px solid var(--warning);
+    }
+
+        .medical-alert .patient-alert-title {
+            color: #9a6c00;
+        }
+
+    .medication-alert {
+        background: #eef8fb;
+        border-left: 4px solid var(--info);
+    }
+
+        .medication-alert .patient-alert-title {
+            color: var(--info);
+        }
+
+    /* =========================================================
+           RESULT CARD
+           ========================================================= */
 
     .result-card {
         background: white;
-        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        border-radius: 18px;
         box-shadow: var(--shadow-md);
-        border: 1px solid var(--line);
         overflow: hidden;
-        margin-top: 2px;
     }
 
     .result-header {
-        background: linear-gradient(135deg, var(--teal-800), var(--teal-950));
+        background: var(--teal);
         color: white;
-        padding: 19px 24px;
+        padding: 17px 22px;
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        justify-content: space-between;
         gap: 15px;
     }
 
-    .result-header-title {
+    .result-title {
         display: flex;
         align-items: center;
-        gap: 11px;
-        font-size: 17px;
+        gap: 9px;
+        font-size: 15px;
         font-weight: 800;
     }
 
-    .result-header-title i {
-        color: #8be1d6;
-    }
-
-    .result-header-status {
-        background: rgba(255,255,255,.12);
-        border: 1px solid rgba(255,255,255,.15);
+    .result-status {
+        background: rgba(255,255,255,.14);
+        border: 1px solid rgba(255,255,255,.2);
         border-radius: 20px;
-        padding: 6px 12px;
-        font-size: 11px;
-        font-weight: 700;
+        padding: 6px 11px;
+        font-size: 9px;
+        font-weight: 800;
     }
 
     .result-body {
-        padding: 28px;
+        padding: 25px;
     }
 
     /* =========================================================
-       FORM
-       ========================================================= */
+           FORM
+           ========================================================= */
 
     .form-section-title {
         display: flex;
         align-items: center;
-        gap: 9px;
-        color: var(--teal-800);
-        font-size: 15px;
+        gap: 8px;
+        color: var(--teal-dark);
+        font-size: 14px;
         font-weight: 800;
         margin-bottom: 18px;
     }
 
-    .form-section-title i {
-        color: var(--teal-500);
-    }
+        .form-section-title i {
+            color: var(--teal);
+        }
 
-    .form-label.fw-bold {
-        color: var(--ink);
-        font-size: 13px;
-        font-weight: 800 !important;
+    .form-label-custom {
+        display: block;
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 800;
         margin-bottom: 7px;
     }
 
-    .form-control-lg,
-    .form-control {
-        border: 1.5px solid var(--line);
+    .form-control-custom {
+        width: 100%;
+        min-height: 48px;
+        border: 1.5px solid var(--border);
         border-radius: 11px;
-        color: var(--ink);
-        font-size: 14px;
+        padding: 11px 14px;
+        background: white;
+        color: var(--text);
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        outline: none;
+        transition: .2s;
     }
 
-    .form-control-lg {
-        min-height: 50px;
-        padding: 12px 15px;
+        .form-control-custom:focus {
+            border-color: var(--teal);
+            box-shadow: 0 0 0 3px rgba(0,143,131,.10);
+        }
+
+        .form-control-custom[readonly] {
+            background: #f3f9f8;
+            color: #59716e;
+        }
+
+    .result-value-input {
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--teal-dark);
     }
 
-    .form-control:focus {
-        border-color: var(--teal-500);
-        box-shadow: 0 0 0 3px rgba(0,150,136,.10);
-    }
-
-    .form-control[readonly] {
-        background: #f5f9f8;
-        color: #58716e;
-    }
-
-    textarea.form-control {
-        min-height: 145px;
+    textarea.form-control-custom {
+        min-height: 135px;
         resize: vertical;
-        padding: 14px 15px;
+        line-height: 1.6;
     }
 
     .input-helper {
         display: block;
         margin-top: 6px;
         color: #78908d;
-        font-size: 11.5px;
+        font-size: 10.5px;
     }
 
     /* =========================================================
-       ABNORMAL RESULT
-       ========================================================= */
+           ABNORMAL RESULT
+           ========================================================= */
 
     #abnormalAlert {
         display: none;
         background: var(--danger-soft);
-        border: 1px solid #f4c5ca;
+        border: 1px solid #f1c7cc;
         border-left: 5px solid var(--danger);
         border-radius: 12px;
-        padding: 16px 18px;
-        margin-bottom: 22px;
-        animation: slideDown .25s ease;
+        padding: 14px 17px;
+        margin-bottom: 20px;
     }
 
-    #abnormalAlert h5 {
-        color: var(--danger);
-        font-size: 14px;
-        font-weight: 800;
-        margin-bottom: 5px;
-    }
+        #abnormalAlert h5 {
+            margin: 0 0 4px;
+            color: var(--danger);
+            font-size: 13px;
+            font-weight: 800;
+        }
 
-    #abnormalAlert p {
-        color: #7c343b;
-        font-size: 13px;
-    }
+        #abnormalAlert p {
+            margin: 0;
+            color: #7c343b;
+            font-size: 12px;
+        }
 
-    .is-valid {
+    .is-valid-custom {
         border: 2px solid var(--success) !important;
         background: #f5fff8 !important;
     }
 
-    .is-invalid {
+    .is-invalid-custom {
         border: 2px solid var(--danger) !important;
         background: #fff7f7 !important;
     }
 
     /* =========================================================
-       RESULT SUMMARY
-       ========================================================= */
+           SUMMARY
+           ========================================================= */
 
     .capture-summary {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 13px;
-        margin-top: 25px;
-        padding-top: 25px;
-        border-top: 1px solid var(--line);
+        gap: 12px;
+        margin-top: 22px;
+        padding-top: 22px;
+        border-top: 1px solid var(--border);
     }
 
     .summary-tile {
         background: var(--teal-soft);
-        border: 1px solid #dcecea;
+        border: 1px solid var(--teal-border);
         border-radius: 13px;
-        padding: 17px 12px;
+        padding: 15px 10px;
         text-align: center;
     }
 
-    .summary-tile i {
-        font-size: 20px;
-        margin-bottom: 9px;
-    }
+        .summary-tile i {
+            color: var(--teal);
+            font-size: 18px;
+            margin-bottom: 7px;
+        }
 
-    .summary-tile h6 {
-        color: var(--ink);
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        font-weight: 800;
-        margin: 0 0 5px;
-    }
+        .summary-tile h6 {
+            margin: 0 0 4px;
+            color: var(--text);
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
 
-    .summary-tile small {
-        color: var(--muted);
-        font-size: 11.5px;
-    }
+        .summary-tile small {
+            color: var(--muted);
+            font-size: 10px;
+        }
 
     /* =========================================================
-       BUTTONS
-       ========================================================= */
+           BUTTONS
+           ========================================================= */
 
     .form-actions {
         display: flex;
         justify-content: flex-end;
-        align-items: center;
-        gap: 12px;
-        margin-top: 25px;
-        padding-top: 22px;
-        border-top: 1px solid var(--line);
+        gap: 10px;
+        padding-top: 20px;
+        margin-top: 22px;
+        border-top: 1px solid var(--border);
     }
 
-    .btn-back {
-        border: 1px solid #d6e3e1;
+    .btn-back-custom {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 1px solid #d4e2df;
         background: white;
         color: #58706d;
-        border-radius: 11px;
+        border-radius: 10px;
+        padding: 11px 18px;
+        font-size: 12px;
         font-weight: 700;
-        padding: 12px 20px;
+        text-decoration: none;
     }
 
-    .btn-back:hover {
-        color: var(--teal-700);
-        border-color: var(--teal-400);
-        background: var(--teal-soft);
-    }
+        .btn-back-custom:hover {
+            color: var(--teal-dark);
+            border-color: var(--teal);
+            background: var(--teal-light);
+        }
 
-    .btn-save {
-        border: none;
-        background: linear-gradient(135deg, var(--teal-500), var(--teal-700));
+    .btn-save-custom {
+        border: 0;
+        background: var(--teal);
         color: white;
-        border-radius: 11px;
+        border-radius: 10px;
+        padding: 11px 21px;
+        font-size: 12px;
         font-weight: 800;
-        padding: 12px 25px;
-        box-shadow: 0 7px 18px rgba(0,105,92,.18);
-        transition: .2s ease;
+        cursor: pointer;
+        transition: .2s;
+        box-shadow: 0 6px 16px rgba(0,111,103,.18);
     }
 
-    .btn-save:hover {
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 10px 22px rgba(0,105,92,.27);
+        .btn-save-custom:hover {
+            background: var(--teal-dark);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+    /* =========================================================
+           VALIDATION
+           ========================================================= */
+
+    .field-validation-error {
+        color: var(--danger);
+        font-size: 11px;
+        font-weight: 600;
     }
 
     /* =========================================================
-       ANIMATION
-       ========================================================= */
+           RESPONSIVE
+           ========================================================= */
 
-    @@keyframes slideDown {
-        from {
-            opacity: 0;
-            transform: translateY(-8px);
+    @@media (max-width: 900px) {
+
+        .information-grid {
+            grid-template-columns: 1fr;
         }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* =========================================================
-       RESPONSIVE
-       ========================================================= */
-
-    @@media(max-width: 1100px) {
 
         .header-content {
             align-items: flex-start;
         }
 
-        .header-test-badge {
+        .header-test {
             min-width: 190px;
-        }
-
-        .workflow-step .step-label {
-            font-size: 10px;
         }
     }
 
-    @@media(max-width: 768px) {
+    @@media (max-width: 700px) {
 
         .capture-page {
-            margin-top: 18px;
+            padding: 0 13px;
         }
 
         .capture-header {
-            padding: 24px;
+            padding: 22px;
         }
 
         .header-content {
             flex-direction: column;
+            align-items: stretch;
         }
 
-        .header-test-badge {
+        .header-test {
             width: 100%;
-            text-align: left;
-        }
-
-        .capture-header h1 {
-            font-size: 24px;
         }
 
         .workflow {
@@ -880,45 +1053,34 @@
             min-width: 145px;
         }
 
+        .detail-grid,
+        .test-detail-grid,
+        .sample-highlight {
+            grid-template-columns: 1fr;
+        }
+
         .capture-summary {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr 1fr;
         }
 
         .result-body {
-            padding: 20px;
-        }
-
-        .result-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .form-actions {
-            flex-direction: column-reverse;
-        }
-
-        .form-actions .btn {
-            width: 100%;
+            padding: 18px;
         }
     }
 
-    @@media(max-width: 480px) {
+    @@media (max-width: 450px) {
 
         .capture-summary {
             grid-template-columns: 1fr;
         }
 
-        .patient-identity {
-            align-items: flex-start;
-        }
-
-        .detail-row {
+        .form-actions {
             flex-direction: column;
-            gap: 3px;
         }
 
-        .detail-value {
-            text-align: left;
+        .btn-back-custom,
+        .btn-save-custom {
+            width: 100%;
         }
     }
 
@@ -928,7 +1090,7 @@
 <div class="capture-page">
 
     <!-- =====================================================
-         HEADER
+         PAGE HEADER
          ====================================================== -->
 
     <div class="capture-header">
@@ -951,12 +1113,12 @@
 
             </div>
 
-            <div class="header-test-badge">
+            <div class="header-test">
 
-                <small>Current Test</small>
+                <small>Current Laboratory Test</small>
 
                 <strong>
-                    @(test?.TestType?.Name ?? "Laboratory Test")
+                    @testName
                 </strong>
 
             </div>
@@ -967,23 +1129,27 @@
 
 
     <!-- =====================================================
-         PROCESS TEST STYLE WORKFLOW
+         WORKFLOW
          ====================================================== -->
 
     <div class="workflow-card">
 
         <div class="workflow-title">
+
             <i class="fa-solid fa-list-check"></i>
+
             Test Processing Workflow
+
         </div>
 
         <div class="workflow">
 
             <!-- STEP 1 -->
 
-            <div class="workflow-step @(currentStep >= 1 ? "completed" : "")">
+            <div class="workflow-step @(currentStep > 1 ? "completed" : currentStep == 1 ? "current" : "")">
 
                 <div class="step-circle">
+
                     @if (currentStep > 1)
                     {
                         <i class="fa-solid fa-check"></i>
@@ -992,16 +1158,14 @@
                     {
                         <span>1</span>
                     }
+
                 </div>
 
                 <div class="step-label">
                     Submitted
                 </div>
 
-                @if (currentStep < 2)
-                {
-                    <div class="step-line"></div>
-                }
+                <div class="step-line"></div>
 
             </div>
 
@@ -1115,7 +1279,6 @@
     <!-- =====================================================
          RETURNED FOR REVIEW
          ====================================================== -->
-
     @if (ViewBag.IsResubmission == true)
     {
         <div class="review-alert">
@@ -1148,18 +1311,20 @@
 
 
     <!-- =====================================================
-         PATIENT + TEST INFORMATION
+         PATIENT LEFT / TEST RIGHT
          ====================================================== -->
 
-    <div class="row">
+    <div class="information-grid">
 
-        <!-- ================= PATIENT ================= -->
+        <!-- =================================================
+             LEFT: PATIENT INFORMATION
+             ================================================== -->
 
-        <div class="col-lg-6">
+        <div class="information-card">
 
-            <div class="info-card">
+            <div class="information-card-header">
 
-                <div class="card-header-custom">
+                <div class="information-card-header-left">
 
                     <i class="fa-solid fa-user"></i>
 
@@ -1167,30 +1332,47 @@
 
                 </div>
 
-                <div class="card-body-custom">
+                <span class="header-request-number">
+                    TR-@test?.RequestId
+                </span>
 
-                    <div class="patient-identity">
+            </div>
 
-                        <div class="patient-avatar">
-                            <i class="fa-solid fa-user"></i>
-                        </div>
 
-                        <div>
+            <div class="information-card-body">
 
-                            <h4>
-                                @patient?.Name @patient?.Surname
-                            </h4>
+                <div class="patient-identity">
 
-                            <span>
-                                Patient registered on laboratory system
-                            </span>
+                    <div class="patient-avatar">
 
-                        </div>
+                        <i class="fa-solid fa-user"></i>
 
                     </div>
 
+                    <div>
 
-                    <div class="detail-row">
+                        <h3 class="patient-name">
+
+                            @patient?.Name @patient?.Surname
+
+                        </h3>
+
+                        <span class="patient-subtitle">
+
+                            Patient registered on laboratory system
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- PATIENT BASIC INFORMATION -->
+
+                <div class="detail-grid">
+
+                    <div class="detail-item">
 
                         <span class="detail-label">
                             ID Number
@@ -1203,7 +1385,7 @@
                     </div>
 
 
-                    <div class="detail-row">
+                    <div class="detail-item">
 
                         <span class="detail-label">
                             Email
@@ -1215,12 +1397,16 @@
 
                     </div>
 
+                </div>
 
-                    <!-- ALLERGIES -->
 
-                    <div class="clinical-alert alert-allergy">
+                <!-- PATIENT CLINICAL INFORMATION -->
 
-                        <div class="clinical-alert-title">
+                <div class="patient-alerts">
+
+                    <div class="patient-alert allergy-alert">
+
+                        <div class="patient-alert-title">
 
                             <i class="fa-solid fa-triangle-exclamation"></i>
 
@@ -1236,7 +1422,7 @@
                         }
                         else
                         {
-                            <p class="text-muted">
+                            <p class="no-notes">
                                 No allergies recorded.
                             </p>
                         }
@@ -1244,11 +1430,9 @@
                     </div>
 
 
-                    <!-- MEDICAL CONDITIONS -->
+                    <div class="patient-alert medical-alert">
 
-                    <div class="clinical-alert alert-medical">
-
-                        <div class="clinical-alert-title">
+                        <div class="patient-alert-title">
 
                             <i class="fa-solid fa-heart-pulse"></i>
 
@@ -1264,7 +1448,7 @@
                         }
                         else
                         {
-                            <p class="text-muted">
+                            <p class="no-notes">
                                 No medical conditions recorded.
                             </p>
                         }
@@ -1272,11 +1456,9 @@
                     </div>
 
 
-                    <!-- MEDICATION -->
+                    <div class="patient-alert medication-alert">
 
-                    <div class="clinical-alert alert-medication">
-
-                        <div class="clinical-alert-title">
+                        <div class="patient-alert-title">
 
                             <i class="fa-solid fa-pills"></i>
 
@@ -1292,7 +1474,7 @@
                         }
                         else
                         {
-                            <p class="text-muted">
+                            <p class="no-notes">
                                 No current medication recorded.
                             </p>
                         }
@@ -1306,166 +1488,235 @@
         </div>
 
 
-        <!-- ================= TEST ================= -->
+        <!-- =================================================
+             RIGHT: TEST INFORMATION
+             ================================================== -->
 
-        <div class="col-lg-6">
+        <div class="information-card">
 
-            <div class="info-card">
+            <div class="information-card-header">
 
-                <div class="card-header-custom">
+                <div class="information-card-header-left">
 
-                    <i class="fa-solid fa-vials"></i>
+                    <i class="fa-solid fa-flask"></i>
 
                     Test Information
 
                 </div>
 
-                <div class="card-body-custom">
+                <span class="header-request-number">
+                    Test #@test?.TestRequestItemId
+                </span>
 
-                    <div class="test-name-box">
+            </div>
 
-                        <small>
-                            Laboratory Test
-                        </small>
 
-                        <strong>
-                            @(test?.TestType?.Name ?? "Not specified")
-                        </strong>
+            <div class="information-card-body">
+
+
+                <!-- =================================================
+                     MAIN TEST HIGHLIGHT
+                     ================================================== -->
+
+                <div class="test-highlight">
+
+                    <div class="test-highlight-top">
+
+                        <div class="test-highlight-icon">
+
+                            <i class="fa-solid fa-vial"></i>
+
+                        </div>
+
+                        <div>
+
+                            <div class="test-highlight-label">
+                                Laboratory Test
+                            </div>
+
+                            <h2 class="test-highlight-name">
+                                @testName
+                            </h2>
+
+                            <span class="category-badge">
+
+                                <i class="fa-solid fa-layer-group"></i>
+
+                                @category
+
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     SAMPLE TYPE + UNIT
+                     ================================================== -->
+
+                <div class="sample-highlight">
+
+                    <div class="sample-box">
+
+                        <div class="sample-box-icon">
+
+                            <i class="fa-solid fa-droplet"></i>
+
+                        </div>
+
+                        <div>
+
+                            <span class="sample-label">
+                                Sample Type
+                            </span>
+
+                            <span class="sample-value">
+                                @sampleType
+                            </span>
+
+                        </div>
 
                     </div>
 
 
-                    <div class="detail-row">
+                    <div class="unit-box">
 
-                        <span class="detail-label">
+                        <div class="unit-box-icon">
+
+                            <i class="fa-solid fa-ruler"></i>
+
+                        </div>
+
+                        <div>
+
+                            <span class="unit-label">
+                                Unit of Measurement
+                            </span>
+
+                            <span class="unit-value">
+                                @(string.IsNullOrWhiteSpace(unit) ? "Not specified" : unit)
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     TEST DETAILS
+                     ================================================== -->
+
+                <div class="test-detail-grid">
+
+                    <div class="test-detail-box">
+
+                        <span class="test-detail-label">
                             Request Number
                         </span>
 
-                        <span class="detail-value">
+                        <span class="test-detail-value">
                             TR-@test?.RequestId
                         </span>
 
                     </div>
 
 
-                    <div class="detail-row">
+                    <div class="test-detail-box">
 
-                        <span class="detail-label">
-                            Category
-                        </span>
-
-                        <span class="detail-value">
-                            @(test?.TestType?.Category ?? "Not specified")
-                        </span>
-
-                    </div>
-
-
-                    <div class="detail-row">
-
-                        <span class="detail-label">
-                            Sample Type
-                        </span>
-
-                        <span class="detail-value">
-                            @(test?.TestType?.RequiredSampleType ?? "Not specified")
-                        </span>
-
-                    </div>
-
-
-                    <div class="detail-row">
-
-                        <span class="detail-label">
-                            Urgency
-                        </span>
-
-                        <span class="detail-value">
-
-                            <span class="badge-status @urgencyBadgeClass">
-
-                                @if (urgency == "STAT")
-                                {
-                                    <i class="fa-solid fa-bolt"></i>
-                                }
-                                else if (urgency == "Urgent")
-                                {
-                                    <i class="fa-solid fa-clock"></i>
-                                }
-                                else
-                                {
-                                    <i class="fa-solid fa-circle"></i>
-                                }
-
-                                @urgency
-
-                            </span>
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="detail-row">
-
-                        <span class="detail-label">
-                            Date Started
-                        </span>
-
-                        <span class="detail-value">
-                            @test?.StartDateTime?.ToString("dd MMM yyyy HH:mm")
-                        </span>
-
-                    </div>
-
-
-                    <div class="detail-row">
-
-                        <span class="detail-label">
+                        <span class="test-detail-label">
                             Status
                         </span>
 
-                        <span class="detail-value">
+                        <span class="status-badge @statusClass">
 
-                            <span class="badge-status @statusBadgeClass">
+                            <i class="fa-solid fa-circle"></i>
 
-                                <i class="fa-solid fa-circle"></i>
-
-                                @status
-
-                            </span>
+                            @status
 
                         </span>
 
                     </div>
 
 
-                    <!-- CLINICAL NOTES -->
+                    <div class="test-detail-box">
 
-                    <div class="clinical-notes">
+                        <span class="test-detail-label">
+                            Urgency
+                        </span>
 
-                        <div class="clinical-notes-title">
+                        <span class="urgency-badge @urgencyClass">
 
-                            <i class="fa-solid fa-notes-medical"></i>
+                            @if (urgency == "STAT")
+                            {
+                                <i class="fa-solid fa-bolt"></i>
+                            }
+                            else if (urgency == "Urgent")
+                            {
+                                <i class="fa-solid fa-clock"></i>
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-circle"></i>
+                            }
 
-                            Doctor Clinical Notes
+                            @urgency
 
-                        </div>
-
-                        @if (!string.IsNullOrWhiteSpace(test?.TestRequest?.ClinicalNotes))
-                        {
-                            <p>
-                                @test.TestRequest.ClinicalNotes
-                            </p>
-                        }
-                        else
-                        {
-                            <p class="text-muted">
-                                No clinical notes were provided for this request.
-                            </p>
-                        }
+                        </span>
 
                     </div>
+
+
+                    <div class="test-detail-box">
+
+                        <span class="test-detail-label">
+                            Date Started
+                        </span>
+
+                        <span class="test-detail-value">
+
+                            @(test?.StartDateTime.HasValue == true
+                                ? test.StartDateTime.Value.ToString("dd MMM yyyy HH:mm")
+                                : "Not available")
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     DOCTOR CLINICAL NOTES
+                     ================================================== -->
+
+                <div class="clinical-notes">
+
+                    <div class="clinical-notes-header">
+
+                        <i class="fa-solid fa-user-doctor"></i>
+
+                        Doctor Clinical Notes
+
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(test?.TestRequest?.ClinicalNotes))
+                    {
+                        <p>
+                            @test.TestRequest.ClinicalNotes
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="no-notes">
+                            No clinical notes were provided by the doctor
+                            for this laboratory request.
+                        </p>
+                    }
 
                 </div>
 
@@ -1484,7 +1735,7 @@
 
         <div class="result-header">
 
-            <div class="result-header-title">
+            <div class="result-title">
 
                 <i class="fa-solid fa-clipboard-check"></i>
 
@@ -1492,7 +1743,7 @@
 
             </div>
 
-            <div class="result-header-status">
+            <div class="result-status">
 
                 <i class="fa-solid fa-pen-to-square"></i>
 
@@ -1528,14 +1779,16 @@
                 </div>
 
 
-                <!-- RESULT + UNITS -->
+                <!-- =================================================
+                     RESULT VALUE + UNIT
+                     ================================================== -->
 
                 <div class="row">
 
                     <div class="col-md-6 mb-4">
 
                         <label asp-for="ResultValue"
-                               class="form-label fw-bold">
+                               class="form-label-custom">
 
                             Result Value
 
@@ -1543,19 +1796,22 @@
 
                         <input asp-for="ResultValue"
                                id="ResultValue"
-                               class="form-control form-control-lg"
-                               placeholder="Enter laboratory result..."
-                               autocomplete="off" />
+                               class="form-control-custom result-value-input"
+                               placeholder="Enter numeric result..."
+                               autocomplete="off"
+                               inputmode="decimal"
+                               type="text"
+                               maxlength="20" />
 
                         <span asp-validation-for="ResultValue"
-                              class="text-danger">
+                              class="field-validation-error">
                         </span>
 
                         <small class="input-helper">
 
-                            <i class="fa-solid fa-circle-info"></i>
+                            <i class="fa-solid fa-calculator"></i>
 
-                            Enter the measured laboratory value exactly as obtained.
+                            Numbers only. Decimal values are allowed.
 
                         </small>
 
@@ -1565,42 +1821,40 @@
                     <div class="col-md-6 mb-4">
 
                         <label asp-for="Units"
-                               class="form-label fw-bold">
+                               class="form-label-custom">
 
                             Units
 
                         </label>
 
                         <input asp-for="Units"
-                               class="form-control form-control-lg"
-                               value="@test?.TestType?.UnitOfMeasurement"
+                               class="form-control-custom"
+                               value="@unit"
                                readonly />
 
                         <small class="input-helper">
 
                             <i class="fa-solid fa-lock"></i>
 
-                            Automatically determined by the selected test type.
+                            Automatically determined by the selected test.
 
                         </small>
-
-                        <span asp-validation-for="Units"
-                              class="text-danger">
-                        </span>
 
                     </div>
 
                 </div>
 
 
-                <!-- REFERENCE RANGE + DATE -->
+                <!-- =================================================
+                     REFERENCE RANGE + CAPTURE DATE
+                     ================================================== -->
 
                 <div class="row">
 
                     <div class="col-md-6 mb-4">
 
                         <label asp-for="ReferenceRange"
-                               class="form-label fw-bold">
+                               class="form-label-custom">
 
                             Reference Range
 
@@ -1608,13 +1862,9 @@
 
                         <input asp-for="ReferenceRange"
                                id="ReferenceRange"
-                               class="form-control form-control-lg"
-                               placeholder="Not defined for this test type"
-                               readonly="@hasDefinedRange" />
-
-                        <span asp-validation-for="ReferenceRange"
-                              class="text-danger">
-                        </span>
+                               class="form-control-custom"
+                               placeholder="Not defined for this test"
+                               readonly />
 
                         @if (hasDefinedRange)
                         {
@@ -1622,8 +1872,7 @@
 
                                 <i class="fa-solid fa-shield-halved"></i>
 
-                                Reference range is supplied by this test type.
-                                Results outside the range will be flagged.
+                                Results outside this range will be flagged.
 
                             </small>
                         }
@@ -1633,7 +1882,7 @@
 
                                 <i class="fa-solid fa-circle-info"></i>
 
-                                No numeric reference range is defined for this test.
+                                No numeric reference range is defined.
 
                             </small>
                         }
@@ -1643,13 +1892,13 @@
 
                     <div class="col-md-6 mb-4">
 
-                        <label class="form-label fw-bold">
+                        <label class="form-label-custom">
 
                             Capture Date &amp; Time
 
                         </label>
 
-                        <input class="form-control form-control-lg"
+                        <input class="form-control-custom"
                                readonly
                                value="@DateTime.Now.ToString("dd MMM yyyy HH:mm")" />
 
@@ -1657,7 +1906,7 @@
 
                             <i class="fa-solid fa-clock"></i>
 
-                            Recorded using the current system date and time.
+                            Current system date and time.
 
                         </small>
 
@@ -1666,7 +1915,9 @@
                 </div>
 
 
-                <!-- ABNORMAL RESULT -->
+                <!-- =================================================
+                     ABNORMAL RESULT
+                     ================================================== -->
 
                 <div id="abnormalAlert">
 
@@ -1678,48 +1929,49 @@
 
                     </h5>
 
-                    <p class="mb-0">
+                    <p>
 
-                        The entered result appears to fall outside the supplied
-                        reference range. Please verify the value before saving.
+                        The entered result appears to fall outside the
+                        supplied reference range. Please verify the value.
 
                     </p>
 
                 </div>
 
 
-                <!-- COMMENTS -->
+                <!-- =================================================
+                     COMMENTS
+                     ================================================== -->
 
                 <div class="mb-4">
 
                     <label asp-for="Comments"
-                           class="form-label fw-bold">
+                           class="form-label-custom">
 
                         Laboratory Comments / Notes
 
                     </label>
 
                     <textarea asp-for="Comments"
-                              rows="6"
-                              class="form-control"
+                              class="form-control-custom"
                               placeholder="Enter observations, abnormalities, interpretation or additional laboratory notes..."></textarea>
 
                     <span asp-validation-for="Comments"
-                          class="text-danger">
+                          class="field-validation-error">
                     </span>
 
                 </div>
 
 
-                <!-- SUMMARY -->
+                <!-- =================================================
+                     SUMMARY
+                     ================================================== -->
 
                 <div class="capture-summary">
 
                     <div class="summary-tile">
 
-                        <i class="fa-solid fa-user-doctor"
-                           style="color:var(--teal-600)">
-                        </i>
+                        <i class="fa-solid fa-user-doctor"></i>
 
                         <h6>
                             Captured By
@@ -1734,20 +1986,14 @@
 
                     <div class="summary-tile">
 
-                        <i class="fa-solid fa-vial-circle-check"
-                           style="color:var(--info)">
-                        </i>
+                        <i class="fa-solid fa-vial-circle-check"></i>
 
                         <h6>
                             Status
                         </h6>
 
                         <small>
-
-                            <span class="badge-status badge-completed">
-                                Completed
-                            </span>
-
+                            Result Capture
                         </small>
 
                     </div>
@@ -1755,9 +2001,7 @@
 
                     <div class="summary-tile">
 
-                        <i class="fa-solid fa-calendar-check"
-                           style="color:var(--warning)">
-                        </i>
+                        <i class="fa-solid fa-calendar-check"></i>
 
                         <h6>
                             Capture Date
@@ -1772,9 +2016,7 @@
 
                     <div class="summary-tile">
 
-                        <i class="fa-solid fa-clock"
-                           style="color:var(--teal-500)">
-                        </i>
+                        <i class="fa-solid fa-clock"></i>
 
                         <h6>
                             Capture Time
@@ -1789,14 +2031,16 @@
                 </div>
 
 
-                <!-- ACTIONS -->
+                <!-- =================================================
+                     ACTIONS
+                     ================================================== -->
 
                 <div class="form-actions">
 
                     <a asp-action="Index"
-                       class="btn btn-back">
+                       class="btn-back-custom">
 
-                        <i class="fa-solid fa-arrow-left me-1"></i>
+                        <i class="fa-solid fa-arrow-left"></i>
 
                         Back to Tests
 
@@ -1804,9 +2048,9 @@
 
 
                     <button type="submit"
-                            class="btn btn-save">
+                            class="btn-save-custom">
 
-                        <i class="fa-solid fa-floppy-disk me-1"></i>
+                        <i class="fa-solid fa-floppy-disk"></i>
 
                         Save Laboratory Result
 
@@ -1829,25 +2073,159 @@
 
     <script>
 
-        document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", function() {
 
-            const resultInput = document.getElementById("ResultValue");
-            const rangeInput = document.getElementById("ReferenceRange");
-            const abnormalAlert = document.getElementById("abnormalAlert");
+            const resultInput =
+                document.getElementById("ResultValue");
 
-            if (!resultInput || !rangeInput || !abnormalAlert) {
-                return;
+            const rangeInput =
+                document.getElementById("ReferenceRange");
+
+            const abnormalAlert =
+                document.getElementById("abnormalAlert");
+
+
+            /* =====================================================
+               RESULT VALUE - NUMBERS ONLY
+               ===================================================== */
+
+            if (resultInput) {
+
+                resultInput.addEventListener("keydown", function(event) {
+
+                    const allowedKeys = [
+                        "Backspace",
+                        "Delete",
+                        "Tab",
+                        "Escape",
+                        "Enter",
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "ArrowUp",
+                        "ArrowDown",
+                        "Home",
+                        "End"
+                    ];
+
+                    if (allowedKeys.includes(event.key)) {
+                        return;
+                    }
+
+
+                    /*
+                     * Allow numbers 0-9
+                     */
+
+                    if (/^[0-9]$/.test(event.key)) {
+                        return;
+                    }
+
+
+                    /*
+                     * Allow one decimal point.
+                     */
+
+                    if (event.key === "." &&
+                        !resultInput.value.includes(".")) {
+
+                        return;
+                    }
+
+
+                    /*
+                     * Block everything else.
+                     */
+
+                    event.preventDefault();
+
+                });
+
+
+                /*
+                 * Prevent letters/symbols being inserted through
+                 * paste, drag/drop or other input methods.
+                 */
+
+                resultInput.addEventListener("input", function() {
+
+                    let value = this.value;
+
+                    /*
+                     * Keep numbers and decimal point only.
+                     */
+
+                    value = value.replace(/[^0-9.]/g, "");
+
+                    /*
+                     * Only allow one decimal point.
+                     */
+
+                    const firstDot = value.indexOf(".");
+
+                    if (firstDot !== -1) {
+
+                        value =
+                            value.substring(0, firstDot + 1) +
+                            value.substring(firstDot + 1)
+                                .replace(/\./g, "");
+
+                    }
+
+                    this.value = value;
+
+                    checkAbnormalResult();
+
+                });
+
+
+                /*
+                 * Prevent invalid paste.
+                 */
+
+                resultInput.addEventListener("paste", function(event) {
+
+                    event.preventDefault();
+
+                    const pastedText =
+                        (event.clipboardData || window.clipboardData)
+                            .getData("text");
+
+                    const cleaned =
+                        pastedText
+                            .replace(/[^0-9.]/g, "");
+
+                    document.execCommand(
+                        "insertText",
+                        false,
+                        cleaned
+                    );
+
+                    checkAbnormalResult();
+
+                });
+
+
+                resultInput.focus();
+
             }
 
-            resultInput.focus();
 
+            /* =====================================================
+               ABNORMAL RESULT CHECK
+               ===================================================== */
 
             function checkAbnormalResult() {
 
+                if (!resultInput || !rangeInput || !abnormalAlert) {
+                    return;
+                }
+
                 abnormalAlert.style.display = "none";
 
-                resultInput.classList.remove("is-invalid");
-                resultInput.classList.remove("is-valid");
+                resultInput.classList.remove(
+                    "is-invalid-custom",
+                    "is-valid-custom"
+                );
 
 
                 if (!resultInput.value.trim() ||
@@ -1857,9 +2235,10 @@
                 }
 
 
-                let result = parseFloat(
-                    resultInput.value.replace(",", ".")
-                );
+                const result =
+                    parseFloat(
+                        resultInput.value.replace(",", ".")
+                    );
 
 
                 if (isNaN(result)) {
@@ -1868,21 +2247,23 @@
 
 
                 /*
-                 * Supports ranges such as:
+                 * Supports:
                  *
-                 * 10-20
-                 * 10 - 20
-                 * 10–20
-                 * 10 — 20
+                 * 145-569
+                 * 145 - 569
+                 * 145–569
+                 * 145 — 569
                  */
 
-                let rangeText = rangeInput.value
-                    .replace(/\s/g, "")
-                    .replace("–", "-")
-                    .replace("—", "-");
+                let rangeText =
+                    rangeInput.value
+                        .replace(/\s/g, "")
+                        .replace("–", "-")
+                        .replace("—", "-");
 
 
-                let range = rangeText.split("-");
+                const range =
+                    rangeText.split("-");
 
 
                 if (range.length !== 2) {
@@ -1890,13 +2271,15 @@
                 }
 
 
-                let minimum = parseFloat(
-                    range[0].replace(",", ".")
-                );
+                const minimum =
+                    parseFloat(
+                        range[0].replace(",", ".")
+                    );
 
-                let maximum = parseFloat(
-                    range[1].replace(",", ".")
-                );
+                const maximum =
+                    parseFloat(
+                        range[1].replace(",", ".")
+                    );
 
 
                 if (isNaN(minimum) ||
@@ -1911,32 +2294,31 @@
 
                     abnormalAlert.style.display = "block";
 
-                    resultInput.classList.add("is-invalid");
+                    resultInput.classList.add(
+                        "is-invalid-custom"
+                    );
 
                 }
                 else {
 
-                    resultInput.classList.add("is-valid");
+                    resultInput.classList.add(
+                        "is-valid-custom"
+                    );
 
                 }
 
             }
 
 
-            resultInput.addEventListener(
-                "input",
-                checkAbnormalResult
-            );
+            if (resultInput) {
 
-            resultInput.addEventListener(
-                "change",
-                checkAbnormalResult
-            );
+                resultInput.addEventListener(
+                    "change",
+                    checkAbnormalResult
+                );
 
+            }
 
-            /*
-             * Run once in case a value already exists.
-             */
 
             checkAbnormalResult();
 
@@ -1944,4 +2326,3 @@
 
     </script>
 }
-
