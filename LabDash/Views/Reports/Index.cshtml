@@ -5,80 +5,399 @@
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
 }
 
-<div class="records-box">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
 
-    <div style="padding:20px;border-bottom:1px solid #eee;">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 
-        <h2 style="color:#0d766e;">
+<style>
 
-            <i class="fa-solid fa-file-pdf"></i>
+    * {
+        box-sizing: border-box;
+    }
 
-            Technician Reports
+    .report-page {
+        min-height: 100vh;
+        padding: 30px 35px 60px;
+        background: #f3faf9;
+        font-family: 'Inter', sans-serif;
+        color: #173a3a;
+    }
 
-        </h2>
+    .report-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
 
-        <p style="color:gray;">
-            Generate a report of completed laboratory tests within a selected date range.
-        </p>
+    /* HEADER */
 
-    </div>
+    .report-header {
+        background: linear-gradient(135deg, #008f83, #006f67);
+        border-radius: 18px;
+        padding: 28px 32px;
+        color: white;
+        box-shadow: 0 10px 25px rgba(0, 111, 103, 0.15);
+        margin-bottom: 25px;
+    }
 
-    <div style="padding:30px;">
+    .report-header-content {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+    }
 
-        @if (TempData["Error"] != null)
-        {
-            <div class="alert alert-danger">
-                @TempData["Error"]
-            </div>
+    .report-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 15px;
+        background: rgba(255,255,255,0.16);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 25px;
+    }
+
+    .report-header h2 {
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        font-size: 25px;
+        font-weight: 800;
+    }
+
+    .report-header p {
+        margin: 5px 0 0;
+        color: rgba(255,255,255,0.88);
+        font-size: 14px;
+    }
+
+    /* CARD */
+
+    .report-card {
+        background: white;
+        border: 1px solid #ccebe7;
+        border-radius: 18px;
+        box-shadow: 0 8px 25px rgba(0, 95, 85, 0.07);
+        overflow: hidden;
+    }
+
+    .card-heading {
+        padding: 22px 28px;
+        border-bottom: 1px solid #e3f0ee;
+    }
+
+        .card-heading h3 {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: #005c55;
         }
 
-        <form asp-action="Generate" method="post">
+        .card-heading p {
+            margin: 6px 0 0;
+            color: #718785;
+            font-size: 14px;
+        }
 
-            <div class="row">
+    .form-area {
+        padding: 30px;
+    }
 
-                <div class="col-md-6">
+    /* DATE GRID */
 
-                    <label asp-for="FromDate" class="form-label"></label>
+    .date-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+    }
 
-                    <input asp-for="FromDate"
-                           type="date"
-                           class="form-control" />
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
 
-                    <span asp-validation-for="FromDate"
-                          class="text-danger"></span>
+    .form-label {
+        font-weight: 700;
+        color: #173a3a;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
 
+    .date-input {
+        width: 100%;
+        height: 48px;
+        border: 1px solid #ccebe7;
+        border-radius: 10px;
+        padding: 0 14px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: #173a3a;
+        background: #f9fdfc;
+        transition: 0.2s ease;
+    }
+
+        .date-input:focus {
+            outline: none;
+            border-color: #008f83;
+            box-shadow: 0 0 0 3px rgba(0,143,131,0.12);
+            background: white;
+        }
+
+    .field-icon {
+        color: #008f83;
+        margin-right: 5px;
+    }
+
+    /* BUTTON */
+
+    .action-area {
+        margin-top: 28px;
+        padding-top: 24px;
+        border-top: 1px solid #e5f1ef;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .generate-btn {
+        border: none;
+        background: #008f83;
+        color: white;
+        padding: 13px 22px;
+        border-radius: 10px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        transition: 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+        .generate-btn:hover {
+            background: #006f67;
+            transform: translateY(-1px);
+            box-shadow: 0 7px 18px rgba(0,111,103,0.2);
+        }
+
+    /* INFO */
+
+    .report-info {
+        margin-top: 20px;
+        padding: 16px 18px;
+        background: #e8f7f5;
+        border: 1px solid #ccebe7;
+        border-radius: 11px;
+        color: #006f67;
+        font-size: 13px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+        .report-info i {
+            margin-top: 2px;
+        }
+
+    /* ERROR */
+
+    .error-message {
+        background: #fff1f1;
+        border: 1px solid #f2caca;
+        color: #a33a3a;
+        padding: 13px 16px;
+        border-radius: 10px;
+        margin-bottom: 22px;
+        font-size: 14px;
+    }
+
+    .validation-message {
+        color: #c0392b;
+        font-size: 12px;
+        margin-top: 6px;
+    }
+
+    /* RESPONSIVE */
+
+    @@media (max-width: 700px) {
+
+        .report-page {
+            padding: 20px 15px 40px;
+        }
+
+        .report-header {
+            padding: 23px;
+        }
+
+        .form-area {
+            padding: 22px;
+        }
+
+        .date-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .action-area {
+            justify-content: stretch;
+        }
+
+        .generate-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+</style>
+
+<div class="report-page">
+
+    <div class="report-container">
+
+        <!-- HEADER -->
+
+        <div class="report-header">
+
+            <div class="report-header-content">
+
+                <div class="report-icon">
+                    <i class="fa-solid fa-file-pdf"></i>
                 </div>
 
-                <div class="col-md-6">
+                <div>
+                    <h2>Technician Reports</h2>
 
-                    <label asp-for="ToDate" class="form-label"></label>
-
-                    <input asp-for="ToDate"
-                           type="date"
-                           class="form-control" />
-
-                    <span asp-validation-for="ToDate"
-                          class="text-danger"></span>
-
+                    <p>
+                        Generate a PDF report of laboratory tests completed by you
+                        within a selected date range.
+                    </p>
                 </div>
 
             </div>
 
-            <br />
+        </div>
 
-            <button class="btn btn-success">
 
-                <i class="fa-solid fa-file-pdf"></i>
+        <!-- REPORT CARD -->
 
-                Generate PDF Report
+        <div class="report-card">
 
-            </button>
+            <div class="card-heading">
 
-        </form>
+                <h3>
+                    <i class="fa-solid fa-chart-column field-icon"></i>
+                    Completed Tests Report
+                </h3>
+
+                <p>
+                    Select the period you want to include in the technician report.
+                </p>
+
+            </div>
+
+
+            <div class="form-area">
+
+                @if (TempData["Error"] != null)
+                {
+                    <div class="error-message">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        @TempData["Error"]
+                    </div>
+                }
+
+
+                <form asp-action="Generate"
+                      method="post">
+
+                    @Html.AntiForgeryToken()
+
+                    <div class="date-grid">
+
+                        <!-- FROM DATE -->
+
+                        <div class="form-group">
+
+                            <label asp-for="FromDate"
+                                   class="form-label">
+
+                                <i class="fa-regular fa-calendar field-icon"></i>
+                                From Date
+
+                            </label>
+
+                            <input asp-for="FromDate"
+                                   type="date"
+                                   class="date-input" />
+
+                            <span asp-validation-for="FromDate"
+                                  class="validation-message">
+                            </span>
+
+                        </div>
+
+
+                        <!-- TO DATE -->
+
+                        <div class="form-group">
+
+                            <label asp-for="ToDate"
+                                   class="form-label">
+
+                                <i class="fa-regular fa-calendar-check field-icon"></i>
+                                To Date
+
+                            </label>
+
+                            <input asp-for="ToDate"
+                                   type="date"
+                                   class="date-input" />
+
+                            <span asp-validation-for="ToDate"
+                                  class="validation-message">
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="report-info">
+
+                        <i class="fa-solid fa-circle-info"></i>
+
+                        <span>
+                            The PDF will include tests completed by the logged-in
+                            technician and group the completed tests according to
+                            their laboratory category.
+                        </span>
+
+                    </div>
+
+
+                    <div class="action-area">
+
+                        <button type="submit"
+                                class="generate-btn">
+
+                            <i class="fa-solid fa-file-pdf"></i>
+
+                            Generate PDF Report
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
 
     </div>
 
 </div>
+
 
 @section Scripts
 {
