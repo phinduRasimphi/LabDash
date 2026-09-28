@@ -21,13 +21,13 @@ namespace LabDash.Controllers
             _userManager = userManager;
         }
 
-// =========================================================
-// AVAILABLE TESTS
-// =========================================================
+        // =========================================================
+        // AVAILABLE TESTS
+        // =========================================================
 
-           [HttpGet]
-           public async Task<IActionResult> Index()
-           {
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
             var tests = await _context.TestRequestItems
 
                 // -----------------------------------------------------
@@ -307,13 +307,13 @@ namespace LabDash.Controllers
             });
         }
 
-// =========================================================
-// START TEST
-// =========================================================
+        // =========================================================
+        // START TEST
+        // =========================================================
 
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> StartTest(int id)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> StartTest(int id)
         {
             var technician =
                 await _userManager.GetUserAsync(User);
@@ -1007,121 +1007,588 @@ public async Task<IActionResult> StartTest(int id)
         }
 
         // =========================================================
-        // DASHBOARD SUMMARY
+        // TECHNICIAN DASHBOARD SUMMARY
         // =========================================================
 
         [HttpGet]
         public async Task<IActionResult> DashboardSummary()
         {
-            var technician =
-                await _userManager.GetUserAsync(User);
+            var technician = await _userManager.GetUserAsync(User);
 
             if (technician == null)
                 return Challenge();
 
-            // -----------------------------------------------------
-            // AVAILABLE
-            // -----------------------------------------------------
+            var now = DateTime.Now;
+            var nearDeadline = now.AddMinutes(30);
 
-            ViewBag.Available =
+            // =========================================================
+            // 1. TESTS WAITING TO BE SELECTED
+            // =========================================================
+            //
+            // Test must:
+            // - still be Submitted
+            // - have a received sample
+            // - not already be assigned
+            //
+            var waitingToBeSelected =
                 await _context.TestRequestItems
                     .CountAsync(x =>
                         x.Status == "Submitted" &&
+                        x.AssignedTechnicianId == null &&
                         x.TestRequest != null &&
-                        (
-                            x.TestRequest.Status ==
-                                "Samples Received"
-                            ||
-                            x.TestRequest.Status ==
-                                "In Progress"
-                        ));
+                        _context.Samples.Any(s =>
+                            s.TestRequestId == x.RequestId &&
+                            s.IsReceived)
+                    );
 
-            // -----------------------------------------------------
-            // IN PROGRESS
-            // -----------------------------------------------------
 
-            ViewBag.InProgress =
+            // =========================================================
+            // 2. TESTS SELECTED BY CURRENT TECHNICIAN
+            // =========================================================
+            //
+            // These are tests currently being processed.
+            //
+            var selectedByTechnician =
                 await _context.TestRequestItems
                     .CountAsync(x =>
-                        x.AssignedTechnicianId ==
-                            technician.Id &&
-                        x.Status ==
-                            "In Progress");
+                        x.AssignedTechnicianId == technician.Id &&
+                        x.Status == "In Progress"
+                    );
 
-            // -----------------------------------------------------
-            // COMPLETED
-            // -----------------------------------------------------
 
-            ViewBag.Completed =
+            // =========================================================
+            // 3. TESTS WAITING FOR VERIFICATION
+            // =========================================================
+            //
+            // Completed by this technician but not yet verified.
+            //
+            var waitingForVerification =
                 await _context.TestRequestItems
                     .CountAsync(x =>
-                        x.AssignedTechnicianId ==
-                            technician.Id &&
-                        x.Status ==
-                            "Completed");
+                        x.AssignedTechnicianId == technician.Id &&
+                        x.Status == "Completed"
+                    );
 
-            // -----------------------------------------------------
-            // VERIFIED
-            // -----------------------------------------------------
 
-            ViewBag.Verified =
+            // =========================================================
+            // 4. TESTS WAITING FOR REVIEW
+            // =========================================================
+            //
+            // These are tests that were sent back after verification.
+            //
+            var waitingForReview =
                 await _context.TestRequestItems
                     .CountAsync(x =>
-                        x.Status ==
-                            "Verified");
+                        x.Status == "To Be Reviewed"
+                    );
 
-            // -----------------------------------------------------
-            // TO BE REVIEWED
-            // -----------------------------------------------------
 
-            ViewBag.ToBeReviewed =
-                await _context.TestRequestItems
-                    .CountAsync(x =>
-                        x.Status ==
-                            "To Be Reviewed");
-
-            // -----------------------------------------------------
-            // URGENT
-            // -----------------------------------------------------
-
-            ViewBag.Urgent =
+            // =========================================================
+            // 5. URGENT / STAT TESTS
+            // =========================================================
+            //
+            // A STAT test is included when it is currently actionable:
+            //
+            // - waiting to be selected
+            // - in progress
+            // - waiting for verification
+            // - waiting for review
+            //
+            var urgent =
                 await _context.TestRequestItems
                     .CountAsync(x =>
                         x.TestRequest != null &&
-                        x.TestRequest.Urgency ==
-                            "STAT" &&
+                        x.TestRequest.Urgency == "STAT" &&
                         (
-                            x.Status ==
-                                "Submitted"
-                            ||
-                            x.Status ==
-                                "In Progress"
-                        ));
+                            // Waiting to be selected
+                            (
+                                x.Status == "Submitted" &&
+                                x.AssignedTechnicianId == null &&
+                                _context.Samples.Any(s =>
+                                    s.TestRequestId == x.RequestId &&
+                                    s.IsReceived)
+                            )
 
-            // -----------------------------------------------------
-            // RETURN JSON
-            // -----------------------------------------------------
+                            ||
+
+                            // Selected by current technician
+                            (
+                                x.Status == "In Progress" &&
+                                x.AssignedTechnicianId == technician.Id
+                            )
+
+                            ||
+
+                            // Waiting for verification
+                            (
+                                x.Status == "Completed" &&
+                                x.AssignedTechnicianId == technician.Id
+                            )
+
+                            ||
+
+                            // Waiting for review
+                            x.Status == "To Be Reviewed"
+                        )
+                    );
+
+
+            // =========================================================
+            // 6. OVERDUE TESTS
+            // =========================================================
+            //
+            // Turnaround time is calculated from StartDateTime.
+            //
+            var overdue =
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId == technician.Id &&
+                        x.Status == "In Progress" &&
+                        x.StartDateTime.HasValue &&
+                        x.TestType != null &&
+                        x.TestType.TurnaroundTimeMinutes > 0 &&
+                        x.StartDateTime.Value.AddMinutes(
+                            x.TestType.TurnaroundTimeMinutes
+                        ) < now
+                    );
+
+
+            // =========================================================
+            // 7. TESTS NEARING TURNAROUND LIMIT
+            // =========================================================
+            //
+            // Due within the next 30 minutes.
+            //
+            var nearDeadlineCount =
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.AssignedTechnicianId == technician.Id &&
+                        x.Status == "In Progress" &&
+                        x.StartDateTime.HasValue &&
+                        x.TestType != null &&
+                        x.TestType.TurnaroundTimeMinutes > 0 &&
+
+                        x.StartDateTime.Value.AddMinutes(
+                            x.TestType.TurnaroundTimeMinutes
+                        ) >= now &&
+
+                        x.StartDateTime.Value.AddMinutes(
+                            x.TestType.TurnaroundTimeMinutes
+                        ) <= nearDeadline
+                    );
+
+
+            // =========================================================
+            // 8. VERIFIED TESTS
+            // =========================================================
+            //
+            // Kept as an additional dashboard statistic.
+            //
+            var verified =
+                await _context.TestRequestItems
+                    .CountAsync(x =>
+                        x.Status == "Verified"
+                    );
+
+
+            // =========================================================
+            // RETURN DASHBOARD DATA
+            // =========================================================
 
             return Json(new
             {
-                available =
-                    ViewBag.Available,
+                waitingToBeSelected = waitingToBeSelected,
 
-                inProgress =
-                    ViewBag.InProgress,
+                selectedByTechnician = selectedByTechnician,
 
-                completed =
-                    ViewBag.Completed,
+                waitingForVerification = waitingForVerification,
 
-                verified =
-                    ViewBag.Verified,
+                waitingForReview = waitingForReview,
 
-                toBeReviewed =
-                    ViewBag.ToBeReviewed,
+                urgent = urgent,
 
-                urgent =
-                    ViewBag.Urgent
+                overdue = overdue,
+
+                nearDeadline = nearDeadlineCount,
+
+                verified = verified
             });
+        }
+
+
+        // =========================================================
+        // DASHBOARD CATEGORIES
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> DashboardCategories()
+        {
+            var categories =
+                await _context.TestTypes
+                    .Where(x =>
+                        x.Category != null &&
+                        x.Category != "")
+                    .Select(x => x.Category)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToListAsync();
+
+            return Json(categories);
+        }
+
+
+        // =========================================================
+        // TECHNICIAN DASHBOARD QUEUE
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> DashboardQueue(
+            string? urgency,
+            string? category,
+            string? due,
+            string? requestNumber)
+        {
+            var technician =
+                await _userManager.GetUserAsync(User);
+
+            if (technician == null)
+                return Unauthorized();
+
+            var now = DateTime.Now;
+
+
+            // =========================================================
+            // BASE DASHBOARD QUEUE
+            // =========================================================
+
+            var query =
+                _context.TestRequestItems
+
+                    .Include(x => x.TestType)
+
+                    .Include(x => x.TestRequest)
+                        .ThenInclude(x => x.Patient)
+
+                    .Where(x =>
+                        x.TestRequest != null &&
+
+                        (
+                            // =================================================
+                            // WAITING TO BE SELECTED
+                            // =================================================
+                            (
+                                x.Status == "Submitted" &&
+                                x.AssignedTechnicianId == null &&
+
+                                _context.Samples.Any(s =>
+                                    s.TestRequestId == x.RequestId &&
+                                    s.IsReceived)
+                            )
+
+                            ||
+
+                            // =================================================
+                            // SELECTED BY CURRENT TECHNICIAN
+                            // =================================================
+                            (
+                                x.Status == "In Progress" &&
+                                x.AssignedTechnicianId == technician.Id
+                            )
+
+                            ||
+
+                            // =================================================
+                            // WAITING FOR VERIFICATION
+                            // =================================================
+                            (
+                                x.Status == "Completed" &&
+                                x.AssignedTechnicianId == technician.Id
+                            )
+
+                            ||
+
+                            // =================================================
+                            // WAITING FOR REVIEW
+                            // =================================================
+                            (
+                                x.Status == "To Be Reviewed"
+                            )
+                        )
+                    )
+                    .AsQueryable();
+
+
+            // =========================================================
+            // URGENCY FILTER
+            // =========================================================
+
+            if (!string.IsNullOrWhiteSpace(urgency))
+            {
+                query = query.Where(x =>
+                    x.TestRequest!.Urgency == urgency);
+            }
+
+
+            // =========================================================
+            // CATEGORY FILTER
+            // =========================================================
+
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                query = query.Where(x =>
+                    x.TestType != null &&
+                    x.TestType.Category == category);
+            }
+
+
+            // =========================================================
+            // REQUEST NUMBER FILTER
+            // =========================================================
+
+            if (!string.IsNullOrWhiteSpace(requestNumber))
+            {
+                query = query.Where(x =>
+                    x.RequestId
+                        .ToString()
+                        .Contains(requestNumber));
+            }
+
+
+            // =========================================================
+            // LOAD TESTS
+            // =========================================================
+
+            var tests =
+                await query
+                    .OrderBy(x =>
+                        x.TestRequest!.Urgency == "STAT"
+                            ? 1
+                            : x.TestRequest.Urgency == "Urgent"
+                                ? 2
+                                : x.TestRequest.Urgency == "Priority"
+                                    ? 3
+                                    : 4
+                    )
+                    .ThenBy(x =>
+                        x.TestRequest!.RequestDate)
+                    .ThenBy(x =>
+                        x.TestRequestItemId)
+                    .ToListAsync();
+
+
+            // =========================================================
+            // BUILD DASHBOARD RESULT
+            // =========================================================
+
+            var result = tests
+                .Select(x =>
+                {
+                    DateTime? dueDateTime = null;
+
+                    // Turnaround applies to tests currently in progress.
+                    if (
+                        x.Status == "In Progress" &&
+                        x.StartDateTime.HasValue &&
+                        x.TestType != null &&
+                        x.TestType.TurnaroundTimeMinutes > 0)
+                    {
+                        dueDateTime =
+                            x.StartDateTime.Value.AddMinutes(
+                                x.TestType.TurnaroundTimeMinutes);
+                    }
+
+
+                    // =====================================================
+                    // OVERDUE
+                    // =====================================================
+
+                    bool isOverdue =
+                        dueDateTime.HasValue &&
+                        dueDateTime.Value < now;
+
+
+                    // =====================================================
+                    // NEARING LIMIT
+                    // =====================================================
+
+                    bool isNearDeadline =
+                        dueDateTime.HasValue &&
+                        dueDateTime.Value >= now &&
+                        dueDateTime.Value <= now.AddMinutes(30);
+
+
+                    // =====================================================
+                    // TIME REMAINING
+                    // =====================================================
+
+                    int? minutesRemaining = null;
+
+                    if (dueDateTime.HasValue)
+                    {
+                        minutesRemaining =
+                            (int)Math.Ceiling(
+                                (dueDateTime.Value - now)
+                                    .TotalMinutes);
+                    }
+
+
+                    // =====================================================
+                    // STATUS DISPLAY
+                    // =====================================================
+
+                    string statusDisplay;
+
+                    switch (x.Status)
+                    {
+                        case "Submitted":
+                            statusDisplay = "Waiting to be Selected";
+                            break;
+
+                        case "In Progress":
+                            statusDisplay = "Selected / In Progress";
+                            break;
+
+                        case "Completed":
+                            statusDisplay = "Waiting for Verification";
+                            break;
+
+                        case "To Be Reviewed":
+                            statusDisplay = "Waiting for Review";
+                            break;
+
+                        case "Verified":
+                            statusDisplay = "Verified";
+                            break;
+
+                        default:
+                            statusDisplay = x.Status;
+                            break;
+                    }
+
+
+                    // =====================================================
+                    // RETURN DASHBOARD ITEM
+                    // =====================================================
+
+                    return new
+                    {
+                        id = x.TestRequestItemId,
+
+                        requestId = x.RequestId,
+
+                        patient =
+                            x.TestRequest!.Patient != null
+                                ? x.TestRequest.Patient.Name +
+                                  " " +
+                                  x.TestRequest.Patient.Surname
+                                : "Unknown Patient",
+
+                        testName =
+                            x.TestType?.Name ??
+                            "Unknown Test",
+
+                        category =
+                            x.TestType?.Category ??
+                            "Uncategorised",
+
+                        urgency =
+                            x.TestRequest?.Urgency ??
+                            "Routine",
+
+                        status = x.Status,
+
+                        statusDisplay = statusDisplay,
+
+                        assigned =
+                            x.AssignedTechnicianId ==
+                            technician.Id,
+
+                        startTime =
+                            x.StartDateTime,
+
+                        dueTime =
+                            dueDateTime,
+
+                        dueDisplay =
+                            dueDateTime.HasValue
+                                ? dueDateTime.Value
+                                    .ToString("dd MMM yyyy HH:mm")
+                                : "—",
+
+                        overdue = isOverdue,
+
+                        nearDeadline = isNearDeadline,
+
+                        minutesRemaining = minutesRemaining,
+
+                        turnaroundMinutes =
+                            x.TestType != null
+                                ? x.TestType.TurnaroundTimeMinutes
+                                : 0,
+
+                        actionId =
+                            x.TestRequestItemId
+                    };
+                })
+                .ToList();
+
+
+            // =========================================================
+            // DUE-TIME FILTER
+            // =========================================================
+
+            if (!string.IsNullOrWhiteSpace(due))
+            {
+                switch (due.ToLower())
+                {
+                    case "overdue":
+
+                        result = result
+                            .Where(x => x.overdue)
+                            .ToList();
+
+                        break;
+
+
+                    case "near":
+
+                        result = result
+                            .Where(x => x.nearDeadline)
+                            .ToList();
+
+                        break;
+
+
+                    case "ontime":
+
+                        result = result
+                            .Where(x =>
+                                !x.overdue &&
+                                !x.nearDeadline)
+                            .ToList();
+
+                        break;
+
+
+                    case "today":
+
+                        result = result
+                            .Where(x =>
+                                x.dueTime.HasValue &&
+                                x.dueTime.Value.Date ==
+                                now.Date)
+                            .ToList();
+
+                        break;
+                }
+            }
+
+
+            // =========================================================
+            // RETURN QUEUE
+            // =========================================================
+
+            return Json(result);
         }
     }
 }
