@@ -315,8 +315,21 @@ namespace LabDash.Controllers
                 IDNumber = model.IDNumber,
                 DOB = model.DOB,
                 CellphoneNumber = model.CellphoneNumber,
-                HomeAddress = model.HomeAddress,
-                Email = model.Email
+                Email = model.Email,
+
+                // ---- Address ----
+                HomeAddress = model.AddressLine1,        // ← legacy column
+                AddressLine1 = model.AddressLine1,       // ← new
+                AddressLine2 = model.AddressLine2,
+                Suburb = model.Suburb,
+                City = model.City,
+                Province = model.Province,
+                PostalCode = model.PostalCode,
+
+                // ---- Medical ----
+                MedicalConditions = model.MedicalConditions ?? "None",
+                Allergies = model.Allergies ?? "None",
+                Medication = model.Medication ?? "None"
             };
 
             _context.Patients.Add(newPatient);
