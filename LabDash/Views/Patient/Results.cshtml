@@ -38,6 +38,11 @@
     ViewData["ActivePage"] = "Results";
 
     var results = Model ?? new List<LabDash.Models.TestResultViewModel>();
+
+    // Set by PatientController.Results(requestId) when opened from a request card
+    var reqFilter = ViewBag.RequestFilter as int?;
+    var single = reqFilter.HasValue;
+
     var total = results.Count;
     var panels = results.Select(r => r.RequestID).Distinct().Count();
     var abnormal = results.Count(r => r.IsAbnormal);
@@ -861,6 +866,14 @@
             border-color: var(--teal);
         }
 
+    /* Link-style button (Download PDF / back links) */
+    a.rx-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        text-decoration: none;
+    }
+
     /* Analytics */
     .rx-intro {
         display: flex;
@@ -1106,6 +1119,42 @@
         background: #fff;
         font-size: 12.5px;
     }
+
+    /* ===== Trend: date / year filter row ===== */
+    .rx-tf {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 16px;
+        margin-bottom: 18px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #FBFDFC;
+    }
+
+        .rx-tf label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--faint);
+        }
+
+        .rx-tf select, .rx-tf input[type=date] {
+            padding: 8px 10px;
+            border: 1px solid var(--line2);
+            border-radius: 10px;
+            font: 12.5px 'Inter',sans-serif;
+            color: var(--ink);
+            background: #fff;
+            outline: none;
+        }
+
+            .rx-tf select:focus, .rx-tf input[type=date]:focus {
+                border-color: var(--teal);
+                box-shadow: 0 0 0 3px rgba(14,140,127,.10);
+            }
 
     .rx-sum {
         display: grid;
@@ -1476,8 +1525,8 @@
             <div class="rx-hero-icon"><i class="fas fa-chart-line"></i></div>
             <div>
                 <div class="rx-eyebrow"><i class="fas fa-flask"></i> Laboratory Results</div>
-                <h1>My Test Results</h1>
-                <p>Review your laboratory results, monitor abnormal values and follow your health information over time.</p>
+                <h1>@(single ? "Results for request #" + reqFilter : "My Test Results")</h1>
+                <p>@(single ? "These are the released results for this one request. Download a PDF copy or go back to see all your requests." : "Review your laboratory results, monitor abnormal values and follow your health information over time.")</p>
             </div>
         </div>
         <div class="rx-hero-right">
@@ -1485,6 +1534,14 @@
             <div class="rx-hero-num"><strong>@panels</strong><small>Released Panels</small></div>
         </div>
     </section>
+
+    @if (single)
+    {
+        <div style="margin:-6px 0 20px;display:flex;gap:10px;flex-wrap:wrap">
+            <a class="rx-btn" href="@Url.Action("Requests", "Patient")"><i class="fas fa-arrow-left"></i> Back to my requests</a>
+            <a class="rx-btn" href="@Url.Action("Results", "Patient")"><i class="fas fa-list"></i> View all results</a>
+        </div>
+    }
 
     <section class="rx-stats">
         <div class="rx-card rx-stat"><div class="rx-ico teal"><i class="fas fa-vial"></i></div><div><span>Total Results</span><strong>@total</strong><small>Laboratory values</small></div></div>
@@ -1523,260 +1580,286 @@
                     <div class="rxf-search"><i class="fas fa-magnifying-glass"></i><input id="rxfQ" type="search" placeholder="Search test, doctor, request or note" autocomplete="off"></div>
                     @if (filterTests.Count > 1)
                     {
-                        <select id="rxfTest" class="rx-sel"><option value="">All tests</option>@foreach (var t in filterTests) {
-                            <option value="@t">@t</option>
-                        }
-                    </select>
-                }
-                @if (filterDoctors.Count > 1)
-                {
-                    <select id="rxfDoctor" class="rx-sel"><option value="">All doctors</option>@foreach (var d in filterDoctors) {
-                        <option value="@d">@d</option>
-                    }
-                </select>
-            }
-            @if (filterCats.Count > 1)
-            {
-                <select id="rxfCat" class="rx-sel"><option value="">All categories</option>@foreach (var c in filterCats) {
-                    <option value="@c">@c</option>
-                }
-            </select>
-        }
-    </div>
-    <div class="rxf-bottom">
-        <div class="rxf-group">
-            <button type="button" class="rxf-btn active" data-status="all">All (@total)</button>
-            <button type="button" class="rxf-btn" data-status="ok">Normal (@normal)</button>
-            <button type="button" class="rxf-btn" data-status="abn">Needs attention (@abnormal)</button>
-        </div>
-        <div class="rxf-group">
-            <button type="button" class="rxf-btn active" data-days="0">All time</button>
-            <button type="button" class="rxf-btn" data-days="30">30 days</button>
-            <button type="button" class="rxf-btn" data-days="180">6 months</button>
-            <button type="button" class="rxf-btn" data-days="365">Year</button>
-            <label>From <input type="date" id="rxfFrom"></label>
-            <label>To <input type="date" id="rxfTo"></label>
-        </div>
-        <div class="rxf-meta"><span id="rxfCount"></span><button type="button" id="rxfClear" class="rxf-clear" hidden>Clear filters</button></div>
-    </div>
-</div>
-
-<div class="rx-card rxf-none" id="rxfNone" hidden>
-    <i class="fas fa-filter-circle-xmark"></i>
-    <strong>No results match your filters</strong>
-    <span>Try a different date range or clear the filters to see everything.</span>
-</div>
-@foreach (var group in results.GroupBy(r => r.RequestID).OrderByDescending(g => g.Key))
-{
-    var first = group.First();
-    var reqDoctor = group.Select(r => r.DoctorName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
-    var reqDate = group.Where(r => r.ResultDate != default(DateTime)).Select(r => r.ResultDate).DefaultIfEmpty().Max();
-
-    <article class="rx-card rx-panel">
-        <div class="rx-ph">
-            <div class="rx-ph-left">
-                <div class="rx-ph-icon"><i class="fas fa-flask"></i></div>
-                <div>
-                    <small>Laboratory request</small>
-                    <h3>#@group.Key @(string.IsNullOrWhiteSpace(first.Category) ? "" : "· " + first.Category)</h3>
-                    <div class="rx-ph-meta">
-                        <span><i class="fas fa-calendar-day"></i>@(reqDate != default(DateTime) ? reqDate.ToString("dd MMM yyyy") : "Date not recorded")</span>
-                        <span><i class="fas fa-user-doctor"></i>@Doctor(reqDoctor)</span>
-                        <span><i class="fas fa-vials"></i><span class="rx-tc">@group.Count() @(group.Count() == 1 ? "test" : "tests")</span></span>
-                    </div>
-                </div>
-            </div>
-            <div class="rxl-chips">
-                <span class="rxl-chip">@(group.Count(x => !x.IsAbnormal)) normal</span>
-                @if (group.Any(x => x.IsAbnormal))
-                {
-                    <span class="rxl-chip abn">@(group.Count(x => x.IsAbnormal)) need attention</span>
-                }
-                <span class="rx-badge"><i class="fas fa-circle-check"></i> Released</span>
-            </div>
-        </div>
-
-        <div class="rxl">
-            <div class="rxl-head"><span>Test</span><span>Result</span><span>Reference range</span><span>Status</span></div>
-
-            @foreach (var r in group)
-            {
-                double lo = 0, hi = 0, val = 0;
-                var hasVal = TryNum(r.ResultValue, out val);
-                var canGauge = hasVal && TryRange(r.NormalRange, out lo, out hi);
-                double bandStart = 0, bandWidth = 0, marker = 50;
-                var pos = "";
-                if (canGauge)
-                {
-                    var span = hi - lo;
-                    var pLo = lo - span * .4;
-                    var pSpan = span * 1.8;
-                    bandStart = (lo - pLo) / pSpan * 100;
-                    bandWidth = span / pSpan * 100;
-                    marker = Math.Clamp((val - pLo) / pSpan * 100, 2, 98);
-                    pos = val < lo ? "Below range" : val > hi ? "Above range" : "Within range";
-                }
-                var unset = string.IsNullOrWhiteSpace(r.NormalRange)
-                    || Regex.IsMatch(r.NormalRange, @"^\s*0+([.,]0+)?\s*(-|–|to)\s*0+([.,]0+)?(?![\d.,])");
-                var refText = unset ? "No reference range" : r.NormalRange.Trim();
-                if (!unset && !string.IsNullOrWhiteSpace(r.Unit)
-                    && refText.IndexOf(r.Unit.Trim(), StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    refText += " " + r.Unit.Trim();
-                }
-                var cls = r.IsAbnormal ? "abn" : "ok";
-                var note = r.TechnicianNotes?.Trim();
-                var noDoc = string.IsNullOrWhiteSpace(r.DoctorName);
-                var when = r.ResultDate == default(DateTime)
-                    ? "Not recorded"
-                    : r.ResultDate.ToString(r.ResultDate.TimeOfDay == TimeSpan.Zero ? "dd MMM yyyy" : "dd MMM yyyy, HH:mm");
-                var dateKey = r.ResultDate == default(DateTime) ? "" : r.ResultDate.ToString("yyyy-MM-dd");
-                var docLabel = Doctor(r.DoctorName);
-                var searchKey = string.Join(" ", new[] { r.TestName, r.RequestID.ToString(), r.Category, r.TechnicianNotes, docLabel }).ToLowerInvariant();
-
-                <div class="rxl-row @cls" data-status="@cls" data-test="@r.TestName" data-doctor="@docLabel" data-cat="@r.Category" data-date="@dateKey" data-search="@searchKey">
-                    <div class="rxl-main">
-                        <div class="rxl-name">
-                            <span class="rxl-ico"><i class="fas fa-vial"></i></span>
-                            <strong>@r.TestName</strong>
-                        </div>
-                        <div class="rxl-val"><b>@r.ResultValue</b><span>@r.Unit</span></div>
-                        <div class="rxl-range">
-                            <div class="rxl-line @(canGauge ? "" : "flat")">
-                                @if (canGauge)
-                                {
-                                    <div class="rxl-band" style="left:@F(bandStart)%;width:@F(bandWidth)%"></div>
-                                    <div class="rxl-mark" style="left:@F(marker)%"></div>
-                                }
-                            </div>
-                            <small><span>@refText</span>@if (pos != "") {
-                                <b>@pos</b>
+                        <select id="rxfTest" class="rx-sel">
+                            <option value="">All tests</option>
+                            @foreach (var t in filterTests)
+                            {
+                                <option value="@t">@t</option>
                             }
-                        </small>
-                    </div>
-                    <div class="rxl-st">
-                        @if (r.IsAbnormal)
-                        {
-                            <span class="rx-badge abn"><i class="fas fa-triangle-exclamation"></i> Abnormal</span>
-                        }
-                        else
-                        {
-
-                            <span class="rx-badge"><i class="fas fa-check"></i> Normal</span>
-                        }
-                    </div>
-                </div>
-
-                <div class="rxl-meta">
-                    <div><small>Date performed</small><span><i class="fas fa-calendar-day"></i>@when</span></div>
-                    <div><small>Doctor</small><span class="@(noDoc ? "none" : "")"><i class="fas fa-user-doctor"></i>@Doctor(r.DoctorName)</span></div>
-                    <div class="rxl-note"><small>Technician note</small><span class="@(string.IsNullOrWhiteSpace(note) ? "none" : "")"><i class="fas fa-note-sticky"></i>@(string.IsNullOrWhiteSpace(note) ? "No note recorded for this test" : note)</span></div>
-                </div>
-            </div>
-        }
-    </div>
-
-    <div class="rx-pf">
-        <span><i class="fas fa-clock"></i> Laboratory report</span>
-        <button type="button" class="rx-btn" onclick="window.print()"><i class="fas fa-print"></i> Print report</button>
-    </div>
-</article>
-            }
-</div>
-
-<!-- ================= ANALYTICS ================= -->
-<div id="rx-analytics" style="display:none">
-
-    <section class="rx-card rx-intro">
-        <div>
-            <small><i class="fas fa-chart-line"></i> Results overview</small>
-            <h2>Your results at a glance</h2>
-            <p>A summary of the laboratory information currently on your patient record.</p>
-        </div>
-        <div class="rx-intro-num"><strong>@total</strong><span>Total values</span></div>
-    </section>
-
-    <div class="rx-grid2">
-        <div class="rx-card rx-chart">
-            <div class="rx-chart-h"><div><small>Result status</small><h3>Normal vs attention</h3></div><i class="fas fa-chart-pie"></i></div>
-            <div class="rx-donut-area">
-                <div class="rx-donut" style="background:conic-gradient(#2E8B57 0deg @(normalDeg)deg, #B0463F @(normalDeg)deg 360deg)">
-                    <div class="rx-donut-in"><strong>@normalPct.ToString("0")%</strong><span>Normal</span></div>
-                </div>
-                <div class="rx-legend">
-                    <div><span class="rx-dot" style="background:#2E8B57"></span>Normal<strong>@normal</strong></div>
-                    <div><span class="rx-dot" style="background:#B0463F"></span>Attention<strong>@abnormal</strong></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="rx-card rx-chart">
-            <div class="rx-chart-h"><div><small>Laboratory activity</small><h3>Tests performed</h3></div><i class="fas fa-vials"></i></div>
-            @foreach (var t in topTests)
-            {
-                <div class="rx-bar">
-                    <div><span>@t.Key</span><strong>@t.Count()</strong></div>
-                    <div class="rx-track"><div class="rx-fill" style="width:@F((double)t.Count() / total * 100)%"></div></div>
-                </div>
-            }
-        </div>
-    </div>
-
-    <div class="rx-card rx-trend">
-        <div class="rx-thead">
-            <div class="rx-thead-l"><div class="rx-thead-ico"><i class="fas fa-wave-square"></i></div><div><h3>Result trend</h3><p>Track repeated numeric measurements for the same test.</p></div></div>
-            @if (series.Any())
-            {
-                <select id="trendSel" class="rx-sel" onchange="drawTrend()">
-                    @foreach (var s in series)
-                    {
-                        <option value="@s.Key">@s.Key (@s.Count())</option>
+                        </select>
                     }
-                </select>
+                    @if (filterDoctors.Count > 1)
+                    {
+                        <select id="rxfDoctor" class="rx-sel">
+                            <option value="">All doctors</option>
+                            @foreach (var d in filterDoctors)
+                            {
+                                <option value="@d">@d</option>
+                            }
+                        </select>
+                    }
+                    @if (filterCats.Count > 1)
+                    {
+                        <select id="rxfCat" class="rx-sel">
+                            <option value="">All categories</option>
+                            @foreach (var c in filterCats)
+                            {
+                                <option value="@c">@c</option>
+                            }
+                        </select>
+                    }
+                </div>
+                <div class="rxf-bottom">
+                    <div class="rxf-group">
+                        <button type="button" class="rxf-btn active" data-status="all">All (@total)</button>
+                        <button type="button" class="rxf-btn" data-status="ok">Normal (@normal)</button>
+                        <button type="button" class="rxf-btn" data-status="abn">Needs attention (@abnormal)</button>
+                    </div>
+                    <div class="rxf-group">
+                        <button type="button" class="rxf-btn active" data-days="0">All time</button>
+                        <button type="button" class="rxf-btn" data-days="30">30 days</button>
+                        <button type="button" class="rxf-btn" data-days="180">6 months</button>
+                        <button type="button" class="rxf-btn" data-days="365">Year</button>
+                        <label>From <input type="date" id="rxfFrom"></label>
+                        <label>To <input type="date" id="rxfTo"></label>
+                    </div>
+                    <div class="rxf-meta"><span id="rxfCount"></span><button type="button" id="rxfClear" class="rxf-clear" hidden>Clear filters</button></div>
+                </div>
+            </div>
+
+            <div class="rx-card rxf-none" id="rxfNone" hidden>
+                <i class="fas fa-filter-circle-xmark"></i>
+                <strong>No results match your filters</strong>
+                <span>Try a different date range or clear the filters to see everything.</span>
+            </div>
+
+            @foreach (var group in results.GroupBy(r => r.RequestID).OrderByDescending(g => g.Key))
+            {
+                var first = group.First();
+                var reqDoctor = group.Select(r => r.DoctorName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+                var reqDate = group.Where(r => r.ResultDate != default(DateTime)).Select(r => r.ResultDate).DefaultIfEmpty().Max();
+
+                <article class="rx-card rx-panel">
+                    <div class="rx-ph">
+                        <div class="rx-ph-left">
+                            <div class="rx-ph-icon"><i class="fas fa-flask"></i></div>
+                            <div>
+                                <small>Laboratory request</small>
+                                <h3>#@group.Key @(string.IsNullOrWhiteSpace(first.Category) ? "" : "· " + first.Category)</h3>
+                                <div class="rx-ph-meta">
+                                    <span><i class="fas fa-calendar-day"></i>@(reqDate != default(DateTime) ? reqDate.ToString("dd MMM yyyy") : "Date not recorded")</span>
+                                    <span><i class="fas fa-user-doctor"></i>@Doctor(reqDoctor)</span>
+                                    <span><i class="fas fa-vials"></i><span class="rx-tc">@group.Count() @(group.Count() == 1 ? "test" : "tests")</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="rxl-chips">
+                            <span class="rxl-chip">@(group.Count(x => !x.IsAbnormal)) normal</span>
+                            @if (group.Any(x => x.IsAbnormal))
+                            {
+                                <span class="rxl-chip abn">@(group.Count(x => x.IsAbnormal)) need attention</span>
+                            }
+                            <span class="rx-badge"><i class="fas fa-circle-check"></i> Released</span>
+                        </div>
+                    </div>
+
+                    <div class="rxl">
+                        <div class="rxl-head"><span>Test</span><span>Result</span><span>Reference range</span><span>Status</span></div>
+
+                        @foreach (var r in group)
+                        {
+                            double lo = 0, hi = 0, val = 0;
+                            var hasVal = TryNum(r.ResultValue, out val);
+                            var canGauge = hasVal && TryRange(r.NormalRange, out lo, out hi);
+                            double bandStart = 0, bandWidth = 0, marker = 50;
+                            var pos = "";
+                            if (canGauge)
+                            {
+                                var span = hi - lo;
+                                var pLo = lo - span * .4;
+                                var pSpan = span * 1.8;
+                                bandStart = (lo - pLo) / pSpan * 100;
+                                bandWidth = span / pSpan * 100;
+                                marker = Math.Clamp((val - pLo) / pSpan * 100, 2, 98);
+                                pos = val < lo ? "Below range" : val > hi ? "Above range" : "Within range";
+                            }
+                            var unset = string.IsNullOrWhiteSpace(r.NormalRange)
+                                || Regex.IsMatch(r.NormalRange, @"^\s*0+([.,]0+)?\s*(-|–|to)\s*0+([.,]0+)?(?![\d.,])");
+                            var refText = unset ? "No reference range" : r.NormalRange.Trim();
+                            if (!unset && !string.IsNullOrWhiteSpace(r.Unit)
+                                && refText.IndexOf(r.Unit.Trim(), StringComparison.OrdinalIgnoreCase) < 0)
+                            {
+                                refText += " " + r.Unit.Trim();
+                            }
+                            var cls = r.IsAbnormal ? "abn" : "ok";
+                            var note = r.TechnicianNotes?.Trim();
+                            var noDoc = string.IsNullOrWhiteSpace(r.DoctorName);
+                            var when = r.ResultDate == default(DateTime)
+                                ? "Not recorded"
+                                : r.ResultDate.ToString(r.ResultDate.TimeOfDay == TimeSpan.Zero ? "dd MMM yyyy" : "dd MMM yyyy, HH:mm");
+                            var dateKey = r.ResultDate == default(DateTime) ? "" : r.ResultDate.ToString("yyyy-MM-dd");
+                            var docLabel = Doctor(r.DoctorName);
+                            var searchKey = string.Join(" ", new[] { r.TestName, r.RequestID.ToString(), r.Category, r.TechnicianNotes, docLabel }).ToLowerInvariant();
+
+                            <div class="rxl-row @cls" data-status="@cls" data-test="@r.TestName" data-doctor="@docLabel" data-cat="@r.Category" data-date="@dateKey" data-search="@searchKey">
+                                <div class="rxl-main">
+                                    <div class="rxl-name">
+                                        <span class="rxl-ico"><i class="fas fa-vial"></i></span>
+                                        <strong>@r.TestName</strong>
+                                    </div>
+                                    <div class="rxl-val"><b>@r.ResultValue</b><span>@r.Unit</span></div>
+                                    <div class="rxl-range">
+                                        <div class="rxl-line @(canGauge ? "" : "flat")">
+                                            @if (canGauge)
+                                            {
+                                                <div class="rxl-band" style="left:@F(bandStart)%;width:@F(bandWidth)%"></div>
+                                                <div class="rxl-mark" style="left:@F(marker)%"></div>
+                                            }
+                                        </div>
+                                        <small>
+                                            <span>@refText</span>
+                                            @if (pos != "")
+                                            {
+                                                <b>@pos</b>
+                                            }
+                                        </small>
+                                    </div>
+                                    <div class="rxl-st">
+                                        @if (r.IsAbnormal)
+                                        {
+                                            <span class="rx-badge abn"><i class="fas fa-triangle-exclamation"></i> Abnormal</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="rx-badge"><i class="fas fa-check"></i> Normal</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="rxl-meta">
+                                    <div><small>Date performed</small><span><i class="fas fa-calendar-day"></i>@when</span></div>
+                                    <div><small>Doctor</small><span class="@(noDoc ? "none" : "")"><i class="fas fa-user-doctor"></i>@Doctor(r.DoctorName)</span></div>
+                                    <div class="rxl-note"><small>Technician note</small><span class="@(string.IsNullOrWhiteSpace(note) ? "none" : "")"><i class="fas fa-note-sticky"></i>@(string.IsNullOrWhiteSpace(note) ? "No note recorded for this test" : note)</span></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="rx-pf">
+                        <span><i class="fas fa-clock"></i> Laboratory report</span>
+                        <span style="display:flex;gap:10px;flex-wrap:wrap">
+                            <a class="rx-btn" href="@Url.Action("DownloadResultsPdf", "Patient", new { requestId = group.Key })"><i class="fas fa-file-pdf"></i> Download PDF</a>
+                            <button type="button" class="rx-btn" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+                        </span>
+                    </div>
+                </article>
             }
         </div>
 
-        @if (!series.Any())
-        {
-            <div class="rx-graph-empty">A trend appears once numeric measurements are recorded.</div>
-        }
-        else
-        {
-            <div class="rx-ranges">
-                <button type="button" class="rx-pill active" data-days="0">All time</button>
-                <button type="button" class="rx-pill" data-days="7">7 days</button>
-                <button type="button" class="rx-pill" data-days="30">Month</button>
-                <button type="button" class="rx-pill" data-days="180">6 months</button>
-                <button type="button" class="rx-pill" data-days="365">Year</button>
-            </div>
-            <div class="rx-sum">
-                <div><small>Latest</small><b id="sLatest">—</b></div>
-                <div><small>Average</small><b id="sAvg">—</b></div>
-                <div><small>Range</small><b id="sRange">—</b></div>
-                <div><small>Direction</small><b id="sDir">—</b></div>
-            </div>
-            <div class="rx-graph"><div id="trendBox"></div></div>
-            <div class="rx-insight">
-                <i class="fas fa-lightbulb"></i>
-                <div><strong id="insTitle">—</strong><span id="insText"></span></div>
-            </div>
-        }
-    </div>
+        <!-- ================= ANALYTICS ================= -->
+        <div id="rx-analytics" style="display:none">
 
-    <div class="rx-insight">
-        <i class="fas fa-circle-info"></i>
-        <div><strong>About your analytics</strong>These charts describe your recorded data statistically. A trend is not a diagnosis; discuss changes with your doctor.</div>
-    </div>
-</div>
+            <section class="rx-card rx-intro">
+                <div>
+                    <small><i class="fas fa-chart-line"></i> Results overview</small>
+                    <h2>Your results at a glance</h2>
+                    <p>A summary of the laboratory information currently on your patient record.</p>
+                </div>
+                <div class="rx-intro-num"><strong>@total</strong><span>Total values</span></div>
+            </section>
+
+            <div class="rx-grid2">
+                <div class="rx-card rx-chart">
+                    <div class="rx-chart-h"><div><small>Result status</small><h3>Normal vs attention</h3></div><i class="fas fa-chart-pie"></i></div>
+                    <div class="rx-donut-area">
+                        <div class="rx-donut" style="background:conic-gradient(#2E8B57 0deg @(normalDeg)deg, #B0463F @(normalDeg)deg 360deg)">
+                            <div class="rx-donut-in"><strong>@normalPct.ToString("0")%</strong><span>Normal</span></div>
+                        </div>
+                        <div class="rx-legend">
+                            <div><span class="rx-dot" style="background:#2E8B57"></span>Normal<strong>@normal</strong></div>
+                            <div><span class="rx-dot" style="background:#B0463F"></span>Attention<strong>@abnormal</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rx-card rx-chart">
+                    <div class="rx-chart-h"><div><small>Laboratory activity</small><h3>Tests performed</h3></div><i class="fas fa-vials"></i></div>
+                    @foreach (var t in topTests)
+                    {
+                        <div class="rx-bar">
+                            <div><span>@t.Key</span><strong>@t.Count()</strong></div>
+                            <div class="rx-track"><div class="rx-fill" style="width:@F((double)t.Count() / total * 100)%"></div></div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- ===== RESULT TREND (with date / year filters and All-tests bar chart) ===== -->
+            <div class="rx-card rx-trend">
+                <div class="rx-thead">
+                    <div class="rx-thead-l"><div class="rx-thead-ico"><i class="fas fa-wave-square"></i></div><div><h3>Result trend</h3><p>Follow one test over time, or compare every test at once.</p></div></div>
+                    @if (series.Any())
+                    {
+                        <select id="trendSel" class="rx-sel" onchange="drawTrend()">
+                            <option value="__all__">All tests (bar chart)</option>
+                            @for (var i = 0; i < series.Count; i++)
+                            {
+                                <option value="@series[i].Key" selected="@(i == 0)">@series[i].Key (@series[i].Count())</option>
+                            }
+                        </select>
+                    }
+                </div>
+
+                @if (!series.Any())
+                {
+                    <div class="rx-graph-empty">A trend appears once numeric measurements are recorded.</div>
+                }
+                else
+                {
+                    <div class="rx-ranges">
+                        <button type="button" class="rx-pill active" data-days="0">All time</button>
+                        <button type="button" class="rx-pill" data-days="7">7 days</button>
+                        <button type="button" class="rx-pill" data-days="30">Month</button>
+                        <button type="button" class="rx-pill" data-days="180">6 months</button>
+                        <button type="button" class="rx-pill" data-days="365">Year</button>
+                    </div>
+
+                    <div class="rx-tf">
+                        <label>Year <select id="tfYear"><option value="">All years</option></select></label>
+                        <label>From <input type="date" id="tfFrom"></label>
+                        <label>To <input type="date" id="tfTo"></label>
+                        <button type="button" id="tfClear" class="rxf-clear" style="margin-left:auto" hidden>Clear dates</button>
+                    </div>
+
+                    <div class="rx-sum">
+                        <div><small id="sl1">Latest</small><b id="sLatest">—</b></div>
+                        <div><small id="sl2">Average</small><b id="sAvg">—</b></div>
+                        <div><small id="sl3">Range</small><b id="sRange">—</b></div>
+                        <div><small id="sl4">Direction</small><b id="sDir">—</b></div>
+                    </div>
+                    <div class="rx-graph"><div id="trendBox"></div></div>
+                    <div class="rx-insight">
+                        <i class="fas fa-lightbulb"></i>
+                        <div><strong id="insTitle">—</strong><span id="insText"></span></div>
+                    </div>
+                }
+            </div>
+
+            <div class="rx-insight">
+                <i class="fas fa-circle-info"></i>
+                <div><strong>About your analytics</strong>These charts describe your recorded data statistically. A trend is not a diagnosis; discuss changes with your doctor.</div>
+            </div>
+        </div>
     }
 
-<footer class="rx-footer"><i class="fas fa-shield-halved"></i> Laboratory Information Management System · Patient Portal · @DateTime.Now.Year</footer>
+    <footer class="rx-footer"><i class="fas fa-shield-halved"></i> Laboratory Information Management System · Patient Portal · @DateTime.Now.Year</footer>
 </div>
 
 @section Scripts {
     <script>
         var T = @Html.Raw(trendJson);
         var days = 0;
+        var TF = { year: '', from: '', to: '' };
 
         function switchTab(btn, id) {
             document.querySelectorAll('.rx-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -1786,14 +1869,99 @@
             if (id === 'rx-analytics') drawTrend();
         }
 
+        /* ===== Trend date / year filters ===== */
+        function markPill(btn) {
+            document.querySelectorAll('.rx-pill').forEach(function(x) { x.classList.toggle('active', x === btn); });
+        }
+        function allTimePill() { return document.querySelector('.rx-pill[data-days="0"]'); }
+        function syncTfClear() {
+            var c = document.getElementById('tfClear');
+            if (c) c.hidden = !(TF.year || TF.from || TF.to);
+        }
+        function resetTfInputs() {
+            var y = document.getElementById('tfYear'), f = document.getElementById('tfFrom'), t = document.getElementById('tfTo');
+            if (y) y.value = '';
+            if (f) f.value = '';
+            if (t) t.value = '';
+        }
+
+        // Quick range pills (7 days, month ...)
         document.querySelectorAll('.rx-pill').forEach(function(b) {
             b.addEventListener('click', function() {
-                document.querySelectorAll('.rx-pill').forEach(function(x) { x.classList.remove('active'); });
-                b.classList.add('active');
                 days = parseInt(b.dataset.days, 10) || 0;
+                TF = { year: '', from: '', to: '' };
+                resetTfInputs();
+                markPill(b);
+                syncTfClear();
                 drawTrend();
             });
         });
+
+        // Fill the year dropdown from the years that actually have results
+        (function() {
+            var sel = document.getElementById('tfYear');
+            if (!sel) return;
+
+            var ys = {};
+            Object.keys(T).forEach(function(k) {
+                T[k].forEach(function(p) { if (p.d) ys[p.d.slice(0, 4)] = 1; });
+            });
+            Object.keys(ys).sort().reverse().forEach(function(y) {
+                var o = document.createElement('option');
+                o.value = y; o.textContent = y;
+                sel.appendChild(o);
+            });
+
+            sel.addEventListener('change', function() {
+                TF = { year: sel.value, from: '', to: '' };
+                days = 0;
+                document.getElementById('tfFrom').value = '';
+                document.getElementById('tfTo').value = '';
+                markPill(sel.value ? null : allTimePill());
+                syncTfClear();
+                drawTrend();
+            });
+
+            ['tfFrom', 'tfTo'].forEach(function(id) {
+                document.getElementById(id).addEventListener('input', function() {
+                    TF = {
+                        year: '',
+                        from: document.getElementById('tfFrom').value,
+                        to: document.getElementById('tfTo').value
+                    };
+                    days = 0;
+                    document.getElementById('tfYear').value = '';
+                    markPill((TF.from || TF.to) ? null : allTimePill());
+                    syncTfClear();
+                    drawTrend();
+                });
+            });
+
+            document.getElementById('tfClear').addEventListener('click', function() {
+                TF = { year: '', from: '', to: '' };
+                days = 0;
+                resetTfInputs();
+                markPill(allTimePill());
+                syncTfClear();
+                drawTrend();
+            });
+        })();
+
+        // Which dates are currently selected (year > custom dates > quick pill)
+        function trendBounds() {
+            var from = '', to = '';
+            if (TF.year) { from = TF.year + '-01-01'; to = TF.year + '-12-31'; }
+            else if (TF.from || TF.to) { from = TF.from; to = TF.to; }
+            else if (days) { from = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10); }
+            return { from: from, to: to, active: !!(from || to) };
+        }
+        function inBounds(p, b) {
+            if (!b.active) return true;
+            if (!p.d) return false;
+            if (b.from && p.d < b.from) return false;
+            if (b.to && p.d > b.to) return false;
+            return true;
+        }
 
         /* ===== Filters (All results tab) ===== */
         var FLT = { status: 'all', test: '', doctor: '', cat: '', q: '', days: 0, from: '', to: '' };
@@ -1878,16 +2046,27 @@
 
             applyFilters();
         })();
+
+        /* ===== Trend graph ===== */
         function n(v) { return String(Math.round(v * 100) / 100); }
         function set(id, txt) { document.getElementById(id).textContent = txt; }
+        function esc(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        function setLabels(a) {
+            ['sl1', 'sl2', 'sl3', 'sl4'].forEach(function(id, i) { set(id, a[i]); });
+        }
 
         function drawTrend() {
             var sel = document.getElementById('trendSel');
             if (!sel) return;
-            var cutoff = Date.now() - days * 864e5;
-            var pts = (T[sel.value] || []).filter(function(p) {
-                return !days || !p.d || new Date(p.d).getTime() >= cutoff;
-            });
+
+            if (sel.value === '__all__') { drawAll(); return; }
+
+            setLabels(['Latest', 'Average', 'Range', 'Direction']);
+
+            var b = trendBounds();
+            var pts = (T[sel.value] || []).filter(function(p) { return inBounds(p, b); });
             var box = document.getElementById('trendBox');
             var dir = document.getElementById('sDir');
 
@@ -1956,6 +2135,96 @@
             });
 
             box.innerHTML = s + '</svg>';
+        }
+
+        /* ===== All tests at once (bar chart) =====
+           Every test has different units, so each bar shows the latest value in the
+           selected dates as a % of the TOP of that test's normal range.
+           The green zone is the normal range; a bar that passes 100% is above range. */
+        function drawAll() {
+            setLabels(['Tests shown', 'Within range', 'Above range', 'Below range']);
+
+            var b = trendBounds();
+            var rows = [], skipped = [];
+
+            Object.keys(T).forEach(function(name) {
+                var pts = T[name].filter(function(p) { return inBounds(p, b); });
+                if (!pts.length) return;
+                var last = pts[pts.length - 1];
+                if (last.lo != null && last.hi != null && last.hi > 0 && last.lo >= 0) {
+                    rows.push({ name: name, v: last.v, lo: last.lo, hi: last.hi, a: last.a, d: last.d, r: last.r, c: pts.length });
+                } else {
+                    skipped.push(name);
+                }
+            });
+
+            var box = document.getElementById('trendBox');
+            var dir = document.getElementById('sDir');
+            dir.className = '';
+
+            if (!rows.length) {
+                box.innerHTML = '<div class="rx-graph-empty">No numeric results with a reference range in this period.</div>';
+                ['sLatest', 'sAvg', 'sRange'].forEach(function(i) { set(i, '—'); });
+                dir.textContent = '—';
+                set('insTitle', 'Nothing to compare');
+                set('insText', 'Try a different year or date range, or pick a single test from the list.');
+                return;
+            }
+
+            var within = 0, above = 0, below = 0;
+            rows.forEach(function(r) {
+                r.out = r.v > r.hi ? 'above' : r.v < r.lo ? 'below' : 'in';
+                if (r.out === 'in') within++; else if (r.out === 'above') above++; else below++;
+            });
+
+            // Tests outside their range first, then alphabetical
+            rows.sort(function(a, c) {
+                var ao = a.out === 'in' ? 1 : 0, co = c.out === 'in' ? 1 : 0;
+                return ao - co || a.name.localeCompare(c.name);
+            });
+
+            set('sLatest', String(rows.length)); set('sAvg', String(within));
+            set('sRange', String(above)); dir.textContent = String(below);
+
+            var W = 900, L = 210, R = 70, rowH = 36, Tp = 34, B = 36, MAXP = 160;
+            var H = Tp + rows.length * rowH + B, gw = W - L - R;
+            var X = function(pct) { return L + Math.min(Math.max(pct, 0), MAXP) / MAXP * gw; };
+
+            var s = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
+
+            [0, 50, 100, 150].forEach(function(t) {
+                s += '<line x1="' + X(t) + '" x2="' + X(t) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke="#E5EFED"/>' +
+                    '<text x="' + X(t) + '" y="' + (H - 14) + '" text-anchor="middle">' + t + '%</text>';
+            });
+            s += '<line x1="' + X(100) + '" x2="' + X(100) + '" y1="' + (Tp - 6) + '" y2="' + (H - B) + '" stroke="#0E8C7F" stroke-dasharray="6 4"/>' +
+                '<text x="' + X(100) + '" y="' + (Tp - 12) + '" text-anchor="middle" style="fill:#0E8C7F">Top of normal range</text>';
+
+            rows.forEach(function(r, i) {
+                var y = Tp + i * rowH;
+                var pct = r.v / r.hi * 100;
+                var loPct = r.lo / r.hi * 100;
+                var col = r.out === 'in' && !r.a ? '#0E8C7F' : '#B0463F';
+                var nm = r.name.length > 28 ? r.name.slice(0, 27) + '…' : r.name;
+
+                s += '<g><title>' + esc(r.name) + ' · latest ' + n(r.v) + ' · normal ' + n(r.lo) + '–' + n(r.hi) +
+                    ' · ' + (r.d || 'no date') + ' · Request #' + esc(r.r) + ' · ' + (r.out === 'in' ? 'Within range' : r.out === 'above' ? 'Above range' : 'Below range') + '</title>' +
+                    '<rect x="' + L + '" y="' + (y + 2) + '" width="' + gw + '" height="' + (rowH - 4) + '" fill="transparent"/>' +
+                    '<rect x="' + X(loPct) + '" y="' + (y + 4) + '" width="' + (X(100) - X(loPct)) + '" height="' + (rowH - 8) + '" rx="4" fill="rgba(46,139,87,.14)"/>' +
+                    '<rect x="' + L + '" y="' + (y + 10) + '" width="' + Math.max(X(pct) - L, 2) + '" height="' + (rowH - 20) + '" rx="4" fill="' + col + '"/>' +
+                    '<text x="' + (L - 10) + '" y="' + (y + rowH / 2 + 4) + '" text-anchor="end" style="fill:#102C27">' + esc(nm) + '</text>' +
+                    '<text x="' + (X(pct) + 8) + '" y="' + (y + rowH / 2 + 4) + '" style="fill:' + col + '">' + n(r.v) + (pct > MAXP ? ' ▸' : '') + '</text></g>';
+            });
+
+            box.innerHTML = s + '</svg>';
+
+            set('insTitle', 'Comparing ' + rows.length + (rows.length === 1 ? ' test' : ' tests'));
+            var note = within + ' of ' + rows.length + ' latest values are within their normal range. ' +
+                'Each bar is the latest value in the selected dates as a % of the top of its normal range; ' +
+                'the green zone is the normal range. Hover a bar for details.';
+            if (skipped.length) {
+                note += ' Not shown (no usable reference range): ' + skipped.join(', ') + '.';
+            }
+            set('insText', note);
         }
 
         window.addEventListener('resize', function() {

@@ -1,4 +1,5 @@
 ﻿@model LabDash.Models.PatientProfileViewModel
+
 @{
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
     ViewData["Title"] = "My Profile";
@@ -10,9 +11,9 @@
 
 <div class="p-wrap">
 
-    <!-- ==========================================
-        BANNER
-    =========================================== -->
+    <!-- =========================================================
+         HEADER
+         ========================================================= -->
     <div class="p-banner">
         <div class="p-banner-pattern"></div>
 
@@ -21,21 +22,39 @@
                 <span class="p-icon-ring"></span>
                 @Model.Initials
             </div>
+
             <div class="p-banner-text">
-                <h1>My Profile <span></span></h1>
-                <p>Manage your personal information and account security.</p>
+                <h1>My Profile</h1>
+
+                <p>
+                    Manage your personal information, address and health information.
+                </p>
+
                 <div class="p-pills">
-                    <span class="p-pill"><i class="fas fa-id-card"></i> Patient ID: PAT-@Model.PatientID.ToString("D5")</span>
-                    <span class="p-pill"><i class="fas fa-user"></i> @Model.FullName</span>
+                    <span class="p-pill">
+                        <i class="fas fa-id-card"></i>
+                        Patient ID: PAT-@Model.PatientID.ToString("D5")
+                    </span>
+
+                    <span class="p-pill">
+                        <i class="fas fa-user"></i>
+                        @Model.FullName
+                    </span>
                 </div>
             </div>
         </div>
 
-        <a href="@Url.Action("ChangePassword", "Account")" class="p-banner-cta">
-            <i class="fas fa-key"></i> Change Password
+        <a href="@Url.Action("ChangePassword", "Account")"
+           class="p-banner-cta">
+            <i class="fas fa-key"></i>
+            Change Password
         </a>
     </div>
 
+
+    <!-- =========================================================
+         SUCCESS MESSAGE
+         ========================================================= -->
     @if (TempData["SuccessMessage"] != null)
     {
         <div class="p-toast">
@@ -44,119 +63,720 @@
         </div>
     }
 
-    <!-- ==========================================
-        SECURITY NOTE STRIP
-    =========================================== -->
+
+    <!-- =========================================================
+         LOCKED INFORMATION NOTICE
+         ========================================================= -->
     <div class="p-status-strip">
         <div class="p-status-left">
             <span class="p-status-dot"></span>
-            <span><strong>Locked fields</strong> &middot; ID Number and Date of Birth can only be changed by visiting a clinic administrator</span>
+
+            <span>
+                <strong>Locked fields</strong>
+                &middot;
+                ID Number and Date of Birth can only be changed
+                by visiting a clinic administrator
+            </span>
         </div>
+
         <i class="fas fa-lock"></i>
     </div>
 
-    <!-- ==========================================
-        FORM
-    =========================================== -->
-    <div class="p-panel">
-        <div class="p-panel-head">
-            <span><i class="fa-solid fa-address-card"></i> Personal Information</span>
-            <span class="p-panel-tag">Editable</span>
-        </div>
 
-        <div class="p-panel-body">
-            <form asp-action="Profile" method="post">
-                @Html.AntiForgeryToken()
-                <div asp-validation-summary="ModelOnly" class="p-validation"></div>
+    <form asp-action="Profile" asp-controller="Patient" method="post">
+
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly"
+             class="p-validation"></div>
+
+
+        <!-- =====================================================
+             PERSONAL INFORMATION
+             ===================================================== -->
+        <div class="p-panel">
+
+            <div class="p-panel-head">
+                <span>
+                    <i class="fa-solid fa-address-card"></i>
+                    Personal Information
+                </span>
+
+                <span class="p-panel-tag">Editable</span>
+            </div>
+
+            <div class="p-panel-body">
 
                 <div class="p-grid-2">
+
                     <div class="p-field">
                         <label>First Name</label>
+
                         <div class="p-input-wrap">
                             <i class="fa-solid fa-user"></i>
-                            <input asp-for="Name" class="p-input" />
+                            <input asp-for="Name"
+                                   class="p-input"
+                                   placeholder="Enter your first name" />
                         </div>
+
                         <span asp-validation-for="Name" class="p-field-error"></span>
                     </div>
+
+
                     <div class="p-field">
                         <label>Surname</label>
+
                         <div class="p-input-wrap">
                             <i class="fa-solid fa-user"></i>
-                            <input asp-for="Surname" class="p-input" />
+                            <input asp-for="Surname"
+                                   class="p-input"
+                                   placeholder="Enter your surname" />
                         </div>
+
                         <span asp-validation-for="Surname" class="p-field-error"></span>
                     </div>
+
                 </div>
 
+
                 <div class="p-grid-2">
+
                     <div class="p-field">
-                        <label>SA ID Number <i class="fa-solid fa-lock p-lock-icon"></i></label>
+                        <label>
+                            SA ID Number
+                            <i class="fa-solid fa-lock p-lock-icon"></i>
+                        </label>
+
                         <div class="p-input-wrap p-input-wrap-locked">
                             <i class="fa-solid fa-fingerprint"></i>
-                            <input asp-for="IDNumber" readonly class="p-input p-input-locked" />
+                            <input asp-for="IDNumber"
+                                   readonly
+                                   class="p-input p-input-locked" />
                         </div>
+
+                        <span asp-validation-for="IDNumber" class="p-field-error"></span>
                     </div>
+
+
                     <div class="p-field">
-                        <label>Date of Birth <i class="fa-solid fa-lock p-lock-icon"></i></label>
+                        <label>
+                            Date of Birth
+                            <i class="fa-solid fa-lock p-lock-icon"></i>
+                        </label>
+
                         <div class="p-input-wrap p-input-wrap-locked">
                             <i class="fa-solid fa-cake-candles"></i>
-                            <input asp-for="DateOfBirth" type="date" readonly class="p-input p-input-locked" />
+                            <input asp-for="DateOfBirth"
+                                   type="date"
+                                   readonly
+                                   class="p-input p-input-locked" />
                         </div>
+
+                        <span asp-validation-for="DateOfBirth" class="p-field-error"></span>
                     </div>
+
                 </div>
+
 
                 <div class="p-grid-2">
+
                     <div class="p-field">
                         <label>E-mail (Username)</label>
+
                         <div class="p-input-wrap">
                             <i class="fa-solid fa-envelope"></i>
-                            <input asp-for="Email" type="email" class="p-input" />
+                            <input asp-for="Email"
+                                   type="email"
+                                   class="p-input"
+                                   placeholder="Enter your email address" />
                         </div>
+
                         <span asp-validation-for="Email" class="p-field-error"></span>
                     </div>
+
+
                     <div class="p-field">
                         <label>Cellphone</label>
+
                         <div class="p-input-wrap">
                             <i class="fa-solid fa-mobile-screen"></i>
-                            <input asp-for="Cellphone" class="p-input" />
+                            <input asp-for="Cellphone"
+                                   class="p-input"
+                                   placeholder="Enter your cellphone number" />
                         </div>
+
                         <span asp-validation-for="Cellphone" class="p-field-error"></span>
                     </div>
+
                 </div>
 
-                <div class="p-field p-field-full">
-                    <label>Home Address</label>
-                    <div class="p-input-wrap p-input-wrap-textarea">
-                        <i class="fa-solid fa-location-dot"></i>
-                        <textarea asp-for="HomeAddress" class="p-input p-textarea"></textarea>
+            </div>
+        </div>
+
+
+        <!-- =====================================================
+             ADDRESS
+             ===================================================== -->
+        <div class="p-panel p-section-panel">
+
+            <div class="p-panel-head">
+                <span>
+                    <i class="fa-solid fa-location-dot"></i>
+                    Address Information
+                </span>
+
+                <span class="p-panel-tag">Editable</span>
+            </div>
+
+            <div class="p-panel-body">
+
+                <div class="p-grid-2">
+
+                    <div class="p-field">
+                        <label>Address Line 1</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-house"></i>
+                            <input asp-for="AddressLine1"
+                                   class="p-input"
+                                   placeholder="House / unit number and street" />
+                        </div>
                     </div>
+
+
+                    <div class="p-field">
+                        <label>Address Line 2</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-building"></i>
+                            <input asp-for="AddressLine2"
+                                   class="p-input"
+                                   placeholder="Apartment, complex or additional address details" />
+                        </div>
+                    </div>
+
                 </div>
 
-                <button type="submit" class="p-submit">
-                    <i class="fas fa-save"></i> Save Profile Changes
-                </button>
-            </form>
-        </div>
-    </div>
 
-    <!-- ==========================================
-        FOOTER
-    =========================================== -->
-    <div class="p-footer">
-        <hr />
-        <div class="p-footer-content">
-            <i class="fa-solid fa-shield-halved"></i>
-            <span>Laboratory Information Management System</span>
-            <span class="p-footer-divider">|</span>
-            <span>Patient Portal</span>
-            <span class="p-footer-divider">|</span>
-            <span>@DateTime.Now.Year</span>
+                <div class="p-grid-2">
+
+                    <div class="p-field">
+                        <label>Suburb</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <input asp-for="Suburb"
+                                   class="p-input"
+                                   placeholder="Enter your suburb" />
+                        </div>
+                    </div>
+
+
+                    <div class="p-field">
+                        <label>City</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-city"></i>
+                            <input asp-for="City"
+                                   class="p-input"
+                                   placeholder="Enter your city" />
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <div class="p-grid-2">
+
+                    <div class="p-field">
+                        <label>Province</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-map"></i>
+
+                            <select asp-for="Province"
+                                    class="p-input p-select">
+
+                                <option value="">Select Province</option>
+                                <option value="Eastern Cape">Eastern Cape</option>
+                                <option value="Free State">Free State</option>
+                                <option value="Gauteng">Gauteng</option>
+                                <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                                <option value="Limpopo">Limpopo</option>
+                                <option value="Mpumalanga">Mpumalanga</option>
+                                <option value="Northern Cape">Northern Cape</option>
+                                <option value="North West">North West</option>
+                                <option value="Western Cape">Western Cape</option>
+
+                            </select>
+                        </div>
+                    </div>
+
+
+                    <div class="p-field">
+                        <label>Postal Code</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-envelopes-bulk"></i>
+                            <input asp-for="PostalCode"
+                                   class="p-input"
+                                   maxlength="4"
+                                   inputmode="numeric"
+                                   placeholder="e.g. 6001" />
+                        </div>
+
+                        <span asp-validation-for="PostalCode" class="p-field-error"></span>
+                    </div>
+
+                </div>
+
+            </div>
         </div>
+
+
+        <!-- =====================================================
+             HEALTH INFORMATION
+             ===================================================== -->
+        <div class="p-panel p-section-panel">
+
+            <div class="p-panel-head">
+                <span>
+                    <i class="fa-solid fa-heart-pulse"></i>
+                    Health Information
+                </span>
+
+                <span class="p-panel-tag">Editable</span>
+            </div>
+
+
+            <div class="p-panel-body">
+
+
+                <!-- =============================================
+                     MEDICAL CONDITIONS
+                     ============================================= -->
+                <div class="p-health-section">
+
+                    <div class="p-health-heading">
+                        <div>
+                            <h3>
+                                <i class="fa-solid fa-notes-medical"></i>
+                                Medical Conditions
+                            </h3>
+
+                            <p>Select any conditions you have been diagnosed with.</p>
+                        </div>
+                    </div>
+
+
+                    <!-- SEARCH -->
+                    <div class="p-health-tools">
+
+                        <div class="p-input-wrap p-health-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            <input type="text"
+                                   class="p-input p-health-search"
+                                   data-search-group="medical"
+                                   placeholder="Search medical conditions..." />
+
+                            <button type="button"
+                                    class="p-health-search-clear"
+                                    data-clear-search="medical"
+                                    title="Clear search">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <span class="p-health-results"
+                              data-results-count="medical"></span>
+
+                    </div>
+
+
+                    <div class="p-options-grid"
+                         data-options-group="medical">
+
+                        <!-- NONE -->
+                        <label class="p-check-card p-none-card">
+
+                            <input type="checkbox"
+                                   class="none-checkbox"
+                                   data-group="medical" />
+
+                            <span class="p-check-box"></span>
+
+                            <span class="p-check-content">
+                                <strong>None diagnosed</strong>
+                                <small>I have no diagnosed medical conditions</small>
+                            </span>
+
+                        </label>
+
+
+                        <!-- DATABASE OPTIONS -->
+                        @foreach (var condition in Model.MedicalConditionOptions)
+                        {
+                            <label class="p-check-card health-option"
+                                   data-health-option="medical"
+                                   data-search-text="@condition.ConditionName.ToLowerInvariant()">
+
+                                <input type="checkbox"
+                                       name="SelectedMedicalConditionIds"
+                                       value="@condition.MedicalConditionId"
+                                       class="medical-option"
+                                       data-group="medical"
+                                @(Model.SelectedMedicalConditionIds.Contains(condition.MedicalConditionId)
+                                    ? "checked"
+                                    : "") />
+
+                                <span class="p-check-box"></span>
+
+                                <span class="p-check-content">
+                                    <strong>@condition.ConditionName</strong>
+
+                                    @if (!string.IsNullOrWhiteSpace(condition.Description))
+                                    {
+                                        <small>@condition.Description</small>
+                                    }
+                                </span>
+
+                            </label>
+                        }
+
+                    </div>
+
+
+                    <div class="p-health-empty"
+                         data-empty-message="medical">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <span>No medical conditions match your search.</span>
+                    </div>
+
+
+                    <!-- PAGINATION -->
+                    <div class="p-health-pagination"
+                         data-pagination="medical"></div>
+
+
+                    <!-- OTHER -->
+                    <div class="p-other-field">
+
+                        <label>Other Medical Condition</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-pen"></i>
+                            <input asp-for="OtherMedicalCondition"
+                                   class="p-input"
+                                   placeholder="Enter another condition not listed above" />
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="p-health-divider"></div>
+
+
+                <!-- =============================================
+                     ALLERGIES
+                     ============================================= -->
+                <div class="p-health-section">
+
+                    <div class="p-health-heading">
+                        <div>
+                            <h3>
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                Allergies
+                            </h3>
+
+                            <p>Select any allergies that apply to you.</p>
+                        </div>
+                    </div>
+
+
+                    <!-- SEARCH -->
+                    <div class="p-health-tools">
+
+                        <div class="p-input-wrap p-health-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            <input type="text"
+                                   class="p-input p-health-search"
+                                   data-search-group="allergy"
+                                   placeholder="Search allergies..." />
+
+                            <button type="button"
+                                    class="p-health-search-clear"
+                                    data-clear-search="allergy"
+                                    title="Clear search">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <span class="p-health-results"
+                              data-results-count="allergy"></span>
+
+                    </div>
+
+
+                    <div class="p-options-grid"
+                         data-options-group="allergy">
+
+                        <!-- NONE -->
+                        <label class="p-check-card p-none-card">
+
+                            <input type="checkbox"
+                                   class="none-checkbox"
+                                   data-group="allergy" />
+
+                            <span class="p-check-box"></span>
+
+                            <span class="p-check-content">
+                                <strong>No known allergies</strong>
+                                <small>I do not have any known allergies</small>
+                            </span>
+
+                        </label>
+
+
+                        <!-- DATABASE OPTIONS -->
+                        @foreach (var allergy in Model.AllergyOptions)
+                        {
+                            <label class="p-check-card health-option"
+                                   data-health-option="allergy"
+                                   data-search-text="@allergy.AllergyName.ToLowerInvariant()">
+
+                                <input type="checkbox"
+                                       name="SelectedAllergyIds"
+                                       value="@allergy.AllergyId"
+                                       class="allergy-option"
+                                       data-group="allergy"
+                                @(Model.SelectedAllergyIds.Contains(allergy.AllergyId)
+                                    ? "checked"
+                                    : "") />
+
+                                <span class="p-check-box"></span>
+
+                                <span class="p-check-content">
+                                    <strong>@allergy.AllergyName</strong>
+
+                                    @if (!string.IsNullOrWhiteSpace(allergy.Description))
+                                    {
+                                        <small>@allergy.Description</small>
+                                    }
+                                </span>
+
+                            </label>
+                        }
+
+                    </div>
+
+
+                    <div class="p-health-empty"
+                         data-empty-message="allergy">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <span>No allergies match your search.</span>
+                    </div>
+
+
+                    <!-- PAGINATION -->
+                    <div class="p-health-pagination"
+                         data-pagination="allergy"></div>
+
+
+                    <!-- OTHER -->
+                    <div class="p-other-field">
+
+                        <label>Other Allergy</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-pen"></i>
+                            <input asp-for="OtherAllergy"
+                                   class="p-input"
+                                   placeholder="Enter another allergy not listed above" />
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="p-health-divider"></div>
+
+
+                <!-- =============================================
+                     MEDICATIONS
+                     ============================================= -->
+                <div class="p-health-section">
+
+                    <div class="p-health-heading">
+                        <div>
+                            <h3>
+                                <i class="fa-solid fa-pills"></i>
+                                Current Medications
+                            </h3>
+
+                            <p>Select any medications you are currently taking.</p>
+                        </div>
+                    </div>
+
+
+                    <!-- SEARCH -->
+                    <div class="p-health-tools">
+
+                        <div class="p-input-wrap p-health-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            <input type="text"
+                                   class="p-input p-health-search"
+                                   data-search-group="medication"
+                                   placeholder="Search medications..." />
+
+                            <button type="button"
+                                    class="p-health-search-clear"
+                                    data-clear-search="medication"
+                                    title="Clear search">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <span class="p-health-results"
+                              data-results-count="medication"></span>
+
+                    </div>
+
+
+                    <div class="p-options-grid"
+                         data-options-group="medication">
+
+                        <!-- NONE -->
+                        <label class="p-check-card p-none-card">
+
+                            <input type="checkbox"
+                                   class="none-checkbox"
+                                   data-group="medication" />
+
+                            <span class="p-check-box"></span>
+
+                            <span class="p-check-content">
+                                <strong>No current medications</strong>
+                                <small>I am not currently taking any medication</small>
+                            </span>
+
+                        </label>
+
+
+                        <!-- DATABASE OPTIONS -->
+                        @foreach (var medication in Model.MedicationOptions)
+                        {
+                            <label class="p-check-card health-option"
+                                   data-health-option="medication"
+                                   data-search-text="@medication.MedicationName.ToLowerInvariant()">
+
+                                <input type="checkbox"
+                                       name="SelectedMedicationIds"
+                                       value="@medication.MedicationId"
+                                       class="medication-option"
+                                       data-group="medication"
+                                @(Model.SelectedMedicationIds.Contains(medication.MedicationId)
+                                    ? "checked"
+                                    : "") />
+
+                                <span class="p-check-box"></span>
+
+                                <span class="p-check-content">
+                                    <strong>@medication.MedicationName</strong>
+
+                                    @if (!string.IsNullOrWhiteSpace(medication.Description))
+                                    {
+                                        <small>@medication.Description</small>
+                                    }
+                                </span>
+
+                            </label>
+                        }
+
+                    </div>
+
+
+                    <div class="p-health-empty"
+                         data-empty-message="medication">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <span>No medications match your search.</span>
+                    </div>
+
+
+                    <!-- PAGINATION -->
+                    <div class="p-health-pagination"
+                         data-pagination="medication"></div>
+
+
+                    <!-- OTHER -->
+                    <div class="p-other-field">
+
+                        <label>Other Medication</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-pen"></i>
+                            <input asp-for="OtherMedication"
+                                   class="p-input"
+                                   placeholder="Enter another medication not listed above" />
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     SAVE
+                     ================================================= -->
+                <button type="submit" class="p-submit">
+                    <i class="fas fa-save"></i>
+                    Save Profile Changes
+                </button>
+
+            </div>
+        </div>
+
+    </form>
+
+
+    <!-- =========================================================
+         FOOTER
+         ========================================================= -->
+    <div class="p-footer">
+
+        <hr />
+
+        <div class="p-footer-content">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <span>Laboratory Information Management System</span>
+
+            <span class="p-footer-divider">|</span>
+
+            <span>Patient Portal</span>
+
+            <span class="p-footer-divider">|</span>
+
+            <span>@DateTime.Now.Year</span>
+
+        </div>
+
     </div>
 
 </div>
 
+
+<!-- =============================================================
+     STYLES
+     ============================================================= -->
 <style>
+
     :root {
         --p-paper: #F0F7F6;
         --p-raised: #FFFFFF;
@@ -197,7 +817,10 @@
         }
     }
 
-    /* ============ BANNER ============ */
+    /* =========================================================
+           BANNER
+           ========================================================= */
+
     .p-banner {
         position: relative;
         display: flex;
@@ -327,7 +950,10 @@
             transform: translateY(-2px);
         }
 
-    /* ============ TOAST ============ */
+    /* =========================================================
+           TOAST + STATUS STRIP
+           ========================================================= */
+
     .p-toast {
         display: flex;
         align-items: center;
@@ -342,7 +968,6 @@
         font-weight: 500;
     }
 
-    /* ============ STATUS STRIP ============ */
     .p-status-strip {
         background: var(--p-raised);
         border-radius: var(--p-radius);
@@ -381,12 +1006,19 @@
         font-size: 15px;
     }
 
-    /* ============ PANEL ============ */
+    /* =========================================================
+           PANELS
+           ========================================================= */
+
     .p-panel {
         background: var(--p-raised);
         border-radius: var(--p-radius);
         box-shadow: var(--p-shadow);
         overflow: hidden;
+    }
+
+    .p-section-panel {
+        margin-top: 22px;
     }
 
     .p-panel-head {
@@ -431,7 +1063,10 @@
         margin-bottom: 15px;
     }
 
-    /* ============ FORM ============ */
+    /* =========================================================
+           FORM FIELDS
+           ========================================================= */
+
     .p-grid-2 {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -439,25 +1074,26 @@
         margin-bottom: 22px;
     }
 
+        .p-grid-2:last-child {
+            margin-bottom: 0;
+        }
+
     .p-field {
         display: flex;
         flex-direction: column;
+        min-width: 0;
     }
 
-    .p-field-full {
-        margin-bottom: 8px;
-    }
-
-    .p-field label {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-        font-size: 13px;
-        color: var(--p-ink);
-        margin-bottom: 8px;
-    }
+        .p-field label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--p-ink);
+            margin-bottom: 8px;
+        }
 
     .p-lock-icon {
         font-size: 11px;
@@ -498,6 +1134,7 @@
 
     .p-input {
         flex: 1;
+        min-width: 0;
         border: none;
         background: transparent;
         outline: none;
@@ -507,20 +1144,18 @@
         color: var(--p-ink);
     }
 
+        .p-input::placeholder {
+            color: var(--p-ink-faint);
+        }
+
     .p-input-locked {
         color: var(--p-ink-faint);
         cursor: not-allowed;
     }
 
-    .p-input-wrap-textarea {
-        align-items: flex-start;
-        padding-top: 12px;
-    }
-
-    .p-textarea {
-        height: 80px;
-        resize: none;
-        padding: 0 0 12px;
+    .p-select {
+        appearance: auto;
+        cursor: pointer;
     }
 
     .p-field-error {
@@ -529,13 +1164,297 @@
         margin-top: 6px;
     }
 
+    /* =========================================================
+           HEALTH SECTIONS
+           ========================================================= */
+
+    .p-health-section {
+        margin-bottom: 6px;
+    }
+
+    .p-health-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+        .p-health-heading h3 {
+            margin: 0 0 5px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--p-ink);
+        }
+
+            .p-health-heading h3 i {
+                color: var(--p-teal);
+                margin-right: 7px;
+            }
+
+        .p-health-heading p {
+            margin: 0;
+            color: var(--p-ink-soft);
+            font-size: 12.5px;
+        }
+
+    /* ----- Search ----- */
+
+    .p-health-tools {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .p-health-search-wrap {
+        width: 100%;
+        max-width: 460px;
+    }
+
+        .p-health-search-wrap .p-input {
+            padding: 11px 0;
+            font-size: 13.5px;
+        }
+
+    .p-health-search-clear {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--p-ink-faint);
+        cursor: pointer;
+        opacity: 0;
+        pointer-events: none;
+        transition: background .2s, color .2s, opacity .2s;
+    }
+
+        .p-health-search-clear i {
+            color: inherit;
+            font-size: 12px;
+        }
+
+        .p-health-search-clear.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .p-health-search-clear:hover {
+            background: var(--p-teal-dim);
+            color: var(--p-teal);
+        }
+
+    .p-health-results {
+        color: var(--p-ink-faint);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    /* ----- Option cards ----- */
+
+    .p-options-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .p-check-card {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px;
+        background: var(--p-paper);
+        border: 1.5px solid var(--p-line-strong);
+        border-radius: var(--p-radius-sm);
+        cursor: pointer;
+        transition: border-color .2s, background .2s, box-shadow .2s, transform .2s;
+    }
+
+        .p-check-card:hover {
+            border-color: var(--p-teal);
+            background: #fff;
+            transform: translateY(-1px);
+            box-shadow: var(--p-shadow-sm);
+        }
+
+        .p-check-card input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+    .p-check-box {
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--p-line-strong);
+        border-radius: 5px;
+        flex-shrink: 0;
+        margin-top: 1px;
+        background: #fff;
+        position: relative;
+        transition: all .2s;
+    }
+
+    .p-check-card input:checked + .p-check-box {
+        background: var(--p-teal);
+        border-color: var(--p-teal);
+    }
+
+        .p-check-card input:checked + .p-check-box::after {
+            content: "\f00c";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            color: #fff;
+            font-size: 10px;
+            position: absolute;
+            left: 2px;
+            top: 1px;
+        }
+
+    .p-check-card:has(input:checked) {
+        border-color: var(--p-teal);
+        background: var(--p-teal-dim);
+    }
+
+    .p-check-content {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+    }
+
+        .p-check-content strong {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--p-ink);
+        }
+
+        .p-check-content small {
+            color: var(--p-ink-soft);
+            font-size: 11.5px;
+            line-height: 1.4;
+        }
+
+    .p-none-card {
+        border-style: dashed;
+    }
+
+        .p-none-card .p-check-content strong {
+            color: var(--p-teal-deep);
+        }
+
+    /* ----- Pagination ----- */
+
+    .p-health-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 16px;
+        min-height: 34px;
+    }
+
+    .p-health-page-btn {
+        min-width: 34px;
+        height: 34px;
+        padding: 0 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1.5px solid var(--p-line-strong);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--p-ink-soft);
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all .2s;
+    }
+
+        .p-health-page-btn:hover {
+            border-color: var(--p-teal);
+            color: var(--p-teal);
+            background: var(--p-teal-dim);
+        }
+
+        .p-health-page-btn.active {
+            background: var(--p-teal);
+            border-color: var(--p-teal);
+            color: #fff;
+        }
+
+        .p-health-page-btn:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
+    .p-health-page-dots {
+        padding: 0 3px;
+        color: var(--p-ink-faint);
+        font-size: 12px;
+    }
+
+    /* ----- Empty search state ----- */
+
+    .p-health-empty {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 70px;
+        margin-top: 10px;
+        padding: 15px;
+        border: 1.5px dashed var(--p-line-strong);
+        border-radius: var(--p-radius-sm);
+        color: var(--p-ink-faint);
+        font-size: 12.5px;
+        text-align: center;
+    }
+
+        .p-health-empty i {
+            color: var(--p-teal);
+        }
+
+    /* ----- Other field ----- */
+
+    .p-other-field {
+        margin-top: 18px;
+    }
+
+        .p-other-field label {
+            display: block;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 12.5px;
+            color: var(--p-ink);
+            margin-bottom: 8px;
+        }
+
+    .p-health-divider {
+        height: 1px;
+        background: var(--p-line);
+        margin: 28px 0;
+    }
+
+    /* =========================================================
+           SUBMIT + FOOTER
+           ========================================================= */
+
     .p-submit {
         width: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 10px;
-        margin-top: 12px;
+        margin-top: 28px;
         padding: 15px;
         border: none;
         border-radius: var(--p-radius-sm);
@@ -554,7 +1473,6 @@
             box-shadow: 0 14px 28px rgba(10, 90, 80, 0.28);
         }
 
-    /* ============ FOOTER ============ */
     .p-footer {
         margin-top: 40px;
         text-align: center;
@@ -584,8 +1502,12 @@
         color: var(--p-line-strong);
     }
 
-    /* ============ RESPONSIVE ============ */
+    /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+
     @@media (max-width: 900px) {
+
         .p-banner {
             flex-direction: column;
             align-items: flex-start;
@@ -596,9 +1518,14 @@
             width: 100%;
             justify-content: center;
         }
+
+        .p-options-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
     @@media (max-width: 640px) {
+
         .p-wrap {
             padding: 20px 16px 50px;
         }
@@ -616,5 +1543,291 @@
             align-items: flex-start;
             gap: 10px;
         }
+
+        .p-banner-left {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .p-health-tools {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .p-health-search-wrap {
+            max-width: none;
+        }
     }
+
 </style>
+
+
+<!-- =============================================================
+     JAVASCRIPT
+     ============================================================= -->
+<script>
+
+    document.addEventListener("DOMContentLoaded", function() {
+
+        /* Real database options shown per page ("None" card is not counted) */
+        const ITEMS_PER_PAGE = 8;
+
+        const currentPages = { medical: 1, allergy: 1, medication: 1 };
+        const searchValues = { medical: "", allergy: "", medication: "" };
+
+
+        /* ---------- helpers ---------- */
+
+        function getOptions(group) {
+            return Array.from(
+                document.querySelectorAll(
+                    `.health-option[data-health-option="${group}"]`
+                )
+            );
+        }
+
+        function getFilteredOptions(group) {
+            const search = searchValues[group].trim().toLowerCase();
+            const options = getOptions(group);
+
+            if (!search) return options;
+
+            return options.filter(function(option) {
+                return (option.dataset.searchText || "").includes(search);
+            });
+        }
+
+        function buildPageList(current, total) {
+
+            if (total <= 7) {
+                return Array.from({ length: total }, function(_, i) { return i + 1; });
+            }
+
+            const pages = [1];
+
+            if (current > 4) pages.push("...");
+
+            const start = Math.max(2, current - 1);
+            const end = Math.min(total - 1, current + 1);
+
+            for (let p = start; p <= end; p++) pages.push(p);
+
+            if (current < total - 3) pages.push("...");
+
+            pages.push(total);
+
+            return pages;
+        }
+
+
+        /* ---------- pagination ---------- */
+
+        function renderPagination(group, totalItems) {
+
+            const pagination = document.querySelector(`[data-pagination="${group}"]`);
+            if (!pagination) return;
+
+            pagination.innerHTML = "";
+
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            if (totalPages <= 1) return;
+
+            // previous
+            const prev = document.createElement("button");
+            prev.type = "button";
+            prev.className = "p-health-page-btn";
+            prev.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+            prev.disabled = currentPages[group] === 1;
+            prev.addEventListener("click", function() {
+                if (currentPages[group] > 1) {
+                    currentPages[group]--;
+                    renderGroup(group);
+                }
+            });
+            pagination.appendChild(prev);
+
+            // numbers
+            buildPageList(currentPages[group], totalPages).forEach(function(page) {
+
+                if (page === "...") {
+                    const dots = document.createElement("span");
+                    dots.className = "p-health-page-dots";
+                    dots.textContent = "...";
+                    pagination.appendChild(dots);
+                    return;
+                }
+
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "p-health-page-btn";
+                btn.textContent = page;
+
+                if (page === currentPages[group]) btn.classList.add("active");
+
+                btn.addEventListener("click", function() {
+                    currentPages[group] = page;
+                    renderGroup(group);
+                });
+
+                pagination.appendChild(btn);
+            });
+
+            // next
+            const next = document.createElement("button");
+            next.type = "button";
+            next.className = "p-health-page-btn";
+            next.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+            next.disabled = currentPages[group] === totalPages;
+            next.addEventListener("click", function() {
+                if (currentPages[group] < totalPages) {
+                    currentPages[group]++;
+                    renderGroup(group);
+                }
+            });
+            pagination.appendChild(next);
+        }
+
+
+        /* ---------- render one group ---------- */
+
+        function renderGroup(group) {
+
+            const allOptions = getOptions(group);
+            const filtered = getFilteredOptions(group);
+
+            const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+
+            if (currentPages[group] > totalPages) {
+                currentPages[group] = totalPages;
+            }
+
+            const startIndex = (currentPages[group] - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+
+            // hide everything, then show only the current page of matches
+            allOptions.forEach(function(option) {
+                option.style.display = "none";
+            });
+
+            filtered.slice(startIndex, endIndex).forEach(function(option) {
+                option.style.display = "flex";
+            });
+
+            // empty state
+            const empty = document.querySelector(`[data-empty-message="${group}"]`);
+            if (empty) {
+                empty.style.display = filtered.length === 0 ? "flex" : "none";
+            }
+
+            // result counter
+            const counter = document.querySelector(`[data-results-count="${group}"]`);
+            if (counter) {
+                const total = filtered.length;
+                const word = searchValues[group] ? "result" : "option";
+                counter.textContent = `${total} ${word}${total === 1 ? "" : "s"}`;
+            }
+
+            renderPagination(group, filtered.length);
+        }
+
+
+        /* ---------- search ---------- */
+
+        document.querySelectorAll(".p-health-search").forEach(function(input) {
+
+            const group = input.dataset.searchGroup;
+
+            input.addEventListener("input", function() {
+
+                searchValues[group] = this.value;
+                currentPages[group] = 1;
+                renderGroup(group);
+
+                const clearBtn = document.querySelector(`[data-clear-search="${group}"]`);
+                if (clearBtn) {
+                    clearBtn.classList.toggle("visible", this.value.trim() !== "");
+                }
+            });
+        });
+
+        document.querySelectorAll("[data-clear-search]").forEach(function(button) {
+
+            button.addEventListener("click", function() {
+
+                const group = this.dataset.clearSearch;
+                const input = document.querySelector(`[data-search-group="${group}"]`);
+
+                if (!input) return;
+
+                input.value = "";
+                searchValues[group] = "";
+                currentPages[group] = 1;
+                this.classList.remove("visible");
+
+                renderGroup(group);
+                input.focus();
+            });
+        });
+
+
+        /* ---------- "None" checkbox logic ---------- */
+
+        document.querySelectorAll(".none-checkbox").forEach(function(noneBox) {
+
+            noneBox.addEventListener("change", function() {
+
+                if (!this.checked) return;
+
+                const group = this.dataset.group;
+
+                document
+                    .querySelectorAll(`input[data-group="${group}"]:not(.none-checkbox)`)
+                    .forEach(function(cb) { cb.checked = false; });
+            });
+        });
+
+        document
+            .querySelectorAll('input[type="checkbox"][data-group]:not(.none-checkbox)')
+            .forEach(function(checkbox) {
+
+                checkbox.addEventListener("change", function() {
+
+                    if (!this.checked) return;
+
+                    const noneBox = document.querySelector(
+                        `.none-checkbox[data-group="${this.dataset.group}"]`
+                    );
+
+                    if (noneBox) noneBox.checked = false;
+                });
+            });
+
+
+        /* ---------- initial "None" state ---------- */
+
+        ["medical", "allergy", "medication"].forEach(function(group) {
+
+            const noneBox = document.querySelector(`.none-checkbox[data-group="${group}"]`);
+            if (!noneBox) return;
+
+            const anySelected = Array.from(
+                document.querySelectorAll(`input[data-group="${group}"]:not(.none-checkbox)`)
+            ).some(function(cb) { return cb.checked; });
+
+            if (!anySelected) noneBox.checked = true;
+        });
+
+
+        /* ---------- initial render ---------- */
+
+        ["medical", "allergy", "medication"].forEach(renderGroup);
+
+    });
+
+</script>
+
+@section Scripts {
+
+    <partial name="_ValidationScriptsPartial" />
+
+}

@@ -1,11 +1,11 @@
 ﻿using System.Security.Claims;
 using LabDash.Areas.Identity.Data;
+using LabDash.Helpers;
 using LabDash.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using LabDash.Helpers;
 
 namespace LabDash.Controllers
 {
@@ -14,102 +14,249 @@ namespace LabDash.Controllers
         private readonly ILogger<DashboardController> _logger;
         private readonly LabDbContext _context;
 
-        public DashboardController(ILogger<DashboardController> logger, LabDbContext context)
+        public DashboardController(
+            ILogger<DashboardController> logger,
+            LabDbContext context)
         {
             _logger = logger;
             _context = context;
         }
 
+        [Authorize]
         public async Task<IActionResult> Index()
         {
             // ---------------------------------------------------------
-            // DOCTOR REDIRECT — doctors use their own dashboard.
+            // DOCTOR REDIRECT
             // ---------------------------------------------------------
-            if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Doctor"))
+            if (User.Identity != null &&
+                User.Identity.IsAuthenticated &&
+                User.IsInRole("Doctor"))
             {
-                return RedirectToAction("Index", "DoctorHome");
+                return RedirectToAction(
+                    "Index",
+                    "DoctorHome");
             }
 
-            // Admin section (unchanged from your original placeholder values)
             var model = new AdminDashboardViewModel();
-            // Admin section: real reference-data counts, change feed and warnings
-            if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Admin"))
+
+            // ---------------------------------------------------------
+            // ADMIN
+            // ---------------------------------------------------------
+            if (User.Identity != null &&
+                User.Identity.IsAuthenticated &&
+                User.IsInRole("Admin"))
             {
-                AdminDashboardBuilder.Populate(model, _context);
-                model.UserCount = await _context.Users.CountAsync();
+                AdminDashboardBuilder.Populate(
+                    model,
+                    _context);
+
+                model.UserCount =
+                    await _context.Users.CountAsync();
+
+                // Get the logged-in Admin's actual name
+                var adminUser =
+                    await _context.Users
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(
+                            u => u.Id == User.FindFirstValue(
+                                ClaimTypes.NameIdentifier));
+
+                if (adminUser != null)
+                {
+                    model.AdminName =
+                        $"{adminUser.FirstName} {adminUser.LastName}".Trim();
+                }
             }
-
-            // Patient section: only runs for logged-in users in the Patient role
-            if (User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("Patient"))
+            // ---------------------------------------------------------
+            // PATIENT
+            // ---------------------------------------------------------
+            if (User.Identity != null &&
+                User.Identity.IsAuthenticated &&
+                User.IsInRole("Patient"))
             {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var userId =
+                    User.FindFirstValue(
+                        ClaimTypes.NameIdentifier);
 
-                var patient = !string.IsNullOrEmpty(userId)
-                    ? await _context.Patients.FirstOrDefaultAsync(p => p.UserId == userId)
-                    : null;
+                if (string.IsNullOrWhiteSpace(userId))
+                {
+                    _logger.LogWarning(
+                        "Dashboard: logged-in patient has no User ID.");
+
+                    return View(model);
+                }
+
+                // IMPORTANT:
+                // AsNoTracking forces EF to read the latest Patient
+                // record directly from the database.
+                var patient =
+                    await _context.Patients
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(
+                            p => p.UserId == userId);
 
                 if (patient == null)
                 {
-                    _logger.LogWarning("Dashboard: no Patient record linked to user {UserId}", userId);
+                    _logger.LogWarning(
+                        "Dashboard: no Patient record found for UserId {UserId}",
+                        userId);
+
+                    return View(model);
                 }
-                else
-                {
-                    model.PatientProfile = new PatientProfileViewModel
+
+                // -----------------------------------------------------
+                // PATIENT PROFILE
+                // -----------------------------------------------------
+                model.PatientProfile =
+                    new PatientProfileViewModel
                     {
-                        PatientID = patient.PatientID,
-                        Name = patient.Name,
-                        Surname = patient.Surname,
-                        IDNumber = patient.IDNumber,
-                        DateOfBirth = patient.DOB,
-                        Cellphone = patient.CellphoneNumber,
-                        Email = patient.Email,
-                        HomeAddress = patient.HomeAddress
+                        PatientID =
+                            patient.PatientID,
+
+                        Name =
+                            patient.Name ?? "",
+
+                        Surname =
+                            patient.Surname ?? "",
+
+                        IDNumber =
+                            patient.IDNumber ?? "",
+
+                        DateOfBirth =
+                            patient.DOB,
+
+                        Cellphone =
+                            patient.CellphoneNumber ?? "",
+
+                        Email =
+                            patient.Email ?? "",
+
+                        HomeAddress =
+                            patient.HomeAddress ?? "",
+
+                        AddressLine1 =
+                            patient.AddressLine1 ?? "",
+
+                        AddressLine2 =
+                            patient.AddressLine2 ?? "",
+
+                        Suburb =
+                            patient.Suburb ?? "",
+
+                        City =
+                            patient.City ?? "",
+
+                        Province =
+                            patient.Province ?? "",
+
+                        PostalCode =
+                            patient.PostalCode ?? ""
                     };
 
-                    var requests = await _context.TestRequests
-                        .Where(r => r.PatientId == patient.PatientID)
-                        .Include(r => r.RequestingDoctor)
-                        .Include(r => r.TestRequestItems)
-                            .ThenInclude(i => i.TestType)
-                        .OrderByDescending(r => r.RequestDate)
+                // -----------------------------------------------------
+                // TEST REQUESTS
+                // -----------------------------------------------------
+                var requests =
+                    await _context.TestRequests
+                        .AsNoTracking()
+                        .Where(r =>
+                            r.PatientId ==
+                            patient.PatientID)
+                        .Include(r =>
+                            r.RequestingDoctor)
+                        .Include(r =>
+                            r.TestRequestItems)
+                            .ThenInclude(i =>
+                                i.TestType)
+                        .OrderByDescending(
+                            r => r.RequestDate)
                         .ToListAsync();
 
-                    // Stat cards (all three buckets come from RequestBuckets)
-                    model.PatientTotalRequests = requests.Count;
+                // -----------------------------------------------------
+                // PATIENT STATISTICS
+                // -----------------------------------------------------
+                model.PatientTotalRequests =
+                    requests.Count;
 
-                    model.PatientPendingRequests =
-                        requests.Count(r => RequestBuckets.In(RequestBuckets.Pending, r.Status));
+                model.PatientPendingRequests =
+                    requests.Count(r =>
+                        RequestBuckets.In(
+                            RequestBuckets.Pending,
+                            r.Status));
 
-                    model.PatientInProgressRequests =
-                        requests.Count(r => RequestBuckets.In(RequestBuckets.InProgress, r.Status));
+                model.PatientInProgressRequests =
+                    requests.Count(r =>
+                        RequestBuckets.In(
+                            RequestBuckets.InProgress,
+                            r.Status));
 
-                    model.PatientResultsReady =
-                        requests.Count(r => RequestBuckets.In(RequestBuckets.Ready, r.Status));
+                model.PatientResultsReady =
+                    requests.Count(r =>
+                        RequestBuckets.In(
+                            RequestBuckets.Ready,
+                            r.Status));
 
-                    // Only abnormal results from RELEASED requests are counted
-                    model.PatientAbnormalCount = await _context.TestResults
+                // -----------------------------------------------------
+                // ABNORMAL RESULTS
+                // -----------------------------------------------------
+                model.PatientAbnormalCount =
+                    await _context.TestResults
+                        .AsNoTracking()
                         .Where(res =>
-                            res.TestRequestItem.TestRequest.PatientId == patient.PatientID &&
-                            RequestBuckets.Ready.Contains(res.TestRequestItem.TestRequest.Status) &&
+                            res.TestRequestItem
+                                .TestRequest
+                                .PatientId ==
+                            patient.PatientID
+                            &&
+                            RequestBuckets.Ready.Contains(
+                                res.TestRequestItem
+                                    .TestRequest
+                                    .Status)
+                            &&
                             res.IsAbnormal)
                         .CountAsync();
 
-                    model.PatientRecentRequests = requests
+                // -----------------------------------------------------
+                // RECENT REQUESTS
+                // -----------------------------------------------------
+                model.PatientRecentRequests =
+                    requests
                         .Take(5)
-                        .Select(r => new TestRequestViewModel
-                        {
-                            RequestID = r.RequestId.ToString(),
-                            RequestDate = r.RequestDate,
-                            DoctorName = r.RequestingDoctor != null ? r.RequestingDoctor.FullName : "Unknown",
-                            Tests = r.TestRequestItems
-                                .Where(i => i.TestType != null)
-                                .Select(i => i.TestType.Name)
-                                .ToList(),
-                            Urgency = string.IsNullOrWhiteSpace(r.Urgency) ? "Routine" : r.Urgency,
-                            Status = string.IsNullOrWhiteSpace(r.Status) ? "Submitted" : r.Status
-                        })
+                        .Select(r =>
+                            new TestRequestViewModel
+                            {
+                                RequestID =
+                                    r.RequestId.ToString(),
+
+                                RequestDate =
+                                    r.RequestDate,
+
+                                DoctorName =
+                                    r.RequestingDoctor != null
+                                        ? r.RequestingDoctor.FullName
+                                        : "Unknown",
+
+                                Tests =
+                                    r.TestRequestItems
+                                        .Where(i =>
+                                            i.TestType != null)
+                                        .Select(i =>
+                                            i.TestType.Name)
+                                        .ToList(),
+
+                                Urgency =
+                                    string.IsNullOrWhiteSpace(
+                                        r.Urgency)
+                                        ? "Routine"
+                                        : r.Urgency,
+
+                                Status =
+                                    string.IsNullOrWhiteSpace(
+                                        r.Status)
+                                        ? "Submitted"
+                                        : r.Status
+                            })
                         .ToList();
-                }
             }
 
             return View(model);

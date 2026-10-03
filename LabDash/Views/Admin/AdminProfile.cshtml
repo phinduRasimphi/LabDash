@@ -1,4 +1,5 @@
 ﻿@model LabDash.Models.AdminProfileViewModel
+
 @{
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
     ViewData["Title"] = "Admin Profile";
@@ -10,166 +11,446 @@
 
 <div class="p-wrap">
 
-    <!-- ==========================================
-        BANNER
-    =========================================== -->
+    <!-- =========================================================
+         HEADER
+         ========================================================= -->
+
     <div class="p-banner">
+
         <div class="p-banner-pattern"></div>
 
         <div class="p-banner-left">
+
             <div class="p-banner-avatar">
                 <span class="p-icon-ring"></span>
                 @Model.Initials
             </div>
+
             <div class="p-banner-text">
-                <h1>Admin Profile <span></span></h1>
-                <p>Manage your administrator details and account security.</p>
+
+                <h1>Admin Profile</h1>
+
+                <p>
+                    Manage your administrator details, address and account security.
+                </p>
+
                 <div class="p-pills">
-                    
-                    <span class="p-pill"><i class="fas fa-user-shield"></i> @Model.FullName</span>
-                    <span class="p-pill"><i class="fas fa-user-tag"></i> @Model.Role</span>
+
+                    <span class="p-pill">
+                        <i class="fas fa-user-shield"></i>
+                        @Model.FullName
+                    </span>
+
+                    <span class="p-pill">
+                        <i class="fas fa-user-tag"></i>
+                        @Model.Role
+                    </span>
+
                 </div>
+
             </div>
+
         </div>
 
-        <a href="@Url.Action("ChangePassword", "Account")" class="p-banner-cta">
-            <i class="fas fa-key"></i> Change Password
+        <a href="@Url.Action("ChangePassword", "Account")"
+           class="p-banner-cta">
+
+            <i class="fas fa-key"></i>
+            Change Password
+
         </a>
+
     </div>
 
+
+    <!-- =========================================================
+         SUCCESS MESSAGE
+         ========================================================= -->
     @if (TempData["SuccessMessage"] != null)
     {
         <div class="p-toast">
+
             <i class="fas fa-check-circle"></i>
-            <span>@TempData["SuccessMessage"]</span>
+
+            <span>
+                @TempData["SuccessMessage"]
+            </span>
+
         </div>
     }
 
-    <!-- ==========================================
-        SECURITY NOTE STRIP
-    =========================================== -->
+
+    <!-- =========================================================
+         LOCKED INFORMATION NOTICE
+         ========================================================= -->
+
     <div class="p-status-strip">
+
         <div class="p-status-left">
+
             <span class="p-status-dot"></span>
-            <span><strong>Locked fields</strong> &middot; ID Number and Role can only be changed by a system administrator</span>
+
+            <span>
+
+                <strong>Locked fields</strong>
+
+                &middot;
+
+                ID Number and Role can only be changed
+                by a system administrator
+
+            </span>
+
         </div>
+
         <i class="fas fa-lock"></i>
+
     </div>
 
-    <!-- ==========================================
-        FORM
-    =========================================== -->
-    <div class="p-panel">
-        <div class="p-panel-head">
-            <span><i class="fa-solid fa-address-card"></i> Personal Information</span>
-            <span class="p-panel-tag">Editable</span>
+
+    <!-- =========================================================
+         PROFILE FORM
+         ========================================================= -->
+
+    <form asp-action="AdminProfile"
+          method="post">
+
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly"
+             class="p-validation">
         </div>
 
-        <div class="p-panel-body">
-            <form asp-action="AdminProfile" method="post">
-                @Html.AntiForgeryToken()
-                <div asp-validation-summary="ModelOnly" class="p-validation"></div>
+
+        <!-- =====================================================
+             PERSONAL INFORMATION
+             ===================================================== -->
+
+        <div class="p-panel">
+
+            <div class="p-panel-head">
+
+                <span>
+                    <i class="fa-solid fa-address-card"></i>
+                    Personal Information
+                </span>
+
+                <span class="p-panel-tag">
+                    Editable
+                </span>
+
+            </div>
+
+
+            <div class="p-panel-body">
+
+                <!-- FIRST NAME + SURNAME -->
 
                 <div class="p-grid-2">
+
                     <div class="p-field">
-                        <label>First Name</label>
+
+                        <label>
+                            First Name
+                        </label>
+
                         <div class="p-input-wrap">
+
                             <i class="fa-solid fa-user"></i>
-                            <input asp-for="Name" class="p-input" />
+
+                            <input asp-for="Name"
+                                   class="p-input"
+                                   placeholder="Enter your first name" />
+
                         </div>
-                        <span asp-validation-for="Name" class="p-field-error"></span>
+
+                        <span asp-validation-for="Name"
+                              class="p-field-error">
+                        </span>
+
                     </div>
+
+
                     <div class="p-field">
-                        <label>Surname</label>
+
+                        <label>
+                            Surname
+                        </label>
+
                         <div class="p-input-wrap">
+
                             <i class="fa-solid fa-user"></i>
-                            <input asp-for="Surname" class="p-input" />
+
+                            <input asp-for="Surname"
+                                   class="p-input"
+                                   placeholder="Enter your surname" />
+
                         </div>
-                        <span asp-validation-for="Surname" class="p-field-error"></span>
+
+                        <span asp-validation-for="Surname"
+                              class="p-field-error">
+                        </span>
+
                     </div>
+
                 </div>
 
+
+                <!-- ID + ROLE -->
+
                 <div class="p-grid-2">
+
                     <div class="p-field">
-                        <label>SA ID Number <i class="fa-solid fa-lock p-lock-icon"></i></label>
+
+                        <label>
+
+                            SA ID Number
+
+                            <i class="fa-solid fa-lock p-lock-icon"></i>
+
+                        </label>
+
                         <div class="p-input-wrap p-input-wrap-locked">
+
                             <i class="fa-solid fa-fingerprint"></i>
-                            <input asp-for="IDNumber" readonly class="p-input p-input-locked" />
+
+                            <input asp-for="IDNumber"
+                                   readonly
+                                   class="p-input p-input-locked" />
+
                         </div>
+
+                        <span asp-validation-for="IDNumber"
+                              class="p-field-error">
+                        </span>
+
                     </div>
+
+
                     <div class="p-field">
-                        <label>Role <i class="fa-solid fa-lock p-lock-icon"></i></label>
+
+                        <label>
+
+                            Role
+
+                            <i class="fa-solid fa-lock p-lock-icon"></i>
+
+                        </label>
+
                         <div class="p-input-wrap p-input-wrap-locked">
+
                             <i class="fa-solid fa-user-shield"></i>
-                            <input asp-for="Role" readonly class="p-input p-input-locked" />
+
+                            <input asp-for="Role"
+                                   readonly
+                                   class="p-input p-input-locked" />
+
                         </div>
+
                     </div>
+
                 </div>
 
+
+                <!-- EMAIL + CELLPHONE -->
+
                 <div class="p-grid-2">
+
                     <div class="p-field">
-                        <label>E-mail (Username)</label>
+
+                        <label>
+                            E-mail (Username)
+                        </label>
+
                         <div class="p-input-wrap">
+
                             <i class="fa-solid fa-envelope"></i>
-                            <input asp-for="Email" type="email" class="p-input" />
+
+                            <input asp-for="Email"
+                                   type="email"
+                                   class="p-input"
+                                   placeholder="Enter your email address" />
+
                         </div>
-                        <span asp-validation-for="Email" class="p-field-error"></span>
+
+                        <span asp-validation-for="Email"
+                              class="p-field-error">
+                        </span>
+
                     </div>
+
+
                     <div class="p-field">
-                        <label>Cellphone</label>
+
+                        <label>
+                            Cellphone
+                        </label>
+
                         <div class="p-input-wrap">
+
                             <i class="fa-solid fa-mobile-screen"></i>
-                            <input asp-for="Cellphone" class="p-input" />
+
+                            <input asp-for="Cellphone"
+                                   class="p-input"
+                                   placeholder="Enter your cellphone number" />
+
                         </div>
-                        <span asp-validation-for="Cellphone" class="p-field-error"></span>
+
+                        <span asp-validation-for="Cellphone"
+                              class="p-field-error">
+                        </span>
+
                     </div>
+
                 </div>
 
-                <!-- ADDRESS: TWO SEPARATE INPUTS -->
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             ADDRESS
+             ===================================================== -->
+
+        <div class="p-panel p-section-panel">
+
+            <div class="p-panel-head">
+
+                <span>
+
+                    <i class="fa-solid fa-location-dot"></i>
+
+                    Address Information
+
+                </span>
+
+                <span class="p-panel-tag">
+                    Editable
+                </span>
+
+            </div>
+
+
+            <div class="p-panel-body">
+
                 <div class="p-grid-2">
+
+                    <!-- ADDRESS LINE 1 -->
+
                     <div class="p-field">
-                        <label>Address Line 1</label>
+
+                        <label>
+                            Address Line 1
+                        </label>
+
                         <div class="p-input-wrap">
-                            <i class="fa-solid fa-location-dot"></i>
-                            <input asp-for="AddressLine1" class="p-input" placeholder="Street number and street name" />
+
+                            <i class="fa-solid fa-house"></i>
+
+                            <input asp-for="AddressLine1"
+                                   class="p-input"
+                                   placeholder="House / unit number and street" />
+
                         </div>
-                        <span asp-validation-for="AddressLine1" class="p-field-error"></span>
+
+                        <span asp-validation-for="AddressLine1"
+                              class="p-field-error">
+                        </span>
+
                     </div>
+
+
+                    <!-- ADDRESS LINE 2 -->
+
                     <div class="p-field">
-                        <label>Address Line 2</label>
+
+                        <label>
+                            Address Line 2
+                        </label>
+
                         <div class="p-input-wrap">
-                            <i class="fa-solid fa-map-location-dot"></i>
-                            <input asp-for="AddressLine2" class="p-input" placeholder="Suburb, city and postal code" />
+
+                            <i class="fa-solid fa-building"></i>
+
+                            <input asp-for="AddressLine2"
+                                   class="p-input"
+                                   placeholder="Suburb, city, province or additional address details" />
+
                         </div>
-                        <span asp-validation-for="AddressLine2" class="p-field-error"></span>
+
+                        <span asp-validation-for="AddressLine2"
+                              class="p-field-error">
+                        </span>
+
                     </div>
+
                 </div>
 
-                <button type="submit" class="p-submit">
-                    <i class="fas fa-save"></i> Save Profile Changes
-                </button>
-            </form>
-        </div>
-    </div>
 
-    <!-- ==========================================
-        FOOTER
-    =========================================== -->
-    <div class="p-footer">
-        <hr />
-        <div class="p-footer-content">
-            <i class="fa-solid fa-shield-halved"></i>
-            <span>Laboratory Information Management System</span>
-            <span class="p-footer-divider">|</span>
-            <span>Administrator Portal</span>
-            <span class="p-footer-divider">|</span>
-            <span>@DateTime.Now.Year</span>
+                <!-- SAVE BUTTON -->
+
+                <button type="submit"
+                        class="p-submit">
+
+                    <i class="fas fa-save"></i>
+
+                    Save Profile Changes
+
+                </button>
+
+            </div>
+
         </div>
+
+    </form>
+
+
+    <!-- =========================================================
+         FOOTER
+         ========================================================= -->
+
+    <div class="p-footer">
+
+        <hr />
+
+        <div class="p-footer-content">
+
+            <i class="fa-solid fa-shield-halved"></i>
+
+            <span>
+                Laboratory Information Management System
+            </span>
+
+            <span class="p-footer-divider">
+                |
+            </span>
+
+            <span>
+                Administrator Portal
+            </span>
+
+            <span class="p-footer-divider">
+                |
+            </span>
+
+            <span>
+                @DateTime.Now.Year
+            </span>
+
+        </div>
+
     </div>
 
 </div>
 
+
+<!-- =============================================================
+     STYLES
+     ============================================================= -->
+
 <style>
+
     :root {
         --p-paper: #F0F7F6;
         --p-raised: #FFFFFF;
@@ -199,6 +480,7 @@
     }
 
     @@keyframes pFadeIn {
+
         from {
             opacity: 0;
             transform: translateY(12px);
@@ -210,14 +492,17 @@
         }
     }
 
-    /* ============ BANNER ============ */
+    /* =========================================================
+           BANNER
+           ========================================================= */
+
     .p-banner {
         position: relative;
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 24px;
-        background: linear-gradient(125deg, var(--p-teal-grad-start), var(--p-teal-grad-end));
+        background: linear-gradient( 125deg, var(--p-teal-grad-start), var(--p-teal-grad-end) );
         border-radius: var(--p-radius);
         padding: 32px 36px;
         margin-bottom: 22px;
@@ -228,7 +513,7 @@
     .p-banner-pattern {
         position: absolute;
         inset: 0;
-        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        background-image: radial-gradient( circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45% ), radial-gradient( circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40% );
         pointer-events: none;
     }
 
@@ -266,6 +551,7 @@
     }
 
     @@keyframes pRingPulse {
+
         0% {
             transform: scale(0.9);
             opacity: .8;
@@ -340,7 +626,10 @@
             transform: translateY(-2px);
         }
 
-    /* ============ TOAST ============ */
+    /* =========================================================
+           TOAST + STATUS STRIP
+           ========================================================= */
+
     .p-toast {
         display: flex;
         align-items: center;
@@ -355,7 +644,6 @@
         font-weight: 500;
     }
 
-    /* ============ STATUS STRIP ============ */
     .p-status-strip {
         background: var(--p-raised);
         border-radius: var(--p-radius);
@@ -394,12 +682,19 @@
         font-size: 15px;
     }
 
-    /* ============ PANEL ============ */
+    /* =========================================================
+           PANELS
+           ========================================================= */
+
     .p-panel {
         background: var(--p-raised);
         border-radius: var(--p-radius);
         box-shadow: var(--p-shadow);
         overflow: hidden;
+    }
+
+    .p-section-panel {
+        margin-top: 22px;
     }
 
     .p-panel-head {
@@ -444,7 +739,10 @@
         margin-bottom: 15px;
     }
 
-    /* ============ FORM ============ */
+    /* =========================================================
+           FORM FIELDS
+           ========================================================= */
+
     .p-grid-2 {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -452,25 +750,26 @@
         margin-bottom: 22px;
     }
 
+        .p-grid-2:last-child {
+            margin-bottom: 0;
+        }
+
     .p-field {
         display: flex;
         flex-direction: column;
+        min-width: 0;
     }
 
-    .p-field-full {
-        margin-bottom: 8px;
-    }
-
-    .p-field label {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-        font-size: 13px;
-        color: var(--p-ink);
-        margin-bottom: 8px;
-    }
+        .p-field label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--p-ink);
+            margin-bottom: 8px;
+        }
 
     .p-lock-icon {
         font-size: 11px;
@@ -511,6 +810,7 @@
 
     .p-input {
         flex: 1;
+        min-width: 0;
         border: none;
         background: transparent;
         outline: none;
@@ -535,17 +835,21 @@
         margin-top: 6px;
     }
 
+    /* =========================================================
+           SUBMIT + FOOTER
+           ========================================================= */
+
     .p-submit {
         width: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 10px;
-        margin-top: 12px;
+        margin-top: 6px;
         padding: 15px;
         border: none;
         border-radius: var(--p-radius-sm);
-        background: linear-gradient(120deg, var(--p-teal-grad-start), var(--p-teal-grad-end));
+        background: linear-gradient( 120deg, var(--p-teal-grad-start), var(--p-teal-grad-end) );
         color: #fff;
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
@@ -560,7 +864,6 @@
             box-shadow: 0 14px 28px rgba(10, 90, 80, 0.28);
         }
 
-    /* ============ FOOTER ============ */
     .p-footer {
         margin-top: 40px;
         text-align: center;
@@ -590,8 +893,12 @@
         color: var(--p-line-strong);
     }
 
-    /* ============ RESPONSIVE ============ */
+    /* =========================================================
+           RESPONSIVE
+           ========================================================= */
+
     @@media (max-width: 900px) {
+
         .p-banner {
             flex-direction: column;
             align-items: flex-start;
@@ -605,6 +912,7 @@
     }
 
     @@media (max-width: 640px) {
+
         .p-wrap {
             padding: 20px 16px 50px;
         }
@@ -622,9 +930,18 @@
             align-items: flex-start;
             gap: 10px;
         }
+
+        .p-banner-left {
+            flex-direction: column;
+            align-items: flex-start;
+        }
     }
+
 </style>
 
+
 @section Scripts {
+
     <partial name="_ValidationScriptsPartial" />
+
 }

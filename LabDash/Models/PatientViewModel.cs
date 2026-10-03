@@ -7,6 +7,10 @@ namespace LabDash.Models
     {
         public int PatientID { get; set; }
 
+        // ============================================================
+        // PERSONAL INFORMATION
+        // ============================================================
+
         [Required(ErrorMessage = "Name is required.")]
         public string Name { get; set; } = "";
 
@@ -14,7 +18,10 @@ namespace LabDash.Models
         public string Surname { get; set; } = "";
 
         [Required(ErrorMessage = "ID Number is required.")]
-        [StringLength(13, MinimumLength = 13, ErrorMessage = "SA ID number must be 13 digits.")]
+        [StringLength(
+            13,
+            MinimumLength = 13,
+            ErrorMessage = "SA ID number must be 13 digits.")]
         public string IDNumber { get; set; } = "";
 
         [Required]
@@ -29,11 +36,64 @@ namespace LabDash.Models
         [EmailAddress(ErrorMessage = "Enter a valid email address.")]
         public string Email { get; set; } = "";
 
+        // ============================================================
+        // ADDRESS
+        // ============================================================
+
         public string HomeAddress { get; set; } = "";
 
-        // Computed helper for the sidebar avatar
-        public string Initials => $"{Name.FirstOrDefault()}{Surname.FirstOrDefault()}";
-        public string FullName => $"{Name} {Surname}";
+        public string AddressLine1 { get; set; } = "";
+
+        public string AddressLine2 { get; set; } = "";
+
+        public string Suburb { get; set; } = "";
+
+        public string City { get; set; } = "";
+
+        public string Province { get; set; } = "";
+
+        [StringLength(4, ErrorMessage = "Postal code must be 4 digits.")]
+        public string PostalCode { get; set; } = "";
+
+        // ============================================================
+        // MEDICAL CONDITIONS
+        // ============================================================
+
+        public List<int> SelectedMedicalConditionIds { get; set; } = new();
+
+        public List<MedicalCondition> MedicalConditionOptions { get; set; } = new();
+
+        public string OtherMedicalCondition { get; set; } = "";
+
+        // ============================================================
+        // ALLERGIES
+        // ============================================================
+
+        public List<int> SelectedAllergyIds { get; set; } = new();
+
+        public List<Allergy> AllergyOptions { get; set; } = new();
+
+        public string OtherAllergy { get; set; } = "";
+
+        // ============================================================
+        // MEDICATIONS
+        // ============================================================
+
+        public List<int> SelectedMedicationIds { get; set; } = new();
+
+        public List<Medication> MedicationOptions { get; set; } = new();
+
+        public string OtherMedication { get; set; } = "";
+
+        // ============================================================
+        // COMPUTED DISPLAY HELPERS
+        // ============================================================
+
+        public string Initials =>
+            $"{Name.FirstOrDefault()}{Surname.FirstOrDefault()}";
+
+        public string FullName =>
+            $"{Name} {Surname}";
     }
 
     // ── 2. Test Request ──────────────────────────────────────
@@ -41,6 +101,8 @@ namespace LabDash.Models
     {
         public string RequestID { get; set; } = "";
         public DateTime RequestDate { get; set; }
+        public string? CancelReason { get; set; }
+        public DateTime? ReleaseDate { get; set; }
         public string DoctorName { get; set; } = "";
         public List<string> Tests { get; set; } = new();
         public string Urgency { get; set; } = "Routine";  // Routine | Urgent | Stat

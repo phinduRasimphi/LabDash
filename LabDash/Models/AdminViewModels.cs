@@ -23,6 +23,7 @@ namespace LabDash.Models
     public class AdminDashboardViewModel
     {
         // === EXISTING ADMIN PROPERTIES ===
+        public string AdminName { get; set; } = "";
         public int ConditionCount { get; set; }
         public int AllergyCount { get; set; }
         public int MedicationCount { get; set; }
@@ -90,47 +91,43 @@ namespace LabDash.Models
 
     public class AdminProfileViewModel
     {
-        // LabUser's PK is a string (IdentityUser default), not an int.
-        public string Id { get; set; }
+        // Display-only: never required from the form
+        public string? Id { get; set; }
+
+        [Display(Name = "SA ID Number")]
+        public string? IDNumber { get; set; }
+
+        public string? Role { get; set; }
 
         [Required(ErrorMessage = "First name is required.")]
         [Display(Name = "First Name")]
         [StringLength(50)]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
 
         [Required(ErrorMessage = "Surname is required.")]
         [StringLength(50)]
-        public string Surname { get; set; }
-
-        // Locked - display only. Maps to LabUser.SouthAfricanID.
-        [Display(Name = "SA ID Number")]
-        public string IDNumber { get; set; }
-
-        // Locked - display only. Comes from the user's Identity role, not LabUser.
-        public string Role { get; set; }
+        public string Surname { get; set; } = "";
 
         [Required(ErrorMessage = "E-mail is required.")]
         [EmailAddress(ErrorMessage = "Enter a valid e-mail address.")]
-        public string Email { get; set; }
+        public string Email { get; set; } = "";
 
         [Required(ErrorMessage = "Cellphone is required.")]
         [RegularExpression(@"^1?[0-9]{10}$", ErrorMessage = "Enter a valid phone number.")]
-        public string Cellphone { get; set; }
+        public string Cellphone { get; set; } = "";
 
-        // ---- ADDRESS SPLIT OVER TWO TEXT BOXES ----
         [Display(Name = "Address Line 1")]
         [StringLength(100)]
-        public string AddressLine1 { get; set; }
+        public string? AddressLine1 { get; set; }
 
         [Display(Name = "Address Line 2")]
         [StringLength(100)]
-        public string AddressLine2 { get; set; }
+        public string? AddressLine2 { get; set; }
 
-        // Helpers used by the view
+        // Computed: no setters, so they're never bound or validated
         public string FullName => $"{Name} {Surname}".Trim();
 
         public string Initials =>
-            $"{(string.IsNullOrWhiteSpace(Name) ? "" : Name.Substring(0, 1))}" +
-            $"{(string.IsNullOrWhiteSpace(Surname) ? "" : Surname.Substring(0, 1))}".ToUpper();
+            ($"{Name?.Trim().FirstOrDefault()}{Surname?.Trim().FirstOrDefault()}").ToUpper();
     }
 }

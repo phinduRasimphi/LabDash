@@ -67,5 +67,8 @@ public class LabUser : IdentityUser
     // Add to LabUser.cs
     [Display(Name = "Must Change Password")]
     public bool MustChangePassword { get; set; } = true;
+
+    [Display(Name = "Welcome Email Sent")]
+    public bool WelcomeEmailSent { get; set; } = false;
 }
 

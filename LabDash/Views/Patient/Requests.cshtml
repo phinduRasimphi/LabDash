@@ -1,11 +1,113 @@
 ﻿@model List<LabDash.Models.TestRequestViewModel>
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 
 @{
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
     ViewData["Title"] = "My Test Requests";
     ViewData["ActivePage"] = "Requests";
 
-    var stages = new[] { "Requested", "Collected", "Processing", "Released" };
+    // The 5 stages a request moves through (cancelled sits outside the flow)
+    var stages = new[] { "Submitted", "Sample received", "In progress", "Completed", "Released" };
+
+    // Works whatever exact text is stored in the DB ("Samples Received", "Released by doctor", ...)
+    string StatusKey(string? raw)
+    {
+        var s = (raw ?? "").Trim().ToLowerInvariant();
+        if (s.Contains("cancel")) return "cancelled";
+        if (s.Contains("release")) return "released";
+        if (s.Contains("complete")) return "completed";
+        if (s.Contains("progress") || s.Contains("process")) return "inprogress";
+        if (s.Contains("sample") || s.Contains("received") || s.Contains("collect")) return "received";
+        return "submitted";
+    }
+
+    var stageOf = new Dictionary<string, int>
+    {
+        ["submitted"] = 0,
+        ["received"] = 1,
+        ["inprogress"] = 2,
+        ["completed"] = 3,
+        ["released"] = 4
+    };
+
+    var labelOf = new Dictionary<string, string>
+    {
+        ["submitted"] = "Submitted",
+        ["received"] = "Sample received",
+        ["inprogress"] = "In progress",
+        ["completed"] = "Completed",
+        ["released"] = "Results ready",
+        ["cancelled"] = "Cancelled"
+    };
+
+    var noteOf = new Dictionary<string, string>
+    {
+        ["submitted"] = "Your request has been sent to the lab. We are waiting for your sample to arrive.",
+        ["received"] = "The lab has received your sample. Testing will start soon.",
+        ["inprogress"] = "Your sample is being tested.",
+        ["completed"] = "Testing is finished. Your doctor is reviewing the results before releasing them to you.",
+        ["released"] = "Your results are ready. Open this request to view them."
+    };
+
+    var iconOf = new Dictionary<string, string>
+    {
+        ["submitted"] = "fa-paper-plane",
+        ["received"] = "fa-vial",
+        ["inprogress"] = "fa-flask",
+        ["completed"] = "fa-user-doctor",
+        ["released"] = "fa-circle-check"
+    };
+
+    bool IsUrgentOpen(LabDash.Models.TestRequestViewModel x)
+    {
+        var k = StatusKey(x.Status);
+        if (k == "cancelled" || k == "released") return false;
+        var u = (x.Urgency ?? "").ToLowerInvariant();
+        return u == "high" || u == "urgent";
+    }
+
+    // PREVIEW MODE (development only): open /Patient/Requests?preview=1 to see one sample card per status
+    List<LabDash.Models.TestRequestViewModel> SampleRequests()
+    {
+        var now = DateTime.Now;
+        LabDash.Models.TestRequestViewModel M(int id, string status, string urgency, int daysAgo, params string[] tests) =>
+            new LabDash.Models.TestRequestViewModel
+            {
+                RequestID = id.ToString(),
+                RequestDate = now.AddDays(-daysAgo),
+                DoctorName = "Kamogelo Makuwa",
+                Tests = tests.ToList(),
+                Urgency = urgency,
+                Status = status
+            };
+
+        var list = new List<LabDash.Models.TestRequestViewModel>
+        {
+            M(9001, "Submitted", "Routine", 1, "Full Blood Count"),
+            M(9002, "Samples Received", "Urgent", 2, "Glucose", "Cholesterol"),
+            M(9003, "In progress", "Routine", 3, "Full Blood Count", "Glucose", "Cholesterol", "Ferritin"),
+            M(9004, "Completed", "Routine", 4, "Full Blood Count"),
+            M(9005, "Released by doctor", "Routine", 5, "Glucose"),
+            M(9006, "Cancelled", "Routine", 6, "Cholesterol")
+        };
+        list[4].ReleaseDate = now.AddDays(-4);
+        list[5].CancelReason = "Sample could not be collected";
+        return list;
+    }
+
+    var preview = Env.EnvironmentName == "Development" && Context.Request.Query.ContainsKey("preview");
+    var items = preview ? SampleRequests() : (Model ?? new List<LabDash.Models.TestRequestViewModel>());
+    var total = items.Count;
+    var released = items.Count(x => StatusKey(x.Status) == "released");
+    var cancelled = items.Count(x => StatusKey(x.Status) == "cancelled");
+    var open = total - released - cancelled;           // submitted + received + in progress + completed
+    var urgentOpen = items.Count(IsUrgentOpen);
+    var activeTotal = total - cancelled;
+    var readyPercent = activeTotal > 0 ? Math.Round((double)released / activeTotal * 100) : 0;
+
+    var presentKeys = new[] { "submitted", "received", "inprogress", "completed", "released", "cancelled" }
+        .Where(k => items.Any(x => StatusKey(x.Status) == k))
+        .ToList();
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,48 +118,40 @@
     <!-- ==========================================
         CONSOLE HEADER
     =========================================== -->
-    @{
-        var total = Model?.Count ?? 0;
-        var completed = Model?.Count(x => x.Status?.ToLower() == "completed") ?? 0;
-        var pending = Model?.Count(x => x.Status?.ToLower() == "pending") ?? 0;
-        var urgent = Model?.Count(x => !string.IsNullOrEmpty(x.Urgency) &&
-            (x.Urgency.ToLower() == "high" || x.Urgency.ToLower() == "urgent")) ?? 0;
-        var completedPercent = total > 0 ? Math.Round((double)completed / total * 100) : 0;
-
-        var distinctStatuses = Model?
-            .Select(x => string.IsNullOrWhiteSpace(x.Status) ? "Unknown" : x.Status.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(s => s)
-            .ToList() ?? new List<string>();
-    }
-
     <div class="rq-console">
         <div class="rq-console-scan"></div>
         <div class="rq-console-left">
             <div class="rq-console-eyebrow">Patient Portal &middot; Specimen Tracking</div>
             <h1>My Test Requests</h1>
-            <p>Every order, from draw to result — tracked the way the lab tracks it.</p>
+            <p>Every order, from draw to result. Open a request once its results are ready.</p>
         </div>
 
         <div class="rq-console-right">
-            @if (total > 0)
+            @if (activeTotal > 0)
             {
-                <div class="rq-console-ring" style="--rq-pct: @completedPercent">
+                <div class="rq-console-ring" style="--rq-pct: @readyPercent">
                     <div class="rq-ring-inner">
-                        <span>@completedPercent.ToString("0")%</span>
-                        <small>Released</small>
+                        <span>@readyPercent.ToString("0")%</span>
+                        <small>Ready</small>
                     </div>
                 </div>
             }
             <div class="rq-console-readout">
                 <span class="rq-readout-label">Total on file</span>
-                <span class="rq-readout-num">@Model.Count.ToString("D3")</span>
+                <span class="rq-readout-num">@total.ToString("D3")</span>
             </div>
         </div>
     </div>
 
+    @if (preview)
+    {
+        <div style="margin:0 0 16px;padding:10px 14px;border-radius:10px;background:#FBF0DC;color:#7A5410;font-size:12.5px;font-weight:600">
+            Preview mode &mdash; sample data, one card per status. Remove <code>?preview=1</code> from the address to see your real requests.
+        </div>
+    }
+
     <!-- ==========================================
-        SUMMARY TICKER
+        SUMMARY TICKER (Ready + In progress + Cancelled = Total)
     =========================================== -->
     @if (total > 0)
     {
@@ -65,22 +159,22 @@
             <div class="rq-tick">
                 <span class="rq-tick-bar rq-bar-ink"></span>
                 <span class="rq-tick-num">@total.ToString("D2")</span>
-                <span class="rq-tick-label">Total</span>
+                <span class="rq-tick-label">Total requests</span>
             </div>
             <div class="rq-tick">
                 <span class="rq-tick-bar rq-bar-green"></span>
-                <span class="rq-tick-num">@completed.ToString("D2")</span>
-                <span class="rq-tick-label">Released</span>
+                <span class="rq-tick-num">@released.ToString("D2")</span>
+                <span class="rq-tick-label">Results ready</span>
             </div>
             <div class="rq-tick">
                 <span class="rq-tick-bar rq-bar-amber"></span>
-                <span class="rq-tick-num">@pending.ToString("D2")</span>
+                <span class="rq-tick-num">@open.ToString("D2")</span>
                 <span class="rq-tick-label">In progress</span>
             </div>
             <div class="rq-tick">
                 <span class="rq-tick-bar rq-bar-red"></span>
-                <span class="rq-tick-num">@urgent.ToString("D2")</span>
-                <span class="rq-tick-label">Urgent</span>
+                <span class="rq-tick-num">@cancelled.ToString("D2")</span>
+                <span class="rq-tick-label">Cancelled</span>
             </div>
         </div>
     }
@@ -99,12 +193,12 @@
 
             <div class="rq-filter-chips" role="tablist" aria-label="Filter by status">
                 <button type="button" class="rq-chip active" data-status-filter="all">All</button>
-                @foreach (var s in distinctStatuses)
+                @foreach (var k in presentKeys)
                 {
-                    <button type="button" class="rq-chip" data-status-filter="@s.ToLower()">@s</button>
+                    <button type="button" class="rq-chip" data-status-filter="@k">@labelOf[k]</button>
                 }
-                <button type="button" class="rq-chip rq-chip-urgent" data-urgent-filter="true">
-                    <i class="fa-solid fa-bolt"></i> Urgent only
+                <button type="button" class="rq-chip rq-chip-urgent" data-urgent-filter="true" title="Urgent requests that are still open">
+                    <i class="fa-solid fa-bolt"></i> Urgent only (@urgentOpen)
                 </button>
             </div>
 
@@ -125,36 +219,34 @@
     <!-- ==========================================
         REQUISITION TICKETS
     =========================================== -->
-    @if (Model != null && Model.Any())
+    @if (total > 0)
     {
         <div class="rq-list" id="rqList">
-            @foreach (var r in Model.OrderByDescending(x => x.RequestDate))
+            @foreach (var r in items.OrderByDescending(x => x.RequestDate))
             {
-                var statusRaw = string.IsNullOrWhiteSpace(r.Status) ? "Unknown" : r.Status.Trim();
-                var statusLower = statusRaw.ToLower();
-                var isCancelled = statusLower == "cancelled";
-                var stageIndex = statusLower switch
-                {
-                    "completed" => 3,
-                    "pending" => 2,
-                    _ => 1
-                };
-                var isUrgent = !string.IsNullOrEmpty(r.Urgency) &&
-                    (r.Urgency.ToLower() == "high" || r.Urgency.ToLower() == "urgent");
+                var key = StatusKey(r.Status);
+                var isCancelled = key == "cancelled";
+                var isReleased = key == "released";
+                var stageIndex = stageOf.ContainsKey(key) ? stageOf[key] : 0;
+                var isUrgent = IsUrgentOpen(r);
+                var resultsUrl = isReleased
+                    ? Url.Action("Results", "Patient", new { requestId = r.RequestID })
+                    : null;
 
                 var testsList = r.Tests ?? new List<string>();
                 var visibleTestCount = 3;
 
-                <div class="rq-card @(isCancelled ? "rq-card-cancelled" : "") @(isUrgent && !isCancelled ? "rq-card-urgent" : "")"
+                <div class="rq-card @(isCancelled ? "rq-card-cancelled" : "") @(isUrgent ? "rq-card-urgent" : "") @(isReleased ? "rq-card-clickable" : "")"
                      data-id="@r.RequestID"
                      data-doctor="@r.DoctorName"
                      data-date="@r.RequestDate.ToString("yyyy-MM-dd")"
-                     data-status="@statusLower"
-                     data-status-label="@statusRaw"
+                     data-status="@key"
+                     data-status-label="@labelOf[key]"
                      data-urgent="@isUrgent.ToString().ToLower()"
-                     data-tests="@string.Join("|", testsList)">
+                     data-tests="@string.Join("|", testsList)"
+                     data-href="@resultsUrl">
 
-                    @if (isUrgent && !isCancelled)
+                    @if (isUrgent)
                     {
                         <div class="rq-flag">Urgent</div>
                     }
@@ -173,15 +265,40 @@
                         <div class="rq-row-top">
                             <div>
                                 <div class="rq-doctor"><i class="fa-solid fa-user-doctor"></i> Dr. @r.DoctorName</div>
-                                <div class="rq-date">@r.RequestDate.ToString("dd MMM yyyy")</div>
+                                <div class="rq-date">Requested @r.RequestDate.ToString("dd MMM yyyy")</div>
                             </div>
-                            <a href="@Url.Action("Results", "Patient")" class="rq-view">
-                                View <i class="fa-solid fa-arrow-right"></i>
-                            </a>
+
+                            @if (isReleased)
+                            {
+                                <a href="@resultsUrl" class="rq-view">
+                                    View results <i class="fa-solid fa-arrow-right"></i>
+                                </a>
+                            }
+                            else
+                            {
+                                <div class="rq-actions">
+                                    <span class="rq-pill rq-pill-@key">@labelOf[key]</span>
+
+                                    @if (!preview && (key == "submitted" || key == "received"))
+                                    {
+                                        <form asp-action="CancelRequest" asp-controller="Patient" method="post" class="rq-cancel-form">
+                                            <input type="hidden" name="requestId" value="@r.RequestID" />
+                                            <input type="hidden" name="reason" value="" />
+                                            <button type="button" class="rq-cancel-btn">
+                                                <i class="fa-solid fa-xmark"></i> Cancel request
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            }
                         </div>
 
                         <div class="rq-tests-wrap">
                             <div class="rq-tests-chips" id="tests-@r.RequestID">
+                                @if (testsList.Count == 0)
+                                {
+                                    <span class="rq-test-chip">No tests listed</span>
+                                }
                                 @for (int t = 0; t < testsList.Count; t++)
                                 {
                                     <span class="rq-test-chip @(t >= visibleTestCount ? "rq-test-extra" : "")">@testsList[t]</span>
@@ -200,17 +317,34 @@
                         {
                             <div class="rq-cancelled-rail">
                                 <i class="fa-solid fa-circle-xmark"></i>
-                                <span>Request cancelled — no further processing</span>
+                                <span>
+                                    Request cancelled &mdash; no further processing.
+                                    @if (!string.IsNullOrWhiteSpace(r.CancelReason))
+                                    {
+                                        <text> Reason: @r.CancelReason</text>
+                                    }
+                                </span>
                             </div>
                         }
                         else
                         {
+                            <div class="rq-note rq-note-@key">
+                                <i class="fa-solid @iconOf[key]"></i>
+                                <span>
+                                    @noteOf[key]
+                                    @if (isReleased && r.ReleaseDate.HasValue)
+                                    {
+                                        <text> Released on @r.ReleaseDate.Value.ToString("dd MMM yyyy").</text>
+                                    }
+                                </span>
+                            </div>
+
                             <div class="rq-rail">
                                 @for (int i = 0; i < stages.Length; i++)
                                 {
                                     var filled = i <= stageIndex;
-                                    var active = i == stageIndex && stageIndex < 3;
-                                    <div class="rq-step @(filled ? "rq-filled" : "") @(active ? "rq-active" : "") @(i == 3 && filled ? "rq-done" : "")">
+                                    var active = i == stageIndex && !isReleased;
+                                    <div class="rq-step @(filled ? "rq-filled" : "") @(active ? "rq-active" : "") @(i == stages.Length - 1 && filled ? "rq-done" : "")">
                                         @if (i > 0)
                                         {
                                             <span class="rq-step-line @(filled ? "rq-filled" : "")"></span>
@@ -378,21 +512,21 @@
         justify-content: center;
     }
 
-    .rq-ring-inner span {
-        font-family: 'IBM Plex Mono', monospace;
-        font-weight: 700;
-        color: #F5F7F6;
-        font-size: 14px;
-        line-height: 1;
-    }
+        .rq-ring-inner span {
+            font-family: 'IBM Plex Mono', monospace;
+            font-weight: 700;
+            color: #F5F7F6;
+            font-size: 14px;
+            line-height: 1;
+        }
 
-    .rq-ring-inner small {
-        margin-top: 3px;
-        font-size: 7px;
-        color: rgba(245,247,246,.5);
-        text-transform: uppercase;
-        letter-spacing: .05em;
-    }
+        .rq-ring-inner small {
+            margin-top: 3px;
+            font-size: 7px;
+            color: rgba(245,247,246,.5);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
 
     .rq-console-readout {
         text-align: right;
@@ -443,10 +577,21 @@
         height: 3px;
     }
 
-    .rq-bar-ink { background: var(--rq-ink); }
-    .rq-bar-green { background: var(--rq-green); }
-    .rq-bar-amber { background: var(--rq-amber); }
-    .rq-bar-red { background: var(--rq-red); }
+    .rq-bar-ink {
+        background: var(--rq-ink);
+    }
+
+    .rq-bar-green {
+        background: var(--rq-green);
+    }
+
+    .rq-bar-amber {
+        background: var(--rq-amber);
+    }
+
+    .rq-bar-red {
+        background: var(--rq-red);
+    }
 
     .rq-tick-num {
         display: block;
@@ -490,21 +635,30 @@
         min-width: 200px;
     }
 
-    .rq-search i { color: var(--rq-ink-faint); font-size: 12px; }
+        .rq-search i {
+            color: var(--rq-ink-faint);
+            font-size: 12px;
+        }
 
-    .rq-search input {
-        border: none;
-        background: transparent;
-        outline: none;
-        font-family: 'Inter', sans-serif;
-        font-size: 13px;
-        color: var(--rq-ink);
-        width: 100%;
+        .rq-search input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            color: var(--rq-ink);
+            width: 100%;
+        }
+
+            .rq-search input::placeholder {
+                color: var(--rq-ink-faint);
+            }
+
+    .rq-filter-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
     }
-
-    .rq-search input::placeholder { color: var(--rq-ink-faint); }
-
-    .rq-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
     .rq-chip {
         display: inline-flex;
@@ -522,9 +676,22 @@
         transition: all .15s ease;
     }
 
-    .rq-chip:hover { border-color: var(--rq-teal); color: var(--rq-teal-deep); }
-    .rq-chip.active { background: var(--rq-ink); border-color: var(--rq-ink); color: #fff; }
-    .rq-chip-urgent.active { background: var(--rq-red); border-color: var(--rq-red); color: #fff; }
+        .rq-chip:hover {
+            border-color: var(--rq-teal);
+            color: var(--rq-teal-deep);
+        }
+
+        .rq-chip.active {
+            background: var(--rq-ink);
+            border-color: var(--rq-ink);
+            color: #fff;
+        }
+
+    .rq-chip-urgent.active {
+        background: var(--rq-red);
+        border-color: var(--rq-red);
+        color: #fff;
+    }
 
     .rq-toolbar-actions {
         display: flex;
@@ -561,7 +728,9 @@
         transition: background .15s ease;
     }
 
-    .rq-export:hover { background: var(--rq-teal-deep); }
+        .rq-export:hover {
+            background: var(--rq-teal-deep);
+        }
 
     /* ============ TICKET LIST ============ */
     .rq-list {
@@ -570,7 +739,9 @@
         gap: 14px;
     }
 
-    .rq-hidden { display: none !important; }
+    .rq-hidden {
+        display: none !important;
+    }
 
     .rq-card {
         position: relative;
@@ -582,20 +753,27 @@
         transition: box-shadow .2s, transform .2s;
     }
 
-    .rq-card:hover {
-        box-shadow: var(--rq-shadow);
-        transform: translateY(-2px);
-    }
+        .rq-card:hover {
+            box-shadow: var(--rq-shadow);
+            transform: translateY(-2px);
+        }
 
-    .rq-card-cancelled { opacity: .72; }
+    .rq-card-cancelled {
+        opacity: .72;
+    }
 
     .rq-card-urgent {
         animation: rqUrgentGlow 2.4s ease-in-out infinite;
     }
 
     @@keyframes rqUrgentGlow {
-        0%, 100% { box-shadow: var(--rq-shadow-sm), 0 0 0 1.5px rgba(176,70,63,.18); }
-        50% { box-shadow: var(--rq-shadow-sm), 0 0 0 3.5px rgba(176,70,63,.32); }
+        0%, 100% {
+            box-shadow: var(--rq-shadow-sm), 0 0 0 1.5px rgba(176,70,63,.18);
+        }
+
+        50% {
+            box-shadow: var(--rq-shadow-sm), 0 0 0 3.5px rgba(176,70,63,.32);
+        }
     }
 
     .rq-flag {
@@ -658,8 +836,15 @@
         transition: all .15s ease;
     }
 
-    .rq-copy-btn:hover { background: var(--rq-teal-dim); color: var(--rq-teal-deep); }
-    .rq-copy-btn.rq-copied { background: var(--rq-green-dim); color: var(--rq-green); }
+        .rq-copy-btn:hover {
+            background: var(--rq-teal-dim);
+            color: var(--rq-teal-deep);
+        }
+
+        .rq-copy-btn.rq-copied {
+            background: var(--rq-green-dim);
+            color: var(--rq-green);
+        }
 
     .rq-perf {
         position: relative;
@@ -668,18 +853,23 @@
         flex-shrink: 0;
     }
 
-    .rq-perf::before, .rq-perf::after {
-        content: "";
-        position: absolute;
-        left: -8px;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background: var(--rq-paper);
-    }
+        .rq-perf::before, .rq-perf::after {
+            content: "";
+            position: absolute;
+            left: -8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--rq-paper);
+        }
 
-    .rq-perf::before { top: -8px; }
-    .rq-perf::after { bottom: -8px; }
+        .rq-perf::before {
+            top: -8px;
+        }
+
+        .rq-perf::after {
+            bottom: -8px;
+        }
 
     .rq-body {
         flex: 1;
@@ -708,7 +898,10 @@
         gap: 8px;
     }
 
-    .rq-doctor i { color: var(--rq-teal); font-size: 13px; }
+        .rq-doctor i {
+            color: var(--rq-teal);
+            font-size: 13px;
+        }
 
     .rq-date {
         font-family: 'IBM Plex Mono', monospace;
@@ -733,16 +926,129 @@
         transition: border-color .2s, gap .2s;
     }
 
-    .rq-view:hover {
-        color: var(--rq-teal);
-        text-decoration: none;
-        border-color: var(--rq-teal);
-        gap: 10px;
+        .rq-view:hover {
+            color: var(--rq-teal);
+            text-decoration: none;
+            border-color: var(--rq-teal);
+            gap: 10px;
+        }
+
+    /* ============ STATUS PILL + PLAIN-LANGUAGE NOTE ============ */
+    .rq-pill {
+        display: inline-flex;
+        align-items: center;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        padding: 5px 11px;
+        border-radius: 999px;
+        white-space: nowrap;
     }
 
+    .rq-pill-submitted {
+        background: var(--rq-line);
+        color: var(--rq-ink-soft);
+    }
+
+    .rq-pill-received {
+        background: var(--rq-teal-dim);
+        color: var(--rq-teal-deep);
+    }
+
+    .rq-pill-inprogress {
+        background: var(--rq-amber-dim);
+        color: var(--rq-amber);
+    }
+
+    .rq-pill-completed {
+        background: var(--rq-amber-dim);
+        color: var(--rq-amber);
+    }
+
+    /* ============ CANCEL BUTTON (patient) ============ */
+    .rq-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .rq-cancel-form {
+        margin: 0;
+    }
+
+    .rq-cancel-btn {
+        border: 1px solid var(--rq-red);
+        background: transparent;
+        color: var(--rq-red);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-family: 'Inter', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+
+        .rq-cancel-btn:hover {
+            background: var(--rq-red);
+            color: #fff;
+        }
+
+    .rq-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--rq-ink-soft);
+        background: var(--rq-paper);
+        border-radius: 10px;
+        padding: 9px 12px;
+    }
+
+        .rq-note i {
+            margin-top: 2px;
+            color: var(--rq-teal);
+            font-size: 12px;
+        }
+
+    .rq-note-completed i {
+        color: var(--rq-amber);
+    }
+
+    .rq-note-released {
+        background: var(--rq-green-dim);
+        color: var(--rq-ink);
+    }
+
+        .rq-note-released i {
+            color: var(--rq-green);
+        }
+
+    .rq-card-clickable {
+        cursor: pointer;
+    }
+
+        .rq-card-clickable:hover .rq-view {
+            border-color: var(--rq-teal);
+            gap: 10px;
+        }
+
     /* ============ TEST CHIPS ============ */
-    .rq-tests-wrap { display: flex; flex-direction: column; gap: 8px; }
-    .rq-tests-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .rq-tests-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .rq-tests-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
 
     .rq-test-chip {
         background: var(--rq-teal-dim);
@@ -753,8 +1059,13 @@
         font-weight: 600;
     }
 
-    .rq-test-extra { display: none; }
-    .rq-tests-chips.rq-expanded .rq-test-extra { display: inline-flex; }
+    .rq-test-extra {
+        display: none;
+    }
+
+    .rq-tests-chips.rq-expanded .rq-test-extra {
+        display: inline-flex;
+    }
 
     .rq-tests-toggle {
         align-self: flex-start;
@@ -771,9 +1082,18 @@
         padding: 0;
     }
 
-    .rq-tests-toggle:hover { color: var(--rq-teal-deep); }
-    .rq-tests-toggle i { font-size: 9px; transition: transform .2s ease; }
-    .rq-tests-toggle.rq-open i { transform: rotate(180deg); }
+        .rq-tests-toggle:hover {
+            color: var(--rq-teal-deep);
+        }
+
+        .rq-tests-toggle i {
+            font-size: 9px;
+            transition: transform .2s ease;
+        }
+
+        .rq-tests-toggle.rq-open i {
+            transform: rotate(180deg);
+        }
 
     /* ============ LIFECYCLE RAIL ============ */
     .rq-rail {
@@ -801,7 +1121,9 @@
         z-index: 0;
     }
 
-    .rq-step-line.rq-filled { background: var(--rq-teal); }
+        .rq-step-line.rq-filled {
+            background: var(--rq-teal);
+        }
 
     .rq-step-dot {
         width: 11px;
@@ -813,8 +1135,14 @@
         margin-bottom: 6px;
     }
 
-    .rq-step.rq-filled .rq-step-dot { background: var(--rq-teal); }
-    .rq-step.rq-done .rq-step-dot { background: var(--rq-green); }
+    .rq-step.rq-filled .rq-step-dot {
+        background: var(--rq-teal);
+    }
+
+    .rq-step.rq-done .rq-step-dot {
+        background: var(--rq-green);
+        box-shadow: 0 0 0 4px var(--rq-green-dim);
+    }
 
     .rq-step.rq-active .rq-step-dot {
         background: var(--rq-teal);
@@ -823,8 +1151,13 @@
     }
 
     @@keyframes rqPulse {
-        0%, 100% { box-shadow: 0 0 0 4px var(--rq-teal-dim); }
-        50% { box-shadow: 0 0 0 7px var(--rq-teal-dim); }
+        0%, 100% {
+            box-shadow: 0 0 0 4px var(--rq-teal-dim);
+        }
+
+        50% {
+            box-shadow: 0 0 0 7px var(--rq-teal-dim);
+        }
     }
 
     .rq-step-label {
@@ -835,13 +1168,23 @@
         color: var(--rq-ink-faint);
     }
 
-    .rq-step.rq-filled .rq-step-label { color: var(--rq-ink-soft); }
-    .rq-step.rq-active .rq-step-label { color: var(--rq-teal); font-weight: 600; }
-    .rq-step.rq-done .rq-step-label { color: var(--rq-green); font-weight: 600; }
+    .rq-step.rq-filled .rq-step-label {
+        color: var(--rq-ink-soft);
+    }
+
+    .rq-step.rq-active .rq-step-label {
+        color: var(--rq-teal);
+        font-weight: 600;
+    }
+
+    .rq-step.rq-done .rq-step-label {
+        color: var(--rq-green);
+        font-weight: 600;
+    }
 
     .rq-cancelled-rail {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 8px;
         font-family: 'IBM Plex Mono', monospace;
         font-size: 12px;
@@ -849,6 +1192,10 @@
         padding-top: 4px;
         border-top: 1px dashed var(--rq-line);
     }
+
+        .rq-cancelled-rail i {
+            margin-top: 2px;
+        }
 
     /* ============ NO MATCHES / EMPTY STATE ============ */
     .rq-no-matches {
@@ -864,22 +1211,28 @@
         color: var(--rq-ink-soft);
     }
 
-    .rq-no-matches i { font-size: 22px; color: var(--rq-ink-faint); }
+        .rq-no-matches i {
+            font-size: 22px;
+            color: var(--rq-ink-faint);
+        }
 
-    .rq-no-matches button {
-        margin-top: 6px;
-        border: 1px solid var(--rq-line-strong);
-        background: var(--rq-paper);
-        border-radius: 999px;
-        padding: 7px 16px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        color: var(--rq-ink-soft);
-        font-family: 'Inter', sans-serif;
-    }
+        .rq-no-matches button {
+            margin-top: 6px;
+            border: 1px solid var(--rq-line-strong);
+            background: var(--rq-paper);
+            border-radius: 999px;
+            padding: 7px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--rq-ink-soft);
+            font-family: 'Inter', sans-serif;
+        }
 
-    .rq-no-matches button:hover { border-color: var(--rq-teal); color: var(--rq-teal-deep); }
+            .rq-no-matches button:hover {
+                border-color: var(--rq-teal);
+                color: var(--rq-teal-deep);
+            }
 
     .rq-empty {
         background: var(--rq-raised);
@@ -918,13 +1271,16 @@
     }
 
     /* ============ FOOTER ============ */
-    .rq-footer { margin-top: 36px; text-align: center; }
-
-    .rq-footer hr {
-        border: none;
-        border-top: 1px solid var(--rq-line);
-        margin-bottom: 20px;
+    .rq-footer {
+        margin-top: 36px;
+        text-align: center;
     }
+
+        .rq-footer hr {
+            border: none;
+            border-top: 1px solid var(--rq-line);
+            margin-bottom: 20px;
+        }
 
     .rq-footer-content {
         display: flex;
@@ -937,12 +1293,19 @@
         font-family: 'IBM Plex Mono', monospace;
     }
 
-    .rq-footer-content i { color: var(--rq-teal); }
-    .rq-footer-divider { color: var(--rq-line-strong); }
+        .rq-footer-content i {
+            color: var(--rq-teal);
+        }
+
+    .rq-footer-divider {
+        color: var(--rq-line-strong);
+    }
 
     /* ============ RESPONSIVE ============ */
     @@media (max-width: 700px) {
-        .rq-ticker { grid-template-columns: repeat(2, 1fr); }
+        .rq-ticker {
+            grid-template-columns: repeat(2, 1fr);
+        }
 
         .rq-console {
             flex-direction: column;
@@ -959,28 +1322,57 @@
             justify-content: space-between;
         }
 
-        .rq-toolbar { flex-direction: column; align-items: stretch; }
-        .rq-toolbar-actions { margin-left: 0; justify-content: space-between; }
+        .rq-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .rq-toolbar-actions {
+            margin-left: 0;
+            justify-content: space-between;
+        }
     }
 
     @@media (max-width: 560px) {
-        .rq-wrap { padding: 20px 14px 50px; }
-        .rq-stub { width: 60px; }
-        .rq-stub-id { font-size: 10px; }
-        .rq-step-label { display: none; }
-        .rq-console-ring { width: 56px; height: 56px; }
-        .rq-ring-inner { width: 42px; height: 42px; }
-        .rq-ring-inner span { font-size: 11px; }
+        .rq-wrap {
+            padding: 20px 14px 50px;
+        }
+
+        .rq-stub {
+            width: 60px;
+        }
+
+        .rq-stub-id {
+            font-size: 10px;
+        }
+
+        .rq-step-label {
+            display: none;
+        }
+
+        .rq-console-ring {
+            width: 56px;
+            height: 56px;
+        }
+
+        .rq-ring-inner {
+            width: 42px;
+            height: 42px;
+        }
+
+            .rq-ring-inner span {
+                font-size: 11px;
+            }
     }
 </style>
 
 <script>
-    (function () {
+    (function() {
         // ---------------------------------------------
         // Copy request ID to clipboard
         // ---------------------------------------------
-        document.querySelectorAll('.rq-copy-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+        document.querySelectorAll('.rq-copy-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
                 var text = btn.getAttribute('data-copy');
                 var icon = btn.querySelector('i');
 
@@ -988,7 +1380,7 @@
                     icon.classList.remove('fa-copy');
                     icon.classList.add('fa-check');
                     btn.classList.add('rq-copied');
-                    setTimeout(function () {
+                    setTimeout(function() {
                         icon.classList.remove('fa-check');
                         icon.classList.add('fa-copy');
                         btn.classList.remove('rq-copied');
@@ -996,7 +1388,7 @@
                 }
 
                 if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(text).then(showCopied).catch(function () { });
+                    navigator.clipboard.writeText(text).then(showCopied).catch(function() { });
                 } else {
                     var ta = document.createElement('textarea');
                     ta.value = text;
@@ -1013,8 +1405,8 @@
         // ---------------------------------------------
         // Expand/collapse test chips
         // ---------------------------------------------
-        document.querySelectorAll('.rq-tests-toggle').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+        document.querySelectorAll('.rq-tests-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
                 var target = document.getElementById(btn.getAttribute('data-target'));
                 if (!target) return;
                 var expanded = target.classList.toggle('rq-expanded');
@@ -1022,6 +1414,31 @@
                 var label = btn.querySelector('.rq-tests-toggle-label');
                 var extraCount = target.querySelectorAll('.rq-test-extra').length;
                 if (label) { label.textContent = expanded ? 'Show less' : ('+' + extraCount + ' more'); }
+            });
+        });
+
+        // ---------------------------------------------
+        // A released card opens that request's results
+        // (links and buttons inside the card keep their own behaviour)
+        // ---------------------------------------------
+        document.querySelectorAll('.rq-card[data-href]').forEach(function(card) {
+            card.addEventListener('click', function(e) {
+                if (e.target.closest('a, button')) { return; }
+                window.location.href = card.dataset.href;
+            });
+        });
+
+        // ---------------------------------------------
+        // Cancel a request (patient) - confirm, ask for an optional reason, then post
+        // ---------------------------------------------
+        document.querySelectorAll('.rq-cancel-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var form = btn.closest('form');
+                if (!confirm('Cancel this request? This cannot be undone.')) { return; }
+                var reason = prompt('Reason for cancelling (optional):', '');
+                if (reason === null) { return; }          // pressed Cancel on the prompt
+                form.querySelector('input[name="reason"]').value = reason;
+                form.submit();
             });
         });
 
@@ -1044,7 +1461,7 @@
             var cards = list.querySelectorAll('.rq-card');
             var visibleCount = 0;
 
-            cards.forEach(function (card) {
+            cards.forEach(function(card) {
                 var haystack = ((card.dataset.doctor || '') + ' ' + (card.dataset.tests || '')).toLowerCase();
                 var matchesSearch = state.search === '' || haystack.indexOf(state.search) !== -1;
                 var matchesStatus = state.status === 'all' || card.dataset.status === state.status;
@@ -1061,15 +1478,15 @@
         }
 
         if (searchInput) {
-            searchInput.addEventListener('input', function () {
+            searchInput.addEventListener('input', function() {
                 state.search = searchInput.value.trim().toLowerCase();
                 applyFilters();
             });
         }
 
-        statusChips.forEach(function (chip) {
-            chip.addEventListener('click', function () {
-                statusChips.forEach(function (c) { c.classList.remove('active'); });
+        statusChips.forEach(function(chip) {
+            chip.addEventListener('click', function() {
+                statusChips.forEach(function(c) { c.classList.remove('active'); });
                 chip.classList.add('active');
                 state.status = chip.getAttribute('data-status-filter');
                 applyFilters();
@@ -1077,7 +1494,7 @@
         });
 
         if (urgentChip) {
-            urgentChip.addEventListener('click', function () {
+            urgentChip.addEventListener('click', function() {
                 state.urgentOnly = !state.urgentOnly;
                 urgentChip.classList.toggle('active', state.urgentOnly);
                 applyFilters();
@@ -1085,21 +1502,21 @@
         }
 
         if (clearBtn) {
-            clearBtn.addEventListener('click', function () {
+            clearBtn.addEventListener('click', function() {
                 state = { search: '', status: 'all', urgentOnly: false };
                 if (searchInput) { searchInput.value = ''; }
-                statusChips.forEach(function (c) { c.classList.toggle('active', c.getAttribute('data-status-filter') === 'all'); });
+                statusChips.forEach(function(c) { c.classList.toggle('active', c.getAttribute('data-status-filter') === 'all'); });
                 if (urgentChip) { urgentChip.classList.remove('active'); }
                 applyFilters();
             });
         }
 
         if (sortSelect) {
-            sortSelect.addEventListener('change', function () {
+            sortSelect.addEventListener('change', function() {
                 var value = sortSelect.value;
                 var cards = Array.prototype.slice.call(list.querySelectorAll('.rq-card'));
 
-                cards.sort(function (a, b) {
+                cards.sort(function(a, b) {
                     if (value === 'urgent') {
                         var au = a.dataset.urgent === 'true', bu = b.dataset.urgent === 'true';
                         if (au !== bu) { return au ? -1 : 1; }
@@ -1109,7 +1526,7 @@
                     return b.dataset.date.localeCompare(a.dataset.date);
                 });
 
-                cards.forEach(function (c) { list.appendChild(c); });
+                cards.forEach(function(c) { list.appendChild(c); });
             });
         }
 
@@ -1118,10 +1535,10 @@
         // ---------------------------------------------
         var exportBtn = document.getElementById('rqExportBtn');
         if (exportBtn) {
-            exportBtn.addEventListener('click', function () {
+            exportBtn.addEventListener('click', function() {
                 var rows = [['Request ID', 'Doctor', 'Date', 'Status', 'Urgent', 'Tests']];
 
-                list.querySelectorAll('.rq-card:not(.rq-hidden)').forEach(function (card) {
+                list.querySelectorAll('.rq-card:not(.rq-hidden)').forEach(function(card) {
                     rows.push([
                         card.dataset.id || '',
                         card.dataset.doctor || '',
@@ -1132,8 +1549,8 @@
                     ]);
                 });
 
-                var csv = rows.map(function (row) {
-                    return row.map(function (field) {
+                var csv = rows.map(function(row) {
+                    return row.map(function(field) {
                         return '"' + String(field).replace(/"/g, '""') + '"';
                     }).join(',');
                 }).join('\n');
