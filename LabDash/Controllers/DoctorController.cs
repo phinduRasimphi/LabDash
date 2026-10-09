@@ -539,5 +539,100 @@ namespace LabDash.Controllers
             int index = RandomNumberGenerator.GetInt32(characters.Length);
             return characters[index];
         }
+
+        // =========================================================
+        // DOCTOR PROFILE — GET
+        // =========================================================
+        [HttpGet]
+        public async Task<IActionResult> DoctorProfile(bool edit = false)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return NotFound();
+
+            ViewBag.EditMode = edit;
+            return View(user);
+        }
+
+        // =========================================================
+        // DOCTOR PROFILE — POST
+        // =========================================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DoctorProfile(
+            string FirstName, string LastName, string Email,
+            string HPCSANumber, string EmployeeNumber, string PhoneNumb,
+            string? Gender, string? SouthAfricanID)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return NotFound();
+
+            if (string.IsNullOrWhiteSpace(FirstName))
+                ModelState.AddModelError("FirstName", "First name is required.");
+            if (string.IsNullOrWhiteSpace(LastName))
+                ModelState.AddModelError("LastName", "Last name is required.");
+            if (string.IsNullOrWhiteSpace(Email))
+                ModelState.AddModelError("Email", "Email is required.");
+            if (string.IsNullOrWhiteSpace(HPCSANumber))
+                ModelState.AddModelError("HPCSANumber", "HPCSA number is required.");
+            if (string.IsNullOrWhiteSpace(EmployeeNumber))
+                ModelState.AddModelError("EmployeeNumber", "Employee number is required.");
+            if (string.IsNullOrWhiteSpace(PhoneNumb))
+                ModelState.AddModelError("PhoneNumb", "Phone number is required.");
+
+            string newEmail = (Email ?? "").Trim().ToLowerInvariant();
+
+            // Email must stay unique if changed
+            if (ModelState.IsValid && !string.Equals(newEmail, user.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                var existing = await _userManager.FindByEmailAsync(newEmail);
+                if (existing != null && existing.Id != user.Id)
+                    ModelState.AddModelError("Email", "That email is already in use.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                // Re-show the form with what the user typed
+                user.FirstName = FirstName;
+                user.LastName = LastName;
+                user.Email = Email;
+                user.HPCSANumber = HPCSANumber;
+                user.EmployeeNumber = EmployeeNumber;
+                user.PhoneNumb = PhoneNumb;
+                user.Gender = Gender;
+                user.SouthAfricanID = SouthAfricanID;
+
+                ViewBag.EditMode = true;
+                return View(user);
+            }
+
+            user.FirstName = FirstName.Trim();
+            user.LastName = LastName.Trim();
+            user.HPCSANumber = HPCSANumber.Trim();
+            user.EmployeeNumber = EmployeeNumber.Trim();
+            user.PhoneNumb = PhoneNumb.Trim();
+            user.Gender = Gender;
+            user.SouthAfricanID = string.IsNullOrWhiteSpace(SouthAfricanID) ? null : SouthAfricanID.Trim();
+
+            if (!string.Equals(newEmail, user.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                user.Email = newEmail;
+                user.UserName = newEmail; // the view labels Email as "Username"
+            }
+
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                foreach (var e in result.Errors)
+                    ModelState.AddModelError(string.Empty, e.Description);
+                ViewBag.EditMode = true;
+                return View(user);
+            }
+
+            // Refresh the auth cookie in case the username changed
+            await _signInManager.RefreshSignInAsync(user);
+
+            TempData["Success"] = "Profile updated successfully.";
+            return RedirectToAction(nameof(DoctorProfile));
+        }
     }
 }

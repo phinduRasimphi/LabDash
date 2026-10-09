@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LabDash.Migrations
 {
     [DbContext(typeof(LabDbContext))]
-    [Migration("20261002171835_AddPatientAddressFields")]
-    partial class AddPatientAddressFields
+    [Migration("20261007192856_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -22,6 +22,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddSession();
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+Console.WriteLine($"CONN: {cs}");
 
 builder.Services.AddScoped<LabDash.Services.NotificationService>();
 builder.Services.AddScoped<IEmailSender, EmailSender>();
