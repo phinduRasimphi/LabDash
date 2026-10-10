@@ -6,17 +6,18 @@ namespace LabDash.Models
     {
         public int MedicalConditionId { get; set; }
 
-        [Required]
-        [StringLength(100)]
-        [Display(Name = "Condition Name")]
-        public string ConditionName { get; set; } = string.Empty;
+        
 
         public int CategoryId { get; set; }
         public Category? Category { get; set; }   // navigation property, not a string anymore
 
-        [StringLength(250)]
-        public string? Description { get; set; }
+       
 
         public bool IsActive { get; set; } = true;
+        [Required, StringLength(200)]
+        public string ConditionName { get; set; } = string.Empty;
+
+        [StringLength(500)]
+        public string? Description { get; set; }
     }
 }
