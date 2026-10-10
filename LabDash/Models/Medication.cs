@@ -8,7 +8,7 @@ namespace LabDash.Models
         public int MedicationId { get; set; }
 
         [Required]
-        [StringLength(100)]
+        [StringLength(200)]
         [Display(Name = "Medication Name")]
         public string MedicationName { get; set; } = string.Empty;
 
@@ -18,7 +18,7 @@ namespace LabDash.Models
         [ForeignKey(nameof(CategoryId))]
         public Category? Category { get; set; }
 
-        [StringLength(250)]
+        [StringLength(500)]
         public string? Description { get; set; }
 
         public bool IsActive { get; set; } = true;
