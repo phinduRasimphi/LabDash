@@ -2,14 +2,17 @@
 @using Microsoft.AspNetCore.Identity
 @inject SignInManager<LabUser> SignInManager
 @inject UserManager<LabUser> UserManager
+
 @{
     var currentUser = await UserManager.GetUserAsync(User);
     var fullName = currentUser?.FullName ?? User.Identity?.Name ?? "Doctor";
-    var initials = string.Join("", fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                                            .Take(2)
-                                            .Select(n => n[0]))
-                                            .ToUpper();
+    var initials = string.Join("",
+        fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .Select(n => n[0]))
+        .ToUpper();
 }
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -85,8 +88,11 @@
         .doctor-logo-row {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             padding: 0 22px;
             margin-bottom: 30px;
+            position: relative;
+            z-index: 1100;
         }
 
             .doctor-logo-row .doctor-logo {
@@ -341,9 +347,13 @@
     @Html.AntiForgeryToken()
 
     <div class="doctor-container">
+
+        <!-- =========================================================
+             SIDEBAR
+             ========================================================= -->
         <aside class="doctor-sidebar">
 
-            <!-- LOGO (bell removed — it now lives on the dashboard banner) -->
+            <!-- LOGO -->
             <div class="doctor-logo-row">
                 <div class="doctor-logo">NMB<span>LAB</span></div>
             </div>
@@ -360,48 +370,121 @@
                 </div>
             </div>
 
-            <!-- MENU -->
+            <!-- =====================================================
+                 MENU
+                 ===================================================== -->
             <ul class="doctor-menu">
+
                 <li class="doctor-menu-title">MAIN</li>
-                <li><a href="@Url.Action("Index", "DoctorHome")" class="@(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "active" : "")"><i class="fa-solid fa-gauge"></i> Dashboard</a></li>
+
+                <li>
+                    <a href="@Url.Action("Index", "DoctorHome")"
+                       class="@(ViewData["ActivePage"]?.ToString() == "Dashboard" ? "active" : "")">
+                        <i class="fa-solid fa-gauge"></i> Dashboard
+                    </a>
+                </li>
 
                 <li class="doctor-menu-title">PATIENTS</li>
-                <li><a href="@Url.Action("ManagePatients", "Doctor")" class="@(ViewData["ActivePage"]?.ToString() == "ManagePatients" ? "active" : "")"><i class="fa-solid fa-users"></i> Manage Patients</a></li>
-                <li><a href="@Url.Action("SharedWithMe", "Doctor")" class="@(ViewData["ActivePage"]?.ToString() == "SharedWithMe" ? "active" : "")"><i class="fa-solid fa-user-shield"></i> Consented Patients</a></li>
 
+                <li>
+                    <a href="@Url.Action("ManagePatients", "Doctor")"
+                       class="@(ViewData["ActivePage"]?.ToString() == "ManagePatients" ? "active" : "")">
+                        <i class="fa-solid fa-users"></i> Manage Patients
+                    </a>
+                </li>
+                <li>
+                    <a href="@Url.Action("SharedWithMe", "Doctor")"
+                       class="@(ViewData["ActivePage"]?.ToString() == "SharedWithMe" ? "active" : "")">
+                        <i class="fa-solid fa-user-shield"></i> Consented Patients
+                    </a>
+                </li>
                 <li class="doctor-menu-title">TEST REQUESTS</li>
-                <li><a href="@Url.Action("Create", "TestRequest")"><i class="fa-solid fa-flask"></i> New Test Request</a></li>
-                <li><a href="@Url.Action("Index", "TestRequest")"><i class="fa-solid fa-eye"></i> View Test Request</a></li>
-                <li><a href="@Url.Action("Track", "TestRequest")"><i class="fa-solid fa-chart-line"></i> Track Requests</a></li>
+
+                <li>
+                    <a href="@Url.Action("Create", "TestRequest")">
+                        <i class="fa-solid fa-flask"></i> New Test Request
+                    </a>
+                </li>
+
+                <li>
+                    <a href="@Url.Action("Index", "TestRequest")">
+                        <i class="fa-solid fa-eye"></i> View Test Requests
+                    </a>
+                </li>
+
+                <li>
+                    <a href="@Url.Action("Track", "TestRequest")">
+                        <i class="fa-solid fa-chart-line"></i> Track Requests
+                    </a>
+                </li>
 
                 <li class="doctor-menu-title">RESULTS</li>
-                <li><a href="@Url.Action("Index", "TestResult")"><i class="fa-solid fa-file-medical"></i> View Results</a></li>
-                <li><a href="@Url.Action("Alerts", "TestResult")"><i class="fa-solid fa-bell"></i> Alerts</a></li>
+
+                <li>
+                    <a href="@Url.Action("Index", "TestResult")">
+                        <i class="fa-solid fa-file-medical"></i> View Results
+                    </a>
+                </li>
+
+                <li>
+                    <a href="@Url.Action("Alerts", "TestResult")">
+                        <i class="fa-solid fa-bell"></i> Alerts
+                    </a>
+                </li>
 
                 <li class="doctor-menu-title">REPORTS</li>
-                <li><a href="@Url.Action("Reports", "Doctor")"><i class="fa-solid fa-file-pdf"></i> Generate Reports</a></li>
+
+                <li>
+                    <a href="@Url.Action("Reports", "Doctor")">
+                        <i class="fa-solid fa-file-pdf"></i> Generate Reports
+                    </a>
+                </li>
+
             </ul>
 
-            <!-- FOOTER -->
+            <!-- =====================================================
+                 SIDEBAR FOOTER
+                 ===================================================== -->
             <div class="doctor-sidebar-footer">
+
                 <ul>
-                    <li><a href="@Url.Action("DoctorProfile", "Doctor")"><i class="fa-solid fa-circle-user"></i> Profile</a></li>
+
                     <li>
-                        <form asp-controller="Doctor" asp-action="Logout" method="post">
-                            <button type="submit" class="doctor-logout-link"><i class="fa-solid fa-right-from-bracket"></i> Log Out</button>
+                        <a href="@Url.Action("DoctorProfile", "Doctor")">
+                            <i class="fa-solid fa-circle-user"></i> Profile
+                        </a>
+                    </li>
+
+                    <li>
+                        <form asp-area="Identity"
+                              asp-controller="Account"
+                              asp-action="Logout"
+                              method="post"
+                              style="margin:0;">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="doctor-logout-link">
+                                <i class="fa-solid fa-right-from-bracket"></i> Log Out
+                            </button>
                         </form>
                     </li>
+
                 </ul>
+
                 <p class="doctor-footer-copy">LabDASH © 2026</p>
+
             </div>
         </aside>
 
+        <!-- =========================================================
+             MAIN CONTENT
+             ========================================================= -->
         <main class="doctor-main-content">
             <section class="doctor-page-content">
                 @RenderBody()
                 @await RenderSectionAsync("Scripts", required: false)
             </section>
         </main>
+
     </div>
 </body>
 </html>

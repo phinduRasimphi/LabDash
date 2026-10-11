@@ -76,7 +76,53 @@ namespace LabDash.Controllers
 
             return View(vm);
         }
+        // =========================================================
+        // CONSENTED PATIENTS (SharedWithMe)
+        // =========================================================
 
+        [HttpGet]
+        public async Task<IActionResult> SharedWithMe()
+        {
+            // Placeholder — no consent table yet, so return an empty list.
+            // When you build the consent feature, replace the Patients
+            // list with a real query against the consent table.
+
+            var model = new SharedWithMeViewModel
+            {
+                Patients = new List<SharedPatientViewModel>()
+            };
+
+            return View(model);
+        }
+
+        // =========================================================
+        // PATIENT SHARED RESULTS
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> PatientSharedResults(int patientId)
+        {
+            var patient = await _context.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PatientID == patientId);
+
+            if (patient == null)
+            {
+                return NotFound();
+            }
+
+            var model = new PatientSharedResultsViewModel
+            {
+                PatientID = patient.PatientID,
+                Name = patient.Name,
+                Surname = patient.Surname,
+                IDNumber = patient.IDNumber,
+                Email = patient.Email,
+                Results = new List<SharedResultViewModel>()
+            };
+
+            return View(model);
+        }
         // =========================================================
         // CREATE PATIENT - GET
         // =========================================================
