@@ -78,18 +78,61 @@ namespace LabDash.Controllers
         }
         // =========================================================
         // CONSENTED PATIENTS (SharedWithMe)
+        // Patients who have granted the signed-in doctor access
+        // to their test results via PatientDoctorConsent rows.
         // =========================================================
 
         [HttpGet]
         public async Task<IActionResult> SharedWithMe()
         {
-            // Placeholder — no consent table yet, so return an empty list.
-            // When you build the consent feature, replace the Patients
-            // list with a real query against the consent table.
+            // Identify the signed-in doctor.
+            var currentUser = await _userManager.GetUserAsync(User);
 
+            if (currentUser == null)
+            {
+                return Challenge();
+            }
+
+            // Pull every active consent that points at this doctor.
+            var consents = await _context.PatientDoctorConsents
+                .AsNoTracking()
+                .Where(c =>
+                    c.DoctorId == currentUser.Id &&
+                    c.IsActive)
+                .Include(c => c.Patient)
+                .Include(c => c.ConsentItemAccesses)
+                .OrderByDescending(c => c.GrantedDate)
+                .ToListAsync();
+
+            // Collapse to one card per patient. If a patient has multiple
+            // active consents (unusual but possible), merge them.
             var model = new SharedWithMeViewModel
             {
-                Patients = new List<SharedPatientViewModel>()
+                Patients = consents
+                    .Where(c => c.Patient != null)
+                    .GroupBy(c => c.PatientID)
+                    .Select(g =>
+                    {
+                        var latest = g
+                            .OrderByDescending(c => c.GrantedDate)
+                            .First();
+
+                        var totalItems = g
+                            .Sum(c => c.ConsentItemAccesses?.Count ?? 0);
+
+                        return new SharedPatientViewModel
+                        {
+                            PatientID = latest.Patient!.PatientID,
+                            Name = latest.Patient.Name,
+                            Surname = latest.Patient.Surname,
+                            IDNumber = latest.Patient.IDNumber,
+                            Email = latest.Patient.Email ?? "",
+                            SharedItemCount = totalItems,
+                            LastGrantedDate = latest.GrantedDate
+                        };
+                    })
+                    .OrderByDescending(p => p.LastGrantedDate)
+                    .ToList()
             };
 
             return View(model);
@@ -99,9 +142,28 @@ namespace LabDash.Controllers
         // PATIENT SHARED RESULTS
         // =========================================================
 
+        // =========================================================
+        // PATIENT SHARED RESULTS
+        // Shows the test result items this doctor has been granted
+        // access to for the given patient.
+        // =========================================================
+
+        // =========================================================
+        // PATIENT SHARED RESULTS
+        // Shows the test result items this doctor has been granted
+        // access to for the given patient.
+        // =========================================================
+
         [HttpGet]
         public async Task<IActionResult> PatientSharedResults(int patientId)
         {
+            var currentUser = await _userManager.GetUserAsync(User);
+
+            if (currentUser == null)
+            {
+                return Challenge();
+            }
+
             var patient = await _context.Patients
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.PatientID == patientId);
@@ -111,14 +173,81 @@ namespace LabDash.Controllers
                 return NotFound();
             }
 
+            // Access control: this doctor must have an active consent
+            // for this patient.
+            var hasAccess = await _context.PatientDoctorConsents
+                .AsNoTracking()
+                .AnyAsync(c =>
+                    c.PatientID == patientId &&
+                    c.DoctorId == currentUser.Id &&
+                    c.IsActive);
+
+            if (!hasAccess)
+            {
+                return Forbid();
+            }
+
+            // Pull the item-level grants for this patient + doctor.
+            var grantedItems = await _context.ConsentItemAccesses
+                .AsNoTracking()
+                .Where(a =>
+                    a.Consent != null &&
+                    a.Consent.PatientID == patientId &&
+                    a.Consent.DoctorId == currentUser.Id &&
+                    a.Consent.IsActive)
+                .Include(a => a.TestRequestItem)
+                    .ThenInclude(i => i!.TestType)
+                .Include(a => a.TestRequestItem)
+                    .ThenInclude(i => i!.TestRequest)
+                .Include(a => a.TestRequestItem)
+                    .ThenInclude(i => i!.TestResults)
+                .ToListAsync();
+
+            var results = grantedItems
+                .Where(a => a.TestRequestItem != null)
+                .Select(a =>
+                {
+                    var item = a.TestRequestItem!;
+                    var request = item.TestRequest;
+                    var testType = item.TestType;
+
+                    // A TestRequestItem can have multiple TestResults.
+                    // Pick the most recent one that has a value.
+                    var result = item.TestResults?
+                        .Where(r => !string.IsNullOrWhiteSpace(r.ResultValue))
+                        .OrderByDescending(r => r.DateCaptured)
+                        .FirstOrDefault();
+
+                    return new SharedResultViewModel
+                    {
+                        RequestID = request?.RequestId ?? 0,
+                        RequestDate = request?.RequestDate ?? DateTime.MinValue,
+                        Urgency = request?.Urgency ?? "Routine",
+                        RequestStatus = request?.Status ?? "",
+
+                        TestRequestItemID = item.TestRequestItemId,
+                        TestName = testType?.Name ?? "Unknown Test",
+                        Category = testType?.Category ?? "",
+
+                        ResultValue = result?.ResultValue ?? "",
+                        Unit = result?.Units ?? "",
+                        IsAbnormal = result?.IsAbnormal ?? false,
+                        DateCaptured = result?.DateCaptured,
+                        TechnicianNotes = result?.Comments ?? ""
+                    };
+                })
+                .OrderByDescending(r => r.RequestDate)
+                .ThenBy(r => r.TestName)
+                .ToList();
+
             var model = new PatientSharedResultsViewModel
             {
                 PatientID = patient.PatientID,
                 Name = patient.Name,
                 Surname = patient.Surname,
                 IDNumber = patient.IDNumber,
-                Email = patient.Email,
-                Results = new List<SharedResultViewModel>()
+                Email = patient.Email ?? "",
+                Results = results
             };
 
             return View(model);

@@ -75,6 +75,8 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<PatientMedication> PatientMedications { get; set; }
 
     public DbSet<PatientMedicalCondition> PatientMedicalConditions { get; set; }
+  
+  
 
     public DbSet<ConsumableOrderItem> ConsumableOrderItems { get; set; }
 
