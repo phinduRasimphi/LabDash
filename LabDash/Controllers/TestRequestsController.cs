@@ -83,8 +83,6 @@ namespace LabDash.Controllers
 
         // =============================================================
         // CREATE — GET
-        // Loads patient info, allergies, conditions, medications,
-        // previous results, and alphabetically-ordered test types.
         // =============================================================
         [HttpGet]
         public async Task<IActionResult> Create(int? patientId)
@@ -105,7 +103,6 @@ namespace LabDash.Controllers
                 return RedirectToAction("ManagePatients", "Doctor");
             }
 
-            // -------- Basic patient info --------
             ViewBag.PatientId = patient.PatientID;
             ViewBag.PatientName = $"{patient.Name} {patient.Surname}";
             ViewBag.PatientIDNumber = patient.IDNumber;
@@ -114,7 +111,6 @@ namespace LabDash.Controllers
             ViewBag.PatientCell = patient.CellphoneNumber ?? "";
             ViewBag.RequestDate = DateTime.Today;
 
-            // -------- Patient allergies --------
             var allergies = await _context.PatientAllergies
                 .AsNoTracking()
                 .Where(a => a.PatientID == patientId.Value)
@@ -132,7 +128,6 @@ namespace LabDash.Controllers
 
             ViewBag.PatientAllergies = allergies;
 
-            // -------- Patient medical conditions --------
             var conditions = await _context.PatientMedicalConditions
                 .AsNoTracking()
                 .Where(c => c.PatientID == patientId.Value)
@@ -153,7 +148,6 @@ namespace LabDash.Controllers
 
             ViewBag.PatientConditions = conditions;
 
-            // -------- Patient medications --------
             var medications = await _context.PatientMedications
                 .AsNoTracking()
                 .Where(m => m.PatientID == patientId.Value)
@@ -175,7 +169,6 @@ namespace LabDash.Controllers
 
             ViewBag.PatientMedications = medications;
 
-            // -------- Previous results (top 20) --------
             var previousResults = await _context.TestResults
                 .AsNoTracking()
                 .Where(r =>
@@ -201,7 +194,6 @@ namespace LabDash.Controllers
 
             ViewBag.PreviousResults = previousResults;
 
-            // -------- Test types, alphabetically by category then name --------
             var testTypes = await _context.TestTypes
                 .AsNoTracking()
                 .Include(t => t.TestCategory)
@@ -218,8 +210,7 @@ namespace LabDash.Controllers
 
         // =============================================================
         // CREATE — POST
-        // Request date is locked server-side to DateTime.Today.
-        // One barcode per selected test, all unique.
+        // FIX: Now creates Sample entities for each barcode.
         // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -237,7 +228,7 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Create), new { patientId });
             }
 
-            // 2. Validate barcodes — one per test, all unique
+            // 2. Validate barcodes
             var cleanBarcodes = (barcodes ?? Array.Empty<string>())
                 .Select(b => (b ?? "").Trim())
                 .ToArray();
@@ -292,7 +283,7 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Create), new { patientId });
             }
 
-            // 6. Create the test request — date is server-side today
+            // 6. Create the test request
             var testRequest = new TestRequest
             {
                 PatientId = patientId,
@@ -308,7 +299,7 @@ namespace LabDash.Controllers
             _context.TestRequests.Add(testRequest);
             await _context.SaveChangesAsync();
 
-            // 7. Create items — one per selected test
+            // 7. Create TestRequestItems — one per selected test
             for (int i = 0; i < selectedTestTypeIds.Length; i++)
             {
                 int typeId = selectedTestTypeIds[i];
@@ -321,6 +312,28 @@ namespace LabDash.Controllers
                     AssignedTechnicianId = null,
                     StartDateTime = null,
                     CompletionDateTime = null
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            // =========================================================
+            // 7b. CREATE SAMPLE ENTITIES — THIS IS THE FIX
+            // One Sample per barcode, so the technician can receive them.
+            // =========================================================
+            for (int i = 0; i < cleanBarcodes.Length; i++)
+            {
+                int typeId = selectedTestTypeIds[i];
+                var testType = selectedTypes.FirstOrDefault(t => t.Id == typeId);
+
+                _context.Samples.Add(new Sample
+                {
+                    TestRequestId = testRequest.RequestId,
+                    Barcode = cleanBarcodes[i],
+                    SampleType = testType?.RequiredSampleType ?? "Whole Blood",
+                    IsReceived = false,
+                    DateReceived = null,
+                    ReceivedByTechnician = ""
                 });
             }
 
@@ -354,9 +367,12 @@ namespace LabDash.Controllers
                 // Request is saved regardless of email success.
             }
 
-            // 9. Confirm items were created
+            // 9. Confirm everything was created
             var itemCount = await _context.TestRequestItems
                 .CountAsync(x => x.RequestId == testRequest.RequestId);
+
+            var sampleCount = await _context.Samples
+                .CountAsync(x => x.TestRequestId == testRequest.RequestId);
 
             if (itemCount == 0)
             {
@@ -370,7 +386,7 @@ namespace LabDash.Controllers
             // 10. Success
             TempData["SuccessMessage"] =
                 $"Test request #{testRequest.RequestId} created successfully " +
-                $"with {itemCount} laboratory test(s).";
+                $"with {itemCount} test(s) and {sampleCount} sample(s).";
 
             return RedirectToAction(nameof(Index));
         }
@@ -424,7 +440,6 @@ namespace LabDash.Controllers
 
         // =============================================================
         // EDIT — POST
-        // Request date stays fixed to the original — never changed.
         // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -437,6 +452,7 @@ namespace LabDash.Controllers
         {
             var request = await _context.TestRequests
                 .Include(tr => tr.TestRequestItems)
+                .Include(tr => tr.Samples)
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
             if (request == null) return NotFound();
@@ -459,8 +475,6 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Edit), new { id = requestId });
             }
 
-            // Note: RequestDate intentionally NOT reassigned — the
-            // original date is preserved no matter what the client sends.
             request.Urgency = urgency;
             request.ClinicalNotes = clinicalNotes;
             request.SampleBarcodes = string.Join(",", cleanBarcodes);
@@ -472,6 +486,7 @@ namespace LabDash.Controllers
                 .Where(t => selectedTestTypeIds.Contains(t.Id))
                 .ToListAsync();
 
+            // Recreate items
             foreach (var type in selectedTypes)
             {
                 _context.TestRequestItems.Add(new TestRequestItem
@@ -479,6 +494,25 @@ namespace LabDash.Controllers
                     RequestId = request.RequestId,
                     TestTypeId = type.Id,
                     Status = "Submitted"
+                });
+            }
+
+            // Recreate samples for the new barcodes
+            _context.Samples.RemoveRange(request.Samples);
+
+            for (int i = 0; i < cleanBarcodes.Length; i++)
+            {
+                int typeId = selectedTestTypeIds[i];
+                var testType = selectedTypes.FirstOrDefault(t => t.Id == typeId);
+
+                _context.Samples.Add(new Sample
+                {
+                    TestRequestId = request.RequestId,
+                    Barcode = cleanBarcodes[i],
+                    SampleType = testType?.RequiredSampleType ?? "Whole Blood",
+                    IsReceived = false,
+                    DateReceived = null,
+                    ReceivedByTechnician = ""
                 });
             }
 
@@ -525,7 +559,7 @@ namespace LabDash.Controllers
         }
 
         // =============================================================
-        // TRACK — all requests by this doctor, grouped by patient
+        // TRACK
         // =============================================================
         public async Task<IActionResult> Track()
         {
@@ -552,7 +586,6 @@ namespace LabDash.Controllers
                 .OrderBy(x => x.Patient.Name)
                 .ToList();
 
-            // Summary counts for the top of the page
             ViewBag.TotalRequests = allRequests.Count;
             ViewBag.StatusSubmitted = allRequests.Count(r => r.Status == "Submitted");
             ViewBag.StatusReceived = allRequests.Count(r => r.Status == "Samples Received");
@@ -563,8 +596,9 @@ namespace LabDash.Controllers
 
             return View(folders);
         }
+
         // =============================================================
-        // RELEASE REQUEST — Doctor marks the results available to patient
+        // RELEASE REQUEST
         // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -582,7 +616,6 @@ namespace LabDash.Controllers
 
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
 
-            // Only allow release once every test item is Completed.
             if (request.TestRequestItems == null ||
                 !request.TestRequestItems.Any() ||
                 request.TestRequestItems.Any(i => i.Status != "Completed"))
@@ -599,8 +632,9 @@ namespace LabDash.Controllers
             TempData["Success"] = "Results released to the patient.";
             return RedirectToAction(nameof(Index));
         }
+
         // =============================================================
-        // VIEW REQUEST — single request, live status only
+        // VIEW REQUEST
         // =============================================================
         public async Task<IActionResult> ViewRequest(int id)
         {
@@ -615,8 +649,9 @@ namespace LabDash.Controllers
 
             return View("PatientRequests", new List<TestRequest> { request });
         }
+
         // =============================================================
-        // PATIENT RESULTS — full detail page, only after Completed
+        // PATIENT RESULTS
         // =============================================================
         [HttpGet]
         public async Task<IActionResult> PatientResults(int requestId)
@@ -639,7 +674,6 @@ namespace LabDash.Controllers
 
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
 
-            // Only allow results viewing when the request is Completed or Released.
             bool canView =
                 request.Status == "Completed" ||
                 request.Status == "Released by doctor";
@@ -653,9 +687,8 @@ namespace LabDash.Controllers
             return View(request);
         }
 
-
         // =============================================================
-        // RELEASE WITH NOTE — Sends email to patient (results or invite)
+        // RELEASE WITH NOTE
         // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -696,7 +729,6 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(ViewRequest), new { id = requestId });
             }
 
-            // Build results summary table for the email
             var sb = new System.Text.StringBuilder();
             sb.Append("<table style=\"width:100%;border-collapse:collapse;margin-top:12px;\">");
             sb.Append("<thead><tr>");
