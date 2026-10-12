@@ -1,0 +1,743 @@
+﻿@model LabDash.ViewModels.AlertsViewModel
+
+@{
+    ViewData["Title"] = "Abnormal Result Alerts";
+    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+    var today = DateTime.Today;
+    var isDefaultRange = Model.FromDate.Date == today.AddDays(-5) && Model.ToDate.Date == today;
+}
+
+<style>
+    .alerts-page {
+        max-width: 1150px;
+        margin: 24px auto;
+        padding: 0 22px 60px;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    @@keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes pulseAlert {
+        0%, 100% {
+            box-shadow: 0 0 0 0 rgba(217,45,32,0.35);
+        }
+
+        50% {
+            box-shadow: 0 0 0 10px rgba(217,45,32,0);
+        }
+    }
+
+    /* ============ HERO ============ */
+    .alerts-hero {
+        background: linear-gradient(135deg, #b42318 0%, #d92d20 55%, #ef4444 100%);
+        color: #fff;
+        border-radius: 20px;
+        padding: 30px 38px;
+        margin-bottom: 24px;
+        box-shadow: 0 12px 36px rgba(217,45,32,0.24);
+        position: relative;
+        overflow: hidden;
+        animation: fadeUp 0.5s ease-out;
+    }
+
+        .alerts-hero::before {
+            content: "";
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            right: -100px;
+            top: -140px;
+            background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+    .alerts-hero-inner {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .hero-icon-box {
+        width: 62px;
+        height: 62px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.16);
+        border: 1px solid rgba(255,255,255,0.24);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        margin-bottom: 14px;
+        backdrop-filter: blur(6px);
+        animation: pulseAlert 2.4s ease-in-out infinite;
+    }
+
+    .alerts-hero h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 800;
+    }
+
+    .alerts-hero p {
+        margin: 8px 0 0;
+        font-size: 13.5px;
+        opacity: 0.92;
+    }
+
+    .hero-range {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: rgba(255,255,255,0.16);
+        border: 1px solid rgba(255,255,255,0.24);
+        border-radius: 24px;
+        font-size: 12.5px;
+        font-weight: 600;
+        margin-top: 14px;
+        backdrop-filter: blur(6px);
+    }
+
+    /* ============ QUICK STATS ============ */
+    .stat-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+
+    .stat-tile {
+        background: #fff;
+        border: 2px solid #e3e8ee;
+        border-radius: 14px;
+        padding: 18px 22px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 3px 12px rgba(15,35,55,0.04);
+        animation: fadeUp 0.55s ease-out;
+    }
+
+    .stat-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 19px;
+        flex-shrink: 0;
+    }
+
+        .stat-icon.red {
+            background: #fde8e8;
+            color: #d92d20;
+        }
+
+        .stat-icon.amber {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .stat-icon.teal {
+            background: #e6f5f1;
+            color: #0d6b63;
+        }
+
+        .stat-icon.blue {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+    .stat-num {
+        font-size: 22px;
+        font-weight: 800;
+        color: #18324f;
+        line-height: 1;
+    }
+
+    .stat-lbl {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: #7d8e8a;
+        margin-top: 5px;
+    }
+
+    /* ============ FILTER BAR ============ */
+    .filter-card {
+        background: #fff;
+        border: 1px solid #e3e8ee;
+        border-radius: 14px;
+        padding: 22px 26px;
+        margin-bottom: 22px;
+        box-shadow: 0 4px 16px rgba(15,35,55,0.05);
+        animation: fadeUp 0.6s ease-out;
+    }
+
+    .filter-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        font-weight: 800;
+        color: #0d6b63;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-bottom: 18px;
+    }
+
+    .quick-filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+    }
+
+    .quick-filter {
+        padding: 9px 18px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        background: #f8fbfa;
+        border: 1.5px solid #e3e8ee;
+        color: #475467;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        transition: all 0.15s ease;
+    }
+
+        .quick-filter:hover {
+            background: #f3faf9;
+            border-color: #cce5e1;
+            color: #0d6b63;
+        }
+
+        .quick-filter.active {
+            background: linear-gradient(135deg,#0d6b63,#1a8c82);
+            border-color: #0d6b63;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(13,107,99,0.22);
+        }
+
+    .filter-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    @@media (max-width: 768px) {
+        .filter-form {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .filter-field label {
+        display: block;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: #34554f;
+        margin-bottom: 6px;
+    }
+
+    .filter-field input,
+    .filter-field select {
+        width: 100%;
+        height: 42px;
+        padding: 0 14px;
+        border: 1.5px solid #dfe6ed;
+        border-radius: 10px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        color: #18324f;
+        box-sizing: border-box;
+        background: #fff;
+        transition: all 0.15s ease;
+    }
+
+        .filter-field input:focus,
+        .filter-field select:focus {
+            outline: none;
+            border-color: #0d6b63;
+            box-shadow: 0 0 0 3px rgba(13,107,99,0.1);
+        }
+
+    .filter-btn {
+        height: 42px;
+        padding: 0 24px;
+        border-radius: 10px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        border: none;
+        background: linear-gradient(135deg,#0d6b63,#1a8c82);
+        color: #fff;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        box-shadow: 0 4px 12px rgba(13,107,99,0.22);
+        transition: all 0.15s ease;
+    }
+
+        .filter-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(13,107,99,0.28);
+        }
+
+    /* ============ ALERT CARDS ============ */
+    .alerts-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .alert-card {
+        background: #fff;
+        border: 1.5px solid #e3e8ee;
+        border-left: 5px solid #d92d20;
+        border-radius: 14px;
+        padding: 20px 24px;
+        box-shadow: 0 3px 12px rgba(15,35,55,0.05);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: center;
+        animation: fadeUp 0.5s ease-out;
+        transition: all 0.15s ease;
+    }
+
+        .alert-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(217,45,32,0.10);
+            border-color: #f5c9c6;
+        }
+
+    .alert-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .alert-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg,#fde8e8,#fecaca);
+        color: #d92d20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .alert-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .alert-top-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+    }
+
+    .alert-test-name {
+        font-size: 15px;
+        font-weight: 800;
+        color: #18324f;
+    }
+
+    .alert-tag {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+    }
+
+        .alert-tag.stat {
+            background: #fde8e8;
+            color: #b42318;
+        }
+
+        .alert-tag.urgent {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .alert-tag.routine {
+            background: #e6f5f1;
+            color: #0d6b63;
+        }
+
+        .alert-tag.verified {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .alert-tag.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+    .alert-patient-row {
+        font-size: 12.5px;
+        color: #7d8e8a;
+        margin-bottom: 8px;
+    }
+
+        .alert-patient-row strong {
+            color: #18324f;
+            font-weight: 700;
+        }
+
+    .alert-result-row {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        font-size: 12.5px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed #e3e8ee;
+    }
+
+        .alert-result-row .item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #52736f;
+        }
+
+            .alert-result-row .item strong {
+                color: #18324f;
+                font-weight: 700;
+            }
+
+    .alert-value {
+        color: #d92d20 !important;
+        font-weight: 800 !important;
+        font-size: 14px;
+    }
+
+    /* ============ ACTIONS ============ */
+    .alert-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+        flex-shrink: 0;
+    }
+
+    .alert-btn {
+        height: 38px;
+        padding: 0 18px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+
+        .alert-btn.primary {
+            background: linear-gradient(135deg,#0d6b63,#1a8c82);
+            color: #fff;
+            box-shadow: 0 3px 10px rgba(13,107,99,0.18);
+        }
+
+            .alert-btn.primary:hover {
+                transform: translateY(-1px);
+                color: #fff;
+            }
+
+        .alert-btn.secondary {
+            background: #fff;
+            border-color: #d5dde6;
+            color: #475467;
+        }
+
+            .alert-btn.secondary:hover {
+                background: #f5faf9;
+                border-color: #b7cfcb;
+                color: #0d6b63;
+            }
+
+    /* ============ EMPTY STATE ============ */
+    .empty-state {
+        background: #fff;
+        border: 1.5px dashed #cce5e1;
+        border-radius: 16px;
+        padding: 60px 40px;
+        text-align: center;
+        animation: fadeUp 0.5s ease-out;
+    }
+
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 18px;
+        border-radius: 20px;
+        background: linear-gradient(135deg,#e6f5f1,#d1ede8);
+        color: #0d6b63;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+    }
+
+    .empty-state h3 {
+        margin: 0 0 8px;
+        color: #18324f;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .empty-state p {
+        margin: 0;
+        color: #7d8e8a;
+        font-size: 13px;
+        line-height: 1.65;
+    }
+</style>
+
+<div class="alerts-page">
+
+    <!-- ========== HERO ========== -->
+    <div class="alerts-hero">
+        <div class="alerts-hero-inner">
+            <div>
+                <div class="hero-icon-box">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </div>
+                <h1>Abnormal Result Alerts</h1>
+                <p>All abnormal results for tests you ordered</p>
+                <div class="hero-range">
+                    <i class="fas fa-calendar-day"></i>
+                    @Model.FromDate.ToString("dd MMM yyyy") — @Model.ToDate.ToString("dd MMM yyyy")
+                    @if (isDefaultRange)
+                    {
+                        <span style="opacity:0.7;">(last 5 days)</span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== STATS ========== -->
+    <div class="stat-strip">
+        <div class="stat-tile">
+            <div class="stat-icon red"><i class="fas fa-bell"></i></div>
+            <div>
+                <div class="stat-num">@ViewBag.TotalAlerts</div>
+                <div class="stat-lbl">Total Alerts</div>
+            </div>
+        </div>
+
+        <div class="stat-tile">
+            <div class="stat-icon amber"><i class="fas fa-bolt"></i></div>
+            <div>
+                <div class="stat-num">@ViewBag.CriticalCount</div>
+                <div class="stat-lbl">STAT Urgency</div>
+            </div>
+        </div>
+
+        <div class="stat-tile">
+            <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+            <div>
+                <div class="stat-num">@ViewBag.UniquePatients</div>
+                <div class="stat-lbl">Patients</div>
+            </div>
+        </div>
+
+        <div class="stat-tile">
+            <div class="stat-icon teal"><i class="fas fa-clock"></i></div>
+            <div>
+                <div class="stat-num">@ViewBag.Past5Days</div>
+                <div class="stat-lbl">In Last 5 Days</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== FILTERS ========== -->
+    <div class="filter-card">
+        <div class="filter-heading">
+            <i class="fas fa-filter"></i> Filter Alerts
+        </div>
+
+        <!-- Quick filters -->
+        <div class="quick-filters">
+            <a asp-action="Index" class="quick-filter @(isDefaultRange ? "active" : "")">
+                <i class="fas fa-clock"></i> Last 5 Days
+            </a>
+            <a asp-action="Last30Days" class="quick-filter">
+                <i class="fas fa-calendar-week"></i> Last 30 Days
+            </a>
+        </div>
+
+        <!-- Custom date range -->
+        <form asp-action="Index" method="get" class="filter-form">
+            <div class="filter-field">
+                <label>From Date</label>
+                <input type="date" name="fromDate"
+                       value="@Model.FromDate.ToString("yyyy-MM-dd")" />
+            </div>
+
+            <div class="filter-field">
+                <label>To Date</label>
+                <input type="date" name="toDate"
+                       value="@Model.ToDate.ToString("yyyy-MM-dd")" />
+            </div>
+
+            <div class="filter-field">
+                <label>Urgency</label>
+                <select name="urgency">
+                    <option value="All" selected="@(Model.UrgencyFilter == "All")">All</option>
+                    <option value="STAT" selected="@(Model.UrgencyFilter == "STAT")">STAT</option>
+                    <option value="Urgent" selected="@(Model.UrgencyFilter == "Urgent")">Urgent</option>
+                    <option value="Routine" selected="@(Model.UrgencyFilter == "Routine")">Routine</option>
+                </select>
+            </div>
+
+            <button type="submit" class="filter-btn">
+                <i class="fas fa-search"></i> Apply
+            </button>
+        </form>
+    </div>
+
+    <!-- ========== ALERTS ========== -->
+    @if (Model.Alerts.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h3>No abnormal results</h3>
+            <p>
+                There are no abnormal results in the selected date range.<br />
+                Try adjusting the dates or removing the urgency filter.
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="alerts-list">
+            @foreach (var alert in Model.Alerts)
+            {
+                var urgencyClass = alert.Urgency switch
+                {
+                    "STAT" => "stat",
+                    "Urgent" => "urgent",
+                    _ => "routine"
+                };
+
+                <div class="alert-card">
+                    <div class="alert-main">
+                        <div class="alert-icon">
+                            <i class="fas fa-exclamation"></i>
+                        </div>
+
+                        <div class="alert-body">
+                            <div class="alert-top-row">
+                                <span class="alert-test-name">@alert.TestName</span>
+
+                                <span class="alert-tag @urgencyClass">@alert.Urgency</span>
+
+                                @if (alert.Verified)
+                                {
+                                    <span class="alert-tag verified">
+                                        <i class="fas fa-check"></i> Verified
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="alert-tag pending">
+                                        <i class="fas fa-hourglass-half"></i> Pending Verify
+                                    </span>
+                                }
+                            </div>
+
+                            <div class="alert-patient-row">
+                                <i class="fas fa-user"></i>
+                                <strong>@alert.PatientName</strong>
+                                &nbsp;·&nbsp; ID: @alert.PatientIdNumber
+                                &nbsp;·&nbsp; Request #@alert.RequestId
+                            </div>
+
+                            <div class="alert-result-row">
+                                <span class="item">
+                                    <i class="fas fa-vial"></i>
+                                    Result: <strong class="alert-value">@alert.ResultValue @alert.Units</strong>
+                                </span>
+                                <span class="item">
+                                    <i class="fas fa-ruler"></i>
+                                    Reference: <strong>@alert.ReferenceRange</strong>
+                                </span>
+                                <span class="item">
+                                    <i class="fas fa-clock"></i>
+                                    @alert.DateCaptured.ToString("dd MMM yyyy 'at' HH:mm")
+                                </span>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(alert.Comments))
+                            {
+                                <div style="margin-top:8px;font-size:12px;color:#52736f;font-style:italic;">
+                                    <i class="fas fa-comment"></i> @alert.Comments
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="alert-actions">
+                        <a asp-action="Details"
+                           asp-route-id="@alert.ResultId"
+                           class="alert-btn primary">
+                            <i class="fas fa-eye"></i> Details
+                        </a>
+
+                        <a asp-controller="TestRequest"
+                           asp-action="ResultsAccess"
+                           asp-route-requestId="@alert.RequestId"
+                           class="alert-btn secondary">
+                            <i class="fas fa-file-medical-alt"></i> Full Report
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+</div>

@@ -1,11 +1,15 @@
-using LabDash.Areas.Identity.Data;
+﻿using LabDash.Areas.Identity.Data;
+using LabDash.Helpers;
 using LabDash.Models;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
+using LabDash.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using LabDash.ViewModels;
+
 
 namespace LabDash.Controllers
 {
@@ -27,7 +31,7 @@ namespace LabDash.Controllers
         }
 
         // =============================================================
-        // INDEX � folders grouped by patient
+        // INDEX — folders grouped by patient
         // =============================================================
         public async Task<IActionResult> Index()
         {
@@ -52,7 +56,7 @@ namespace LabDash.Controllers
         }
 
         // =============================================================
-        // UNLOCK FOLDER � verify ID number, then show requests
+        // UNLOCK FOLDER — verify ID number, then show requests
         // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -82,7 +86,7 @@ namespace LabDash.Controllers
         }
 
         // =============================================================
-        // CREATE � GET
+        // CREATE — GET
         // =============================================================
         [HttpGet]
         public async Task<IActionResult> Create(int? patientId)
@@ -209,7 +213,7 @@ namespace LabDash.Controllers
         }
 
         // =============================================================
-        // CREATE � POST
+        // CREATE — POST
         // FIX: Now creates Sample entities for each barcode.
         // =============================================================
         [HttpPost]
@@ -299,7 +303,7 @@ namespace LabDash.Controllers
             _context.TestRequests.Add(testRequest);
             await _context.SaveChangesAsync();
 
-            // 7. Create TestRequestItems � one per selected test
+            // 7. Create TestRequestItems — one per selected test
             for (int i = 0; i < selectedTestTypeIds.Length; i++)
             {
                 int typeId = selectedTestTypeIds[i];
@@ -318,7 +322,7 @@ namespace LabDash.Controllers
             await _context.SaveChangesAsync();
 
             // =========================================================
-            // 7b. CREATE SAMPLE ENTITIES � THIS IS THE FIX
+            // 7b. CREATE SAMPLE ENTITIES — THIS IS THE FIX
             // One Sample per barcode, so the technician can receive them.
             // =========================================================
             for (int i = 0; i < cleanBarcodes.Length; i++)
@@ -392,7 +396,7 @@ namespace LabDash.Controllers
         }
 
         // =============================================================
-        // EDIT � GET
+        // EDIT — GET
         // =============================================================
         [HttpGet]
         public async Task<IActionResult> Edit(int? id)
@@ -439,7 +443,7 @@ namespace LabDash.Controllers
         }
 
         // =============================================================
-        // EDIT � POST
+        // EDIT — POST
         // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -656,6 +660,12 @@ namespace LabDash.Controllers
         [HttpGet]
         public async Task<IActionResult> PatientResults(int requestId)
         {
+            // 🆕 Password gate — must have unlocked this session
+            if (HttpContext.Session.GetString("DoctorResultsAccess") != "Granted")
+            {
+                return RedirectToAction(nameof(ResultsAccess), new { requestId });
+            }
+
             var doctor = await _userManager.GetUserAsync(User);
 
             if (doctor == null) return Forbid();
@@ -684,21 +694,17 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(ViewRequest), new { id = requestId });
             }
 
-            return View(request);
+            return View("Results", request);
         }
 
-        // =============================================================
-        // RELEASE WITH NOTE
-        // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReleaseWithNote(
-            int requestId,
-            string mode,
-            string? note)
+    int requestId,
+    string mode,
+    string? note)
         {
             var doctor = await _userManager.GetUserAsync(User);
-
             if (doctor == null) return Forbid();
 
             var request = await _context.TestRequests
@@ -711,7 +717,6 @@ namespace LabDash.Controllers
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
             if (request == null) return NotFound();
-
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
 
             if (request.TestRequestItems == null ||
@@ -719,82 +724,24 @@ namespace LabDash.Controllers
                 request.TestRequestItems.Any(i => i.Status != "Completed"))
             {
                 TempData["Error"] = "All tests must be completed before releasing.";
-                return RedirectToAction(nameof(ViewRequest), new { id = requestId });
+                return RedirectToAction(nameof(PatientResults), new { requestId });
             }
 
             var patient = request.Patient;
             if (patient == null || string.IsNullOrWhiteSpace(patient.Email))
             {
                 TempData["Error"] = "Patient email is missing. Cannot notify.";
-                return RedirectToAction(nameof(ViewRequest), new { id = requestId });
+                return RedirectToAction(nameof(PatientResults), new { requestId });
             }
 
-            var sb = new System.Text.StringBuilder();
-            sb.Append("<table style=\"width:100%;border-collapse:collapse;margin-top:12px;\">");
-            sb.Append("<thead><tr>");
-            sb.Append("<th style=\"text-align:left;padding:6px;border-bottom:1px solid #ddd;\">Test</th>");
-            sb.Append("<th style=\"text-align:left;padding:6px;border-bottom:1px solid #ddd;\">Result</th>");
-            sb.Append("<th style=\"text-align:left;padding:6px;border-bottom:1px solid #ddd;\">Reference</th>");
-            sb.Append("<th style=\"text-align:left;padding:6px;border-bottom:1px solid #ddd;\">Flag</th>");
-            sb.Append("</tr></thead><tbody>");
+            // Build email using the helper class
+            string subject = mode == "InviteConsultation"
+                ? "Please book an appointment to discuss your results"
+                : "Your Laboratory Results";
 
-            foreach (var item in request.TestRequestItems)
-            {
-                var result = item.TestResults?
-                    .OrderByDescending(r => r.DateCaptured)
-                    .FirstOrDefault();
-
-                string testName = item.TestType?.Name ?? "Test";
-                string value = result?.ResultValue ?? "-";
-                string unit = result?.Units ?? "";
-                string range = result?.ReferenceRange ?? "-";
-                string flag = (result?.IsAbnormal ?? false) ? "ABNORMAL" : "Normal";
-
-                sb.Append("<tr>");
-                sb.Append($"<td style=\"padding:6px;border-bottom:1px solid #eee;\">{System.Net.WebUtility.HtmlEncode(testName)}</td>");
-                sb.Append($"<td style=\"padding:6px;border-bottom:1px solid #eee;\">{System.Net.WebUtility.HtmlEncode(value)} {System.Net.WebUtility.HtmlEncode(unit)}</td>");
-                sb.Append($"<td style=\"padding:6px;border-bottom:1px solid #eee;\">{System.Net.WebUtility.HtmlEncode(range)}</td>");
-                sb.Append($"<td style=\"padding:6px;border-bottom:1px solid #eee;\">{flag}</td>");
-                sb.Append("</tr>");
-            }
-
-            sb.Append("</tbody></table>");
-
-            string safeName = System.Net.WebUtility.HtmlEncode(patient.Name);
-            string safeDoctor = System.Net.WebUtility.HtmlEncode(
-                $"Dr. {doctor.FirstName} {doctor.LastName}");
-            string safeNote = string.IsNullOrWhiteSpace(note)
-                ? ""
-                : $"<p style=\"background:#f4faf9;border-left:4px solid #0d6b63;padding:10px 14px;border-radius:8px;\">{System.Net.WebUtility.HtmlEncode(note)}</p>";
-
-            string subject;
-            string body;
-
-            if (mode == "InviteConsultation")
-            {
-                subject = "Please book an appointment to discuss your results";
-                body = $@"
-            <p>Dear {safeName},</p>
-            <p>Your recent laboratory results have been reviewed by {safeDoctor}.</p>
-            <p>We would like you to book an appointment to discuss the results in person.</p>
-            {safeNote}
-            <p>Please contact the practice to arrange a suitable time.</p>
-            <p>Regards,<br/>{safeDoctor}<br/>NMB Haematology Laboratory</p>";
-            }
-            else
-            {
-                subject = "Your Laboratory Results";
-                body = $@"
-            <p>Dear {safeName},</p>
-            <p>Your recent laboratory results have been reviewed by {safeDoctor}.</p>
-            {safeNote}
-            <p><strong>Your results:</strong></p>
-            {sb}
-            <p style=""margin-top:16px;font-size:12px;color:#7d8e8a;"">
-                Please contact your doctor if you have any questions about these results.
-            </p>
-            <p>Regards,<br/>{safeDoctor}<br/>NMB Haematology Laboratory</p>";
-            }
+            string body = mode == "InviteConsultation"
+                ? LabDash.Helpers.ResultEmailBuilder.BuildConsultationEmail(request, doctor, note)
+                : LabDash.Helpers.ResultEmailBuilder.BuildResultsEmail(request, doctor, note);
 
             try
             {
@@ -815,7 +762,215 @@ namespace LabDash.Controllers
                 ? "Patient invited for a consultation and notified by email."
                 : "Results released to the patient by email.";
 
-            return RedirectToAction(nameof(PatientResults), new { requestId = requestId });
+            return RedirectToAction(nameof(PatientResults), new { requestId });
+        }
+        [HttpGet]
+        public async Task<IActionResult> ResultsPdf(int requestId)
+        {
+            // 🆕 Password gate — must have unlocked this session
+            if (HttpContext.Session.GetString("DoctorResultsAccess") != "Granted")
+            {
+                return RedirectToAction(nameof(ResultsAccess), new { requestId });
+            }
+
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
+            var doctor = await _userManager.GetUserAsync(User);
+            if (doctor == null) return Forbid();
+
+            var request = await _context.TestRequests
+                .Include(tr => tr.Patient)
+                .Include(tr => tr.RequestingDoctor)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(i => i.TestType)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(i => i.TestResults)
+                .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
+
+            if (request == null) return NotFound();
+            if (request.RequestingDoctorId != doctor.Id) return Forbid();
+
+            var patient = request.Patient;
+
+            byte[] pdfBytes = QuestPDF.Fluent.Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(QuestPDF.Helpers.PageSizes.A4);
+                    page.Margin(40);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Lato"));
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Background("#0d6b63").Padding(20).Row(row =>
+                        {
+                            row.RelativeItem().Column(c =>
+                            {
+                                c.Item().Text("NMB HAEMATOLOGY LABORATORY")
+                                    .FontSize(16).Bold().FontColor("#ffffff");
+                                c.Item().Text("Test Results Report")
+                                    .FontSize(11).FontColor("#d1ede8");
+                            });
+                            row.ConstantItem(180).AlignRight().Column(c =>
+                            {
+                                c.Item().Text($"Request #{request.RequestId}")
+                                    .FontSize(11).Bold().FontColor("#ffffff");
+                                c.Item().Text(request.RequestDate.ToString("dd MMM yyyy"))
+                                    .FontSize(10).FontColor("#d1ede8");
+                                c.Item().Text($"Urgency: {request.Urgency}")
+                                    .FontSize(10).FontColor("#d1ede8");
+                            });
+                        });
+                    });
+
+                    page.Content().PaddingVertical(20).Column(col =>
+                    {
+                        col.Item().PaddingBottom(8).Text("Patient Information")
+                            .FontSize(12).Bold().FontColor("#0d6b63");
+
+                        col.Item().Border(1).BorderColor("#e3e8ee").Padding(12).Column(inner =>
+                        {
+                            inner.Item().Row(r =>
+                            {
+                                r.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text($"Name: {patient.Name} {patient.Surname}").FontSize(10);
+                                    c.Item().Text($"ID Number: {patient.IDNumber}").FontSize(10);
+                                    c.Item().Text($"Date of Birth: {patient.DOB:dd MMM yyyy}").FontSize(10);
+                                });
+                                r.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text($"Email: {patient.Email}").FontSize(10);
+                                    c.Item().Text($"Cellphone: {patient.CellphoneNumber}").FontSize(10);
+                                    c.Item().Text($"Requested by: Dr. {doctor.FirstName} {doctor.LastName}").FontSize(10);
+                                });
+                            });
+                        });
+
+                        col.Item().PaddingTop(20).PaddingBottom(8).Text("Test Results")
+                            .FontSize(12).Bold().FontColor("#0d6b63");
+
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(1.5f);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Background("#f3faf9").Padding(8)
+                                    .Text("Test").FontSize(9).Bold().FontColor("#0d6b63");
+                                header.Cell().Background("#f3faf9").Padding(8)
+                                    .Text("Result").FontSize(9).Bold().FontColor("#0d6b63");
+                                header.Cell().Background("#f3faf9").Padding(8)
+                                    .Text("Units").FontSize(9).Bold().FontColor("#0d6b63");
+                                header.Cell().Background("#f3faf9").Padding(8)
+                                    .Text("Reference").FontSize(9).Bold().FontColor("#0d6b63");
+                                header.Cell().Background("#f3faf9").Padding(8)
+                                    .Text("Flag").FontSize(9).Bold().FontColor("#0d6b63");
+                            });
+
+                            foreach (var item in request.TestRequestItems.OrderBy(i => i.TestType?.Name))
+                            {
+                                var result = item.TestResults?
+                                    .OrderByDescending(r => r.DateCaptured)
+                                    .FirstOrDefault();
+
+                                bool abnormal = result?.IsAbnormal ?? false;
+                                string flagText =
+                                    result == null ? "Pending" :
+                                    result.IsAbnormal ? "ABNORMAL" : "Normal";
+
+                                string bg = abnormal ? "#fff6f6" : "#ffffff";
+                                string flagColor = abnormal ? "#b42318" : (result == null ? "#92400e" : "#0d6b63");
+
+                                table.Cell().Background(bg).Padding(8)
+                                    .Text(item.TestType?.Name ?? "Test").FontSize(10);
+                                table.Cell().Background(bg).Padding(8)
+                                    .Text(result?.ResultValue ?? "—").FontSize(10).Bold();
+                                table.Cell().Background(bg).Padding(8)
+                                    .Text(result?.Units ?? "—").FontSize(10);
+                                table.Cell().Background(bg).Padding(8)
+                                    .Text(result?.ReferenceRange ?? "—").FontSize(10);
+                                table.Cell().Background(bg).Padding(8)
+                                    .Text(flagText).FontSize(9).Bold().FontColor(flagColor);
+                            }
+                        });
+
+                        col.Item().PaddingTop(24).Text(
+                            "This report was generated by NMB Haematology Laboratory. " +
+                            "For clinical questions, please contact your referring doctor.")
+                            .FontSize(8).FontColor("#7d8e8a");
+                    });
+
+                    page.Footer().AlignCenter().Text(text =>
+                    {
+                        text.Span("Generated on ").FontSize(8).FontColor("#7d8e8a");
+                        text.Span(DateTime.Now.ToString("dd MMM yyyy HH:mm"))
+                            .FontSize(8).FontColor("#7d8e8a");
+                    });
+                });
+            }).GeneratePdf();
+
+            string fileName =
+                $"Results_Request{request.RequestId}_{patient.Surname}_{DateTime.Now:yyyyMMdd}.pdf";
+
+            return File(pdfBytes, "application/pdf", fileName);
+        }
+        // =============================================================
+        // RESULTS ACCESS — Password gate before viewing results
+        // =============================================================
+        private const string ResultsAccessSessionKey = "DoctorResultsAccess";
+        private const string ResultsRequiredPassword = "Password!123";
+
+        [HttpGet]
+        public IActionResult ResultsAccess(int requestId)
+        {
+            // Already authenticated this session? Go straight through.
+            if (HttpContext.Session.GetString(ResultsAccessSessionKey) == "Granted")
+            {
+                return RedirectToAction(nameof(PatientResults), new { requestId });
+            }
+
+            ViewBag.RequestId = requestId;
+            return View("ResultsPassword");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ResultsAccess(int requestId, string password)
+        {
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                ModelState.AddModelError(string.Empty, "Please enter the access password.");
+                ViewBag.RequestId = requestId;
+                return View("ResultsPassword");
+            }
+
+            if (password != ResultsRequiredPassword)
+            {
+                ModelState.AddModelError(string.Empty, "Incorrect password. Please try again.");
+                ViewBag.RequestId = requestId;
+                return View("ResultsPassword");
+            }
+
+            HttpContext.Session.SetString(ResultsAccessSessionKey, "Granted");
+
+            return RedirectToAction(nameof(PatientResults), new { requestId });
+        }
+
+        // Optional — clear the flag on logout
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult LockResults()
+        {
+            HttpContext.Session.Remove(ResultsAccessSessionKey);
+            TempData["Success"] = "Results access has been locked.";
+            return RedirectToAction(nameof(Track));
         }
     }
 }
