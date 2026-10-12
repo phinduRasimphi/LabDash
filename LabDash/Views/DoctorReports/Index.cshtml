@@ -1,0 +1,590 @@
+﻿@model LabDash.ViewModels.DoctorReportViewModel
+
+@{
+    ViewData["Title"] = "My Reports";
+    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+    var today = DateTime.Today;
+    var isDefault = Model.FromDate.Date == today.AddDays(-30) && Model.ToDate.Date == today;
+}
+
+<style>
+    .reports-page {
+        max-width: 1150px;
+        margin: 24px auto;
+        padding: 0 22px 60px;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    @@keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .reports-hero {
+        background: linear-gradient(135deg, #0d6b63 0%, #1a8c82 55%, #2ab3a6 100%);
+        color: #fff;
+        border-radius: 20px;
+        padding: 30px 38px;
+        margin-bottom: 24px;
+        box-shadow: 0 12px 36px rgba(13,107,99,0.24);
+        position: relative;
+        overflow: hidden;
+        animation: fadeUp 0.5s ease-out;
+    }
+
+        .reports-hero::before {
+            content: "";
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            right: -100px;
+            top: -140px;
+            background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+    .reports-hero-inner {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .hero-icon-box {
+        width: 62px;
+        height: 62px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.16);
+        border: 1px solid rgba(255,255,255,0.24);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        margin-bottom: 14px;
+        backdrop-filter: blur(6px);
+    }
+
+    .reports-hero h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 800;
+    }
+
+    .reports-hero p {
+        margin: 8px 0 0;
+        font-size: 13.5px;
+        opacity: 0.92;
+    }
+
+    .hero-range {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: rgba(255,255,255,0.16);
+        border: 1px solid rgba(255,255,255,0.24);
+        border-radius: 24px;
+        font-size: 12.5px;
+        font-weight: 600;
+        margin-top: 14px;
+        backdrop-filter: blur(6px);
+    }
+
+    .btn-download {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 12px 24px;
+        background: #fff;
+        color: #0d6b63;
+        font-size: 13px;
+        font-weight: 800;
+        border-radius: 12px;
+        text-decoration: none;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+        transition: all 0.15s ease;
+    }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 26px rgba(0,0,0,0.20);
+            color: #0d6b63;
+        }
+
+    .stat-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+
+    .stat-tile {
+        background: #fff;
+        border: 2px solid #e3e8ee;
+        border-radius: 14px;
+        padding: 18px 22px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 3px 12px rgba(15,35,55,0.04);
+        animation: fadeUp 0.55s ease-out;
+    }
+
+    .stat-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 19px;
+        flex-shrink: 0;
+    }
+
+        .stat-icon.teal {
+            background: #e6f5f1;
+            color: #0d6b63;
+        }
+
+        .stat-icon.green {
+            background: #e7f8ee;
+            color: #16a34a;
+        }
+
+        .stat-icon.red {
+            background: #fde8e8;
+            color: #d92d20;
+        }
+
+        .stat-icon.amber {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+    .stat-num {
+        font-size: 22px;
+        font-weight: 800;
+        color: #18324f;
+        line-height: 1;
+    }
+
+    .stat-lbl {
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: #7d8e8a;
+        margin-top: 5px;
+    }
+
+    .filter-card {
+        background: #fff;
+        border: 1px solid #e3e8ee;
+        border-radius: 14px;
+        padding: 22px 26px;
+        margin-bottom: 22px;
+        box-shadow: 0 4px 16px rgba(15,35,55,0.05);
+    }
+
+    .filter-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        font-weight: 800;
+        color: #0d6b63;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-bottom: 18px;
+    }
+
+    .quick-filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+    }
+
+    .quick-filter {
+        padding: 9px 18px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        background: #f8fbfa;
+        border: 1.5px solid #e3e8ee;
+        color: #475467;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        transition: all 0.15s ease;
+    }
+
+        .quick-filter:hover {
+            background: #f3faf9;
+            border-color: #cce5e1;
+            color: #0d6b63;
+        }
+
+        .quick-filter.active {
+            background: linear-gradient(135deg,#0d6b63,#1a8c82);
+            border-color: #0d6b63;
+            color: #fff;
+        }
+
+    .filter-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    @@media (max-width: 768px) {
+        .filter-form {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .filter-field label {
+        display: block;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: #34554f;
+        margin-bottom: 6px;
+    }
+
+    .filter-field input, .filter-field select {
+        width: 100%;
+        height: 42px;
+        padding: 0 14px;
+        border: 1.5px solid #dfe6ed;
+        border-radius: 10px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        color: #18324f;
+        box-sizing: border-box;
+        background: #fff;
+    }
+
+        .filter-field input:focus, .filter-field select:focus {
+            outline: none;
+            border-color: #0d6b63;
+            box-shadow: 0 0 0 3px rgba(13,107,99,0.1);
+        }
+
+    .filter-btn {
+        height: 42px;
+        padding: 0 24px;
+        border-radius: 10px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        border: none;
+        background: linear-gradient(135deg,#0d6b63,#1a8c82);
+        color: #fff;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .table-card {
+        background: #fff;
+        border: 1px solid #e3e8ee;
+        border-radius: 16px;
+        padding: 24px 28px;
+        box-shadow: 0 4px 20px rgba(15,35,55,0.05);
+    }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+        .report-table thead th {
+            background: linear-gradient(180deg,#f3faf9,#e8f5f3);
+            color: #0d6b63;
+            font-size: 10.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            text-align: left;
+            padding: 14px 14px;
+            border-bottom: 2px solid #cce5e1;
+        }
+
+        .report-table tbody td {
+            padding: 14px;
+            border-bottom: 1px solid #f0f2f5;
+            color: #26384d;
+        }
+
+        .report-table tbody tr:hover td {
+            background: #f8fbfa;
+        }
+
+    .row-abnormal td {
+        background: #fff6f6;
+        color: #b42318;
+    }
+
+        .row-abnormal td:first-child {
+            border-left: 4px solid #d92d20;
+        }
+
+    .badge {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        display: inline-block;
+    }
+
+        .badge.stat {
+            background: #fde8e8;
+            color: #b42318;
+        }
+
+        .badge.urgent {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge.routine {
+            background: #e6f5f1;
+            color: #0d6b63;
+        }
+
+        .badge.completed {
+            background: #e7f8ee;
+            color: #16a34a;
+        }
+
+        .badge.cancelled {
+            background: #fde8e8;
+            color: #b42318;
+        }
+
+        .badge.submitted {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .badge.progress {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge.released {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 40px;
+        color: #7d8e8a;
+    }
+</style>
+
+<div class="reports-page">
+
+    <div class="reports-hero">
+        <div class="reports-hero-inner">
+            <div>
+                <div class="hero-icon-box"><i class="fas fa-file-alt"></i></div>
+                <h1>My Reports</h1>
+                <p>Summary of test requests you submitted</p>
+                <div class="hero-range">
+                    <i class="fas fa-calendar"></i>
+                    @Model.FromDate.ToString("dd MMM yyyy") — @Model.ToDate.ToString("dd MMM yyyy")
+                    @if (isDefault)
+                    {
+                        <span style="opacity:0.7;">(last 30 days)</span>
+                    }
+                </div>
+            </div>
+
+            <a asp-action="DownloadPdf"
+               asp-route-fromDate="@Model.FromDate.ToString("yyyy-MM-dd")"
+               asp-route-toDate="@Model.ToDate.ToString("yyyy-MM-dd")"
+               asp-route-status="@Model.StatusFilter"
+               class="btn-download"
+               target="_blank">
+                <i class="fas fa-file-pdf"></i> Download PDF
+            </a>
+        </div>
+    </div>
+
+    <div class="stat-strip">
+        <div class="stat-tile">
+            <div class="stat-icon teal"><i class="fas fa-clipboard-list"></i></div>
+            <div>
+                <div class="stat-num">@ViewBag.TotalRequests</div>
+                <div class="stat-lbl">Total Requests</div>
+            </div>
+        </div>
+
+        <div class="stat-tile">
+            <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+            <div>
+                <div class="stat-num">@ViewBag.CompletedCount</div>
+                <div class="stat-lbl">Completed</div>
+            </div>
+        </div>
+
+        <div class="stat-tile">
+            <div class="stat-icon red"><i class="fas fa-ban"></i></div>
+            <div>
+                <div class="stat-num">@ViewBag.CancelledCount</div>
+                <div class="stat-lbl">Cancelled</div>
+            </div>
+        </div>
+
+        <div class="stat-tile">
+            <div class="stat-icon amber"><i class="fas fa-exclamation-triangle"></i></div>
+            <div>
+                <div class="stat-num">@ViewBag.AbnormalTotal</div>
+                <div class="stat-lbl">Abnormal</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-card">
+        <div class="filter-heading"><i class="fas fa-filter"></i> Filter</div>
+
+        <div class="quick-filters">
+            <a asp-action="Index" class="quick-filter @(isDefault ? "active" : "")">
+                <i class="fas fa-calendar-alt"></i> Last 30 Days
+            </a>
+            <a asp-action="Index"
+               asp-route-fromDate="@DateTime.Today.AddDays(-7).ToString("yyyy-MM-dd")"
+               asp-route-toDate="@DateTime.Today.ToString("yyyy-MM-dd")"
+               class="quick-filter">
+                <i class="fas fa-clock"></i> Last 7 Days
+            </a>
+            <a asp-action="Index"
+               asp-route-fromDate="@DateTime.Today.AddDays(-90).ToString("yyyy-MM-dd")"
+               asp-route-toDate="@DateTime.Today.ToString("yyyy-MM-dd")"
+               class="quick-filter">
+                <i class="fas fa-calendar-week"></i> Last 90 Days
+            </a>
+        </div>
+
+        <form asp-action="Index" method="get" class="filter-form">
+            <div class="filter-field">
+                <label>From</label>
+                <input type="date" name="fromDate"
+                       value="@Model.FromDate.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="filter-field">
+                <label>To</label>
+                <input type="date" name="toDate"
+                       value="@Model.ToDate.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="filter-field">
+                <label>Status</label>
+                <select name="status">
+                    <option value="All" selected="@(Model.StatusFilter == "All")">All</option>
+                    <option value="Submitted" selected="@(Model.StatusFilter == "Submitted")">Submitted</option>
+                    <option value="Samples Received" selected="@(Model.StatusFilter == "Samples Received")">Samples Received</option>
+                    <option value="In Progress" selected="@(Model.StatusFilter == "In Progress")">In Progress</option>
+                    <option value="Completed" selected="@(Model.StatusFilter == "Completed")">Completed</option>
+                    <option value="Released by doctor" selected="@(Model.StatusFilter == "Released by doctor")">Released by doctor</option>
+                    <option value="Cancelled" selected="@(Model.StatusFilter == "Cancelled")">Cancelled</option>
+                </select>
+            </div>
+            <button type="submit" class="filter-btn">
+                <i class="fas fa-search"></i> Apply
+            </button>
+        </form>
+    </div>
+
+    <div class="table-card">
+        @if (Model.Rows.Count == 0)
+        {
+            <div class="empty-state">
+                <i class="fas fa-inbox" style="font-size:40px;color:#cce5e1;margin-bottom:14px;display:block;"></i>
+                <h3 style="color:#18324f;">No requests found</h3>
+                <p>Try adjusting the date range or removing filters.</p>
+            </div>
+        }
+        else
+        {
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Patient</th>
+                        <th>ID Number</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Tests</th>
+                        <th>Abnormal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        var urgClass = row.Urgency switch
+                        {
+                            "STAT" => "stat",
+                            "Urgent" => "urgent",
+                            _ => "routine"
+                        };
+
+                        var statusClass = row.Status switch
+                        {
+                            "Completed" => "completed",
+                            "Cancelled" => "cancelled",
+                            "Submitted" => "submitted",
+                            "Samples Received" => "progress",
+                            "In Progress" => "progress",
+                            "Released by doctor" => "released",
+                            _ => "progress"
+                        };
+
+                        var rowClass = row.AbnormalCount > 0 ? "row-abnormal" : "";
+
+                        <tr class="@rowClass">
+                            <td><strong>#@row.RequestId</strong></td>
+                            <td>@row.RequestDate.ToString("dd MMM yyyy")</td>
+                            <td><strong>@row.PatientName</strong></td>
+                            <td>@row.PatientIdNum</td>
+                            <td><span class="badge @urgClass">@row.Urgency</span></td>
+                            <td><span class="badge @statusClass">@row.Status</span></td>
+                            <td>@row.TestsCount</td>
+                            <td>
+                                @if (row.AbnormalCount > 0)
+                                {
+                                    <strong style="color:#d92d20;">@row.AbnormalCount</strong>
+                                }
+                                else
+                                {
+                                    <span style="color:#a4afbb;">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+</div>
