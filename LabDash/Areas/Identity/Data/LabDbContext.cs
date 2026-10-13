@@ -30,6 +30,8 @@ public class LabDbContext : IdentityDbContext<LabUser>
 
     public DbSet<TestVerification> TestVerifications { get; set; }
 
+    public DbSet<TestReviewHistory> TestReviewHistories { get; set; }
+
     public DbSet<TechnicianAssignment> TechnicianAssignments { get; set; }
 
     public DbSet<MedicalCondition> MedicalConditions { get; set; }
