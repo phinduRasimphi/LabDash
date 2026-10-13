@@ -1190,6 +1190,37 @@ namespace LabDash.Controllers
             }
 
             await _context.SaveChangesAsync();
+            // ----------------------------------------------------------
+            // In-app notification to the doctor
+            // ----------------------------------------------------------
+            try
+            {
+                string patientName = $"{patient.Name} {patient.Surname}".Trim();
+
+                string linkUrl = Url.Action(
+                    "PatientSharedResults",
+                    "Doctor",
+                    new { patientId = patient.PatientID },
+                    Request.Scheme);
+
+                await _notifications.SendToUserAsync(
+                    recipientUserId: doctorUser!.Id,
+                    title: "New patient shared results with you",
+                    message:
+                        $"{patientName} has granted you access to " +
+                        $"{validItemIds.Distinct().Count()} test result item(s).",
+                    type: "consent",
+                    linkUrl: linkUrl,
+                    relatedConsentId: consent.ConsentID,
+                    relatedPatientId: patient.PatientID,
+                    actorUserId: _userManager.GetUserId(User));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Consent granted but the in-app notification failed.");
+            }
 
             // Notify doctor by email
             if (doctorUser != null && !string.IsNullOrWhiteSpace(doctorUser.Email))
