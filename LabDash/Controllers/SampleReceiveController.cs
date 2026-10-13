@@ -22,16 +22,21 @@ namespace LabDash.Controllers
         }
 
 
+        
         // =========================================================
         // SAMPLE RECEIVING PAGE
+        // Loads submitted test requests created by TestRequestController
         // =========================================================
 
         [HttpGet]
         public async Task<IActionResult> Receive()
         {
             var requests = await _context.TestRequests
+                .AsNoTracking()
 
                 .Include(r => r.Patient)
+
+                .Include(r => r.RequestingDoctor)
 
                 .Include(r => r.Samples)
 
@@ -43,18 +48,18 @@ namespace LabDash.Controllers
                     r.Status == "Pending" ||
                     r.Status == "Partially Received")
 
-                .OrderByDescending(r =>
+                .OrderBy(r =>
                     r.Urgency == "STAT" ? 1 :
                     r.Urgency == "Urgent" ? 2 :
                     r.Urgency == "Priority" ? 3 :
-                    r.Urgency == "Routine" ? 4 :
-                    5)
+                    r.Urgency == "Routine" ? 4 : 5)
 
-                .ThenBy(r => r.RequestId)
+                .ThenByDescending(r => r.SubmittedDate)
+                .ThenByDescending(r => r.RequestDate)
 
                 .ToListAsync();
 
-            return View(requests);
+            return View("Receive", requests);
         }
 
 
@@ -350,6 +355,11 @@ namespace LabDash.Controllers
                 }
             }
 
+
+            // =========================================================
+            // UPDATE REQUEST STATUS AFTER RECEIVING A SAMPLE
+            // =========================================================
+
             var allSamples = request.Samples.ToList();
 
             bool allReceived =
@@ -359,47 +369,39 @@ namespace LabDash.Controllers
             if (allReceived)
             {
                 request.Status = "Samples Received";
-                request.DateTimeReceived = now;
+
+                if (request.DateTimeReceived == null)
+                {
+                    request.DateTimeReceived = now;
+                }
             }
             else
             {
                 request.Status = "Partially Received";
             }
 
+            // Save the sample receipt and request status together.
             try
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateException ex)
+            catch (DbUpdateException)
             {
                 TempData["Error"] =
-                    "The sample could not be received. " +
-                    (ex.InnerException?.Message ?? ex.Message);
+                    "The sample receipt could not be saved. " +
+                    "Please check the barcode and try again.";
 
                 return RedirectToAction(nameof(Receive));
             }
 
-            if (allReceived)
-            {
-                TempData["Success"] =
-                    $"Sample '{barcode}' was received successfully. " +
-                    $"All {allSamples.Count} samples for request " +
-                    $"#{request.RequestId} have now been received. " +
-                    "The requested tests are available.";
-            }
-            else
-            {
-                var remainingSamples =
-                    allSamples.Count(s => !s.IsReceived);
-
-                TempData["Success"] =
-                    $"Sample '{barcode}' was received successfully. " +
-                    $"{remainingSamples} sample(s) still awaiting receipt.";
-            }
+            TempData["Success"] = allReceived
+                ? $"All {allSamples.Count} sample(s) for request " +
+                  $"#{request.RequestId} have been received."
+                : $"Sample '{barcode}' was received successfully. " +
+                  $"{allSamples.Count(s => !s.IsReceived)} sample(s) remain.";
 
             return RedirectToAction(nameof(Receive));
         }
-
 
         // =========================================================
         // AVAILABLE TESTS
