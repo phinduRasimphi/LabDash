@@ -1,436 +1,988 @@
 ﻿@model LabDash.ViewModels.PatientCreateViewModel
 
 @{
-    ViewData["Title"] = "Create New Patient";
+    ViewData["Title"] = "Add New Patient";
     ViewData["ActivePage"] = "ManagePatients";
     Layout = "~/Views/Shared/_DoctorLayout.cshtml";
 }
 
 <style>
-    .patient-page {
+    /* ============================================================
+           PAGE SHELL
+           ============================================================ */
+    .np-shell {
         width: 100%;
-        max-width: 1100px;
+        max-width: 1080px;
         margin: 0 auto;
-        padding: 24px;
+        padding: 28px 20px 60px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #1e293b;
     }
 
-    .patient-header {
-        margin-bottom: 24px;
+    /* ============================================================
+           HERO HEADER
+           ============================================================ */
+    .np-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0b5f58 0%, #0d6b63 55%, #159d91 100%);
+        color: #ffffff;
+        border-radius: 20px;
+        padding: 32px 36px;
+        margin-bottom: 26px;
+        box-shadow: 0 12px 32px rgba(11, 95, 88, .22);
     }
 
-        .patient-header h2 {
-            color: #174c49;
-            font-weight: 700;
-            margin-bottom: 6px;
+        .np-hero::before {
+            content: "";
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            right: -110px;
+            top: -140px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.06);
+            pointer-events: none;
         }
 
-        .patient-header p {
-            color: #687779;
-            margin: 0;
+        .np-hero::after {
+            content: "";
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            right: 40px;
+            bottom: -110px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.04);
+            pointer-events: none;
         }
 
-    .patient-section {
-        background: #fff;
-        border: 1px solid #e1e9e8;
+    .np-hero-inner {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+    }
+
+    .np-hero-icon {
+        width: 64px;
+        height: 64px;
+        min-width: 64px;
         border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 22px;
-        box-shadow: 0 4px 15px rgba(20, 70, 65, .04);
+        background: rgba(255,255,255,.16);
+        border: 1px solid rgba(255,255,255,.28);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        color: #ffffff;
     }
 
-        .patient-section h4 {
-            color: #176b63;
-            font-size: 17px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #e5eeec;
-        }
-
-    .patient-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
-    }
-
-    .patient-field {
+    .np-hero-text {
+        flex: 1;
         min-width: 0;
     }
 
-        .patient-field label {
-            display: block;
+    .np-hero-eyebrow {
+        margin: 0 0 4px;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,.72);
+    }
+
+    .np-hero-title {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -.4px;
+        line-height: 1.2;
+    }
+
+    .np-hero-sub {
+        margin: 8px 0 0;
+        font-size: 13.5px;
+        line-height: 1.6;
+        color: rgba(255,255,255,.82);
+        max-width: 620px;
+    }
+
+    /* ============================================================
+           PROGRESS BAR
+           ============================================================ */
+    .np-progress {
+        margin-bottom: 22px;
+        padding: 16px 22px;
+        background: #ffffff;
+        border: 1px solid #e8edf2;
+        border-radius: 14px;
+        box-shadow: 0 3px 12px rgba(15, 23, 42, .04);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .np-progress-label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #4a5b70;
+        white-space: nowrap;
+    }
+
+    .np-progress-track {
+        flex: 1;
+        height: 8px;
+        background: #eef3f2;
+        border-radius: 99px;
+        overflow: hidden;
+    }
+
+    .np-progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #0d6b63, #159d91);
+        border-radius: 99px;
+        transition: width .35s ease;
+    }
+
+    .np-progress-count {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #0d6b63;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ============================================================
+           SECTIONS
+           ============================================================ */
+    .np-section {
+        background: #ffffff;
+        border: 1px solid #e8edf2;
+        border-radius: 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, .045);
+        overflow: hidden;
+    }
+
+    .np-section-head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px 24px;
+        background: #f8fbfa;
+        border-bottom: 1px solid #edf3f2;
+    }
+
+    .np-step {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #0d6b63, #159d91);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
+        box-shadow: 0 3px 8px rgba(13, 107, 99, .22);
+    }
+
+    .np-section-title {
+        flex: 1;
+        min-width: 0;
+    }
+
+        .np-section-title h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: #172b4d;
+            letter-spacing: -.15px;
+        }
+
+        .np-section-title p {
+            margin: 3px 0 0;
+            font-size: 11.5px;
+            color: #8795a8;
+            line-height: 1.5;
+        }
+
+    .np-section-flag {
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: .5px;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 99px;
+        white-space: nowrap;
+    }
+
+    .np-flag-required {
+        color: #b42318;
+        background: #fff1f0;
+        border: 1px solid #fecdc9;
+    }
+
+    .np-flag-optional {
+        color: #4a5b70;
+        background: #eef3f2;
+        border: 1px solid #dbe6e4;
+    }
+
+    .np-section-body {
+        padding: 24px;
+    }
+
+    /* ============================================================
+           GRID + FIELDS
+           ============================================================ */
+    .np-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px 20px;
+    }
+
+    .np-field {
+        min-width: 0;
+    }
+
+        .np-field label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12.5px;
             margin-bottom: 7px;
             color: #344b49;
         }
 
-        .patient-field input,
-        .patient-field select {
+            .np-field label .req {
+                color: #d92d20;
+                font-weight: 700;
+                font-size: 13px;
+            }
+
+            .np-field label .opt {
+                margin-left: auto;
+                font-size: 10.5px;
+                font-weight: 600;
+                color: #8795a8;
+                text-transform: uppercase;
+                letter-spacing: .4px;
+            }
+
+        .np-field input,
+        .np-field select {
             width: 100%;
-            border: 1px solid #cedbd9;
-            border-radius: 9px;
-            padding: 11px 12px;
-            background: #fff;
-            color: #263b39;
+            border: 1.5px solid #d9e3e1;
+            border-radius: 10px;
+            padding: 12px 14px;
+            background: #fbfdfd;
+            color: #1e293b;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.3;
+            transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+            box-sizing: border-box;
+            appearance: none;
         }
 
-            .patient-field input:focus,
-            .patient-field select:focus {
-                border-color: #168277;
-                outline: none;
-                box-shadow: 0 0 0 3px rgba(22, 130, 119, .10);
+        .np-field select {
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 16 16' fill='%234a5b70'><path d='M8 11L3 6h10z'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 38px;
+            cursor: pointer;
+        }
+
+        .np-field input::placeholder {
+            color: #a4b1bf;
+        }
+
+        .np-field input:focus,
+        .np-field select:focus {
+            border-color: #0d6b63;
+            background-color: #ffffff;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(13, 107, 99, .10);
+        }
+
+        .np-field select:disabled {
+            background-color: #f1f5f4;
+            color: #97a4b1;
+            cursor: not-allowed;
+        }
+
+        .np-field input.is-valid,
+        .np-field select.is-valid {
+            border-color: #159d91;
+            background-color: #ffffff;
+        }
+
+        .np-field input.is-invalid,
+        .np-field select.is-invalid {
+            border-color: #d92d20;
+            background-color: #fffbfa;
+        }
+
+            .np-field input.is-invalid:focus,
+            .np-field select.is-invalid:focus {
+                box-shadow: 0 0 0 4px rgba(217, 45, 32, .10);
             }
 
-            .patient-field select:disabled {
-                background: #f1f5f4;
-                cursor: not-allowed;
-            }
-
-    .field-validation {
+    .np-help {
         display: block;
-        color: #b42318;
-        font-size: 12px;
-        margin-top: 5px;
-    }
-
-    .medical-help {
-        color: #6b7d7a;
-        font-size: 12px;
+        font-size: 11.5px;
+        color: #8795a8;
         margin-top: 6px;
+        line-height: 1.5;
     }
 
-    .patient-actions {
+    .np-error {
+        display: block;
+        font-size: 12px;
+        color: #b42318;
+        font-weight: 500;
+        margin-top: 6px;
+        min-height: 15px;
+    }
+
+    /* ============================================================
+           VALIDATION SUMMARY
+           ============================================================ */
+    .np-summary {
+        display: none;
+        background: #fff6f5;
+        border: 1px solid #fecdc9;
+        border-left: 4px solid #d92d20;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 22px;
+        color: #7a2e28;
+    }
+
+        .np-summary.is-visible {
+            display: block;
+        }
+
+        .np-summary h5 {
+            margin: 0 0 8px;
+            font-size: 13.5px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+            .np-summary h5 i {
+                color: #d92d20;
+            }
+
+        .np-summary ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 12.5px;
+            line-height: 1.7;
+        }
+
+    /* ============================================================
+           ACTION BAR
+           ============================================================ */
+    .np-actions {
+        position: sticky;
+        bottom: 0;
+        margin-top: 24px;
+        padding: 18px 22px;
+        background: rgba(255,255,255,.96);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid #e8edf2;
+        border-radius: 16px;
+        box-shadow: 0 -6px 22px rgba(15, 23, 42, .06);
         display: flex;
-        justify-content: flex-end;
-        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
         flex-wrap: wrap;
-        margin: 20px 0;
     }
 
-    .patient-btn {
-        display: inline-block;
-        padding: 11px 20px;
-        border-radius: 9px;
-        border: none;
+    .np-actions-hint {
+        font-size: 12.5px;
+        color: #8795a8;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .np-actions-hint i {
+            color: #0d6b63;
+        }
+
+    .np-actions-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .np-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px 22px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        font-weight: 650;
+        font-size: 13.5px;
         text-decoration: none;
-        font-weight: 600;
         cursor: pointer;
+        transition: all .18s ease;
+        white-space: nowrap;
     }
 
-    .patient-btn-primary {
-        background: #0d6b63;
-        color: #fff;
+    .np-btn-primary {
+        background: linear-gradient(135deg, #0d6b63, #159d91);
+        color: #ffffff;
+        box-shadow: 0 5px 14px rgba(13, 107, 99, .22);
     }
 
-        .patient-btn-primary:hover {
-            background: #09564f;
-            color: #fff;
+        .np-btn-primary:hover:not([disabled]) {
+            background: linear-gradient(135deg, #09564f, #118c81);
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(13, 107, 99, .28);
         }
 
-    .patient-btn-secondary {
-        background: #edf3f2;
-        color: #36514e;
+        .np-btn-primary[disabled] {
+            background: #c4d1cf;
+            color: #f3f6f5;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+    .np-btn-ghost {
+        background: #ffffff;
+        color: #4a5b70;
+        border-color: #d9e3e1;
     }
 
-    @@media (max-width: 700px) {
-        .patient-page {
-            padding: 14px;
+        .np-btn-ghost:hover {
+            background: #f4f8f7;
+            color: #26384d;
+            border-color: #b9cfcb;
         }
 
-        .patient-section {
-            padding: 17px;
+    /* ============================================================
+           RESPONSIVE
+           ============================================================ */
+    @@media (max-width: 760px) {
+        .np-shell {
+            padding: 18px 14px 40px;
         }
 
-        .patient-grid {
+        .np-hero {
+            padding: 24px;
+        }
+
+        .np-hero-title {
+            font-size: 22px;
+        }
+
+        .np-hero-icon {
+            width: 54px;
+            height: 54px;
+            min-width: 54px;
+            font-size: 22px;
+        }
+
+        .np-grid {
             grid-template-columns: 1fr;
         }
+
+        .np-section-head {
+            padding: 16px 18px;
+        }
+
+        .np-section-body {
+            padding: 18px;
+        }
+
+        .np-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .np-actions-hint {
+            justify-content: center;
+        }
+
+        .np-actions-group {
+            width: 100%;
+        }
+
+            .np-actions-group .np-btn {
+                flex: 1;
+            }
+    }
+
+    @@media (max-width: 480px) {
+        .np-actions-group {
+            flex-direction: column-reverse;
+        }
+
+            .np-actions-group .np-btn {
+                width: 100%;
+                flex: none;
+            }
     }
 </style>
 
-<div class="patient-page">
-    <div class="patient-header">
-        <h2>Create New Patient</h2>
-        <p>Register a patient and record their address and medical information.</p>
+<div class="np-shell">
+
+    <!-- ============================================================
+         HERO HEADER
+         ============================================================ -->
+    <div class="np-hero">
+        <div class="np-hero-inner">
+            <div class="np-hero-icon">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <div class="np-hero-text">
+                <p class="np-hero-eyebrow">Patient Registration</p>
+                <h1 class="np-hero-title">Add New Patient</h1>
+                <p class="np-hero-sub">
+                    Complete the fields below to register a new patient. Once registered,
+                    the patient will receive an activation link by email to set up their portal access.
+                </p>
+            </div>
+        </div>
     </div>
 
     @if (TempData["Success"] != null)
     {
         <div class="alert alert-success">@TempData["Success"]</div>
     }
-
     @if (TempData["Warning"] != null)
     {
         <div class="alert alert-warning">@TempData["Warning"]</div>
     }
 
+    <!-- ============================================================
+         COMPLETION PROGRESS
+         ============================================================ -->
+    <div class="np-progress">
+        <span class="np-progress-label">Completion</span>
+        <div class="np-progress-track">
+            <div class="np-progress-fill" id="progressFill"></div>
+        </div>
+        <span class="np-progress-count" id="progressCount">0 / 0</span>
+    </div>
+
     <form asp-controller="Doctor"
           asp-action="CreatePatient"
-          method="post">
+          method="post"
+          id="createPatientForm"
+          novalidate>
 
         @Html.AntiForgeryToken()
 
+        <div class="np-summary" id="validationSummary"
+             role="alert" aria-live="polite">
+            <h5>
+                <i class="fas fa-exclamation-circle"></i>
+                Please correct the following before continuing
+            </h5>
+            <ul id="validationSummaryList"></ul>
+        </div>
+
         <div asp-validation-summary="ModelOnly"
-             class="alert alert-danger"></div>
+             class="np-summary is-visible"></div>
 
         <!-- ============================================================
-             PERSONAL INFORMATION
+             SECTION 1 — PERSONAL INFORMATION
              ============================================================ -->
-        <section class="patient-section">
-            <h4>Personal Information</h4>
-
-            <div class="patient-grid">
-
-                <!-- Row 1: Name | Surname -->
-                <div class="patient-field">
-                    <label asp-for="Name">First Name</label>
-                    <input asp-for="Name" autocomplete="given-name" />
-                    <span asp-validation-for="Name" class="field-validation"></span>
+        <section class="np-section">
+            <header class="np-section-head">
+                <div class="np-step">1</div>
+                <div class="np-section-title">
+                    <h3>Personal Information</h3>
+                    <p>Legal identity details as they appear on the patient's ID document.</p>
                 </div>
+                <span class="np-section-flag np-flag-required">All required</span>
+            </header>
 
-                <div class="patient-field">
-                    <label asp-for="Surname">Surname</label>
-                    <input asp-for="Surname" autocomplete="family-name" />
-                    <span asp-validation-for="Surname" class="field-validation"></span>
+            <div class="np-section-body">
+                <div class="np-grid">
+
+                    <div class="np-field">
+                        <label asp-for="Name">
+                            First Name <span class="req">*</span>
+                        </label>
+                        <input asp-for="Name"
+                               autocomplete="given-name"
+                               data-required="true"
+                               data-label="First Name"
+                               data-validate="name" />
+                        <span asp-validation-for="Name" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="Surname">
+                            Surname <span class="req">*</span>
+                        </label>
+                        <input asp-for="Surname"
+                               autocomplete="family-name"
+                               data-required="true"
+                               data-label="Surname"
+                               data-validate="name" />
+                        <span asp-validation-for="Surname" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="IDNumber">
+                            South African ID Number <span class="req">*</span>
+                        </label>
+                        <input asp-for="IDNumber"
+                               maxlength="13"
+                               inputmode="numeric"
+                               autocomplete="off"
+                               placeholder="13 digits"
+                               data-required="true"
+                               data-label="SA ID Number"
+                               data-validate="said" />
+                        <span class="np-help">13-digit South African identity number.</span>
+                        <span asp-validation-for="IDNumber" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="DOB">
+                            Date of Birth <span class="req">*</span>
+                        </label>
+                        <input asp-for="DOB"
+                               type="date"
+                               data-required="true"
+                               data-label="Date of Birth"
+                               data-validate="dob" />
+                        <span class="np-help">Automatically populated from the ID number.</span>
+                        <span asp-validation-for="DOB" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="CellphoneNumber">
+                            Cellphone Number <span class="req">*</span>
+                        </label>
+                        <input asp-for="CellphoneNumber"
+                               type="tel"
+                               inputmode="numeric"
+                               maxlength="10"
+                               autocomplete="tel"
+                               placeholder="0821234567"
+                               data-required="true"
+                               data-label="Cellphone Number"
+                               data-validate="cellphone" />
+                        <span class="np-help">10-digit South African mobile number.</span>
+                        <span asp-validation-for="CellphoneNumber" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="Email">
+                            Email Address <span class="req">*</span>
+                        </label>
+                        <input asp-for="Email"
+                               type="email"
+                               autocomplete="email"
+                               placeholder="name@example.com"
+                               data-required="true"
+                               data-label="Email Address"
+                               data-validate="email" />
+                        <span class="np-help">Used for the activation link and future notifications.</span>
+                        <span asp-validation-for="Email" class="np-error"></span>
+                    </div>
+
                 </div>
-
-                <!-- Row 2: ID Number | Date of Birth -->
-                <div class="patient-field">
-                    <label asp-for="IDNumber">South African ID Number</label>
-                    <input asp-for="IDNumber" maxlength="13" inputmode="numeric" />
-                    <span asp-validation-for="IDNumber" class="field-validation"></span>
-                </div>
-
-                <div class="patient-field">
-                    <label asp-for="DOB">Date of Birth</label>
-                    <input asp-for="DOB" type="date" />
-                    <span asp-validation-for="DOB" class="field-validation"></span>
-                </div>
-
-                <!-- Row 3: Cellphone | Email -->
-                <div class="patient-field">
-                    <label asp-for="CellphoneNumber">Cellphone Number</label>
-                    <input asp-for="CellphoneNumber" type="tel" autocomplete="tel" />
-                    <span asp-validation-for="CellphoneNumber" class="field-validation"></span>
-                </div>
-
-                <div class="patient-field">
-                    <label asp-for="Email">Email Address</label>
-                    <input asp-for="Email" type="email" autocomplete="email" />
-                    <span asp-validation-for="Email" class="field-validation"></span>
-                </div>
-
             </div>
         </section>
 
         <!-- ============================================================
-             ADDRESS INFORMATION
-             Location dropdowns first, then the two text address lines.
+             SECTION 2 — ADDRESS INFORMATION
              ============================================================ -->
-        <section class="patient-section">
-            <h4>Address Information</h4>
-
-            <div class="patient-grid">
-
-                <!-- Row 1: Province | City -->
-                <div class="patient-field">
-                    <label asp-for="Province">Province</label>
-                    <select asp-for="Province" id="Province">
-                        <option value="">Select Province</option>
-                        @foreach (var province in Model.Provinces)
-                        {
-                            <option value="@province.Value"
-                                    selected="@province.Selected">
-                                @province.Text
-                            </option>
-                        }
-                    </select>
-                    <span asp-validation-for="Province" class="field-validation"></span>
+        <section class="np-section">
+            <header class="np-section-head">
+                <div class="np-step">2</div>
+                <div class="np-section-title">
+                    <h3>Residential Address</h3>
+                    <p>Select the province, city, suburb and postal code, then enter the street address.</p>
                 </div>
+                <span class="np-section-flag np-flag-required">All required</span>
+            </header>
 
-                <div class="patient-field">
-                    <label asp-for="City">City / Town</label>
-                    <select asp-for="City" id="City" disabled>
-                        <option value="">Select City / Town</option>
-                    </select>
-                    <span asp-validation-for="City" class="field-validation"></span>
+            <div class="np-section-body">
+                <div class="np-grid">
+
+                    <div class="np-field">
+                        <label asp-for="Province">
+                            Province <span class="req">*</span>
+                        </label>
+                        <select asp-for="Province"
+                                id="Province"
+                                data-required="true"
+                                data-label="Province"
+                                data-validate="select">
+                            <option value="">Select Province</option>
+                            @foreach (var province in Model.Provinces)
+                            {
+                                <option value="@province.Value"
+                                        selected="@province.Selected">@province.Text</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Province" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="City">
+                            City / Town <span class="req">*</span>
+                        </label>
+                        <select asp-for="City"
+                                id="City"
+                                disabled
+                                data-required="true"
+                                data-label="City / Town"
+                                data-validate="select">
+                            <option value="">Select City / Town</option>
+                        </select>
+                        <span asp-validation-for="City" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="Suburb">
+                            Suburb <span class="req">*</span>
+                        </label>
+                        <select asp-for="Suburb"
+                                id="Suburb"
+                                disabled
+                                data-required="true"
+                                data-label="Suburb"
+                                data-validate="select">
+                            <option value="">Select Suburb</option>
+                        </select>
+                        <span asp-validation-for="Suburb" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="PostalCode">
+                            Postal Code <span class="req">*</span>
+                        </label>
+                        <select asp-for="PostalCode"
+                                id="PostalCode"
+                                disabled
+                                data-required="true"
+                                data-label="Postal Code"
+                                data-validate="select">
+                            <option value="">Select Postal Code</option>
+                        </select>
+                        <span asp-validation-for="PostalCode" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="AddressLine1">
+                            Address Line 1 <span class="req">*</span>
+                        </label>
+                        <input asp-for="AddressLine1"
+                               placeholder="House number and street name"
+                               data-required="true"
+                               data-label="Address Line 1"
+                               data-validate="address" />
+                        <span asp-validation-for="AddressLine1" class="np-error"></span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="AddressLine2">
+                            Address Line 2 <span class="opt">Optional</span>
+                        </label>
+                        <input asp-for="AddressLine2"
+                               placeholder="Building, complex or additional details"
+                               data-required="false"
+                               data-label="Address Line 2" />
+                        <span asp-validation-for="AddressLine2" class="np-error"></span>
+                    </div>
+
                 </div>
-
-                <!-- Row 2: Suburb | Postal Code -->
-                <div class="patient-field">
-                    <label asp-for="Suburb">Suburb</label>
-                    <select asp-for="Suburb" id="Suburb" disabled>
-                        <option value="">Select Suburb</option>
-                    </select>
-                    <span asp-validation-for="Suburb" class="field-validation"></span>
-                </div>
-
-                <div class="patient-field">
-                    <label asp-for="PostalCode">Postal Code</label>
-                    <select asp-for="PostalCode" id="PostalCode" disabled>
-                        <option value="">Select Postal Code</option>
-                    </select>
-                    <span asp-validation-for="PostalCode" class="field-validation"></span>
-                </div>
-
-                <!-- Row 3: Address Line 1 | Address Line 2 -->
-                <div class="patient-field">
-                    <label asp-for="AddressLine1">Address Line 1</label>
-                    <input asp-for="AddressLine1"
-                           placeholder="House number and street name" />
-                    <span asp-validation-for="AddressLine1" class="field-validation"></span>
-                </div>
-
-                <div class="patient-field">
-                    <label asp-for="AddressLine2">Address Line 2 (Optional)</label>
-                    <input asp-for="AddressLine2"
-                           placeholder="Building, complex or additional details" />
-                    <span asp-validation-for="AddressLine2" class="field-validation"></span>
-                </div>
-
             </div>
         </section>
 
         <!-- ============================================================
-             MEDICAL INFORMATION
-             Three category/item pairs: Condition, Allergy, Medication.
+             SECTION 3 — MEDICAL INFORMATION
              ============================================================ -->
-        <section class="patient-section">
-            <h4>Medical Information</h4>
-
-            <div class="patient-grid">
-
-                <!-- ---------- Medical Condition: Category | Item ---------- -->
-                <div class="patient-field">
-                    <label asp-for="SelectedMedicalConditionCategory">
-                        Medical Condition Category
-                    </label>
-
-                    <select asp-for="SelectedMedicalConditionCategory"
-                            id="conditionCategory">
-                        <option value="">Select Category</option>
-                        @foreach (var category in Model.MedicalConditionCategories)
-                        {
-                            <option value="@category">@category</option>
-                        }
-                    </select>
+        <section class="np-section">
+            <header class="np-section-head">
+                <div class="np-step">3</div>
+                <div class="np-section-title">
+                    <h3>Medical Information</h3>
+                    <p>Record any known conditions, allergies and current medication. Skip if not applicable.</p>
                 </div>
+                <span class="np-section-flag np-flag-optional">Optional</span>
+            </header>
 
-                <div class="patient-field">
-                    <label asp-for="SelectedMedicalConditionId">
-                        Medical Condition
-                    </label>
+            <div class="np-section-body">
+                <div class="np-grid">
 
-                    <select asp-for="SelectedMedicalConditionId"
-                            id="conditionItem"
-                            disabled>
-                        <option value="">Select Medical Condition</option>
-                        @foreach (var item in Model.MedicalConditionOptions)
-                        {
-                            <option value="@item.Id"
-                                    data-category="@item.Category">
-                                @item.Name
-                            </option>
-                        }
-                    </select>
-
-                    <div class="medical-help">
-                        Select a category first. Leave the selection empty if none applies.
+                    <div class="np-field">
+                        <label asp-for="SelectedMedicalConditionCategory">
+                            Medical Condition Category
+                        </label>
+                        <select asp-for="SelectedMedicalConditionCategory"
+                                id="conditionCategory">
+                            <option value="">Select Category</option>
+                            @foreach (var category in Model.MedicalConditionCategories)
+                            {
+                                <option value="@category">@category</option>
+                            }
+                        </select>
                     </div>
-                </div>
 
-                <!-- ---------- Allergy: Category | Item ---------- -->
-                <div class="patient-field">
-                    <label asp-for="SelectedAllergyCategory">
-                        Allergy Category
-                    </label>
-
-                    <select asp-for="SelectedAllergyCategory"
-                            id="allergyCategory">
-                        <option value="">Select Category</option>
-                        @foreach (var category in Model.AllergyCategories)
-                        {
-                            <option value="@category">@category</option>
-                        }
-                    </select>
-                </div>
-
-                <div class="patient-field">
-                    <label asp-for="SelectedAllergyId">Allergy</label>
-
-                    <select asp-for="SelectedAllergyId"
-                            id="allergyItem"
-                            disabled>
-                        <option value="">Select Allergy</option>
-                        @foreach (var item in Model.AllergyOptions)
-                        {
-                            <option value="@item.Id"
-                                    data-category="@item.Category">
-                                @item.Name
-                            </option>
-                        }
-                    </select>
-
-                    <div class="medical-help">
-                        Select a category to view matching allergies.
+                    <div class="np-field">
+                        <label asp-for="SelectedMedicalConditionId">
+                            Medical Condition
+                        </label>
+                        <select asp-for="SelectedMedicalConditionId"
+                                id="conditionItem"
+                                disabled>
+                            <option value="">Select Medical Condition</option>
+                            @foreach (var item in Model.MedicalConditionOptions)
+                            {
+                                <option value="@item.Id"
+                                        data-category="@item.Category">@item.Name</option>
+                            }
+                        </select>
+                        <span class="np-help">Choose a category first.</span>
                     </div>
-                </div>
 
-                <!-- ---------- Medication: Category | Item ---------- -->
-                <div class="patient-field">
-                    <label asp-for="SelectedMedicationCategory">
-                        Medication Category
-                    </label>
-
-                    <select asp-for="SelectedMedicationCategory"
-                            id="medicationCategory">
-                        <option value="">Select Category</option>
-                        @foreach (var category in Model.MedicationCategories)
-                        {
-                            <option value="@category">@category</option>
-                        }
-                    </select>
-                </div>
-
-                <div class="patient-field">
-                    <label asp-for="SelectedMedicationId">Medication</label>
-
-                    <select asp-for="SelectedMedicationId"
-                            id="medicationItem"
-                            disabled>
-                        <option value="">Select Medication</option>
-                        @foreach (var item in Model.MedicationOptions)
-                        {
-                            <option value="@item.Id"
-                                    data-category="@item.Category">
-                                @item.Name
-                            </option>
-                        }
-                    </select>
-
-                    <div class="medical-help">
-                        Select a category to view matching medications.
+                    <div class="np-field">
+                        <label asp-for="SelectedAllergyCategory">
+                            Allergy Category
+                        </label>
+                        <select asp-for="SelectedAllergyCategory"
+                                id="allergyCategory">
+                            <option value="">Select Category</option>
+                            @foreach (var category in Model.AllergyCategories)
+                            {
+                                <option value="@category">@category</option>
+                            }
+                        </select>
                     </div>
-                </div>
 
+                    <div class="np-field">
+                        <label asp-for="SelectedAllergyId">Allergy</label>
+                        <select asp-for="SelectedAllergyId"
+                                id="allergyItem"
+                                disabled>
+                            <option value="">Select Allergy</option>
+                            @foreach (var item in Model.AllergyOptions)
+                            {
+                                <option value="@item.Id"
+                                        data-category="@item.Category">@item.Name</option>
+                            }
+                        </select>
+                        <span class="np-help">Choose a category first.</span>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="SelectedMedicationCategory">
+                            Medication Category
+                        </label>
+                        <select asp-for="SelectedMedicationCategory"
+                                id="medicationCategory">
+                            <option value="">Select Category</option>
+                            @foreach (var category in Model.MedicationCategories)
+                            {
+                                <option value="@category">@category</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="np-field">
+                        <label asp-for="SelectedMedicationId">Medication</label>
+                        <select asp-for="SelectedMedicationId"
+                                id="medicationItem"
+                                disabled>
+                            <option value="">Select Medication</option>
+                            @foreach (var item in Model.MedicationOptions)
+                            {
+                                <option value="@item.Id"
+                                        data-category="@item.Category">@item.Name</option>
+                            }
+                        </select>
+                        <span class="np-help">Choose a category first.</span>
+                    </div>
+
+                </div>
             </div>
         </section>
 
-        <div class="patient-actions">
-            <a asp-controller="Doctor"
-               asp-action="ManagePatients"
-               class="patient-btn patient-btn-secondary">
-                Cancel
-            </a>
+        <!-- ============================================================
+             ACTION BAR
+             ============================================================ -->
+        <div class="np-actions">
+            <div class="np-actions-hint">
+                <i class="fas fa-shield-alt"></i>
+                <span>Fields marked <strong style="color:#d92d20;">*</strong> are required.</span>
+            </div>
 
-            <button type="submit" class="patient-btn patient-btn-primary">
-                Register Patient
-            </button>
+            <div class="np-actions-group">
+                <a asp-controller="Doctor"
+                   asp-action="ManagePatients"
+                   class="np-btn np-btn-ghost">
+                    Cancel
+                </a>
+
+                <button type="submit"
+                        id="registerPatientBtn"
+                        class="np-btn np-btn-primary">
+                    <i class="fas fa-user-check"></i>
+                    Register Patient
+                </button>
+            </div>
         </div>
     </form>
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
     <script src="~/js/patient-create.js" asp-append-version="true"></script>
+    <script>
+        // Live completion progress bar
+        document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("createPatientForm");
+        if (!form) return;
+
+        const required = Array.from(
+        form.querySelectorAll("[data-required='true']"));
+        const fill = document.getElementById("progressFill");
+        const count = document.getElementById("progressCount");
+
+        function refresh() {
+        let ok = 0;
+        required.forEach(f => {
+        const v = (f.value || "").trim();
+        if (!v) return;
+        if (f.classList.contains("is-invalid")) return;
+        ok++;
+        });
+        const pct = required.length === 0
+        ? 0
+        : Math.round((ok / required.length) * 100);
+        if (fill) fill.style.width = pct + "%";
+        if (count) count.textContent = ok + " / " + required.length;
+        }
+
+        form.addEventListener("input", refresh);
+        form.addEventListener("change", refresh);
+        form.addEventListener("blur", refresh, true);
+        refresh();
+        });
+    </script>
 }

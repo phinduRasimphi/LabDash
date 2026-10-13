@@ -31,6 +31,7 @@ builder.Services.AddScoped<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IEmailAttachmentSender, EmailSender>();
 builder.Services.AddScoped<IVerifiedResultsPdfGenerator, VerifiedResultsPdfGenerator>();
 builder.Services.AddScoped<IVerifiedResultsNotificationService, VerifiedResultsNotificationService>();
+builder.Services.AddScoped<IRazorEmailRenderer, RazorEmailRenderer>();
 
 var app = builder.Build();
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;

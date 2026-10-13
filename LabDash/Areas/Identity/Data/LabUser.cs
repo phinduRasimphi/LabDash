@@ -70,5 +70,7 @@ public class LabUser : IdentityUser
 
     [Display(Name = "Welcome Email Sent")]
     public bool WelcomeEmailSent { get; set; } = false;
+    public string? ActivationTokenHash { get; set; }
+    public DateTime? ActivationTokenExpiresUtc { get; set; }
 }
 
