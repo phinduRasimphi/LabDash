@@ -2,6 +2,7 @@
 using LabDash.Areas.Identity.Data;
 using LabDash.Models;
 using LabDash.Services;
+using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,8 @@ builder.Services.AddScoped<IVerifiedResultsPdfGenerator, VerifiedResultsPdfGener
 builder.Services.AddScoped<IVerifiedResultsNotificationService, VerifiedResultsNotificationService>();
 
 var app = builder.Build();
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+QuestPDF.Settings.UseSystemFonts = true;
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
