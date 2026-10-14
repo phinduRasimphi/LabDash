@@ -972,45 +972,5 @@ namespace LabDash.Controllers
             TempData["Success"] = "Results access has been locked.";
             return RedirectToAction(nameof(Track));
         }
-        // ============================================================
-        // DETAILS (full page view)
-        // Notification links from CaptureResultsController point here.
-        // ============================================================
-        [HttpGet]
-        public async Task<IActionResult> Details(int id)
-        {
-            var request = await _context.TestRequests
-                .Include(r => r.Patient)
-                .Include(r => r.RequestingDoctor)
-                .Include(r => r.TestRequestItems)
-                    .ThenInclude(i => i.TestType)
-                .Include(r => r.TestRequestItems)
-                    .ThenInclude(i => i.AssignedTechnician)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(r => r.RequestId == id);
-
-            if (request == null)
-                return NotFound();
-
-            return View("Details", request);
-        }
-        [HttpGet]
-        public async Task<IActionResult> DetailsPartial(int id)
-        {
-            var request = await _context.TestRequests
-                .Include(r => r.Patient)
-                .Include(r => r.RequestingDoctor)
-                .Include(r => r.TestRequestItems)
-                    .ThenInclude(i => i.TestType)
-                .Include(r => r.TestRequestItems)
-                    .ThenInclude(i => i.AssignedTechnician)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(r => r.RequestId == id);
-
-            if (request == null)
-                return NotFound();
-
-            return PartialView("_DetailsPartial", request);
-        }
     }
 }

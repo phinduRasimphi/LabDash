@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
+using LabDash.Services;
 
 namespace LabDash.Controllers
 {
@@ -26,8 +27,11 @@ namespace LabDash.Controllers
             LabDbContext context,
             UserManager<LabUser> userManager,
             SignInManager<LabUser> signInManager,
+            IEmailSender emailSender, IAuditService audit)
+
+
+
             IEmailSender emailSender,
-            IAuditService audit,
             IRazorEmailRenderer emailRenderer)
         {
             _context = context;
@@ -267,12 +271,14 @@ namespace LabDash.Controllers
                 return View(blank);
             }
 
+            // ---- SA ID validation ----
             if (!string.IsNullOrWhiteSpace(model.IDNumber) &&
                 !IsValidSouthAfricanId(model.IDNumber.Trim(), out string idError))
             {
                 ModelState.AddModelError(nameof(model.IDNumber), idError);
             }
 
+            // ---- Address validation ----
             bool validLocation = false;
 
             if (!string.IsNullOrWhiteSpace(model.Province) &&
@@ -301,6 +307,7 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
+            // ---- Normalise ----
             string name = model.Name.Trim();
             string surname = model.Surname.Trim();
             string idNumber = model.IDNumber.Trim();
@@ -318,6 +325,7 @@ namespace LabDash.Controllers
             string province = model.Province.Trim();
             string postalCode = model.PostalCode.Trim();
 
+            // ---- Resolve medical selections ----
             var medicalConditions = await ResolveMedicalNameAsync(
                 model.SelectedMedicalConditionId, "condition");
 
@@ -338,6 +346,7 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
+            // ---- Duplicate checks ----
             if (await _context.Patients.AnyAsync(p => p.IDNumber == idNumber))
             {
                 ModelState.AddModelError(nameof(model.IDNumber),
@@ -365,6 +374,7 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
+            // ---- Create Identity account ----
             string internalPlaceholder =
                 Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
@@ -413,6 +423,7 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
+            // ---- Assign Patient role ----
             try
             {
                 var roleResult = await _userManager.AddToRoleAsync(user, "Patient");
@@ -441,6 +452,7 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
+            // ---- Build full address ----
             string fullAddress = string.Join(", ",
                 new[]
                 {
@@ -453,6 +465,7 @@ namespace LabDash.Controllers
                 }
                 .Where(x => !string.IsNullOrWhiteSpace(x)));
 
+            // ---- Create Patient record ----
             var newPatient = new Patient
             {
                 UserId = user.Id,
@@ -477,13 +490,11 @@ namespace LabDash.Controllers
             };
 
             _context.Patients.Add(newPatient);
+            _audit.Log("Created", "Patients", $"Registered patient '{name} {surname}'.");
 
             try
             {
                 await _context.SaveChangesAsync();
-
-                _audit.Log("Created", "Patients",
-                    $"Registered patient '{name} {surname}'.");
             }
             catch (Exception ex)
             {
@@ -500,6 +511,7 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
+            // ---- Send activation email ----
             bool emailSent = await TrySendActivationEmailAsync(
                 user, name, activationToken);
 

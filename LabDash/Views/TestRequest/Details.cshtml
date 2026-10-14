@@ -1,312 +1,115 @@
-﻿@model LabDash.Models.TestRequest
+@model LabDash.Models.TestRequest
 
 @{
-    ViewData["Title"] = $"Test Request TR-{Model.RequestId}";
-    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+    ViewData["Title"] = "Details";
 }
 
-<style>
-    .tr-shell {
-        max-width: 1080px;
-        margin: 0 auto;
-        padding: 24px 20px 60px;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: #1e293b;
-    }
+<h1>Details</h1>
 
-    .tr-hero {
-        background: linear-gradient(135deg, #0b5f58 0%, #0d6b63 55%, #159d91 100%);
-        color: #fff;
-        border-radius: 18px;
-        padding: 26px 30px;
-        margin-bottom: 22px;
-        box-shadow: 0 12px 30px rgba(11, 95, 88, .22);
-        display: flex;
-        align-items: center;
-        gap: 18px;
-        flex-wrap: wrap;
-    }
-
-        .tr-hero h1 {
-            margin: 0;
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: -.3px;
-        }
-
-        .tr-hero .sub {
-            margin: 4px 0 0;
-            font-size: 13px;
-            color: rgba(255,255,255,.85);
-        }
-
-        .tr-hero .spacer {
-            flex: 1;
-        }
-
-        .tr-hero .badge {
-            padding: 6px 12px;
-            border-radius: 99px;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: .4px;
-            text-transform: uppercase;
-            background: rgba(255,255,255,.16);
-            border: 1px solid rgba(255,255,255,.28);
-        }
-
-    .tr-card {
-        background: #fff;
-        border: 1px solid #e8edf2;
-        border-radius: 14px;
-        box-shadow: 0 3px 14px rgba(15,23,42,.045);
-        margin-bottom: 18px;
-        overflow: hidden;
-    }
-
-    .tr-card-head {
-        padding: 14px 22px;
-        background: #f8fbfa;
-        border-bottom: 1px solid #edf3f2;
-        font-size: 13px;
-        font-weight: 700;
-        color: #172b4d;
-        letter-spacing: .3px;
-        text-transform: uppercase;
-    }
-
-    .tr-card-body {
-        padding: 22px;
-    }
-
-    .tr-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px 22px;
-    }
-
-    .tr-field label {
-        display: block;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .4px;
-        color: #8291a5;
-        margin-bottom: 5px;
-    }
-
-    .tr-field .value {
-        font-size: 14px;
-        color: #1e293b;
-        word-break: break-word;
-    }
-
-    table.tr-items {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13.5px;
-    }
-
-        table.tr-items th {
-            text-align: left;
-            padding: 10px 12px;
-            background: #f8fbfa;
-            border-bottom: 1px solid #edf3f2;
-            color: #4a5b70;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .3px;
-        }
-
-        table.tr-items td {
-            padding: 12px;
-            border-bottom: 1px solid #edf3f2;
-        }
-
-        table.tr-items tr:last-child td {
-            border-bottom: none;
-        }
-
-    .tr-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 20px;
-    }
-
-    .tr-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 18px;
-        border-radius: 9px;
-        border: 1px solid transparent;
-        font-weight: 650;
-        font-size: 13.5px;
-        text-decoration: none;
-        cursor: pointer;
-    }
-
-    .tr-btn-ghost {
-        background: #fff;
-        color: #4a5b70;
-        border-color: #d9e3e1;
-    }
-
-        .tr-btn-ghost:hover {
-            background: #f4f8f7;
-            color: #26384d;
-        }
-
-    @@media (max-width: 700px) {
-        .tr-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .tr-hero {
-            padding: 20px;
-        }
-
-            .tr-hero h1 {
-                font-size: 18px;
-            }
-    }
-</style>
-
-<div class="tr-shell">
-
-    <div class="tr-hero">
-        <div>
-            <h1>Test Request TR-@Model.RequestId</h1>
-            <p class="sub">
-                @if (Model.Patient != null)
-                {
-                    @($"{Model.Patient.Name} {Model.Patient.Surname}")
-                    @(" · ")
-                }
-                Requested @Model.RequestDate.ToString("dd MMM yyyy")
-            </p>
-        </div>
-        <div class="spacer"></div>
-        <span class="badge">@Model.Status</span>
-    </div>
-
-    <div class="tr-card">
-        <div class="tr-card-head">Patient</div>
-        <div class="tr-card-body">
-            @if (Model.Patient != null)
-            {
-                <div class="tr-grid">
-                    <div class="tr-field">
-                        <label>Name</label>
-                        <div class="value">@Model.Patient.Name @Model.Patient.Surname</div>
-                    </div>
-                    <div class="tr-field">
-                        <label>ID Number</label>
-                        <div class="value">@Model.Patient.IDNumber</div>
-                    </div>
-                    <div class="tr-field">
-                        <label>Date of Birth</label>
-                        <div class="value">@Model.Patient.DOB.ToString("dd MMM yyyy")</div>
-                    </div>
-                    <div class="tr-field">
-                        <label>Cellphone</label>
-                        <div class="value">@Model.Patient.CellphoneNumber</div>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="tr-field"><div class="value">No patient linked.</div></div>
-            }
-        </div>
-    </div>
-
-    <div class="tr-card">
-        <div class="tr-card-head">Request Details</div>
-        <div class="tr-card-body">
-            <div class="tr-grid">
-                <div class="tr-field">
-                    <label>Requesting Doctor</label>
-                    <div class="value">
-                        @(Model.RequestingDoctor != null
-                                                ? $"{Model.RequestingDoctor.FirstName} {Model.RequestingDoctor.LastName}"
-                                                : "—")
-                    </div>
-                </div>
-                <div class="tr-field">
-                    <label>Request Date</label>
-                    <div class="value">@Model.RequestDate.ToString("dd MMM yyyy HH:mm")</div>
-                </div>
-                <div class="tr-field">
-                    <label>Urgency</label>
-                    <div class="value">@Model.Urgency</div>
-                </div>
-                <div class="tr-field">
-                    <label>Received</label>
-                    <div class="value">
-                        @(Model.DateTimeReceived.HasValue
-                                                ? Model.DateTimeReceived.Value.ToString("dd MMM yyyy HH:mm")
-                                                : "Not yet received")
-                    </div>
-                </div>
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(Model.ClinicalNotes))
-            {
-                <div class="tr-field" style="margin-top:16px;">
-                    <label>Clinical Notes</label>
-                    <div class="value">@Model.ClinicalNotes</div>
-                </div>
-            }
-        </div>
-    </div>
-
-    <div class="tr-card">
-        <div class="tr-card-head">Requested Tests</div>
-        <table class="tr-items">
-            <thead>
-                <tr>
-                    <th>Test</th>
-                    <th>Category</th>
-                    <th>Technician</th>
-                    <th>Status</th>
-                    <th>Completed</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (Model.TestRequestItems != null && Model.TestRequestItems.Any())
-                {
-                    foreach (var item in Model.TestRequestItems)
-                    {
-                        <tr>
-                            <td>@(item.TestType?.Name ?? "Unknown Test")</td>
-                            <td>@(item.TestType?.Category ?? "—")</td>
-                            <td>
-                                @(item.AssignedTechnician != null
-                                                        ? $"{item.AssignedTechnician.FirstName} {item.AssignedTechnician.LastName}"
-                                                        : "Unassigned")
-                                                                   </td>
-                                                                   <td>@item.Status</td>
-                                                                   <td>
-                                @(item.CompletionDateTime.HasValue
-                                                        ? item.CompletionDateTime.Value.ToString("dd MMM HH:mm")
-                                                        : "—")
-                    </td>
-                </tr>
-                                }
-                }
-                else
-                {
-                    <tr><td colspan="5" style="text-align:center;color:#8291a5;padding:24px;">No tests on this request.</td></tr>
-                }
-            </tbody>
-        </table>
-    </div>
-
-    <div class="tr-actions">
-        <a asp-action="Index" class="tr-btn tr-btn-ghost">← Back to List</a>
-    </div>
-
+<div>
+    <h4>TestRequest</h4>
+    <hr />
+    <dl class="row">
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.PatientId)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.PatientId)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Patient)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Patient)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.RequestingDoctorId)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.RequestingDoctorId)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.RequestingDoctor)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.RequestingDoctor)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.RequestDate)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.RequestDate)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Urgency)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Urgency)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.ClinicalNotes)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.ClinicalNotes)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Status)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Status)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.DateTimeReceived)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.DateTimeReceived)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.SubmittedDate)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.SubmittedDate)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.CancellationReason)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.CancellationReason)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Samples)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Samples)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.SampleReceives)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.SampleReceives)
+        </dd>
+    </dl>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.TestRequestItems)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.TestRequestItems)
+        </dd>
+    </dl>
+</div>
+<div>
+    <a asp-action="Edit" asp-route-id="@Model?.RequestId">Edit</a> |
+    <a asp-action="Index">Back to List</a>
 </div>
