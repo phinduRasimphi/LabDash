@@ -1,5 +1,6 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
+using LabDash.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -13,13 +14,19 @@ namespace LabDash.Controllers
     {
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
+        private readonly NotificationService _notificationService;
+        private readonly ILogger<CaptureResultsController> _logger;
 
         public CaptureResultsController(
             LabDbContext context,
-            UserManager<LabUser> userManager)
+            UserManager<LabUser> userManager,
+            NotificationService notificationService,
+            ILogger<CaptureResultsController> logger)
         {
             _context = context;
             _userManager = userManager;
+            _notificationService = notificationService;
+            _logger = logger;
         }
 
         // ============================================================
@@ -77,16 +84,8 @@ namespace LabDash.Controllers
             if (item == null)
                 return NotFound();
 
-            // --------------------------------------------------------
-            // ONLY ASSIGNED TECHNICIAN CAN CAPTURE
-            // --------------------------------------------------------
-
             if (item.AssignedTechnicianId != technician.Id)
                 return Forbid();
-
-            // --------------------------------------------------------
-            // CHECK STATUS
-            // --------------------------------------------------------
 
             if (item.Status != "In Progress" &&
                 item.Status != "To Be Reviewed")
@@ -97,10 +96,6 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // --------------------------------------------------------
-            // CHECK TEST REQUEST
-            // --------------------------------------------------------
-
             if (item.TestRequest == null)
             {
                 TempData["Error"] =
@@ -108,10 +103,6 @@ namespace LabDash.Controllers
 
                 return RedirectToAction(nameof(Index));
             }
-
-            // --------------------------------------------------------
-            // CHECK PATIENT
-            // --------------------------------------------------------
 
             if (item.TestRequest.Patient == null)
             {
@@ -121,40 +112,20 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // --------------------------------------------------------
-            // FIND EXISTING RESULT
-            // --------------------------------------------------------
-
             var existingResult = await _context.TestResults
                 .FirstOrDefaultAsync(
                     r => r.TestRequestItemId == id
                 );
 
-            // --------------------------------------------------------
-            // AUTOMATIC REFERENCE RANGE
-            // --------------------------------------------------------
-
             string? referenceRange = GetReferenceRange(item);
-
-            // --------------------------------------------------------
-            // AUTOMATIC UNIT OF MEASUREMENT
-            // --------------------------------------------------------
 
             string? automaticUnit =
                 item.TestType?.UnitOfMeasurement;
-
-            // --------------------------------------------------------
-            // VIEW DATA
-            // --------------------------------------------------------
 
             ViewBag.TestItem = item;
             ViewBag.Patient = item.TestRequest.Patient;
             ViewBag.IsResubmission = item.Status == "To Be Reviewed";
             ViewBag.PreviousVerificationNote = existingResult?.VerificationNote;
-
-            // --------------------------------------------------------
-            // CREATE MODEL FOR VIEW
-            // --------------------------------------------------------
 
             var model = new TestResult
             {
@@ -183,19 +154,11 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Challenge();
 
-            // --------------------------------------------------------
-            // BASIC ID VALIDATION
-            // --------------------------------------------------------
-
             if (result.TestRequestItemId <= 0)
             {
                 TempData["Error"] = "Invalid test request item.";
                 return RedirectToAction(nameof(Index));
             }
-
-            // --------------------------------------------------------
-            // LOAD TEST ITEM
-            // --------------------------------------------------------
 
             var item = await _context.TestRequestItems
                 .Include(t => t.TestType)
@@ -208,16 +171,8 @@ namespace LabDash.Controllers
             if (item == null)
                 return NotFound();
 
-            // --------------------------------------------------------
-            // ONLY ASSIGNED TECHNICIAN CAN CAPTURE
-            // --------------------------------------------------------
-
             if (item.AssignedTechnicianId != technician.Id)
                 return Forbid();
-
-            // --------------------------------------------------------
-            // CHECK STATUS
-            // --------------------------------------------------------
 
             if (item.Status != "In Progress" &&
                 item.Status != "To Be Reviewed")
@@ -228,10 +183,6 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // --------------------------------------------------------
-            // CHECK TEST REQUEST AND PATIENT
-            // --------------------------------------------------------
-
             if (item.TestRequest == null ||
                 item.TestRequest.Patient == null)
             {
@@ -241,22 +192,10 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // --------------------------------------------------------
-            // AUTOMATIC UNIT
-            // --------------------------------------------------------
-
             string? automaticUnit =
                 item.TestType?.UnitOfMeasurement;
 
-            // --------------------------------------------------------
-            // AUTOMATIC REFERENCE RANGE
-            // --------------------------------------------------------
-
             string? referenceRange = GetReferenceRange(item);
-
-            // --------------------------------------------------------
-            // MANUAL VALIDATION
-            // --------------------------------------------------------
 
             ModelState.Clear();
 
@@ -278,27 +217,13 @@ namespace LabDash.Controllers
                 return View(result);
             }
 
-            // --------------------------------------------------------
-            // DETERMINE ABNORMAL RESULT
-            // --------------------------------------------------------
-
             bool isAbnormal =
                 DetermineIfAbnormal(item, result.ResultValue);
-
-
-
-            // --------------------------------------------------------
-            // FIND EXISTING RESULT
-            // --------------------------------------------------------
 
             var existingResult = await _context.TestResults
                 .FirstOrDefaultAsync(
                     r => r.TestRequestItemId == result.TestRequestItemId
                 );
-
-            // ========================================================
-            // UPDATE EXISTING RESULT
-            // ========================================================
 
             if (existingResult != null)
             {
@@ -316,10 +241,6 @@ namespace LabDash.Controllers
                 existingResult.VerificationNote = null;
             }
 
-            // ========================================================
-            // CREATE NEW RESULT
-            // ========================================================
-
             else
             {
                 result.DateCaptured = DateTime.Now;
@@ -335,29 +256,22 @@ namespace LabDash.Controllers
                 _context.TestResults.Add(result);
             }
 
-            // ========================================================
-            // UPDATE TEST ITEM
-            // ========================================================
-
             item.Status = "Completed";
             item.CompletionDateTime = DateTime.Now;
-
-            // ========================================================
-            // UPDATE PARENT TEST REQUEST STATUS
-            // If every item on this request is Completed, flip the
-            // parent to Completed so the doctor sees the change.
-            // ========================================================
 
             var parentRequest = await _context.TestRequests
                 .Include(r => r.TestRequestItems)
                 .FirstOrDefaultAsync(r => r.RequestId == item.RequestId);
+
+            // ==== NOTIFICATION SUPPORT ====
+            bool parentJustCompleted = false;
 
             if (parentRequest != null && parentRequest.TestRequestItems != null)
             {
                 bool allCompleted = parentRequest.TestRequestItems
                     .All(i =>
                         i.TestRequestItemId == item.TestRequestItemId
-                            ? true                       // we just marked this one Completed
+                            ? true
                             : i.Status == "Completed");
 
                 bool canTransitionToCompleted =
@@ -366,13 +280,12 @@ namespace LabDash.Controllers
 
                 if (allCompleted && canTransitionToCompleted)
                 {
+                    if (parentRequest.Status != "Completed")
+                        parentJustCompleted = true;
+
                     parentRequest.Status = "Completed";
                 }
             }
-
-            // ========================================================
-            // SAVE
-            // ========================================================
 
             try
             {
@@ -408,9 +321,11 @@ namespace LabDash.Controllers
                 return View(result);
             }
 
-            // ========================================================
-            // SUCCESS MESSAGE
-            // ========================================================
+            // ==== NOTIFICATION ====
+            if (parentJustCompleted && parentRequest != null)
+            {
+                await NotifyDoctorResultsReadyAsync(parentRequest);
+            }
 
             if (isAbnormal)
             {
@@ -629,12 +544,9 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
+
             bool isAbnormal =
                 DetermineIfAbnormal(item, model.ResultValue);
-
-            // ========================================================
-            // UPDATE EXISTING RESULT
-            // ========================================================
 
             existingResult.ResultValue = model.ResultValue;
             existingResult.Units = automaticUnit;
@@ -649,20 +561,15 @@ namespace LabDash.Controllers
             existingResult.VerificationDate = null;
             existingResult.VerificationNote = null;
 
-            // ========================================================
-            // UPDATE TEST ITEM
-            // ========================================================
-
             item.Status = "Completed";
             item.CompletionDateTime = DateTime.Now;
-
-            // ========================================================
-            // UPDATE PARENT TEST REQUEST STATUS
-            // ========================================================
 
             var parentRequest = await _context.TestRequests
                 .Include(r => r.TestRequestItems)
                 .FirstOrDefaultAsync(r => r.RequestId == item.RequestId);
+
+            // ==== NOTIFICATION SUPPORT ====
+            bool parentJustCompleted = false;
 
             if (parentRequest != null && parentRequest.TestRequestItems != null)
             {
@@ -678,13 +585,13 @@ namespace LabDash.Controllers
 
                 if (allCompleted && canTransitionToCompleted)
                 {
+                    if (parentRequest.Status != "Completed")
+                        parentJustCompleted = true;
+
                     parentRequest.Status = "Completed";
                 }
             }
 
-            // ========================================================
-            // SAVE
-            // ========================================================
 
             try
             {
@@ -724,9 +631,11 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
-            // ========================================================
-            // SUCCESS
-            // ========================================================
+            // ==== NOTIFICATION ====
+            if (parentJustCompleted && parentRequest != null)
+            {
+                await NotifyDoctorResultsReadyAsync(parentRequest);
+            }
 
             if (isAbnormal)
             {
@@ -814,6 +723,81 @@ namespace LabDash.Controllers
                 numericResult < item.TestType.ReferenceRangeLow.Value
                 ||
                 numericResult > item.TestType.ReferenceRangeHigh.Value;
+        }
+
+
+        // ============================================================
+        // NOTIFY REQUESTING DOCTOR — results ready
+        // ============================================================
+
+        private async Task NotifyDoctorResultsReadyAsync(TestRequest parentRequest)
+        {
+            try
+            {
+                string? doctorId = parentRequest.RequestingDoctorId;
+
+                if (string.IsNullOrWhiteSpace(doctorId))
+                {
+                    _logger.LogInformation(
+                        "No requesting doctor on request TR-{RequestId}. Notification skipped.",
+                        parentRequest.RequestId);
+                    return;
+                }
+
+                int requestId = parentRequest.RequestId;
+
+                bool alreadySent = await _context.Notifications
+                    .AsNoTracking()
+                    .AnyAsync(n =>
+                        n.RecipientUserId == doctorId &&
+                        n.Type == "results-ready" &&
+                        n.RelatedPatientID == parentRequest.PatientId &&
+                        n.Message.Contains($"TR-{requestId}"));
+
+                if (alreadySent)
+                {
+                    _logger.LogInformation(
+                        "Doctor already notified for TR-{RequestId}. Skipping.",
+                        requestId);
+                    return;
+                }
+
+                var patient = await _context.Patients
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.PatientID == parentRequest.PatientId);
+
+                string patientName = patient == null
+                    ? "the patient"
+                    : $"{patient.Name} {patient.Surname}".Trim();
+
+                string? linkUrl = Url.Action(
+                    "Details",
+                    "TestRequests",
+                    new { id = requestId },
+                    Request.Scheme);
+
+                await _notificationService.SendToUserAsync(
+                    recipientUserId: doctorId,
+                    title: "Lab results ready for review",
+                    message:
+                        $"All results for request TR-{requestId} " +
+                        $"({patientName}) have been captured and are ready for review.",
+                    type: "results-ready",
+                    linkUrl: linkUrl,
+                    relatedPatientId: patient?.PatientID,
+                    actorUserId: _userManager.GetUserId(User));
+
+                _logger.LogInformation(
+                    "Notified doctor {DoctorId} that TR-{RequestId} is ready.",
+                    doctorId, requestId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to notify the requesting doctor for TR-{RequestId}.",
+                    parentRequest.RequestId);
+            }
         }
     }
 }
