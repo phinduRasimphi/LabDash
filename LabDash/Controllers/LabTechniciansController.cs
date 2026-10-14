@@ -3,6 +3,7 @@ using LabDash.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using LabDash.Services;
 
 namespace LabDash.Controllers
 {
@@ -11,15 +12,17 @@ namespace LabDash.Controllers
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IAuditService _audit;
 
         public LabTechniciansController(
             LabDbContext context,
             UserManager<LabUser> userManager,
-            RoleManager<IdentityRole> roleManager)
+            RoleManager<IdentityRole> roleManager, IAuditService audit)
         {
             _context = context;
             _userManager = userManager;
             _roleManager = roleManager;
+            _audit = audit;
         }
 
         // =========================================================
@@ -281,7 +284,7 @@ namespace LabDash.Controllers
 
                 _context.TechnicianTestTypes.Add(assignment);
             }
-
+            _audit.Log("Created", "Lab Technicians", $"Created technician '{technician.FirstName} {technician.LastName}'.");
             await _context.SaveChangesAsync();
 
             // -----------------------------------------------------
@@ -553,7 +556,7 @@ namespace LabDash.Controllers
                             testTypeId
                     });
             }
-
+            _audit.Log("Updated", "Lab Technicians", $"Updated technician '{existingTechnician.FirstName} {existingTechnician.LastName}'.");
             await _context.SaveChangesAsync();
 
             TempData["Success"] =
@@ -661,7 +664,8 @@ namespace LabDash.Controllers
 
                 return View(technician);
             }
-
+            _audit.Log("Deleted", "Lab Technicians", $"Deleted technician '{technician.FirstName} {technician.LastName}'.");
+            await _context.SaveChangesAsync();
             TempData["Success"] =
                 "Lab technician deleted successfully.";
 
@@ -774,7 +778,7 @@ namespace LabDash.Controllers
                         TestTypeId = testTypeId
                     });
             }
-
+            _audit.Log("Updated", "Lab Technicians", $"Changed test type assignments for '{technician.FirstName} {technician.LastName}'.");
             await _context.SaveChangesAsync();
 
             TempData["Success"] =

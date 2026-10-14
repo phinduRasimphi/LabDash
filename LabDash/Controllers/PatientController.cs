@@ -3,7 +3,7 @@
 using LabDash.Models;
 using LabDash.Services;
 using LabDash.ViewModels;
-
+using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -27,6 +27,7 @@ namespace LabDash.Controllers
         private readonly IEmailSender _emailSender;
         private readonly NotificationService _notifications;
         private readonly ILogger<PatientController> _logger;
+        private readonly IAuditService _audit;
 
         public PatientController(
             LabDbContext context,
@@ -34,7 +35,8 @@ namespace LabDash.Controllers
             SignInManager<LabUser> signInManager,
             IEmailSender emailSender,
             NotificationService notifications,
-            ILogger<PatientController> logger)
+            ILogger<PatientController> logger,
+    IAuditService audit)
         {
             _context = context;
             _userManager = userManager;
@@ -42,6 +44,7 @@ namespace LabDash.Controllers
             _emailSender = emailSender;
             _notifications = notifications;
             _logger = logger;
+            _audit = audit;
         }
 
         // ============================================================
@@ -329,6 +332,19 @@ namespace LabDash.Controllers
             }
 
             // --------------------------------------------------------
+            // ADD "ADD YOUR OWN" ENTRIES (names only, for the text columns)
+            // --------------------------------------------------------
+
+            selectedConditionNames.AddRange(
+                UniqueNamed(model.NewConditions).Select(x => x.Name!));
+
+            selectedAllergyNames.AddRange(
+                UniqueNamed(model.NewAllergies).Select(x => x.Name!));
+
+            selectedMedicationNames.AddRange(
+                UniqueNamed(model.NewMedications).Select(x => x.Name!));
+
+            // --------------------------------------------------------
             // SAVE "NONE" IF NOTHING WAS SELECTED
             // --------------------------------------------------------
 
@@ -348,6 +364,23 @@ namespace LabDash.Controllers
                     : "None";
 
             // --------------------------------------------------------
+            // SYNC MEDICAL HISTORY JUNCTION TABLES
+            // (these feed the Medical History page)
+            // --------------------------------------------------------
+
+            await SyncConditionsAsync(patient.PatientID, model.SelectedMedicalConditionIds);
+            await SyncAllergiesAsync(patient.PatientID, model.SelectedAllergyIds);
+            await SyncMedicationsAsync(patient.PatientID, model.SelectedMedicationIds);
+
+            // --------------------------------------------------------
+            // ADD NEW ENTRIES THAT ARE NOT IN THE LISTS
+            // (creates the catalogue item if needed + links it to the
+            //  patient with whatever details they provided)
+            // --------------------------------------------------------
+
+            await AddNewEntriesAsync(patient.PatientID, model);
+
+            // --------------------------------------------------------
             // EXPLICITLY MARK PATIENT AS MODIFIED
             // --------------------------------------------------------
 
@@ -359,6 +392,7 @@ namespace LabDash.Controllers
 
             try
             {
+                _audit.Log("Updated", "Patients", $"Patient '{patient.Name} {patient.Surname}' updated their own profile.");
                 var affectedRows = await _context.SaveChangesAsync();
 
                 _logger.LogInformation(
@@ -439,81 +473,436 @@ namespace LabDash.Controllers
                     .Where(x => x.IsActive)
                     .OrderBy(x => x.MedicationName)
                     .ToListAsync();
+
+            // Category lists for the "add your own" forms
+            async Task<List<CategoryOption>> Cats(string type) =>
+                await _context.Categories
+                    .Where(c => c.Type == type && c.IsActive)
+                    .OrderBy(c => c.Name)
+                    .Select(c => new CategoryOption { Id = c.CategoryId, Name = c.Name })
+                    .ToListAsync();
+
+            model.MedicationCategories = await Cats("Medication");
+            model.AllergyCategories = await Cats("Allergy");
+            model.ConditionCategories = await Cats("MedicalCondition");
+        }
+
+        // ============================================================
+        // ADD-YOUR-OWN ENTRIES: HELPERS
+        // ============================================================
+
+        private static DateTime? ParseDate(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+
+            return DateTime.TryParseExact(
+                s.Trim(),
+                new[] { "yyyy-MM", "yyyy-MM-dd" },
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var d)
+                ? d
+                : null;
+        }
+
+        private static string? Clean(string? s) =>
+            string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        // Names are limited to 100 characters in the database.
+        private static IEnumerable<NewHealthEntry> UniqueNamed(
+            List<NewHealthEntry>? list) =>
+            (list ?? new List<NewHealthEntry>())
+                .Where(x => !string.IsNullOrWhiteSpace(x.Name))
+                .Select(x =>
+                {
+                    var n = x.Name!.Trim();
+                    x.Name = n.Length > 100 ? n.Substring(0, 100) : n;
+                    return x;
+                })
+                .GroupBy(x => x.Name!.ToLowerInvariant())
+                .Select(g => g.First());
+
+        private async Task<Category> ResolveCategoryAsync(
+            NewHealthEntry e,
+            string type,
+            Dictionary<string, Category> cache)
+        {
+            if (e.CategoryId.HasValue)
+            {
+                var chosen = await _context.Categories
+                    .FirstOrDefaultAsync(c =>
+                        c.CategoryId == e.CategoryId.Value &&
+                        c.Type == type);
+
+                if (chosen != null) return chosen;
+            }
+
+            // No category picked: use a new one if typed, otherwise "Other"
+            var name = string.IsNullOrWhiteSpace(e.NewCategoryName)
+                ? "Other"
+                : e.NewCategoryName.Trim();
+
+            if (name.Length > 100) name = name.Substring(0, 100);
+
+            var key = type + "|" + name.ToLowerInvariant();
+
+            if (cache.TryGetValue(key, out var hit)) return hit;
+
+            var cat = await _context.Categories
+                .FirstOrDefaultAsync(c => c.Type == type && c.Name == name);
+
+            if (cat == null)
+            {
+                cat = new Category
+                {
+                    Name = name,
+                    Type = type,
+                    IsActive = true
+                };
+
+                _context.Categories.Add(cat);
+            }
+
+            cache[key] = cat;
+
+            return cat;
+        }
+
+        // Patients usually only know the name, so every field except
+        // Name is optional. Matching is by name, so nothing is duplicated.
+        private async Task AddNewEntriesAsync(
+            int patientId,
+            PatientProfileViewModel model)
+        {
+            var cache = new Dictionary<string, Category>();
+
+            // ---------- MEDICATIONS ----------
+            foreach (var e in UniqueNamed(model.NewMedications))
+            {
+                var name = e.Name!;
+
+                var med = await _context.Medications
+                    .FirstOrDefaultAsync(m => m.MedicationName == name);
+
+                if (med == null)
+                {
+                    med = new Medication
+                    {
+                        MedicationName = name,
+                        Description = name,
+                        IsActive = true,
+                        Category = await ResolveCategoryAsync(e, "Medication", cache)
+                    };
+
+                    _context.Medications.Add(med);
+                }
+
+                var link =
+                    _context.PatientMedications.Local.FirstOrDefault(x =>
+                        x.PatientID == patientId && x.Medication == med)
+                    ?? (med.MedicationId != 0
+                        ? await _context.PatientMedications.FirstOrDefaultAsync(x =>
+                            x.PatientID == patientId &&
+                            x.MedicationId == med.MedicationId)
+                        : null);
+
+                if (link == null)
+                {
+                    _context.PatientMedications.Add(new PatientMedication
+                    {
+                        PatientID = patientId,
+                        Medication = med,
+                        Dosage = Clean(e.Dosage),
+                        Frequency = Clean(e.Frequency),
+                        StartDate = ParseDate(e.StartDate),
+                        EndDate = ParseDate(e.EndDate),
+                        Notes = Clean(e.Notes)
+                    });
+                }
+                else
+                {
+                    link.Dosage = Clean(e.Dosage) ?? link.Dosage;
+                    link.Frequency = Clean(e.Frequency) ?? link.Frequency;
+                    link.StartDate = ParseDate(e.StartDate) ?? link.StartDate;
+                    link.EndDate = ParseDate(e.EndDate) ?? link.EndDate;
+                    link.Notes = Clean(e.Notes) ?? link.Notes;
+                }
+            }
+
+            // ---------- ALLERGIES ----------
+            foreach (var e in UniqueNamed(model.NewAllergies))
+            {
+                var name = e.Name!;
+
+                var allergy = await _context.Allergies
+                    .FirstOrDefaultAsync(a => a.AllergyName == name);
+
+                if (allergy == null)
+                {
+                    allergy = new Allergy
+                    {
+                        AllergyName = name,
+                        Description = name,
+                        IsActive = true,
+                        Category = await ResolveCategoryAsync(e, "Allergy", cache)
+                    };
+
+                    _context.Allergies.Add(allergy);
+                }
+
+                var link =
+                    _context.PatientAllergies.Local.FirstOrDefault(x =>
+                        x.PatientID == patientId && x.Allergy == allergy)
+                    ?? (allergy.AllergyId != 0
+                        ? await _context.PatientAllergies.FirstOrDefaultAsync(x =>
+                            x.PatientID == patientId &&
+                            x.AllergyId == allergy.AllergyId)
+                        : null);
+
+                if (link == null)
+                {
+                    _context.PatientAllergies.Add(new PatientAllergy
+                    {
+                        PatientID = patientId,
+                        Allergy = allergy,
+                        Severity = Clean(e.Severity),
+                        RecordedDate = ParseDate(e.StartDate) ?? DateTime.Today,
+                        Notes = Clean(e.Notes)
+                    });
+                }
+                else
+                {
+                    link.Severity = Clean(e.Severity) ?? link.Severity;
+                    link.Notes = Clean(e.Notes) ?? link.Notes;
+                }
+            }
+
+            // ---------- CONDITIONS ----------
+            foreach (var e in UniqueNamed(model.NewConditions))
+            {
+                var name = e.Name!;
+
+                var cond = await _context.MedicalConditions
+                    .FirstOrDefaultAsync(c => c.ConditionName == name);
+
+                if (cond == null)
+                {
+                    cond = new MedicalCondition
+                    {
+                        ConditionName = name,
+                        Description = name,
+                        IsActive = true,
+                        Category = await ResolveCategoryAsync(e, "MedicalCondition", cache)
+                    };
+
+                    _context.MedicalConditions.Add(cond);
+                }
+
+                var link =
+                    _context.PatientMedicalConditions.Local.FirstOrDefault(x =>
+                        x.PatientID == patientId && x.MedicalCondition == cond)
+                    ?? (cond.MedicalConditionId != 0
+                        ? await _context.PatientMedicalConditions.FirstOrDefaultAsync(x =>
+                            x.PatientID == patientId &&
+                            x.MedicalConditionId == cond.MedicalConditionId)
+                        : null);
+
+                if (link == null)
+                {
+                    _context.PatientMedicalConditions.Add(new PatientMedicalCondition
+                    {
+                        PatientID = patientId,
+                        MedicalCondition = cond,
+                        Severity = Clean(e.Severity),
+                        DiagnosisDate = ParseDate(e.StartDate),
+                        Notes = Clean(e.Notes)
+                    });
+                }
+                else
+                {
+                    link.Severity = Clean(e.Severity) ?? link.Severity;
+                    link.DiagnosisDate = ParseDate(e.StartDate) ?? link.DiagnosisDate;
+                    link.Notes = Clean(e.Notes) ?? link.Notes;
+                }
+            }
         }
 
         // ============================================================
         // GET SELECTED MEDICAL CONDITIONS
+        // (read from the junction table)
         // ============================================================
 
         private async Task<List<int>> GetSelectedMedicalConditionIds(
             Patient patient)
         {
-            if (string.IsNullOrWhiteSpace(patient.MedicalConditions) ||
-                patient.MedicalConditions.Equals(
-                    "None",
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return new List<int>();
-            }
-
-            var names = SplitValues(patient.MedicalConditions);
-
-            return await _context.MedicalConditions
+            return await _context.PatientMedicalConditions
                 .Where(x =>
-                    x.IsActive &&
-                    names.Contains(x.ConditionName))
+                    x.PatientID == patient.PatientID &&
+                    x.MedicalCondition!.IsActive)
                 .Select(x => x.MedicalConditionId)
                 .ToListAsync();
         }
 
         // ============================================================
         // GET SELECTED ALLERGIES
+        // (read from the junction table)
         // ============================================================
 
         private async Task<List<int>> GetSelectedAllergyIds(
             Patient patient)
         {
-            if (string.IsNullOrWhiteSpace(patient.Allergies) ||
-                patient.Allergies.Equals(
-                    "None",
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return new List<int>();
-            }
-
-            var names = SplitValues(patient.Allergies);
-
-            return await _context.Allergies
+            return await _context.PatientAllergies
                 .Where(x =>
-                    x.IsActive &&
-                    names.Contains(x.AllergyName))
+                    x.PatientID == patient.PatientID &&
+                    x.Allergy!.IsActive)
                 .Select(x => x.AllergyId)
                 .ToListAsync();
         }
 
         // ============================================================
         // GET SELECTED MEDICATIONS
+        // (read from the junction table)
         // ============================================================
 
         private async Task<List<int>> GetSelectedMedicationIds(
             Patient patient)
         {
-            if (string.IsNullOrWhiteSpace(patient.Medication) ||
-                patient.Medication.Equals(
-                    "None",
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return new List<int>();
-            }
-
-            var names = SplitValues(patient.Medication);
-
-            return await _context.Medications
+            return await _context.PatientMedications
                 .Where(x =>
-                    x.IsActive &&
-                    names.Contains(x.MedicationName))
+                    x.PatientID == patient.PatientID &&
+                    x.Medication!.IsActive)
                 .Select(x => x.MedicationId)
                 .ToListAsync();
+        }
+
+        // ============================================================
+        // SYNC MEDICAL CONDITIONS (junction table)
+        // Removes only patient-entered rows that were unticked.
+        // Doctor-recorded rows and rows for soft-deleted lookup
+        // items are left untouched.
+        // ============================================================
+
+        private async Task SyncConditionsAsync(
+            int patientId,
+            List<int>? selectedIds)
+        {
+            var activeIds = await _context.MedicalConditions
+                .Where(x => x.IsActive)
+                .Select(x => x.MedicalConditionId)
+                .ToListAsync();
+
+            var wanted = (selectedIds ?? new List<int>())
+                .Intersect(activeIds)
+                .ToHashSet();
+
+            var existing = await _context.PatientMedicalConditions
+                .Where(x => x.PatientID == patientId)
+                .ToListAsync();
+
+            _context.PatientMedicalConditions.RemoveRange(
+                existing.Where(e =>
+                    activeIds.Contains(e.MedicalConditionId) &&
+                    !wanted.Contains(e.MedicalConditionId) &&
+                    e.RecordedByDoctorId == null));
+
+            var have = existing
+                .Select(e => e.MedicalConditionId)
+                .ToHashSet();
+
+            foreach (var id in wanted.Where(id => !have.Contains(id)))
+            {
+                _context.PatientMedicalConditions.Add(
+                    new PatientMedicalCondition
+                    {
+                        PatientID = patientId,
+                        MedicalConditionId = id
+                    });
+            }
+        }
+
+        // ============================================================
+        // SYNC ALLERGIES (junction table)
+        // ============================================================
+
+        private async Task SyncAllergiesAsync(
+            int patientId,
+            List<int>? selectedIds)
+        {
+            var activeIds = await _context.Allergies
+                .Where(x => x.IsActive)
+                .Select(x => x.AllergyId)
+                .ToListAsync();
+
+            var wanted = (selectedIds ?? new List<int>())
+                .Intersect(activeIds)
+                .ToHashSet();
+
+            var existing = await _context.PatientAllergies
+                .Where(x => x.PatientID == patientId)
+                .ToListAsync();
+
+            _context.PatientAllergies.RemoveRange(
+                existing.Where(e =>
+                    activeIds.Contains(e.AllergyId) &&
+                    !wanted.Contains(e.AllergyId) &&
+                    e.RecordedByDoctorId == null));
+
+            var have = existing
+                .Select(e => e.AllergyId)
+                .ToHashSet();
+
+            foreach (var id in wanted.Where(id => !have.Contains(id)))
+            {
+                _context.PatientAllergies.Add(
+                    new PatientAllergy
+                    {
+                        PatientID = patientId,
+                        AllergyId = id,
+                        RecordedDate = DateTime.Today
+                    });
+            }
+        }
+
+        // ============================================================
+        // SYNC MEDICATIONS (junction table)
+        // ============================================================
+
+        private async Task SyncMedicationsAsync(
+            int patientId,
+            List<int>? selectedIds)
+        {
+            var activeIds = await _context.Medications
+                .Where(x => x.IsActive)
+                .Select(x => x.MedicationId)
+                .ToListAsync();
+
+            var wanted = (selectedIds ?? new List<int>())
+                .Intersect(activeIds)
+                .ToHashSet();
+
+            var existing = await _context.PatientMedications
+                .Where(x => x.PatientID == patientId)
+                .ToListAsync();
+
+            _context.PatientMedications.RemoveRange(
+                existing.Where(e =>
+                    activeIds.Contains(e.MedicationId) &&
+                    !wanted.Contains(e.MedicationId) &&
+                    e.RecordedByDoctorId == null));
+
+            var have = existing
+                .Select(e => e.MedicationId)
+                .ToHashSet();
+
+            foreach (var id in wanted.Where(id => !have.Contains(id)))
+            {
+                _context.PatientMedications.Add(
+                    new PatientMedication
+                    {
+                        PatientID = patientId,
+                        MedicationId = id
+                    });
+            }
         }
 
         // ============================================================
@@ -708,6 +1097,7 @@ namespace LabDash.Controllers
 
             request.ReleaseDate = null;
 
+            _audit.Log("Cancelled", "Test Requests", $"Patient '{patient.Name} {patient.Surname}' cancelled request #{requestId}.");
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = $"Request #{requestId} was cancelled.";
@@ -1188,7 +1578,7 @@ namespace LabDash.Controllers
                         });
                 }
             }
-
+            _audit.Log("Consent Granted", "Consent", $"Patient '{patient.Name} {patient.Surname}' granted Dr. {doctorUser?.FirstName} {doctorUser?.LastName} access to {validItemIds.Count} test item(s).");
             await _context.SaveChangesAsync();
 
             // Notify doctor by email
@@ -1254,7 +1644,7 @@ namespace LabDash.Controllers
 
                 _context.ConsentItemAccesses.RemoveRange(
                     consent.ConsentItemAccesses);
-
+                _audit.Log("Consent Revoked", "Consent", $"Patient '{patient.Name} {patient.Surname}' revoked all access for consent #{consentId}.");
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = "Access revoked.";
@@ -1291,7 +1681,7 @@ namespace LabDash.Controllers
             if (access != null)
             {
                 _context.ConsentItemAccesses.Remove(access);
-
+                _audit.Log("Consent Revoked", "Consent", $"Patient '{patient.Name} {patient.Surname}' revoked access to one test (access #{consentItemAccessId}).");
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] =

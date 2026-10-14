@@ -1,0 +1,659 @@
+﻿@*
+    _Popups.cshtml  -  shared popup system for LabDash
+    ------------------------------------------------------------
+    Render ONCE in _SystemLayout.cshtml, just before </body>:
+
+        @await Html.PartialAsync("_Popups")
+
+    Gives every page:
+      CsPopup.confirm({...})   -> Promise<boolean>
+      CsPopup.notice({...})    -> Promise<void>
+      CsPopup.toast(msg, type) -> slide-in toast ('success' | 'error' | 'info')
+      data-cs-confirm="..."    -> put on any <form> or <a> to ask first
+      data-cs-toast="success"  -> hidden server-side toast source
+*@
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- ============ MODAL ============ -->
+<div class="pp-overlay" id="ppOverlay" hidden>
+    <div class="pp-dialog" id="ppDialog" role="dialog" aria-modal="true" aria-labelledby="ppTitle" aria-describedby="ppMsg" data-tone="neutral">
+        <div class="pp-icon">
+            <span class="pp-ring"></span>
+            <i class="fa-solid fa-circle-question" id="ppIcon"></i>
+        </div>
+        <h2 class="pp-title" id="ppTitle"></h2>
+        <p class="pp-msg" id="ppMsg"></p>
+        <div class="pp-choices" id="ppChoices" hidden></div>
+        <div class="pp-actions">
+            <button type="button" class="pp-btn pp-btn-ghost" id="ppCancel">Cancel</button>
+            <button type="button" class="pp-btn pp-btn-main" id="ppOk">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ TOAST STACK ============ -->
+<div class="pp-toasts" id="ppToasts" aria-live="polite" aria-atomic="false"></div>
+
+<style>
+    :root {
+        --pp-ink: #102C27;
+        --pp-ink-soft: #52716C;
+        --pp-line: #E1EEEC;
+        --pp-line-strong: #CCE3DF;
+        --pp-teal: #0E8C7F;
+        --pp-teal-deep: #0A5850;
+        --pp-teal-dim: #E3F4F1;
+        --pp-grad-a: #12A392;
+        --pp-grad-b: #0A4F48;
+        --pp-red: #B3413B;
+        --pp-red-deep: #8F302B;
+        --pp-red-dim: #FDF3F2;
+        --pp-red-line: #E4B8B4;
+        --pp-amber: #A8690B;
+        --pp-amber-dim: #FFF6E5;
+        --pp-amber-line: #F0D49A;
+    }
+
+    /* ---------- overlay + dialog ---------- */
+    .pp-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(10, 44, 39, .46);
+        -webkit-backdrop-filter: blur(3px);
+        backdrop-filter: blur(3px);
+        opacity: 0;
+        transition: opacity .18s ease;
+    }
+
+        .pp-overlay[hidden] {
+            display: none;
+        }
+
+        .pp-overlay.is-open {
+            opacity: 1;
+        }
+
+    .pp-dialog {
+        width: min(400px, 100%);
+        background: #fff;
+        border-radius: 20px;
+        padding: 34px 28px 24px;
+        text-align: center;
+        font-family: 'Inter', sans-serif;
+        color: var(--pp-ink);
+        box-shadow: 0 24px 60px rgba(10, 60, 55, .28);
+        transform: translateY(10px) scale(.96);
+        transition: transform .22s cubic-bezier(.2, .9, .3, 1.2);
+    }
+
+    .pp-overlay.is-open .pp-dialog {
+        transform: none;
+    }
+
+    /* ---------- icon (reuses the banner's pulsing ring) ---------- */
+    .pp-icon {
+        position: relative;
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        background: var(--pp-teal-dim);
+        color: var(--pp-teal);
+    }
+
+    .pp-ring {
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        border: 1.5px solid var(--pp-teal);
+        opacity: 0;
+        animation: ppRing 2.4s ease-out infinite;
+    }
+
+    @@keyframes ppRing {
+        0% {
+            transform: scale(.9);
+            opacity: .7;
+        }
+
+        100% {
+            transform: scale(1.35);
+            opacity: 0;
+        }
+    }
+
+    .pp-title {
+        margin: 0 0 8px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 19px;
+        letter-spacing: -.01em;
+    }
+
+    .pp-msg {
+        margin: 0 auto 26px;
+        max-width: 320px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--pp-ink-soft);
+    }
+
+    /* ---------- buttons ---------- */
+    .pp-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .pp-btn {
+        flex: 1;
+        padding: 13px 16px;
+        border-radius: 13px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        border: 1.5px solid transparent;
+        transition: background .2s, border-color .2s, transform .15s, box-shadow .2s;
+    }
+
+        .pp-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 4px var(--pp-teal-dim), 0 0 0 5.5px var(--pp-teal);
+        }
+
+        .pp-btn:active {
+            transform: scale(.98);
+        }
+
+    .pp-btn-ghost {
+        background: #fff;
+        border-color: var(--pp-line-strong);
+        color: var(--pp-ink-soft);
+    }
+
+        .pp-btn-ghost:hover {
+            background: #F0F7F6;
+            border-color: var(--pp-teal);
+            color: var(--pp-ink);
+        }
+
+    .pp-btn-main {
+        background: linear-gradient(120deg, var(--pp-grad-a), var(--pp-grad-b));
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(10, 90, 80, .22);
+    }
+
+        .pp-btn-main:hover {
+            box-shadow: 0 10px 22px rgba(10, 90, 80, .3);
+        }
+
+    /* ---------- action choices (choose popup) ---------- */
+    .pp-choices {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: -8px 0 18px;
+        text-align: left;
+    }
+
+        .pp-choices[hidden] {
+            display: none;
+        }
+
+    .pp-choice {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 13px;
+        border: 1.5px solid var(--pp-line-strong);
+        background: #fff;
+        color: var(--pp-ink);
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 13.5px;
+        cursor: pointer;
+        transition: background .15s, border-color .15s;
+    }
+
+        .pp-choice i {
+            width: 18px;
+            text-align: center;
+            color: var(--pp-teal);
+        }
+
+        .pp-choice:hover {
+            background: var(--pp-teal-dim);
+            border-color: var(--pp-teal);
+        }
+
+        .pp-choice[data-tone="warn"] i {
+            color: var(--pp-amber);
+        }
+
+        .pp-choice[data-tone="warn"]:hover {
+            background: var(--pp-amber-dim);
+            border-color: var(--pp-amber-line);
+        }
+
+        .pp-choice[data-tone="danger"] i {
+            color: var(--pp-red);
+        }
+
+        .pp-choice[data-tone="danger"]:hover {
+            background: var(--pp-red-dim);
+            border-color: var(--pp-red-line);
+        }
+
+        .pp-choice:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 4px var(--pp-teal-dim), 0 0 0 5.5px var(--pp-teal);
+        }
+
+    /* ---------- tones ---------- */
+    .pp-dialog[data-tone="danger"] .pp-icon {
+        background: var(--pp-red-dim);
+        color: var(--pp-red);
+    }
+
+    .pp-dialog[data-tone="danger"] .pp-ring {
+        border-color: var(--pp-red);
+    }
+
+    .pp-dialog[data-tone="danger"] .pp-btn-main {
+        background: var(--pp-red);
+        box-shadow: 0 8px 18px rgba(179, 65, 59, .25);
+    }
+
+        .pp-dialog[data-tone="danger"] .pp-btn-main:hover {
+            background: var(--pp-red-deep);
+        }
+
+    .pp-dialog[data-tone="danger"] .pp-btn:focus-visible {
+        box-shadow: 0 0 0 4px var(--pp-red-dim), 0 0 0 5.5px var(--pp-red);
+    }
+
+    .pp-dialog[data-tone="warn"] .pp-icon {
+        background: var(--pp-amber-dim);
+        color: var(--pp-amber);
+    }
+
+    .pp-dialog[data-tone="warn"] .pp-ring {
+        border-color: var(--pp-amber);
+    }
+
+    /* ---------- toasts ---------- */
+    .pp-toasts {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10001;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: min(360px, calc(100vw - 32px));
+        pointer-events: none;
+    }
+
+    .pp-toast {
+        --t: var(--pp-teal);
+        --t-dim: var(--pp-teal-dim);
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 12px 16px 14px;
+        background: #fff;
+        border-radius: 14px;
+        border-left: 4px solid var(--t);
+        box-shadow: 0 12px 30px rgba(10, 60, 55, .16);
+        font-family: 'Inter', sans-serif;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--pp-ink);
+        overflow: hidden;
+        pointer-events: auto;
+        animation: ppToastIn .35s cubic-bezier(.2, .9, .3, 1.1);
+        transition: opacity .2s, transform .2s;
+    }
+
+    .pp-toast--error {
+        --t: var(--pp-red);
+        --t-dim: var(--pp-red-dim);
+    }
+
+    .pp-toast--info {
+        --t: var(--pp-amber);
+        --t-dim: var(--pp-amber-dim);
+    }
+
+    .pp-toast.is-leaving {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+
+    @@keyframes ppToastIn {
+        from {
+            opacity: 0;
+            transform: translateX(32px);
+        }
+
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    .pp-toast-icon {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        background: var(--t-dim);
+        color: var(--t);
+    }
+
+    .pp-toast-text {
+        flex: 1;
+        line-height: 1.45;
+    }
+
+    .pp-toast-close {
+        border: none;
+        background: transparent;
+        color: #8FA9A3;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+
+        .pp-toast-close:hover {
+            background: var(--pp-teal-dim);
+            color: var(--pp-ink);
+        }
+
+    .pp-toast-bar {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 100%;
+        background: var(--t);
+        opacity: .55;
+        transform-origin: left;
+        animation: ppBar linear forwards;
+    }
+
+    .pp-toast:hover .pp-toast-bar {
+        animation-play-state: paused;
+    }
+
+    @@keyframes ppBar {
+        from {
+            transform: scaleX(1);
+        }
+
+        to {
+            transform: scaleX(0);
+        }
+    }
+
+    @@media (max-width: 560px) {
+        .pp-toasts {
+            top: 12px;
+            right: 16px;
+        }
+
+        .pp-dialog {
+            padding: 28px 20px 20px;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .pp-ring {
+            animation: none;
+        }
+
+        .pp-dialog, .pp-overlay, .pp-toast {
+            transition: none;
+            animation: none;
+        }
+    }
+</style>
+
+<script>
+    (function () {
+        if (window.CsPopup) return;
+
+        var overlay = document.getElementById('ppOverlay');
+        var dialog = document.getElementById('ppDialog');
+        var iconEl = document.getElementById('ppIcon');
+        var titleEl = document.getElementById('ppTitle');
+        var msgEl = document.getElementById('ppMsg');
+        var okBtn = document.getElementById('ppOk');
+        var cancelBtn = document.getElementById('ppCancel');
+        var toasts = document.getElementById('ppToasts');
+        var choicesEl = document.getElementById('ppChoices');
+
+        var resolver = null;
+        var lastFocus = null;
+        var hideTimer = null;
+
+        var DEFAULT_ICONS = {
+            danger: 'fa-triangle-exclamation',
+            warn: 'fa-circle-exclamation',
+            neutral: 'fa-circle-question'
+        };
+
+        function open(o) {
+            return new Promise(function (resolve) {
+                if (resolver) finish(false);
+                clearTimeout(hideTimer);
+
+                resolver = resolve;
+                lastFocus = document.activeElement;
+
+                var tone = o.tone || 'neutral';
+                dialog.setAttribute('data-tone', tone);
+                iconEl.className = 'fa-solid ' + (o.icon || DEFAULT_ICONS[tone] || DEFAULT_ICONS.neutral);
+                titleEl.textContent = o.title || 'Are you sure?';
+                msgEl.textContent = o.message || '';
+                okBtn.textContent = o.okText || 'Confirm';
+                cancelBtn.textContent = o.cancelText || 'Cancel';
+                cancelBtn.hidden = !!o.single;
+
+                // optional list of actions (see CsPopup.choose)
+                var choices = o.choices || null;
+                choicesEl.innerHTML = '';
+                choicesEl.hidden = !choices;
+                okBtn.hidden = !!choices;
+                if (choices) {
+                    choices.forEach(function (c) {
+                        var b = document.createElement('button');
+                        b.type = 'button';
+                        b.className = 'pp-choice';
+                        if (c.tone) b.setAttribute('data-tone', c.tone);
+                        var i = document.createElement('i');
+                        i.className = 'fa-solid ' + (c.icon || 'fa-circle');
+                        var t = document.createElement('span');
+                        t.textContent = c.label;
+                        b.appendChild(i);
+                        b.appendChild(t);
+                        b.addEventListener('click', function () { finish(c.value); });
+                        choicesEl.appendChild(b);
+                    });
+                }
+
+                overlay.hidden = false;
+                void overlay.offsetWidth; // let the transition run
+                overlay.classList.add('is-open');
+
+                // danger actions default focus to the safe choice
+                var firstChoice = choicesEl.querySelector('.pp-choice');
+                (firstChoice || (o.single || tone !== 'danger' ? okBtn : cancelBtn)).focus();
+            });
+        }
+
+        function finish(result) {
+            var r = resolver;
+            resolver = null;
+            overlay.classList.remove('is-open');
+            hideTimer = setTimeout(function () { overlay.hidden = true; }, 200);
+            if (lastFocus && lastFocus.focus) lastFocus.focus();
+            if (r) r(result);
+        }
+
+        okBtn.addEventListener('click', function () { finish(true); });
+        cancelBtn.addEventListener('click', function () { finish(false); });
+        overlay.addEventListener('mousedown', function (e) {
+            if (e.target === overlay) finish(false);
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (!resolver) return;
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                finish(false);
+            } else if (e.key === 'Tab') {
+                var btns = Array.prototype.slice.call(dialog.querySelectorAll('button')).filter(function (b) { return !b.hidden; });
+                var first = btns[0], last = btns[btns.length - 1];
+                if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }
+        });
+
+        /* ---------- toasts ---------- */
+        var TOAST_ICONS = {
+            success: 'fa-check',
+            error: 'fa-triangle-exclamation',
+            info: 'fa-circle-info'
+        };
+
+        function toast(message, type, ms) {
+            type = TOAST_ICONS[type] ? type : 'success';
+            ms = ms || (type === 'error' ? 8000 : 5000);
+
+            var el = document.createElement('div');
+            el.className = 'pp-toast pp-toast--' + type;
+            el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+
+            var icon = document.createElement('div');
+            icon.className = 'pp-toast-icon';
+            icon.innerHTML = '<i class="fa-solid ' + TOAST_ICONS[type] + '"></i>';
+
+            var text = document.createElement('div');
+            text.className = 'pp-toast-text';
+            text.textContent = message;
+
+            var close = document.createElement('button');
+            close.type = 'button';
+            close.className = 'pp-toast-close';
+            close.setAttribute('aria-label', 'Dismiss');
+            close.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+
+            var bar = document.createElement('div');
+            bar.className = 'pp-toast-bar';
+            bar.style.animationDuration = ms + 'ms';
+
+            el.appendChild(icon);
+            el.appendChild(text);
+            el.appendChild(close);
+            el.appendChild(bar);
+            toasts.appendChild(el);
+
+            function dismiss() {
+                if (el.classList.contains('is-leaving')) return;
+                el.classList.add('is-leaving');
+                setTimeout(function () { el.remove(); }, 220);
+            }
+            close.addEventListener('click', dismiss);
+            bar.addEventListener('animationend', dismiss);
+        }
+
+        /* ---------- public API ---------- */
+        window.CsPopup = {
+            confirm: function (o) { return open(o || {}); },
+            // choose({title, message, icon, choices:[{value,label,icon,tone}]}) -> value, or null if cancelled
+            choose: function (o) {
+                return open(o || {}).then(function (v) { return v === false ? null : v; });
+            },
+            notice: function (o) {
+                o = o || {};
+                return open({
+                    title: o.title || 'Heads up',
+                    message: o.message,
+                    okText: o.okText || 'Got it',
+                    tone: o.tone || 'warn',
+                    icon: o.icon,
+                    single: true
+                }).then(function () { });
+            },
+            toast: toast
+        };
+
+        /* ---------- declarative: data-cs-confirm on forms and links ---------- */
+        function optsFrom(el) {
+            var d = el.dataset;
+            return {
+                title: d.csTitle,
+                message: d.csConfirm,
+                okText: d.csYes,
+                cancelText: d.csNo,
+                tone: d.csTone,
+                icon: d.csIcon
+            };
+        }
+
+        // capture phase so we run before any other submit handlers
+        document.addEventListener('submit', function (e) {
+            var f = e.target;
+            if (!(f instanceof HTMLFormElement) || !f.hasAttribute('data-cs-confirm')) return;
+            e.preventDefault();
+            open(optsFrom(f)).then(function (ok) {
+                if (ok) f.submit(); // submit() does not re-fire the submit event
+            });
+        }, true);
+
+        document.addEventListener('click', function (e) {
+            var a = e.target.closest ? e.target.closest('a[data-cs-confirm]') : null;
+            if (!a) return;
+            e.preventDefault();
+            open(optsFrom(a)).then(function (ok) {
+                if (ok) window.location.href = a.href;
+            });
+        });
+
+        /* ---------- server-side messages (TempData) -> toasts ---------- */
+        function showServerToasts() {
+            document.querySelectorAll('[data-cs-toast]').forEach(function (n) {
+                var msg = (n.textContent || '').trim();
+                if (msg) toast(msg, n.getAttribute('data-cs-toast'));
+                n.remove();
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', showServerToasts);
+        } else {
+            showServerToasts();
+        }
+    })();
+</script>

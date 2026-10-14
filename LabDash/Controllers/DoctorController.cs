@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
+using LabDash.Services;
 
 namespace LabDash.Controllers
 {
@@ -17,17 +18,22 @@ namespace LabDash.Controllers
         private readonly UserManager<LabUser> _userManager;
         private readonly SignInManager<LabUser> _signInManager;
         private readonly IEmailSender _emailSender;
+        private readonly IAuditService _audit;
 
         public DoctorController(
             LabDbContext context,
             UserManager<LabUser> userManager,
             SignInManager<LabUser> signInManager,
-            IEmailSender emailSender)
+            IEmailSender emailSender, IAuditService audit)
+
+
+
         {
             _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
             _emailSender = emailSender;
+            _audit = audit;
         }
 
         // =========================================================
@@ -232,6 +238,7 @@ namespace LabDash.Controllers
             };
 
             _context.Patients.Add(newPatient);
+            _audit.Log("Created", "Patients", $"Registered patient '{name} {surname}'.");
 
             try
             {

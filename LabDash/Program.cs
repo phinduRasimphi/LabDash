@@ -28,6 +28,8 @@ builder.Services.AddScoped<IEmailSender, EmailSender>();
 builder.Services.AddScoped<IEmailAttachmentSender, EmailSender>();
 builder.Services.AddScoped<IVerifiedResultsPdfGenerator, VerifiedResultsPdfGenerator>();
 builder.Services.AddScoped<IVerifiedResultsNotificationService, VerifiedResultsNotificationService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAuditService, LabDash.Services.AuditService>();
 
 var app = builder.Build();
 

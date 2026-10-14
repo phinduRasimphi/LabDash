@@ -94,7 +94,13 @@
                                         Granted @grant.GrantedDate.ToString("dd MMM yyyy")
                                     </p>
                                 </div>
-                                <form asp-action="RevokeConsent" method="post" onsubmit="return confirm('Revoke all access for this doctor?');">
+
+                                <form asp-action="RevokeConsent" method="post"
+                                      data-cs-confirm="This doctor will immediately lose access to all the tests you've shared with them."
+                                      data-cs-title="Revoke all access?"
+                                      data-cs-yes="Revoke all"
+                                      data-cs-tone="danger"
+                                      data-cs-icon="fa-ban">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="consentId" value="@grant.ConsentID" />
                                     <button type="submit" class="cs-revoke-btn">
@@ -112,7 +118,11 @@
                                             @foreach (var item in group)
                                             {
                                                 <form asp-action="RevokeItemAccess" method="post" class="cs-item-tag-form"
-                                                      onsubmit="return confirm('Revoke access to @item.TestName?');">
+                                                      data-cs-confirm="The doctor will no longer be able to see @item.TestName."
+                                                      data-cs-title="Revoke this test?"
+                                                      data-cs-yes="Revoke"
+                                                      data-cs-tone="danger"
+                                                      data-cs-icon="fa-ban">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="consentItemAccessId" value="@item.ConsentItemAccessID" />
                                                     <button type="submit" class="cs-item-tag" title="Revoke @item.TestName">
@@ -986,14 +996,39 @@
 
             if (!hasDoctor) {
                 e.preventDefault();
-                alert('Please select a doctor.');
+                CsPopup.notice({
+                    title: 'Choose a doctor',
+                    message: 'Select the doctor you want to share your results with.',
+                    icon: 'fa-user-doctor'
+                });
                 return;
             }
 
-            if (getCheckedItems().length === 0) {
+            const count = getCheckedItems().length;
+            if (count === 0) {
                 e.preventDefault();
-                alert('Please select at least one test to share.');
+                CsPopup.notice({
+                    title: 'No tests selected',
+                    message: 'Tick at least one test to share with this doctor.',
+                    icon: 'fa-flask'
+                });
+                return;
             }
+
+            // Everything is valid: ask before granting
+            e.preventDefault();
+            const doctorName = doctorSelect.options[doctorSelect.selectedIndex].text.split('\u2014')[0].trim();
+
+            CsPopup.confirm({
+                title: 'Grant access?',
+                message: doctorName + ' will be able to see ' + count + (count === 1 ? ' test' : ' tests') +
+                    ' and will be notified. You can revoke this at any time.',
+                okText: 'Grant access',
+                tone: 'neutral',
+                icon: 'fa-user-check'
+            }).then(function(ok) {
+                if (ok) form.submit();
+            });
         });
 
         refreshButtonState();

@@ -981,7 +981,49 @@ namespace LabDash.Controllers
 
             return RedirectToAction(nameof(SystemTables));
         }
+        [HttpPost]
+        public IActionResult DeactivateUnit(int id)
+        {
+            var item = _context.Units.Find(id);
 
+            if (item != null)
+            {
+                item.IsActive = false;
+
+                AddAuditLog(
+                    "Deactivated",
+                    "Units",
+                    $"Deactivated unit '{item.Name}'.");
+
+                _context.SaveChanges();
+
+                TempData["Success"] = "Unit deactivated.";
+            }
+
+            return RedirectToAction(nameof(SystemTables));
+        }
+
+        [HttpPost]
+        public IActionResult ReactivateUnit(int id)
+        {
+            var item = _context.Units.Find(id);
+
+            if (item != null)
+            {
+                item.IsActive = true;
+
+                AddAuditLog(
+                    "Reactivated",
+                    "Units",
+                    $"Reactivated unit '{item.Name}'.");
+
+                _context.SaveChanges();
+
+                TempData["Success"] = "Unit reactivated.";
+            }
+
+            return RedirectToAction(nameof(SystemTables));
+        }
         // ==========================================================
         // ADMIN PROFILE - GET
         // ==========================================================

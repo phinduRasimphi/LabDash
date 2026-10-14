@@ -20,6 +20,7 @@ namespace LabDash.Controllers
         private readonly SignInManager<LabUser> _signInManager;
         private readonly IEmailSender _emailSender;
         private readonly NotificationService _notifications;
+        private readonly IAuditService _audit;
 
         public AccountController(
             LabDbContext dbContext,
@@ -28,7 +29,8 @@ namespace LabDash.Controllers
             IUserStore<LabUser> userStore,
             IEmailSender emailSender,
             SignInManager<LabUser> signInManager,
-            NotificationService notifications)
+            NotificationService notifications,
+            IAuditService audit)
         {
             _userManager = userManager;
             _context = dbContext;
@@ -37,6 +39,7 @@ namespace LabDash.Controllers
             _emailSender = emailSender;
             _signInManager = signInManager;
             _notifications = notifications;
+            _audit = audit;
         }
 
         // ============================================================
@@ -84,6 +87,20 @@ namespace LabDash.Controllers
 
                     if (result.Succeeded)
                     {
+                        // ------------------------------------------------
+                        // AUDIT: SUCCESSFUL LOGIN
+                        // (the user is not authenticated on this request
+                        //  yet, so the name is passed in explicitly)
+                        // ------------------------------------------------
+
+                        _audit.LogAs(
+                            user.Email ?? model.Email,
+                            "Login",
+                            "Account",
+                            "Signed in.");
+
+                        await _context.SaveChangesAsync();
+
                         TempData["SuccessMessage"] =
                             "Welcome to your work environment!";
 
@@ -200,6 +217,20 @@ namespace LabDash.Controllers
                             "Index",
                             "Home");
                     }
+
+                    // ------------------------------------------------
+                    // AUDIT: FAILED LOGIN / LOCKOUT
+                    // ------------------------------------------------
+
+                    _audit.LogAs(
+                        user.Email ?? model.Email,
+                        result.IsLockedOut ? "Account Locked" : "Login Failed",
+                        "Account",
+                        result.IsLockedOut
+                            ? "Account locked after repeated failed sign-ins."
+                            : "Incorrect password.");
+
+                    await _context.SaveChangesAsync();
 
                     // ------------------------------------------------
                     // LOGIN FAILED
@@ -581,6 +612,18 @@ Here's to healthier days ahead,
 
             if (result.Succeeded)
             {
+                // ------------------------------------------------
+                // AUDIT: PASSWORD RESET
+                // ------------------------------------------------
+
+                _audit.LogAs(
+                    user.Email ?? model.Email,
+                    "Password Reset",
+                    "Account",
+                    "Password reset via emailed link.");
+
+                await _context.SaveChangesAsync();
+
                 return RedirectToAction(
                     nameof(ResetPasswordConfirmation));
             }
@@ -656,6 +699,17 @@ Here's to healthier days ahead,
             {
                 // Keep the user signed in after changing password.
                 await _signInManager.RefreshSignInAsync(user);
+
+                // ----------------------------------------------------
+                // AUDIT: PASSWORD CHANGED
+                // ----------------------------------------------------
+
+                _audit.Log(
+                    "Password Changed",
+                    "Account",
+                    "User changed their password.");
+
+                await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] =
                     "Your password has been changed successfully.";
@@ -756,6 +810,20 @@ Here's to healthier days ahead,
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
+            // Log BEFORE signing out, while the user name is still known.
+            var who = User.Identity?.Name;
+
+            if (!string.IsNullOrEmpty(who))
+            {
+                _audit.LogAs(
+                    who,
+                    "Logout",
+                    "Account",
+                    "Signed out.");
+
+                await _context.SaveChangesAsync();
+            }
+
             await _signInManager.SignOutAsync();
 
             return RedirectToAction(
@@ -1162,6 +1230,17 @@ Here's to healthier days ahead,
                 }
             }
 
+            // ========================================================
+            // AUDIT: NEW PATIENT SELF-REGISTERED
+            // (saved together with the medical rows below)
+            // ========================================================
+
+            _audit.LogAs(
+                model.Email,
+                "Created",
+                "Patients",
+                $"New patient '{model.Name} {model.Surname}' self-registered.");
+
             await _context.SaveChangesAsync();
 
             // ========================================================
@@ -1334,9 +1413,24 @@ Here's to healthier days ahead,
                     user,
                     Uri.UnescapeDataString(code));
 
-            return result.Succeeded
-                ? View("EmailConfirmed")
-                : View("Error");
+            if (result.Succeeded)
+            {
+                // ----------------------------------------------------
+                // AUDIT: EMAIL CONFIRMED
+                // ----------------------------------------------------
+
+                _audit.LogAs(
+                    user.Email ?? "Unknown",
+                    "Email Confirmed",
+                    "Account",
+                    "Confirmed email address.");
+
+                await _context.SaveChangesAsync();
+
+                return View("EmailConfirmed");
+            }
+
+            return View("Error");
         }
     }
 }

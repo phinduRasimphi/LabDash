@@ -188,7 +188,12 @@
                             <form asp-action="DeactivateCategory"
                                   method="post"
                                   class="adm-chip-form"
-                                  data-name="@cat.Name.ToLower()">
+                                  data-name="@cat.Name.ToLower()"
+                                  data-cs-confirm="Archive @(cat.Name)? It will move to the Archived tab and can be restored any time."
+                                  data-cs-title="Archive category?"
+                                  data-cs-yes="Archive"
+                                  data-cs-tone="warn"
+                                  data-cs-icon="fa-box-archive">
 
                                 @Html.AntiForgeryToken()
 
@@ -199,9 +204,12 @@
                                 <span class="adm-chip"
                                       data-category="@cat.Name">
 
-                                    <span class="adm-chip-name">
+                                    <button type="button"
+                                            class="adm-chip-name"
+                                            data-name="@cat.Name"
+                                            onclick="openCategoryActions(this, 'active')">
                                         @cat.Name
-                                    </span>
+                                    </button>
 
                                     <button type="submit"
                                             class="adm-chip-rm"
@@ -246,7 +254,11 @@
                             <form asp-action="ReactivateCategory"
                                   method="post"
                                   class="adm-chip-form"
-                                  data-name="@cat.Name.ToLower()">
+                                  data-name="@cat.Name.ToLower()"
+                                  data-cs-confirm="Restore @(cat.Name)? It will go back to the Active list."
+                                  data-cs-title="Restore category?"
+                                  data-cs-yes="Restore"
+                                  data-cs-icon="fa-rotate-left">
 
                                 @Html.AntiForgeryToken()
 
@@ -257,9 +269,12 @@
                                 <span class="adm-chip adm-chip-muted"
                                       data-category="@cat.Name">
 
-                                    <span class="adm-chip-name">
+                                    <button type="button"
+                                            class="adm-chip-name"
+                                            data-name="@cat.Name"
+                                            onclick="openCategoryActions(this, 'archived')">
                                         @cat.Name
-                                    </span>
+                                    </button>
 
                                     <button type="submit"
                                             class="adm-chip-rm"
@@ -325,7 +340,11 @@
 
             <form asp-action="AddCategory"
                   method="post"
-                  class="adm-inline-form">
+                  class="adm-inline-form"
+                  data-cs-confirm="Add this new category to the condition list?"
+                  data-cs-title="Add category?"
+                  data-cs-yes="Add category"
+                  data-cs-icon="fa-folder-plus">
 
                 @Html.AntiForgeryToken()
 
@@ -585,7 +604,12 @@
 
                                             <form asp-action="DeleteCondition"
                                                   method="post"
-                                                  class="adm-inline-form-tight">
+                                                  class="adm-inline-form-tight"
+                                                  data-cs-confirm="Deactivate @(item.ConditionName)? It will move to the Archived tab and can be reactivated any time."
+                                                  data-cs-title="Deactivate condition?"
+                                                  data-cs-yes="Deactivate"
+                                                  data-cs-tone="warn"
+                                                  data-cs-icon="fa-box-archive">
 
                                                 @Html.AntiForgeryToken()
 
@@ -674,7 +698,11 @@
 
                                             <form asp-action="ReactivateCondition"
                                                   method="post"
-                                                  class="adm-inline-form-tight">
+                                                  class="adm-inline-form-tight"
+                                                  data-cs-confirm="Reactivate @(item.ConditionName)? It will be available across the system again."
+                                                  data-cs-title="Reactivate condition?"
+                                                  data-cs-yes="Reactivate"
+                                                  data-cs-icon="fa-rotate-left">
 
                                                 @Html.AntiForgeryToken()
 
@@ -707,7 +735,6 @@
 
 
                 <!-- ACTIVE EMPTY -->
-
                 @if (!Model.Conditions.Any())
                 {
                     <div class="adm-empty-state"
@@ -728,7 +755,6 @@
 
 
                 <!-- ARCHIVED EMPTY -->
-
                 @if (!Model.InactiveConditions.Any())
                 {
                     <div class="adm-empty-state"
@@ -931,7 +957,11 @@
 
 
             <form asp-action="AddCondition"
-                  method="post">
+                  method="post"
+                  data-cs-confirm="Save this new condition to the system?"
+                  data-cs-title="Add condition?"
+                  data-cs-yes="Save condition"
+                  data-cs-icon="fa-circle-plus">
 
                 @Html.AntiForgeryToken()
 
@@ -1047,7 +1077,11 @@
 
 
             <form asp-action="EditCondition"
-                  method="post">
+                  method="post"
+                  data-cs-confirm="Save your changes to this condition?"
+                  data-cs-title="Save changes?"
+                  data-cs-yes="Save changes"
+                  data-cs-icon="fa-floppy-disk">
 
                 @Html.AntiForgeryToken()
 
@@ -1167,7 +1201,11 @@
 
 
             <form asp-action="EditCategory"
-                  method="post">
+                  method="post"
+                  data-cs-confirm="Save your changes to this category?"
+                  data-cs-title="Save changes?"
+                  data-cs-yes="Save changes"
+                  data-cs-icon="fa-floppy-disk">
 
                 @Html.AntiForgeryToken()
 
@@ -1224,1018 +1262,744 @@
 
 @section Scripts {
 
-<script>
+    <script>
 
-    /* ==========================================================
-       GLOBAL STATE
-    ========================================================== */
+        /* ==========================================================
+           GLOBAL STATE
+        ========================================================== */
 
-    var conditionPages = {
-        active: 1,
-        archived: 1
-    };
+        var conditionPages = { active: 1, archived: 1 };
 
-    var categoryPages = {
-        active: 1,
-        archived: 1
-    };
+        var categoryPages = { active: 1, archived: 1 };
 
-    var categoryPageSize = 6;
+        var categoryPageSize = 6;
 
 
-    /* ==========================================================
-       CATEGORY COLOUR SYSTEM
-    ========================================================== */
+        /* ==========================================================
+           CATEGORY COLOUR SYSTEM
+        ========================================================== */
 
-    var categoryColours = [
-        {
-            bg: '#FCE8EC',
-            text: '#B0463F',
-            border: '#EDB8C5',
-            glow: 'rgba(176, 70, 63, .40)'
-        },
-        {
-            bg: '#FDEBEC',
-            text: '#A9423C',
-            border: '#E8B7BC',
-            glow: 'rgba(169, 66, 60, .40)'
-        },
-        {
-            bg: '#F9E4E3',
-            text: '#B0463F',
-            border: '#E5B5B2',
-            glow: 'rgba(176, 70, 63, .40)'
-        },
-        {
-            bg: '#FCE9E7',
-            text: '#A9443E',
-            border: '#EABBB7',
-            glow: 'rgba(169, 68, 62, .40)'
-        },
-        {
-            bg: '#FBE7E8',
-            text: '#B44D68',
-            border: '#E9B8C5',
-            glow: 'rgba(180, 77, 104, .40)'
-        },
-        {
-            bg: '#FDE9E7',
-            text: '#A83F38',
-            border: '#E8B4AF',
-            glow: 'rgba(168, 63, 56, .40)'
-        },
-        {
-            bg: '#F8E3E2',
-            text: '#B0463F',
-            border: '#E3B1AE',
-            glow: 'rgba(176, 70, 63, .40)'
-        },
-        {
-            bg: '#FCE8E6',
-            text: '#A8433D',
-            border: '#E8B8B4',
-            glow: 'rgba(168, 67, 61, .40)'
-        }
-    ];
-
-
-    function getCategoryColour(categoryName) {
-
-        if (!categoryName) {
-            return null;
-        }
-
-        var hash = 0;
-
-        for (var i = 0; i < categoryName.length; i++) {
-
-            hash =
-                categoryName.charCodeAt(i)
-                + ((hash << 5) - hash);
-
-        }
-
-        hash = Math.abs(hash);
-
-        return categoryColours[
-            hash % categoryColours.length
+        var categoryColours = [
+            { bg: '#FCE8EC', text: '#B0463F', border: '#EDB8C5', glow: 'rgba(176, 70, 63, .40)' },
+            { bg: '#FDEBEC', text: '#A9423C', border: '#E8B7BC', glow: 'rgba(169, 66, 60, .40)' },
+            { bg: '#F9E4E3', text: '#B0463F', border: '#E5B5B2', glow: 'rgba(176, 70, 63, .40)' },
+            { bg: '#FCE9E7', text: '#A9443E', border: '#EABBB7', glow: 'rgba(169, 68, 62, .40)' },
+            { bg: '#FBE7E8', text: '#B44D68', border: '#E9B8C5', glow: 'rgba(180, 77, 104, .40)' },
+            { bg: '#FDE9E7', text: '#A83F38', border: '#E8B4AF', glow: 'rgba(168, 63, 56, .40)' },
+            { bg: '#F8E3E2', text: '#B0463F', border: '#E3B1AE', glow: 'rgba(176, 70, 63, .40)' },
+            { bg: '#FCE8E6', text: '#A8433D', border: '#E8B8B4', glow: 'rgba(168, 67, 61, .40)' }
         ];
-    }
 
 
-    function applyCategoryColours() {
+        function getCategoryColour(categoryName) {
+
+            if (!categoryName) {
+                return null;
+            }
+
+            var hash = 0;
+
+            for (var i = 0; i < categoryName.length; i++) {
+                hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+
+            hash = Math.abs(hash);
+
+            return categoryColours[hash % categoryColours.length];
+        }
+
+
+        function applyCategoryColours() {
+
+            document
+                .querySelectorAll('[data-category]')
+                .forEach(function(element) {
+
+                    var categoryName = element.getAttribute('data-category');
+
+                    var colour = getCategoryColour(categoryName);
+
+                    if (!colour) {
+                        return;
+                    }
+
+                    element.style.setProperty('--category-bg', colour.bg);
+                    element.style.setProperty('--category-text', colour.text);
+                    element.style.setProperty('--category-border', colour.border);
+                    element.style.setProperty('--category-glow', colour.glow);
+
+                });
+
+        }
+
+
+
+        /* ==========================================================
+           MODALS
+        ========================================================== */
+
+        function openModal(id) {
+
+            var el = document.getElementById(id);
+
+            if (!el) {
+                return;
+            }
+
+            el.classList.add('is-open');
+
+            document.body.style.overflow = 'hidden';
+        }
+
+
+        function closeModal(id) {
+
+            var el = document.getElementById(id);
+
+            if (!el) {
+                return;
+            }
+
+            el.classList.remove('is-open');
+
+            document.body.style.overflow = '';
+        }
+
 
         document
-            .querySelectorAll('[data-category]')
-            .forEach(function (element) {
+            .querySelectorAll('.adm-modal-overlay')
+            .forEach(function(overlay) {
 
-                var categoryName =
-                    element.getAttribute('data-category');
+                overlay.addEventListener('click', function(e) {
 
-                var colour =
-                    getCategoryColour(categoryName);
+                    if (e.target === overlay) {
+                        closeModal(overlay.id);
+                    }
 
-                if (!colour) {
-                    return;
-                }
-
-                element.style.setProperty(
-                    '--category-bg',
-                    colour.bg
-                );
-
-                element.style.setProperty(
-                    '--category-text',
-                    colour.text
-                );
-
-                element.style.setProperty(
-                    '--category-border',
-                    colour.border
-                );
-
-                element.style.setProperty(
-                    '--category-glow',
-                    colour.glow
-                );
+                });
 
             });
 
-    }
 
-
-
-    /* ==========================================================
-       MODALS
-    ========================================================== */
-
-    function openModal(id) {
-
-        var el =
-            document.getElementById(id);
-
-        if (!el) {
-            return;
-        }
-
-        el.classList.add('is-open');
-
-        document.body.style.overflow = 'hidden';
-    }
-
-
-    function closeModal(id) {
-
-        var el =
-            document.getElementById(id);
-
-        if (!el) {
-            return;
-        }
-
-        el.classList.remove('is-open');
-
-        document.body.style.overflow = '';
-    }
-
-
-    document
-        .querySelectorAll('.adm-modal-overlay')
-        .forEach(function (overlay) {
-
-            overlay.addEventListener(
-                'click',
-                function (e) {
-
-                    if (e.target === overlay) {
-
-                        closeModal(overlay.id);
-
-                    }
-
-                }
-            );
-
-        });
-
-
-    document.addEventListener(
-        'keydown',
-        function (e) {
+        document.addEventListener('keydown', function(e) {
 
             if (e.key === 'Escape') {
 
+                // a confirmation popup is open: let it handle Escape on its own
+                var pp = document.getElementById('ppOverlay');
+                if (pp && !pp.hidden) {
+                    return;
+                }
+
                 document
-                    .querySelectorAll(
-                        '.adm-modal-overlay.is-open'
-                    )
-                    .forEach(function (o) {
-
+                    .querySelectorAll('.adm-modal-overlay.is-open')
+                    .forEach(function(o) {
                         closeModal(o.id);
-
                     });
 
             }
 
-        }
-    );
-
-
-
-    /* ==========================================================
-       EDIT CONDITION
-    ========================================================== */
-
-    function openEditModalFromButton(btn) {
-
-        document.getElementById('edit-id').value =
-            btn.dataset.id;
-
-        document.getElementById('edit-name').value =
-            btn.dataset.name;
-
-        document.getElementById('edit-description').value =
-            btn.dataset.description || '';
-
-
-        var select =
-            document.getElementById('edit-category');
-
-
-        for (var i = 0; i < select.options.length; i++) {
-
-            if (
-                select.options[i].value ===
-                String(btn.dataset.category)
-            ) {
-
-                select.selectedIndex = i;
-
-                break;
-
-            }
-
-        }
-
-
-        openModal('modal-edit');
-
-    }
-
-
-
-    /* ==========================================================
-       EDIT CATEGORY
-    ========================================================== */
-
-    function openEditCategoryModal(btn) {
-
-        document.getElementById('edit-cat-id').value =
-            btn.dataset.id;
-
-        document.getElementById('edit-cat-name').value =
-            btn.dataset.name;
-
-        openModal('modal-edit-category');
-
-    }
-
-
-
-    /* ==========================================================
-       CONDITION TABS
-    ========================================================== */
-
-    function switchTab(tabBtn) {
-
-        document
-            .querySelectorAll(
-                '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab'
-            )
-            .forEach(function (tab) {
-
-                tab.classList.remove('is-active');
-
-            });
-
-
-        tabBtn.classList.add('is-active');
-
-
-        var activeBody =
-            document.getElementById('cond-tbody');
-
-        var archivedBody =
-            document.getElementById('cond-tbody-archived');
-
-
-        activeBody.style.display = 'none';
-        archivedBody.style.display = 'none';
-
-
-        var target =
-            document.getElementById(
-                tabBtn.dataset.tbody
-            );
-
-        if (target) {
-            target.style.display = '';
-        }
-
-
-        var activeEmpty =
-            document.getElementById('cond-empty-active');
-
-        var archivedEmpty =
-            document.getElementById('cond-empty-archived');
-
-
-        if (activeEmpty) {
-
-            activeEmpty.style.display =
-                tabBtn.dataset.tbody === 'cond-tbody'
-                    ? ''
-                    : 'none';
-
-        }
-
-
-        if (archivedEmpty) {
-
-            archivedEmpty.style.display =
-                tabBtn.dataset.tbody === 'cond-tbody-archived'
-                    ? ''
-                    : 'none';
-
-        }
-
-
-        document.getElementById('cond-search').value = '';
-
-        document.getElementById('cond-cat-filter').value = '';
-
-        conditionPages.active = 1;
-        conditionPages.archived = 1;
-
-        filterActiveTable();
-
-    }
-
-
-
-    /* ==========================================================
-       CONDITION FILTER + PAGINATION
-    ========================================================== */
-
-    function getCurrentConditionBody() {
-
-        var activeTab =
-            document
-                .querySelectorAll(
-                    '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab'
-                );
-
-        var selectedTab = null;
-
-
-        activeTab.forEach(function (tab) {
-
-            if (tab.classList.contains('is-active')) {
-                selectedTab = tab;
-            }
-
         });
 
 
-        if (!selectedTab) {
-            return null;
+
+        /* ==========================================================
+           EDIT CONDITION
+        ========================================================== */
+
+        function openEditModalFromButton(btn) {
+
+            document.getElementById('edit-id').value = btn.dataset.id;
+
+            document.getElementById('edit-name').value = btn.dataset.name;
+
+            document.getElementById('edit-description').value = btn.dataset.description || '';
+
+
+            var select = document.getElementById('edit-category');
+
+
+            for (var i = 0; i < select.options.length; i++) {
+
+                if (select.options[i].value === String(btn.dataset.category)) {
+
+                    select.selectedIndex = i;
+
+                    break;
+
+                }
+
+            }
+
+
+            openModal('modal-edit');
+
         }
 
 
-        return document.getElementById(
-            selectedTab.dataset.tbody
-        );
 
-    }
+        /* ==========================================================
+           EDIT CATEGORY
+        ========================================================== */
 
+        function openEditCategoryModal(btn) {
 
-    function getCurrentConditionType() {
+            document.getElementById('edit-cat-id').value = btn.dataset.id;
 
-        var activeTab =
-            document.querySelector(
-                '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active'
-            );
+            document.getElementById('edit-cat-name').value = btn.dataset.name;
 
+            openModal('modal-edit-category');
 
-        if (!activeTab) {
-            return 'active';
         }
 
 
-        return activeTab.dataset.tbody ===
-            'cond-tbody-archived'
-            ? 'archived'
-            : 'active';
 
-    }
+        /* ==========================================================
+           CATEGORY CHIP ACTIONS (click a category chip)
+        ========================================================== */
 
+        function openCategoryActions(nameEl, state) {
 
-    function filterActiveTable() {
+            var form = nameEl.closest('form');
+            var id = form.querySelector('input[name="id"]').value;
+            var name = nameEl.dataset.name;
 
-        var tbody =
-            getCurrentConditionBody();
+            var choices = [{ value: 'edit', label: 'Edit name', icon: 'fa-pen' }];
 
-        if (!tbody) {
-            return;
+            choices.push(state === 'active'
+                ? { value: 'toggle', label: 'Archive category', icon: 'fa-box-archive', tone: 'warn' }
+                : { value: 'toggle', label: 'Restore category', icon: 'fa-rotate-left' });
+
+            CsPopup.choose({
+                title: name,
+                message: 'What would you like to do with this category?',
+                icon: 'fa-folder',
+                choices: choices
+            }).then(function(pick) {
+
+                if (pick === 'edit') {
+
+                    openEditCategoryModal({ dataset: { id: id, name: name } });
+
+                } else if (pick === 'toggle') {
+
+                    CsPopup.confirm(state === 'active'
+                        ? { title: 'Archive category?', message: 'Archive ' + name + '? It will move to the Archived tab and can be restored any time.', okText: 'Archive', tone: 'warn', icon: 'fa-box-archive' }
+                        : { title: 'Restore category?', message: 'Restore ' + name + '? It will go back to the Active list.', okText: 'Restore', icon: 'fa-rotate-left' }
+                    ).then(function(ok) {
+                        if (ok) {
+                            form.submit();
+                        }
+                    });
+
+                }
+
+            });
+
         }
 
 
-        var type =
-            getCurrentConditionType();
 
+        /* ==========================================================
+           CONDITION TABS
+        ========================================================== */
 
-        conditionPages[type] = 1;
+        function switchTab(tabBtn) {
 
-
-        renderConditions();
-
-    }
-
-
-    function renderConditions() {
-
-        var tbody =
-            getCurrentConditionBody();
-
-        if (!tbody) {
-            return;
-        }
-
-
-        var type =
-            getCurrentConditionType();
-
-
-        var query =
             document
-                .getElementById('cond-search')
-                .value
-                .toLowerCase()
-                .trim();
+                .querySelectorAll('.adm-split > .adm-panel:first-child .adm-tabs .adm-tab')
+                .forEach(function(tab) {
+                    tab.classList.remove('is-active');
+                });
 
 
-        var category =
-            document
-                .getElementById('cond-cat-filter')
-                .value;
+            tabBtn.classList.add('is-active');
 
 
-        var rows =
-            Array.from(
-                tbody.querySelectorAll('tr')
-            );
+            var activeBody = document.getElementById('cond-tbody');
+
+            var archivedBody = document.getElementById('cond-tbody-archived');
 
 
-        var matchingRows =
-            rows.filter(function (row) {
-
-                var name =
-                    row.dataset.name || '';
-
-                var rowCategory =
-                    row.dataset.cat || '';
+            activeBody.style.display = 'none';
+            archivedBody.style.display = 'none';
 
 
-                var nameMatch =
-                    name.includes(query);
+            var target = document.getElementById(tabBtn.dataset.tbody);
+
+            if (target) {
+                target.style.display = '';
+            }
 
 
-                var categoryMatch =
-                    !category ||
-                    rowCategory === category;
+            var activeEmpty = document.getElementById('cond-empty-active');
+
+            var archivedEmpty = document.getElementById('cond-empty-archived');
 
 
-                return nameMatch &&
-                       categoryMatch;
+            if (activeEmpty) {
+                activeEmpty.style.display = tabBtn.dataset.tbody === 'cond-tbody' ? '' : 'none';
+            }
+
+
+            if (archivedEmpty) {
+                archivedEmpty.style.display = tabBtn.dataset.tbody === 'cond-tbody-archived' ? '' : 'none';
+            }
+
+
+            document.getElementById('cond-search').value = '';
+
+            document.getElementById('cond-cat-filter').value = '';
+
+            conditionPages.active = 1;
+            conditionPages.archived = 1;
+
+            filterActiveTable();
+
+        }
+
+
+
+        /* ==========================================================
+           CONDITION FILTER + PAGINATION
+        ========================================================== */
+
+        function getCurrentConditionBody() {
+
+            var activeTab = document.querySelectorAll('.adm-split > .adm-panel:first-child .adm-tabs .adm-tab');
+
+            var selectedTab = null;
+
+
+            activeTab.forEach(function(tab) {
+
+                if (tab.classList.contains('is-active')) {
+                    selectedTab = tab;
+                }
 
             });
 
 
-        var pageSizeValue =
-            document
-                .getElementById('cond-page-size')
-                .value;
-
-
-        var allResults =
-            pageSizeValue === 'all';
-
-
-        var pageSize =
-            allResults
-                ? matchingRows.length
-                : parseInt(pageSizeValue);
-
-
-        if (pageSize < 1) {
-            pageSize = 5;
-        }
-
-
-        var totalPages =
-            allResults
-                ? 1
-                : Math.max(
-                    1,
-                    Math.ceil(
-                        matchingRows.length /
-                        pageSize
-                    )
-                );
-
-
-        if (
-            conditionPages[type] >
-            totalPages
-        ) {
-
-            conditionPages[type] =
-                totalPages;
-
-        }
-
-
-        var currentPage =
-            conditionPages[type];
-
-
-        var start =
-            allResults
-                ? 0
-                : (currentPage - 1) *
-                  pageSize;
-
-
-        var end =
-            allResults
-                ? matchingRows.length
-                : start + pageSize;
-
-
-        rows.forEach(function (row) {
-
-            row.style.display = 'none';
-
-        });
-
-
-        matchingRows
-            .slice(start, end)
-            .forEach(function (row) {
-
-                row.style.display = '';
-
-            });
-
-
-        updateConditionPagination(
-            matchingRows.length,
-            currentPage,
-            totalPages,
-            allResults,
-            start,
-            end
-        );
-
-    }
-
-
-    function updateConditionPagination(
-        total,
-        currentPage,
-        totalPages,
-        allResults,
-        start,
-        end
-    ) {
-
-        var pagination =
-            document.getElementById(
-                'condition-pagination'
-            );
-
-
-        var noResults =
-            document.getElementById(
-                'cond-no-results'
-            );
-
-
-        if (total === 0) {
-
-            if (pagination) {
-                pagination.style.display = 'none';
+            if (!selectedTab) {
+                return null;
             }
 
-            if (noResults) {
-                noResults.style.display = '';
+
+            return document.getElementById(selectedTab.dataset.tbody);
+
+        }
+
+
+        function getCurrentConditionType() {
+
+            var activeTab = document.querySelector('.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active');
+
+
+            if (!activeTab) {
+                return 'active';
             }
 
-            return;
+
+            return activeTab.dataset.tbody === 'cond-tbody-archived' ? 'archived' : 'active';
 
         }
 
 
-        if (noResults) {
-            noResults.style.display = 'none';
-        }
+        function filterActiveTable() {
+
+            var tbody = getCurrentConditionBody();
+
+            if (!tbody) {
+                return;
+            }
 
 
-        if (allResults) {
+            var type = getCurrentConditionType();
 
-            start = 0;
-            end = total;
-
-        }
-
-
-        var showingStart =
-            total === 0
-                ? 0
-                : start + 1;
-
-
-        var showingEnd =
-            Math.min(end, total);
-
-
-        document.getElementById(
-            'condition-results-info'
-        ).textContent =
-            'Showing ' +
-            showingStart +
-            '–' +
-            showingEnd +
-            ' of ' +
-            total;
-
-
-        document.getElementById(
-            'condition-page-info'
-        ).textContent =
-            allResults
-                ? 'All'
-                : 'Page ' +
-                  currentPage +
-                  ' of ' +
-                  totalPages;
-
-
-        var previous =
-            document.getElementById(
-                'condition-prev'
-            );
-
-
-        var next =
-            document.getElementById(
-                'condition-next'
-            );
-
-
-        previous.disabled =
-            allResults ||
-            currentPage <= 1;
-
-
-        next.disabled =
-            allResults ||
-            currentPage >= totalPages;
-
-
-        if (totalPages <= 1) {
-
-            pagination.style.display = 'none';
-
-        }
-        else {
-
-            pagination.style.display = 'flex';
-
-        }
-
-    }
-
-
-    function changeConditionPage(direction) {
-
-        var type =
-            getCurrentConditionType();
-
-
-        conditionPages[type] += direction;
-
-
-        if (conditionPages[type] < 1) {
 
             conditionPages[type] = 1;
 
+
+            renderConditions();
+
         }
 
 
-        renderConditions();
+        function renderConditions() {
 
-    }
+            var tbody = getCurrentConditionBody();
 
-
-    function changePageSize() {
-
-        conditionPages.active = 1;
-        conditionPages.archived = 1;
-
-        renderConditions();
-
-    }
+            if (!tbody) {
+                return;
+            }
 
 
-
-    /* ==========================================================
-       CATEGORY TABS
-    ========================================================== */
-
-    function switchCatTab(tabBtn) {
-
-        var panel =
-            tabBtn.closest('.adm-panel');
+            var type = getCurrentConditionType();
 
 
-        panel
-            .querySelectorAll('.adm-tabs .adm-tab')
-            .forEach(function (tab) {
+            var query = document.getElementById('cond-search').value.toLowerCase().trim();
 
-                tab.classList.remove(
-                    'is-active'
-                );
+
+            var category = document.getElementById('cond-cat-filter').value;
+
+
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+
+
+            var matchingRows = rows.filter(function(row) {
+
+                var name = row.dataset.name || '';
+
+                var rowCategory = row.dataset.cat || '';
+
+
+                var nameMatch = name.includes(query);
+
+
+                var categoryMatch = !category || rowCategory === category;
+
+
+                return nameMatch && categoryMatch;
 
             });
 
 
-        tabBtn.classList.add('is-active');
+            var pageSizeValue = document.getElementById('cond-page-size').value;
 
 
-        var active =
-            panel.querySelector(
-                '#cat-chips-active'
-            );
-
-        var archived =
-            panel.querySelector(
-                '#cat-chips-archived'
-            );
+            var allResults = pageSizeValue === 'all';
 
 
-        active.style.display = 'none';
-        archived.style.display = 'none';
+            var pageSize = allResults ? matchingRows.length : parseInt(pageSizeValue);
 
 
-        document
-            .getElementById(
-                tabBtn.dataset.target
-            )
-            .style.display = '';
+            if (pageSize < 1) {
+                pageSize = 5;
+            }
 
 
-        document.getElementById(
-            'cat-search'
-        ).value = '';
+            var totalPages = allResults
+                ? 1
+                : Math.max(1, Math.ceil(matchingRows.length / pageSize));
 
 
-        categoryPages.active = 1;
-        categoryPages.archived = 1;
+            if (conditionPages[type] > totalPages) {
+                conditionPages[type] = totalPages;
+            }
 
 
-        filterCatChips();
-
-    }
+            var currentPage = conditionPages[type];
 
 
-
-    /* ==========================================================
-       CATEGORY FILTER + PAGINATION
-    ========================================================== */
-
-    function filterCatChips() {
-
-        var activeTab =
-            document.querySelector(
-                '.adm-panel .adm-tabs .adm-tab.is-active[data-target]'
-            );
+            var start = allResults ? 0 : (currentPage - 1) * pageSize;
 
 
-        if (!activeTab) {
-            return;
-        }
+            var end = allResults ? matchingRows.length : start + pageSize;
 
 
-        var container =
-            document.getElementById(
-                activeTab.dataset.target
-            );
-
-
-        if (!container) {
-            return;
-        }
-
-
-        var search =
-            document.getElementById(
-                'cat-search'
-            )
-            .value
-            .toLowerCase()
-            .trim();
-
-
-        var type =
-            activeTab.dataset.target ===
-            'cat-chips-archived'
-                ? 'archived'
-                : 'active';
-
-
-        var forms =
-            Array.from(
-                container.querySelectorAll(
-                    '.adm-chip-form'
-                )
-            );
-
-
-        var matching =
-            forms.filter(function (form) {
-
-                return (
-                    form.dataset.name || ''
-                ).includes(search);
-
+            rows.forEach(function(row) {
+                row.style.display = 'none';
             });
 
 
-        categoryPages[type] = Math.min(
-            categoryPages[type],
-            Math.max(
-                1,
-                Math.ceil(
-                    matching.length /
-                    categoryPageSize
-                )
-            )
-        );
+            matchingRows
+                .slice(start, end)
+                .forEach(function(row) {
+                    row.style.display = '';
+                });
 
 
-        var currentPage =
-            categoryPages[type];
+            updateConditionPagination(
+                matchingRows.length,
+                currentPage,
+                totalPages,
+                allResults,
+                start,
+                end
+            );
+
+        }
 
 
-        var start =
-            (currentPage - 1) *
-            categoryPageSize;
+        function updateConditionPagination(total, currentPage, totalPages, allResults, start, end) {
+
+            var pagination = document.getElementById('condition-pagination');
 
 
-        var end =
-            start + categoryPageSize;
+            var noResults = document.getElementById('cond-no-results');
 
 
-        forms.forEach(function (form) {
+            if (total === 0) {
 
-            form.style.display = 'none';
+                if (pagination) {
+                    pagination.style.display = 'none';
+                }
 
-        });
+                if (noResults) {
+                    noResults.style.display = '';
+                }
+
+                return;
+
+            }
 
 
-        matching
-            .slice(start, end)
-            .forEach(function (form) {
+            if (noResults) {
+                noResults.style.display = 'none';
+            }
 
-                form.style.display = '';
 
+            if (allResults) {
+
+                start = 0;
+                end = total;
+
+            }
+
+
+            var showingStart = total === 0 ? 0 : start + 1;
+
+
+            var showingEnd = Math.min(end, total);
+
+
+            document.getElementById('condition-results-info').textContent =
+                'Showing ' + showingStart + '–' + showingEnd + ' of ' + total;
+
+
+            document.getElementById('condition-page-info').textContent =
+                allResults
+                    ? 'All'
+                    : 'Page ' + currentPage + ' of ' + totalPages;
+
+
+            var previous = document.getElementById('condition-prev');
+
+
+            var next = document.getElementById('condition-next');
+
+
+            previous.disabled = allResults || currentPage <= 1;
+
+
+            next.disabled = allResults || currentPage >= totalPages;
+
+
+            if (totalPages <= 1) {
+                pagination.style.display = 'none';
+            }
+            else {
+                pagination.style.display = 'flex';
+            }
+
+        }
+
+
+        function changeConditionPage(direction) {
+
+            var type = getCurrentConditionType();
+
+
+            conditionPages[type] += direction;
+
+
+            if (conditionPages[type] < 1) {
+                conditionPages[type] = 1;
+            }
+
+
+            renderConditions();
+
+        }
+
+
+        function changePageSize() {
+
+            conditionPages.active = 1;
+            conditionPages.archived = 1;
+
+            renderConditions();
+
+        }
+
+
+
+        /* ==========================================================
+           CATEGORY TABS
+        ========================================================== */
+
+        function switchCatTab(tabBtn) {
+
+            var panel = tabBtn.closest('.adm-panel');
+
+
+            panel
+                .querySelectorAll('.adm-tabs .adm-tab')
+                .forEach(function(tab) {
+                    tab.classList.remove('is-active');
+                });
+
+
+            tabBtn.classList.add('is-active');
+
+
+            var active = panel.querySelector('#cat-chips-active');
+
+            var archived = panel.querySelector('#cat-chips-archived');
+
+
+            active.style.display = 'none';
+            archived.style.display = 'none';
+
+
+            document.getElementById(tabBtn.dataset.target).style.display = '';
+
+
+            document.getElementById('cat-search').value = '';
+
+
+            categoryPages.active = 1;
+            categoryPages.archived = 1;
+
+
+            filterCatChips();
+
+        }
+
+
+
+        /* ==========================================================
+           CATEGORY FILTER + PAGINATION
+        ========================================================== */
+
+        function filterCatChips() {
+
+            var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
+
+
+            if (!activeTab) {
+                return;
+            }
+
+
+            var container = document.getElementById(activeTab.dataset.target);
+
+
+            if (!container) {
+                return;
+            }
+
+
+            var search = document.getElementById('cat-search').value.toLowerCase().trim();
+
+
+            var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
+
+
+            var forms = Array.from(container.querySelectorAll('.adm-chip-form'));
+
+
+            var matching = forms.filter(function(form) {
+                return (form.dataset.name || '').includes(search);
             });
 
 
-        updateCategoryPagination(
-            matching.length,
-            currentPage,
-            type
-        );
-
-    }
-
-
-    function updateCategoryPagination(
-        total,
-        currentPage,
-        type
-    ) {
-
-        var pagination =
-            document.getElementById(
-                'category-pagination'
+            categoryPages[type] = Math.min(
+                categoryPages[type],
+                Math.max(1, Math.ceil(matching.length / categoryPageSize))
             );
 
 
-        if (total <= categoryPageSize) {
-
-            pagination.style.display =
-                total === 0
-                    ? 'none'
-                    : 'flex';
-
-        }
-        else {
-
-            pagination.style.display =
-                'flex';
-
-        }
+            var currentPage = categoryPages[type];
 
 
-        var totalPages =
-            Math.max(
-                1,
-                Math.ceil(
-                    total /
-                    categoryPageSize
-                )
-            );
+            var start = (currentPage - 1) * categoryPageSize;
 
 
-        document.getElementById(
-            'cat-page-info'
-        ).textContent =
-            'Page ' +
-            currentPage +
-            ' of ' +
-            totalPages;
+            var end = start + categoryPageSize;
 
 
-        document.getElementById(
-            'cat-prev'
-        ).disabled =
-            currentPage <= 1;
+            forms.forEach(function(form) {
+                form.style.display = 'none';
+            });
 
 
-        document.getElementById(
-            'cat-next'
-        ).disabled =
-            currentPage >= totalPages;
-
-    }
-
-
-    function changeCategoryPage(direction) {
-
-        var activeTab =
-            document.querySelector(
-                '.adm-panel .adm-tabs .adm-tab.is-active[data-target]'
-            );
+            matching
+                .slice(start, end)
+                .forEach(function(form) {
+                    form.style.display = '';
+                });
 
 
-        if (!activeTab) {
-            return;
-        }
-
-
-        var type =
-            activeTab.dataset.target ===
-            'cat-chips-archived'
-                ? 'archived'
-                : 'active';
-
-
-        categoryPages[type] += direction;
-
-
-        if (categoryPages[type] < 1) {
-
-            categoryPages[type] = 1;
+            updateCategoryPagination(matching.length, currentPage, type);
 
         }
 
 
-        filterCatChips();
+        function updateCategoryPagination(total, currentPage, type) {
 
-    }
+            var pagination = document.getElementById('category-pagination');
+
+
+            if (total <= categoryPageSize) {
+
+                pagination.style.display = total === 0 ? 'none' : 'flex';
+
+            }
+            else {
+
+                pagination.style.display = 'flex';
+
+            }
+
+
+            var totalPages = Math.max(1, Math.ceil(total / categoryPageSize));
+
+
+            document.getElementById('cat-page-info').textContent =
+                'Page ' + currentPage + ' of ' + totalPages;
+
+
+            document.getElementById('cat-prev').disabled = currentPage <= 1;
+
+
+            document.getElementById('cat-next').disabled = currentPage >= totalPages;
+
+        }
+
+
+        function changeCategoryPage(direction) {
+
+            var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
+
+
+            if (!activeTab) {
+                return;
+            }
+
+
+            var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
+
+
+            categoryPages[type] += direction;
+
+
+            if (categoryPages[type] < 1) {
+                categoryPages[type] = 1;
+            }
+
+
+            filterCatChips();
+
+        }
 
 
 
-    /* ==========================================================
-       INITIALISE
-    ========================================================== */
+        /* ==========================================================
+           INITIALISE
+        ========================================================== */
 
-    document.addEventListener(
-        'DOMContentLoaded',
-        function () {
+        document.addEventListener('DOMContentLoaded', function() {
 
             applyCategoryColours();
 
@@ -2243,10 +2007,9 @@
 
             renderConditions();
 
-        }
-    );
+        });
 
-</script>
+    </script>
 
 }
 
@@ -2255,2496 +2018,1117 @@
 <style>
 
     /* ==========================================================
-       VARIABLES
-    ========================================================== */
+           VARIABLES
+        ========================================================== */
 
     :root {
-
         --adm-paper: #F0F7F6;
         --adm-raised: #FFFFFF;
-
         --adm-ink: #102C27;
         --adm-ink-soft: #52716C;
         --adm-ink-faint: #8FA9A3;
-
         --adm-line: #E1EEEC;
         --adm-line-strong: #CCE3DF;
-
         --adm-teal: #0E8C7F;
         --adm-teal-deep: #0A5850;
         --adm-teal-dim: #E3F4F1;
-
         --adm-teal-grad-start: #12A392;
         --adm-teal-grad-end: #0A4F48;
-
         --adm-red: #B0463F;
         --adm-red-dim: #F7E8E7;
-
         --adm-radius: 20px;
         --adm-radius-sm: 13px;
-
-        --adm-shadow:
-            0 6px 24px rgba(10, 60, 55, 0.08);
-
-        --adm-shadow-sm:
-            0 3px 10px rgba(10, 60, 55, 0.06);
-
+        --adm-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+        --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
     }
 
 
-
     /* ==========================================================
-       PAGE
-    ========================================================== */
+           PAGE
+        ========================================================== */
 
     .adm-page {
-
         max-width: 1280px;
-
         margin: 0 auto;
-
         padding: 26px 24px 60px;
-
         color: var(--adm-ink);
-
         font-family: 'Inter', sans-serif;
-
     }
 
 
-
     /* ==========================================================
-       ALERTS
-    ========================================================== */
+           ALERTS
+        ========================================================== */
 
     .adm-alert {
-
         display: flex;
-
         align-items: center;
-
         gap: 10px;
-
-        background:
-            var(--adm-teal-dim);
-
-        color:
-            var(--adm-teal-deep);
-
-        border-left:
-            4px solid var(--adm-teal);
-
-        border-radius:
-            var(--adm-radius-sm);
-
-        padding:
-            14px 18px;
-
-        font-size:
-            13.5px;
-
-        font-weight:
-            600;
-
-        margin-bottom:
-            18px;
-
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-left: 4px solid var(--adm-teal);
+        border-radius: var(--adm-radius-sm);
+        padding: 14px 18px;
+        font-size: 13.5px;
+        font-weight: 600;
+        margin-bottom: 18px;
     }
-
 
     .adm-alert-error {
-
-        background:
-            var(--adm-red-dim);
-
-        color:
-            var(--adm-red);
-
-        border-left-color:
-            var(--adm-red);
-
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-left-color: var(--adm-red);
     }
 
 
-
     /* ==========================================================
-       PAGE BANNER
-    ========================================================== */
+           PAGE BANNER
+        ========================================================== */
 
     .adm-page-banner {
-
         position: relative;
-
         display: flex;
-
         justify-content: space-between;
-
         align-items: center;
-
         gap: 24px;
-
-        background:
-            linear-gradient(
-                125deg,
-                var(--adm-teal-grad-start),
-                var(--adm-teal-grad-end)
-            );
-
-        border-radius:
-            var(--adm-radius);
-
-        padding:
-            26px 32px;
-
-        margin-bottom:
-            22px;
-
-        box-shadow:
-            0 18px 40px rgba(10, 90, 80, 0.2);
-
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        border-radius: var(--adm-radius);
+        padding: 26px 32px;
+        margin-bottom: 22px;
+        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
         overflow: hidden;
-
         flex-wrap: wrap;
-
     }
-
 
     .adm-page-banner-pattern {
-
         position: absolute;
-
         inset: 0;
-
-        background-image:
-            radial-gradient(
-                circle at 85% 20%,
-                rgba(255,255,255,.10) 0,
-                transparent 45%
-            ),
-            radial-gradient(
-                circle at 95% 85%,
-                rgba(255,255,255,.08) 0,
-                transparent 40%
-            );
-
-        pointer-events:
-            none;
-
+        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        pointer-events: none;
     }
-
 
     .adm-page-banner-left {
-
         display: flex;
-
         align-items: center;
-
         gap: 18px;
-
         position: relative;
-
         z-index: 1;
-
     }
-
 
     .adm-page-banner-icon {
-
         width: 58px;
-
         height: 58px;
-
         border-radius: 16px;
-
-        background:
-            rgba(255,255,255,.16);
-
-        border:
-            2px solid rgba(255,255,255,.32);
-
+        background: rgba(255,255,255,.16);
+        border: 2px solid rgba(255,255,255,.32);
         display: flex;
-
         align-items: center;
-
         justify-content: center;
-
         color: #fff;
-
         font-size: 22px;
-
         flex-shrink: 0;
-
     }
-
 
     .adm-page-banner-left h1 {
-
-        font-family:
-            'Poppins',
-            sans-serif;
-
-        font-weight:
-            700;
-
-        font-size:
-            21px;
-
-        margin:
-            0 0 3px;
-
-        color:
-            #fff;
-
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 21px;
+        margin: 0 0 3px;
+        color: #fff;
     }
-
 
     .adm-page-banner-left p {
-
         margin: 0;
-
-        color:
-            rgba(255,255,255,.85);
-
-        font-size:
-            13px;
-
+        color: rgba(255,255,255,.85);
+        font-size: 13px;
     }
-
 
     .adm-page-banner-right {
-
         display: flex;
-
         align-items: center;
-
         gap: 20px;
-
         position: relative;
-
         z-index: 1;
-
         flex-wrap: wrap;
-
     }
-
 
     .adm-mini-stats {
-
         display: flex;
-
         gap: 18px;
-
     }
-
 
     .adm-mini-stat {
-
         display: flex;
-
         flex-direction: column;
-
         align-items: center;
-
         min-width: 58px;
-
     }
 
+        .adm-mini-stat .num {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            color: #fff;
+        }
 
-    .adm-mini-stat .num {
-
-        font-family:
-            'Poppins',
-            sans-serif;
-
-        font-weight:
-            700;
-
-        font-size:
-            20px;
-
-        color:
-            #fff;
-
-    }
-
-
-    .adm-mini-stat .label {
-
-        font-size:
-            10.5px;
-
-        text-transform:
-            uppercase;
-
-        letter-spacing:
-            .04em;
-
-        color:
-            rgba(255,255,255,.75);
-
-        margin-top:
-            2px;
-
-    }
-
+        .adm-mini-stat .label {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: rgba(255,255,255,.75);
+            margin-top: 2px;
+        }
 
 
     /* ==========================================================
-       BUTTONS
-    ========================================================== */
+           BUTTONS
+        ========================================================== */
 
     .adm-btn {
-
         display: inline-flex;
-
         align-items: center;
-
         gap: 8px;
-
-        background:
-            linear-gradient(
-                125deg,
-                var(--adm-teal-grad-start),
-                var(--adm-teal-grad-end)
-            );
-
-        color:
-            #fff;
-
-        border:
-            none;
-
-        border-radius:
-            var(--adm-radius-sm);
-
-        padding:
-            11px 20px;
-
-        font-family:
-            'Inter',
-            sans-serif;
-
-        font-weight:
-            600;
-
-        font-size:
-            13.5px;
-
-        cursor:
-            pointer;
-
-        box-shadow:
-            0 8px 20px rgba(10, 90, 80, 0.22);
-
-        transition:
-            transform .15s,
-            box-shadow .15s;
-
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        color: #fff;
+        border: none;
+        border-radius: var(--adm-radius-sm);
+        padding: 11px 20px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 13.5px;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(10, 90, 80, 0.22);
+        transition: transform .15s, box-shadow .15s;
     }
 
-
-    .adm-btn:hover {
-
-        transform:
-            translateY(-2px);
-
-        box-shadow:
-            0 12px 26px rgba(10, 90, 80, 0.28);
-
-    }
-
+        .adm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 26px rgba(10, 90, 80, 0.28);
+        }
 
     .adm-btn-sm {
-
-        padding:
-            9px 16px;
-
-        font-size:
-            12.5px;
-
-        flex-shrink:
-            0;
-
+        padding: 9px 16px;
+        font-size: 12.5px;
+        flex-shrink: 0;
     }
-
 
     .adm-btn-light {
-
-        background:
-            #fff;
-
-        color:
-            var(--adm-teal-deep);
-
-        box-shadow:
-            0 8px 20px rgba(0,0,0,0.12);
-
+        background: #fff;
+        color: var(--adm-teal-deep);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
     }
 
-
-    .adm-btn-light:hover {
-
-        box-shadow:
-            0 12px 24px rgba(0,0,0,0.16);
-
-    }
-
+        .adm-btn-light:hover {
+            box-shadow: 0 12px 24px rgba(0,0,0,0.16);
+        }
 
     .adm-btn-cancel {
-
-        background:
-            var(--adm-paper);
-
-        color:
-            var(--adm-ink-soft);
-
-        border:
-            1px solid var(--adm-line-strong);
-
-        border-radius:
-            var(--adm-radius-sm);
-
-        padding:
-            11px 20px;
-
-        font-weight:
-            600;
-
-        font-size:
-            13.5px;
-
-        cursor:
-            pointer;
-
+        background: var(--adm-paper);
+        color: var(--adm-ink-soft);
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 11px 20px;
+        font-weight: 600;
+        font-size: 13.5px;
+        cursor: pointer;
     }
 
 
-
     /* ==========================================================
-       PANELS
-    ========================================================== */
+           PANELS
+        ========================================================== */
 
     .adm-panel {
-
-        background:
-            var(--adm-raised);
-
-        border-radius:
-            var(--adm-radius);
-
-        box-shadow:
-            var(--adm-shadow);
-
-        overflow:
-            hidden;
-
-        margin-bottom:
-            22px;
-
+        background: var(--adm-raised);
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        overflow: hidden;
+        margin-bottom: 22px;
     }
-
 
     .adm-panel-head {
-
         display: flex;
-
-        justify-content:
-            space-between;
-
-        align-items:
-            center;
-
-        padding:
-            18px 26px;
-
-        border-bottom:
-            1px solid var(--adm-line);
-
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 26px;
+        border-bottom: 1px solid var(--adm-line);
     }
 
+        .adm-panel-head span:first-child {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 15.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-    .adm-panel-head span:first-child {
-
-        font-family:
-            'Poppins',
-            sans-serif;
-
-        font-weight:
-            700;
-
-        font-size:
-            15.5px;
-
-        display:
-            flex;
-
-        align-items:
-            center;
-
-        gap:
-            10px;
-
-    }
-
-
-    .adm-panel-head span:first-child i {
-
-        color:
-            var(--adm-teal);
-
-    }
-
+            .adm-panel-head span:first-child i {
+                color: var(--adm-teal);
+            }
 
     .adm-panel-tag {
-
-        font-weight:
-            600;
-
-        font-size:
-            11.5px;
-
-        background:
-            var(--adm-teal-dim);
-
-        color:
-            var(--adm-teal-deep);
-
-        padding:
-            6px 13px;
-
-        border-radius:
-            999px;
-
+        font-weight: 600;
+        font-size: 11.5px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        padding: 6px 13px;
+        border-radius: 999px;
     }
-
 
     .adm-panel-body {
-
-        padding:
-            20px 26px 24px;
-
+        padding: 20px 26px 24px;
     }
 
 
-
     /* ==========================================================
-       SPLIT
-    ========================================================== */
+           SPLIT
+        ========================================================== */
 
     .adm-split {
-
-        display:
-            grid;
-
-        grid-template-columns:
-            1.7fr 1fr;
-
-        gap:
-            18px;
-
-        align-items:
-            start;
-
+        display: grid;
+        grid-template-columns: 1.7fr 1fr;
+        gap: 18px;
+        align-items: start;
     }
 
 
-
     /* ==========================================================
-       CATEGORY CHIPS
-    ========================================================== */
+           CATEGORY CHIPS
+        ========================================================== */
 
     .adm-chips-container {
-
-        margin-bottom:
-            12px;
-
-        min-height:
-            54px;
-
+        margin-bottom: 12px;
+        min-height: 54px;
     }
-
 
     .adm-chips-row {
-
-        display:
-            flex;
-
-        flex-wrap:
-            wrap;
-
-        gap:
-            10px;
-
-        min-height:
-            48px;
-
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        min-height: 48px;
     }
-
 
     .adm-chip-form {
-
-        display:
-            inline-flex;
-
+        display: inline-flex;
     }
-
 
     .adm-chip {
-
-        display:
-            inline-flex;
-
-        align-items:
-            center;
-
-        gap:
-            4px;
-
-        background:
-            var(--category-bg);
-
-        color:
-            var(--category-text);
-
-        border:
-            1px solid var(--category-border);
-
-        padding:
-            8px 10px 8px 14px;
-
-        border-radius:
-            999px;
-
-        font-size:
-            12px;
-
-        font-weight:
-            700;
-
-        transition:
-            transform .18s,
-            box-shadow .18s;
-
-        animation:
-            categoryGlow 2.8s ease-in-out infinite;
-
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--category-bg);
+        color: var(--category-text);
+        border: 1px solid var(--category-border);
+        padding: 8px 10px 8px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        transition: transform .18s, box-shadow .18s;
+        animation: categoryGlow 2.8s ease-in-out infinite;
     }
 
-
-    .adm-chip:hover {
-
-        transform:
-            translateY(-2px);
-
-        box-shadow:
-            0 8px 20px var(--category-glow);
-
-    }
-
+        .adm-chip:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px var(--category-glow);
+        }
 
     .adm-chip-name {
-
-        white-space:
-            nowrap;
-
+        white-space: nowrap;
     }
 
+    /* the category name is now clickable (opens the actions popup) */
+    button.adm-chip-name {
+        background: transparent;
+        border: none;
+        padding: 0;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+    }
+
+        button.adm-chip-name:hover {
+            text-decoration: underline;
+        }
 
     .adm-chip-rm {
-
-        background:
-            transparent;
-
-        border:
-            none;
-
-        padding:
-            3px 4px;
-
-        margin-left:
-            4px;
-
-        cursor:
-            pointer;
-
-        color:
-            inherit;
-
-        opacity:
-            .55;
-
-        display:
-            inline-flex;
-
-        align-items:
-            center;
-
-        justify-content:
-            center;
-
+        background: transparent;
+        border: none;
+        padding: 3px 4px;
+        margin-left: 4px;
+        cursor: pointer;
+        color: inherit;
+        opacity: .55;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
-
-    .adm-chip-rm:hover {
-
-        opacity:
-            1;
-
-    }
-
+        .adm-chip-rm:hover {
+            opacity: 1;
+        }
 
     .adm-chip-muted {
-
-        opacity:
-            .55;
-
-        animation:
-            none;
-
+        opacity: .55;
+        animation: none;
     }
 
-
-    .adm-chip-muted:hover {
-
-        opacity:
-            .8;
-
-        box-shadow:
-            none;
-
-    }
-
+        .adm-chip-muted:hover {
+            opacity: .8;
+            box-shadow: none;
+        }
 
     .adm-cat-search {
-
-        margin-bottom:
-            14px;
-
+        margin-bottom: 14px;
     }
-
 
     .adm-hint {
-
-        color:
-            var(--adm-ink-faint);
-
-        font-size:
-            13px;
-
-        margin:
-            12px 0;
-
+        color: var(--adm-ink-faint);
+        font-size: 13px;
+        margin: 12px 0;
     }
 
 
-
     /* ==========================================================
-       TABS
-    ========================================================== */
+           TABS
+        ========================================================== */
 
     .adm-tabs {
-
-        display:
-            flex;
-
-        gap:
-            6px;
-
-        padding:
-            16px 26px 0;
-
+        display: flex;
+        gap: 6px;
+        padding: 16px 26px 0;
     }
-
 
     .adm-tab {
-
-        display:
-            inline-flex;
-
-        align-items:
-            center;
-
-        gap:
-            8px;
-
-        background:
-            transparent;
-
-        border:
-            none;
-
-        border-bottom:
-            2px solid transparent;
-
-        color:
-            var(--adm-ink-soft);
-
-        font-weight:
-            600;
-
-        font-size:
-            13.5px;
-
-        padding:
-            10px 6px;
-
-        cursor:
-            pointer;
-
-        margin-right:
-            18px;
-
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--adm-ink-soft);
+        font-weight: 600;
+        font-size: 13.5px;
+        padding: 10px 6px;
+        cursor: pointer;
+        margin-right: 18px;
     }
 
-
-    .adm-tab.is-active {
-
-        color:
-            var(--adm-teal-deep);
-
-        border-bottom-color:
-            var(--adm-teal);
-
-    }
-
+        .adm-tab.is-active {
+            color: var(--adm-teal-deep);
+            border-bottom-color: var(--adm-teal);
+        }
 
     .adm-tab-count {
-
-        background:
-            var(--adm-paper);
-
-        color:
-            var(--adm-ink-faint);
-
-        font-size:
-            11px;
-
-        padding:
-            2px 8px;
-
-        border-radius:
-            999px;
-
+        background: var(--adm-paper);
+        color: var(--adm-ink-faint);
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
     }
-
 
     .adm-tab.is-active .adm-tab-count {
-
-        background:
-            var(--adm-teal-dim);
-
-        color:
-            var(--adm-teal-deep);
-
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
     }
 
 
-
     /* ==========================================================
-       TOOLBAR
-    ========================================================== */
+           TOOLBAR
+        ========================================================== */
 
     .adm-toolbar {
-
-        display:
-            flex;
-
-        align-items:
-            center;
-
-        gap:
-            12px;
-
-        padding:
-            16px 26px 0;
-
-        flex-wrap:
-            wrap;
-
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 26px 0;
+        flex-wrap: wrap;
     }
-
 
     .adm-search-box {
-
-        flex:
-            1;
-
-        min-width:
-            200px;
-
-        display:
-            flex;
-
-        align-items:
-            center;
-
-        gap:
-            10px;
-
-        background:
-            var(--adm-paper);
-
-        border:
-            1px solid var(--adm-line-strong);
-
-        border-radius:
-            var(--adm-radius-sm);
-
-        padding:
-            10px 14px;
-
+        flex: 1;
+        min-width: 200px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--adm-paper);
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 10px 14px;
     }
 
+        .adm-search-box i {
+            color: var(--adm-ink-faint);
+            font-size: 13px;
+        }
 
-    .adm-search-box i {
-
-        color:
-            var(--adm-ink-faint);
-
-        font-size:
-            13px;
-
-    }
-
-
-    .adm-search-box input {
-
-        border:
-            none;
-
-        background:
-            transparent;
-
-        outline:
-            none;
-
-        font-size:
-            13px;
-
-        font-family:
-            'Inter',
-            sans-serif;
-
-        width:
-            100%;
-
-    }
-
+        .adm-search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+        }
 
     .adm-toolbar select {
-
-        border:
-            1px solid var(--adm-line-strong);
-
-        border-radius:
-            var(--adm-radius-sm);
-
-        padding:
-            10px 14px;
-
-        font-size:
-            13px;
-
-        font-family:
-            'Inter',
-            sans-serif;
-
-        color:
-            var(--adm-ink);
-
-        background:
-            var(--adm-raised);
-
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 10px 14px;
+        font-size: 13px;
+        font-family: 'Inter', sans-serif;
+        color: var(--adm-ink);
+        background: var(--adm-raised);
     }
-
 
     .adm-show-control {
-
-        display:
-            flex;
-
-        align-items:
-            center;
-
-        gap:
-            7px;
-
-        color:
-            var(--adm-ink-soft);
-
-        font-size:
-            12px;
-
-        font-weight:
-            600;
-
-        white-space:
-            nowrap;
-
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--adm-ink-soft);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
     }
 
-
-    .adm-show-control select {
-
-        padding:
-            9px 10px;
-
-        min-width:
-            64px;
-
-    }
-
+        .adm-show-control select {
+            padding: 9px 10px;
+            min-width: 64px;
+        }
 
 
     /* ==========================================================
-       TABLE
-    ========================================================== */
+           TABLE
+        ========================================================== */
 
     .adm-table-wrap {
-
-        padding:
-            16px 0 6px;
-
-        width:
-            100%;
-
-        box-sizing:
-            border-box;
-
-        overflow:
-            visible;
-
+        padding: 16px 0 6px;
+        width: 100%;
+        box-sizing: border-box;
+        overflow: visible;
     }
 
-
-    /*
-       ONLY THE TABLE SCROLLS.
-
-       This keeps the empty states and pagination outside
-       the scrolling area.
-    */
-
+    /* ONLY THE TABLE SCROLLS. This keeps the empty states and pagination outside the scrolling area. */
     .adm-table-scroll {
-
-        width:
-            100%;
-
-        max-width:
-            100%;
-
-        max-height:
-            430px;
-
-        overflow-y:
-            auto;
-
-        overflow-x:
-            hidden;
-
-        box-sizing:
-            border-box;
-
-        scrollbar-width:
-            thin;
-
-        scrollbar-color:
-            var(--adm-line-strong)
-            var(--adm-paper);
-
+        width: 100%;
+        max-width: 100%;
+        max-height: 430px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        box-sizing: border-box;
+        scrollbar-width: thin;
+        scrollbar-color: var(--adm-line-strong) var(--adm-paper);
     }
 
+        .adm-table-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
 
-    .adm-table-scroll::-webkit-scrollbar {
+        .adm-table-scroll::-webkit-scrollbar-track {
+            background: var(--adm-paper);
+            border-radius: 10px;
+        }
 
-        width:
-            8px;
+        .adm-table-scroll::-webkit-scrollbar-thumb {
+            background: var(--adm-line-strong);
+            border-radius: 10px;
+        }
 
-    }
-
-
-    .adm-table-scroll::-webkit-scrollbar-track {
-
-        background:
-            var(--adm-paper);
-
-        border-radius:
-            10px;
-
-    }
-
-
-    .adm-table-scroll::-webkit-scrollbar-thumb {
-
-        background:
-            var(--adm-line-strong);
-
-        border-radius:
-            10px;
-
-    }
-
-
-    .adm-table-scroll::-webkit-scrollbar-thumb:hover {
-
-        background:
-            var(--adm-teal);
-
-    }
-
+            .adm-table-scroll::-webkit-scrollbar-thumb:hover {
+                background: var(--adm-teal);
+            }
 
     .adm-table {
-
-        width:
-            100%;
-
-        max-width:
-            100%;
-
-        table-layout:
-            auto;
-
-        border-collapse:
-            collapse;
-
-        font-size:
-            13px;
-
+        width: 100%;
+        max-width: 100%;
+        table-layout: auto;
+        border-collapse: collapse;
+        font-size: 13px;
     }
 
+        .adm-table th:nth-child(1), .adm-table td:nth-child(1) {
+            width: 20%;
+        }
 
-    /*
-       Give the important columns enough room.
-       These are minimum preferences rather than
-       fixed percentages, so the text does not get
-       compressed unnecessarily.
-    */
+        .adm-table th:nth-child(2), .adm-table td:nth-child(2) {
+            width: 17%;
+        }
 
-    .adm-table th:nth-child(1),
-    .adm-table td:nth-child(1) {
+        .adm-table th:nth-child(3), .adm-table td:nth-child(3) {
+            width: 27%;
+        }
 
-        width:
-            20%;
+        .adm-table th:nth-child(4), .adm-table td:nth-child(4) {
+            width: 13%;
+        }
 
-    }
+        .adm-table th:nth-child(5), .adm-table td:nth-child(5) {
+            width: 23%;
+        }
 
-
-    .adm-table th:nth-child(2),
-    .adm-table td:nth-child(2) {
-
-        width:
-            17%;
-
-    }
-
-
-    .adm-table th:nth-child(3),
-    .adm-table td:nth-child(3) {
-
-        width:
-            27%;
-
-    }
-
-
-    .adm-table th:nth-child(4),
-    .adm-table td:nth-child(4) {
-
-        width:
-            13%;
-
-    }
-
-
-    .adm-table th:nth-child(5),
-    .adm-table td:nth-child(5) {
-
-        width:
-            23%;
-
-    }
-
-
-    .adm-table th {
-
-        text-align:
-            left;
-
-        padding:
-            13px 18px;
-
-        font-weight:
-            600;
-
-        font-size:
-            11px;
-
-        letter-spacing:
-            .03em;
-
-        text-transform:
-            uppercase;
-
-        color:
-            var(--adm-ink-faint);
-
-        background:
-            var(--adm-paper);
-
-        border-bottom:
-            1px solid var(--adm-line);
-
-        position:
-            sticky;
-
-        top:
-            0;
-
-        z-index:
-            5;
-
-    }
-
+        .adm-table th {
+            text-align: left;
+            padding: 13px 18px;
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            color: var(--adm-ink-faint);
+            background: var(--adm-paper);
+            border-bottom: 1px solid var(--adm-line);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
 
     .adm-th-actions {
-
-        text-align:
-            left;
-
+        text-align: left;
     }
-
 
     .adm-table td {
-
-        padding:
-            15px 18px;
-
-        border-bottom:
-            1px solid var(--adm-line);
-
-        vertical-align:
-            middle;
-
-        overflow-wrap:
-            break-word;
-
-        word-break:
-            normal;
-
-        white-space:
-            normal;
-
-        line-height:
-            1.45;
-
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--adm-line);
+        vertical-align: middle;
+        overflow-wrap: break-word;
+        word-break: normal;
+        white-space: normal;
+        line-height: 1.45;
     }
-
 
     .adm-table tbody tr:last-child td {
-
-        border-bottom:
-            none;
-
+        border-bottom: none;
     }
-
 
     .adm-table tbody tr:hover {
-
-        background:
-            var(--adm-paper);
-
+        background: var(--adm-paper);
     }
-
 
     .adm-td-strong {
-
-        font-weight:
-            600;
-
-        color:
-            var(--adm-ink);
-
-        overflow-wrap:
-            anywhere;
-
+        font-weight: 600;
+        color: var(--adm-ink);
+        overflow-wrap: anywhere;
     }
-
 
     .adm-td-muted {
-
-        color:
-            var(--adm-ink-soft);
-
-        overflow-wrap:
-            anywhere;
-
+        color: var(--adm-ink-soft);
+        overflow-wrap: anywhere;
     }
 
 
-
     /* ==========================================================
-       CATEGORY BADGES
-    ========================================================== */
+           CATEGORY BADGES
+        ========================================================== */
 
     .adm-badge {
-
-        display:
-            inline-flex;
-
-        align-items:
-            center;
-
-        justify-content:
-            center;
-
-        padding:
-            5px 10px;
-
-        border-radius:
-            999px;
-
-        font-size:
-            11px;
-
-        font-weight:
-            700;
-
-        line-height:
-            1.3;
-
-        text-align:
-            center;
-
-        background:
-            var(--category-bg);
-
-        color:
-            var(--category-text);
-
-        border:
-            1px solid var(--category-border);
-
-        box-shadow:
-            0 0 8px var(--category-glow);
-
-        transition:
-            box-shadow .2s;
-
-        max-width:
-            100%;
-
-        box-sizing:
-            border-box;
-
-        white-space:
-            normal;
-
-        overflow-wrap:
-            anywhere;
-
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.3;
+        text-align: center;
+        background: var(--category-bg);
+        color: var(--category-text);
+        border: 1px solid var(--category-border);
+        box-shadow: 0 0 8px var(--category-glow);
+        transition: box-shadow .2s;
+        max-width: 100%;
+        box-sizing: border-box;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 
-
-    .adm-badge:hover {
-
-        box-shadow:
-            0 0 14px var(--category-glow);
-
-    }
-
+        .adm-badge:hover {
+            box-shadow: 0 0 14px var(--category-glow);
+        }
 
     .adm-badge-muted {
-
-        background:
-            var(--adm-line);
-
-        color:
-            var(--adm-ink-faint);
-
-        border-color:
-            var(--adm-line);
-
-        box-shadow:
-            none;
-
-        animation:
-            none;
-
+        background: var(--adm-line);
+        color: var(--adm-ink-faint);
+        border-color: var(--adm-line);
+        box-shadow: none;
+        animation: none;
     }
 
 
-
     /* ==========================================================
-       STATUS
-    ========================================================== */
+           STATUS
+        ========================================================== */
 
     .adm-status-pill {
-
-        display:
-            inline-flex;
-
-        align-items:
-            center;
-
-        gap:
-            7px;
-
-        padding:
-            5px 10px;
-
-        border-radius:
-            999px;
-
-        font-size:
-            11.5px;
-
-        font-weight:
-            600;
-
-        white-space:
-            nowrap;
-
-        box-sizing:
-            border-box;
-
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+        white-space: nowrap;
+        box-sizing: border-box;
     }
-
 
     .adm-status-active {
-
-        background:
-            var(--adm-teal-dim);
-
-        color:
-            var(--adm-teal-deep);
-
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
     }
-
 
     .adm-status-inactive {
-
-        background:
-            var(--adm-line);
-
-        color:
-            var(--adm-ink-faint);
-
+        background: var(--adm-line);
+        color: var(--adm-ink-faint);
     }
-
 
     .adm-status-dot {
-
-        width:
-            8px;
-
-        height:
-            8px;
-
-        border-radius:
-            50%;
-
-        flex-shrink:
-            0;
-
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
     }
-
 
     .adm-status-active .adm-status-dot {
-
-        background:
-            var(--adm-teal);
-
-        animation:
-            admGlowPulse 2s ease-in-out infinite;
-
+        background: var(--adm-teal);
+        animation: admGlowPulse 2s ease-in-out infinite;
     }
-
 
     .adm-status-inactive .adm-status-dot {
-
-        background:
-            var(--adm-ink-faint);
-
-        box-shadow:
-            0 0 0 3px var(--adm-line);
-
+        background: var(--adm-ink-faint);
+        box-shadow: 0 0 0 3px var(--adm-line);
     }
 
 
-
     /* ==========================================================
-       ROW ACTIONS
-    ========================================================== */
+           ROW ACTIONS
+        ========================================================== */
 
     .adm-row-actions {
-
-        display:
-            flex;
-
-        align-items:
-            center;
-
-        gap:
-            6px;
-
-        flex-wrap:
-            wrap;
-
-        width:
-            100%;
-
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        width: 100%;
     }
-
 
     .adm-inline-form-tight {
-
-        display:
-            inline-flex;
-
-        max-width:
-            100%;
-
+        display: inline-flex;
+        max-width: 100%;
     }
-
 
     .adm-icon-btn {
-
-        display:
-            inline-flex;
-
-        align-items:
-            center;
-
-        justify-content:
-            center;
-
-        gap:
-            6px;
-
-        border:
-            1px solid var(--adm-line-strong);
-
-        background:
-            var(--adm-raised);
-
-        color:
-            var(--adm-ink-soft);
-
-        border-radius:
-            var(--adm-radius-sm);
-
-        padding:
-            7px 10px;
-
-        font-size:
-            11.5px;
-
-        font-weight:
-            600;
-
-        cursor:
-            pointer;
-
-        white-space:
-            nowrap;
-
-        transition:
-            background .15s,
-            color .15s,
-            border-color .15s;
-
-        max-width:
-            100%;
-
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 1px solid var(--adm-line-strong);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border-radius: var(--adm-radius-sm);
+        padding: 7px 10px;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .15s, color .15s, border-color .15s;
+        max-width: 100%;
     }
-
 
     .adm-icon-btn-edit:hover {
-
-        background:
-            var(--adm-teal-dim);
-
-        color:
-            var(--adm-teal-deep);
-
-        border-color:
-            var(--adm-teal-dim);
-
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-color: var(--adm-teal-dim);
     }
-
 
     .adm-icon-btn-danger:hover {
-
-        background:
-            var(--adm-red-dim);
-
-        color:
-            var(--adm-red);
-
-        border-color:
-            var(--adm-red-dim);
-
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-color: var(--adm-red-dim);
     }
-
 
     .adm-icon-btn-restore:hover {
-
-        background:
-            var(--adm-teal-dim);
-
-        color:
-            var(--adm-teal-deep);
-
-        border-color:
-            var(--adm-teal-dim);
-
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-color: var(--adm-teal-dim);
     }
 
 
-
     /* ==========================================================
-       INLINE FORM
-    ========================================================== */
+           INLINE FORM
+        ========================================================== */
 
     .adm-inline-form {
-
-        display:
-            flex;
-
-        gap:
-            10px;
-
-        margin-top:
-            14px;
-
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
     }
 
+        .adm-inline-form input {
+            flex: 1;
+            min-width: 0;
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+        }
 
-    .adm-inline-form input {
-
-        flex:
-            1;
-
-        min-width:
-            0;
-
-        border:
-            1px solid var(--adm-line-strong);
-
-        border-radius:
-            var(--adm-radius-sm);
-
-        padding:
-            10px 14px;
-
-        font-size:
-            13px;
-
-        font-family:
-            'Inter',
-            sans-serif;
-
-    }
-
-
-    .adm-inline-form input:focus {
-
-        outline:
-            none;
-
-        border-color:
-            var(--adm-teal);
-
-        box-shadow:
-            0 0 0 3px var(--adm-teal-dim);
-
-    }
-
+            .adm-inline-form input:focus {
+                outline: none;
+                border-color: var(--adm-teal);
+                box-shadow: 0 0 0 3px var(--adm-teal-dim);
+            }
 
 
     /* ==========================================================
-       PAGINATION
-    ========================================================== */
+           PAGINATION
+        ========================================================== */
 
     .adm-pagination {
-
-        display:
-            flex;
-
-        align-items:
-            center;
-
-        justify-content:
-            center;
-
-        gap:
-            12px;
-
-        margin:
-            12px 0 14px;
-
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin: 12px 0 14px;
     }
-
 
     .adm-page-btn {
-
-        width:
-            34px;
-
-        height:
-            34px;
-
-        display:
-            inline-flex;
-
-        align-items:
-            center;
-
-        justify-content:
-            center;
-
-        border:
-            1px solid var(--adm-line-strong);
-
-        background:
-            var(--adm-raised);
-
-        color:
-            var(--adm-ink-soft);
-
-        border-radius:
-            10px;
-
-        cursor:
-            pointer;
-
-        transition:
-            all .15s;
-
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--adm-line-strong);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all .15s;
     }
 
+        .adm-page-btn:hover:not(:disabled) {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+            border-color: var(--adm-teal);
+        }
 
-    .adm-page-btn:hover:not(:disabled) {
-
-        background:
-            var(--adm-teal-dim);
-
-        color:
-            var(--adm-teal-deep);
-
-        border-color:
-            var(--adm-teal);
-
-    }
-
-
-    .adm-page-btn:disabled {
-
-        opacity:
-            .35;
-
-        cursor:
-            not-allowed;
-
-    }
-
+        .adm-page-btn:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+        }
 
     .adm-page-info {
-
-        min-width:
-            90px;
-
-        text-align:
-            center;
-
-        font-size:
-            12px;
-
-        color:
-            var(--adm-ink-soft);
-
-        font-weight:
-            600;
-
+        min-width: 90px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--adm-ink-soft);
+        font-weight: 600;
     }
-
 
     .adm-condition-pagination {
-
-        display:
-            flex;
-
-        justify-content:
-            space-between;
-
-        align-items:
-            center;
-
-        padding:
-            12px 26px 18px;
-
-        border-top:
-            1px solid var(--adm-line);
-
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 26px 18px;
+        border-top: 1px solid var(--adm-line);
     }
-
 
     .adm-pagination-left {
-
-        color:
-            var(--adm-ink-faint);
-
-        font-size:
-            12px;
-
-        font-weight:
-            600;
-
+        color: var(--adm-ink-faint);
+        font-size: 12px;
+        font-weight: 600;
     }
-
 
     .adm-pagination-right {
-
-        display:
-            flex;
-
-        align-items:
-            center;
-
-        gap:
-            10px;
-
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 
 
-
     /* ==========================================================
-       CATEGORY BREAKDOWN
-    ========================================================== */
+           CATEGORY BREAKDOWN
+        ========================================================== */
 
     .adm-breakdown {
-
-        padding:
-            20px 26px 26px;
-
-        display:
-            flex;
-
-        flex-direction:
-            column;
-
-        gap:
-            16px;
-
+        padding: 20px 26px 26px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
     }
-
 
     .adm-breakdown-row {
-
-        display:
-            flex;
-
-        flex-direction:
-            column;
-
-        gap:
-            6px;
-
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
-
 
     .adm-breakdown-label {
-
-        display:
-            flex;
-
-        justify-content:
-            space-between;
-
-        gap:
-            10px;
-
-        font-size:
-            13px;
-
-        color:
-            var(--adm-ink);
-
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--adm-ink);
     }
 
+        .adm-breakdown-label span {
+            overflow-wrap: anywhere;
+        }
 
-    .adm-breakdown-label span {
-
-        overflow-wrap:
-            anywhere;
-
-    }
-
-
-    .adm-breakdown-label strong {
-
-        color:
-            var(--adm-ink-faint);
-
-        font-weight:
-            700;
-
-        flex-shrink:
-            0;
-
-    }
-
+        .adm-breakdown-label strong {
+            color: var(--adm-ink-faint);
+            font-weight: 700;
+            flex-shrink: 0;
+        }
 
     .adm-breakdown-track {
-
-        height:
-            8px;
-
-        border-radius:
-            999px;
-
-        background:
-            var(--adm-paper);
-
-        overflow:
-            hidden;
-
+        height: 8px;
+        border-radius: 999px;
+        background: var(--adm-paper);
+        overflow: hidden;
     }
-
 
     .adm-breakdown-fill {
-
-        height:
-            100%;
-
-        border-radius:
-            999px;
-
-        background:
-            var(--category-text);
-
-        box-shadow:
-            0 0 8px var(--category-glow);
-
-        opacity:
-            .85;
-
-        transition:
-            width .3s ease;
-
+        height: 100%;
+        border-radius: 999px;
+        background: var(--category-text);
+        box-shadow: 0 0 8px var(--category-glow);
+        opacity: .85;
+        transition: width .3s ease;
     }
 
 
-
     /* ==========================================================
-       EMPTY STATE
-    ========================================================== */
+           EMPTY STATE
+        ========================================================== */
 
     .adm-empty-state {
-
-        padding:
-            48px 30px;
-
-        text-align:
-            center;
-
-        display:
-            flex;
-
-        flex-direction:
-            column;
-
-        align-items:
-            center;
-
-        gap:
-            10px;
-
+        padding: 48px 30px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
     }
-
 
     .adm-empty-icon {
-
-        width:
-            58px;
-
-        height:
-            58px;
-
-        border-radius:
-            50%;
-
-        background:
-            var(--adm-teal-dim);
-
-        color:
-            var(--adm-teal);
-
-        display:
-            flex;
-
-        align-items:
-            center;
-
-        justify-content:
-            center;
-
-        font-size:
-            22px;
-
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
     }
-
 
     .adm-empty-state h5 {
-
-        margin:
-            0;
-
-        font-size:
-            14.5px;
-
-        font-weight:
-            700;
-
+        margin: 0;
+        font-size: 14.5px;
+        font-weight: 700;
     }
-
 
     .adm-empty-state p {
-
-        margin:
-            0;
-
-        max-width:
-            340px;
-
-        font-size:
-            13px;
-
-        color:
-            var(--adm-ink-soft);
-
-        line-height:
-            1.6;
-
+        margin: 0;
+        max-width: 340px;
+        font-size: 13px;
+        color: var(--adm-ink-soft);
+        line-height: 1.6;
     }
 
 
-
     /* ==========================================================
-       MODALS
-    ========================================================== */
+           MODALS
+        ========================================================== */
 
     .adm-modal-overlay {
-
-        display:
-            none;
-
-        position:
-            fixed;
-
-        inset:
-            0;
-
-        background:
-            rgba(10, 44, 39, 0.45);
-
-        align-items:
-            center;
-
-        justify-content:
-            center;
-
-        z-index:
-            1000;
-
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 44, 39, 0.45);
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
     }
 
-
-    .adm-modal-overlay.is-open {
-
-        display:
-            flex;
-
-    }
-
+        .adm-modal-overlay.is-open {
+            display: flex;
+        }
 
     .adm-modal {
-
-        background:
-            var(--adm-raised);
-
-        border-radius:
-            var(--adm-radius);
-
-        box-shadow:
-            var(--adm-shadow);
-
-        width:
-            100%;
-
-        max-width:
-            440px;
-
-        padding:
-            26px;
-
+        background: var(--adm-raised);
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        width: 100%;
+        max-width: 440px;
+        padding: 26px;
     }
-
 
     .adm-modal-title {
-
-        display:
-            flex;
-
-        justify-content:
-            space-between;
-
-        align-items:
-            center;
-
-        font-family:
-            'Poppins',
-            sans-serif;
-
-        font-weight:
-            700;
-
-        font-size:
-            16px;
-
-        margin-bottom:
-            20px;
-
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 16px;
+        margin-bottom: 20px;
     }
-
 
     .adm-modal-icon {
-
-        margin-right:
-            8px;
-
-        color:
-            var(--adm-teal);
-
+        margin-right: 8px;
+        color: var(--adm-teal);
     }
-
 
     .adm-modal-close {
-
-        cursor:
-            pointer;
-
-        color:
-            var(--adm-ink-faint);
-
-        width:
-            28px;
-
-        height:
-            28px;
-
-        border-radius:
-            50%;
-
-        display:
-            flex;
-
-        align-items:
-            center;
-
-        justify-content:
-            center;
-
+        cursor: pointer;
+        color: var(--adm-ink-faint);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-
-    .adm-modal-close:hover {
-
-        background:
-            var(--adm-paper);
-
-        color:
-            var(--adm-ink);
-
-    }
-
+        .adm-modal-close:hover {
+            background: var(--adm-paper);
+            color: var(--adm-ink);
+        }
 
     .adm-form-group {
-
-        margin-bottom:
-            16px;
-
+        margin-bottom: 16px;
     }
 
+        .adm-form-group label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--adm-ink-soft);
+            margin-bottom: 6px;
+        }
 
-    .adm-form-group label {
+        .adm-form-group input,
+        .adm-form-group select {
+            width: 100%;
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            color: var(--adm-ink);
+            box-sizing: border-box;
+        }
 
-        display:
-            block;
-
-        font-size:
-            12.5px;
-
-        font-weight:
-            600;
-
-        color:
-            var(--adm-ink-soft);
-
-        margin-bottom:
-            6px;
-
-    }
-
-
-    .adm-form-group input,
-    .adm-form-group select {
-
-        width:
-            100%;
-
-        border:
-            1px solid var(--adm-line-strong);
-
-        border-radius:
-            var(--adm-radius-sm);
-
-        padding:
-            10px 14px;
-
-        font-size:
-            13px;
-
-        font-family:
-            'Inter',
-            sans-serif;
-
-        color:
-            var(--adm-ink);
-
-        box-sizing:
-            border-box;
-
-    }
-
-
-    .adm-form-group input:focus,
-    .adm-form-group select:focus {
-
-        outline:
-            none;
-
-        border-color:
-            var(--adm-teal);
-
-        box-shadow:
-            0 0 0 3px var(--adm-teal-dim);
-
-    }
-
+            .adm-form-group input:focus,
+            .adm-form-group select:focus {
+                outline: none;
+                border-color: var(--adm-teal);
+                box-shadow: 0 0 0 3px var(--adm-teal-dim);
+            }
 
     .adm-modal-actions {
-
-        display:
-            flex;
-
-        justify-content:
-            flex-end;
-
-        gap:
-            10px;
-
-        margin-top:
-            6px;
-
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 6px;
     }
 
 
-
     /* ==========================================================
-       ANIMATIONS
-    ========================================================== */
+           ANIMATIONS
+        ========================================================== */
 
     @@keyframes categoryGlow {
-
         0%, 100% {
-
-            box-shadow:
-                0 0 0 0 transparent;
-
+            box-shadow: 0 0 0 0 transparent;
         }
 
         50% {
-
-            box-shadow:
-                0 0 10px var(--category-glow);
-
+            box-shadow: 0 0 10px var(--category-glow);
         }
-
     }
-
 
     @@keyframes admGlowPulse {
-
         0%, 100% {
-
-            box-shadow:
-                0 0 0 3px var(--adm-teal-dim),
-                0 0 6px 1px rgba(14, 140, 127, .45);
-
+            box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 6px 1px rgba(14, 140, 127, .45);
         }
 
         50% {
-
-            box-shadow:
-                0 0 0 3px var(--adm-teal-dim),
-                0 0 14px 4px rgba(14, 140, 127, .75);
-
+            box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 14px 4px rgba(14, 140, 127, .75);
         }
-
     }
-
 
 
     /* ==========================================================
-       RESPONSIVE
-    ========================================================== */
+           RESPONSIVE
+        ========================================================== */
 
     @@media (max-width: 1000px) {
 
         .adm-split {
-
-            grid-template-columns:
-                1fr;
-
+            grid-template-columns: 1fr;
         }
-
     }
-
 
     @@media (max-width: 640px) {
 
         .adm-page {
-
-            padding:
-                20px 16px 50px;
-
+            padding: 20px 16px 50px;
         }
-
 
         .adm-page-banner {
-
-            flex-direction:
-                column;
-
-            align-items:
-                flex-start;
-
+            flex-direction: column;
+            align-items: flex-start;
         }
-
 
         .adm-page-banner-right {
-
-            width:
-                100%;
-
-            justify-content:
-                space-between;
-
+            width: 100%;
+            justify-content: space-between;
         }
-
 
         .adm-row-actions {
-
-            flex-wrap:
-                wrap;
-
+            flex-wrap: wrap;
         }
-
 
         .adm-toolbar {
-
-            align-items:
-                stretch;
-
+            align-items: stretch;
         }
-
 
         .adm-show-control {
-
-            width:
-                100%;
-
-            justify-content:
-                flex-end;
-
+            width: 100%;
+            justify-content: flex-end;
         }
-
 
         .adm-condition-pagination {
-
-            flex-direction:
-                column;
-
-            gap:
-                12px;
-
+            flex-direction: column;
+            gap: 12px;
         }
-
 
         .adm-inline-form {
-
-            flex-direction:
-                column;
-
+            flex-direction: column;
         }
-
 
         .adm-table th,
         .adm-table td {
-
-            padding:
-                12px 10px;
-
+            padding: 12px 10px;
         }
-
 
         .adm-table {
-
-            font-size:
-                12px;
-
+            font-size: 12px;
         }
 
-
-        .adm-table th {
-
-            font-size:
-                10px;
-
-        }
-
+            .adm-table th {
+                font-size: 10px;
+            }
 
         .adm-icon-btn {
-
-            font-size:
-                10.5px;
-
-            padding:
-                6px 8px;
-
+            font-size: 10.5px;
+            padding: 6px 8px;
         }
-
 
         .adm-badge {
-
-            font-size:
-                10px;
-
-            padding:
-                4px 8px;
-
+            font-size: 10px;
+            padding: 4px 8px;
         }
-
     }
 
 </style>

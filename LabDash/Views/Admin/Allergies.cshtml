@@ -105,11 +105,19 @@
                     <div class="adm-chips-row">
                         @foreach (var cat in Model.Categories)
                         {
-                            <form asp-action="DeactivateCategory" method="post" class="adm-chip-form" data-name="@cat.Name.ToLower()">
+                            <form asp-action="DeactivateCategory" method="post" class="adm-chip-form" data-name="@cat.Name.ToLower()"
+                                  data-cs-confirm="Archive @(cat.Name)? It will move to the Archived tab and can be restored any time."
+                                  data-cs-title="Archive category?"
+                                  data-cs-yes="Archive"
+                                  data-cs-tone="warn"
+                                  data-cs-icon="fa-box-archive">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@cat.CategoryId" />
                                 <span class="adm-chip">
-                                    <span class="adm-chip-name">@cat.Name</span>
+                                    <button type="button" class="adm-chip-name" data-name="@cat.Name"
+                                            onclick="openCategoryActions(this, 'active')">
+                                        @cat.Name
+                                    </button>
                                     <button type="submit" class="adm-chip-rm" title="Archive category">
                                         <i class="fas fa-box-archive"></i>
                                     </button>
@@ -131,11 +139,18 @@
                     <div class="adm-chips-row">
                         @foreach (var cat in Model.InactiveCategories)
                         {
-                            <form asp-action="ReactivateCategory" method="post" class="adm-chip-form" data-name="@cat.Name.ToLower()">
+                            <form asp-action="ReactivateCategory" method="post" class="adm-chip-form" data-name="@cat.Name.ToLower()"
+                                  data-cs-confirm="Restore @(cat.Name)? It will go back to the Active list."
+                                  data-cs-title="Restore category?"
+                                  data-cs-yes="Restore"
+                                  data-cs-icon="fa-rotate-left">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@cat.CategoryId" />
                                 <span class="adm-chip adm-chip-muted">
-                                    <span class="adm-chip-name">@cat.Name</span>
+                                    <button type="button" class="adm-chip-name" data-name="@cat.Name"
+                                            onclick="openCategoryActions(this, 'archived')">
+                                        @cat.Name
+                                    </button>
                                     <button type="submit" class="adm-chip-rm" title="Restore category">
                                         <i class="fas fa-rotate-left"></i>
                                     </button>
@@ -162,7 +177,11 @@
             </div>
 
             <!-- ADD CATEGORY -->
-            <form asp-action="AddCategory" method="post" class="adm-inline-form">
+            <form asp-action="AddCategory" method="post" class="adm-inline-form"
+                  data-cs-confirm="Add this new category to the allergy list?"
+                  data-cs-title="Add category?"
+                  data-cs-yes="Add category"
+                  data-cs-icon="fa-folder-plus">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="type" value="Allergy" />
                 <input name="name" placeholder="New category name" required />
@@ -268,7 +287,12 @@
                                                 <i class="fas fa-pen"></i> Edit
                                             </button>
 
-                                            <form asp-action="DeleteAllergy" method="post" class="adm-inline-form-tight">
+                                            <form asp-action="DeleteAllergy" method="post" class="adm-inline-form-tight"
+                                                  data-cs-confirm="Deactivate @(item.AllergyName)? It will move to the Archived tab and can be reactivated any time."
+                                                  data-cs-title="Deactivate allergy?"
+                                                  data-cs-yes="Deactivate"
+                                                  data-cs-tone="warn"
+                                                  data-cs-icon="fa-box-archive">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="id" value="@item.AllergyId" />
                                                 <button type="submit" class="adm-icon-btn adm-icon-btn-danger">
@@ -305,7 +329,11 @@
                                     </td>
                                     <td>
                                         <div class="adm-row-actions">
-                                            <form asp-action="ReactivateAllergy" method="post" class="adm-inline-form-tight">
+                                            <form asp-action="ReactivateAllergy" method="post" class="adm-inline-form-tight"
+                                                  data-cs-confirm="Reactivate @(item.AllergyName)? It will be available across the system again."
+                                                  data-cs-title="Reactivate allergy?"
+                                                  data-cs-yes="Reactivate"
+                                                  data-cs-icon="fa-rotate-left">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="id" value="@item.AllergyId" />
                                                 <button type="submit" class="adm-icon-btn adm-icon-btn-restore">
@@ -408,7 +436,11 @@
                 <span class="adm-modal-close" onclick="closeModal('modal-add')"><i class="fas fa-xmark"></i></span>
             </div>
 
-            <form asp-action="AddAllergy" method="post">
+            <form asp-action="AddAllergy" method="post"
+                  data-cs-confirm="Save this new allergy to the system?"
+                  data-cs-title="Add allergy?"
+                  data-cs-yes="Save allergy"
+                  data-cs-icon="fa-circle-plus">
                 @Html.AntiForgeryToken()
 
                 <div class="adm-form-group">
@@ -452,7 +484,11 @@
                 <span class="adm-modal-close" onclick="closeModal('modal-edit')"><i class="fas fa-xmark"></i></span>
             </div>
 
-            <form asp-action="EditAllergy" method="post">
+            <form asp-action="EditAllergy" method="post"
+                  data-cs-confirm="Save your changes to this allergy?"
+                  data-cs-title="Save changes?"
+                  data-cs-yes="Save changes"
+                  data-cs-icon="fa-floppy-disk">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" id="edit-id" />
 
@@ -496,7 +532,11 @@
                 <span class="adm-modal-close" onclick="closeModal('modal-edit-category')"><i class="fas fa-xmark"></i></span>
             </div>
 
-            <form asp-action="EditCategory" method="post">
+            <form asp-action="EditCategory" method="post"
+                  data-cs-confirm="Save your changes to this category?"
+                  data-cs-title="Save changes?"
+                  data-cs-yes="Save changes"
+                  data-cs-icon="fa-floppy-disk">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="id" id="edit-cat-id" />
 
@@ -519,571 +559,1414 @@
 
 
 @section Scripts {
-<script>
+    <script>
 
-    /* ==========================================================
-       GLOBAL STATE
-    ========================================================== */
+        /* ==========================================================
+           GLOBAL STATE
+        ========================================================== */
 
-    var allergyPages = { active: 1, archived: 1 };
-    var categoryPages = { active: 1, archived: 1 };
-    var categoryPageSize = 6;
+        var allergyPages = { active: 1, archived: 1 };
+        var categoryPages = { active: 1, archived: 1 };
+        var categoryPageSize = 6;
 
 
-    /* ==========================================================
-       MODALS
-    ========================================================== */
+        /* ==========================================================
+           MODALS
+        ========================================================== */
 
-    function openModal(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        el.classList.add('is-open');
-        document.body.style.overflow = 'hidden';
-    }
+        function openModal(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('is-open');
+            document.body.style.overflow = 'hidden';
+        }
 
-    function closeModal(id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        el.classList.remove('is-open');
-        document.body.style.overflow = '';
-    }
+        function closeModal(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('is-open');
+            document.body.style.overflow = '';
+        }
 
-    document.querySelectorAll('.adm-modal-overlay').forEach(function (overlay) {
-        overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) closeModal(overlay.id);
+        document.querySelectorAll('.adm-modal-overlay').forEach(function(overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeModal(overlay.id);
+            });
         });
-    });
 
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.adm-modal-overlay.is-open').forEach(function (o) {
-                closeModal(o.id);
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+
+                // a confirmation popup is open: let it handle Escape on its own
+                var pp = document.getElementById('ppOverlay');
+                if (pp && !pp.hidden) return;
+
+                document.querySelectorAll('.adm-modal-overlay.is-open').forEach(function(o) {
+                    closeModal(o.id);
+                });
+            }
+        });
+
+
+        /* ==========================================================
+           EDIT ALLERGY
+        ========================================================== */
+
+        function openEditModalFromButton(btn) {
+            document.getElementById('edit-id').value = btn.dataset.id;
+            document.getElementById('edit-name').value = btn.dataset.name;
+            document.getElementById('edit-description').value = btn.dataset.description || '';
+
+            var select = document.getElementById('edit-category');
+            for (var i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === String(btn.dataset.category)) {
+                    select.selectedIndex = i;
+                    break;
+                }
+            }
+
+            openModal('modal-edit');
+        }
+
+
+        /* ==========================================================
+           EDIT CATEGORY
+        ========================================================== */
+
+        function openEditCategoryModal(btn) {
+            document.getElementById('edit-cat-id').value = btn.dataset.id;
+            document.getElementById('edit-cat-name').value = btn.dataset.name;
+            openModal('modal-edit-category');
+        }
+
+
+        /* ==========================================================
+           CATEGORY CHIP ACTIONS (click a category chip)
+        ========================================================== */
+
+        function openCategoryActions(nameEl, state) {
+
+            var form = nameEl.closest('form');
+            var id = form.querySelector('input[name="id"]').value;
+            var name = nameEl.dataset.name;
+
+            var choices = [{ value: 'edit', label: 'Edit name', icon: 'fa-pen' }];
+
+            choices.push(state === 'active'
+                ? { value: 'toggle', label: 'Archive category', icon: 'fa-box-archive', tone: 'warn' }
+                : { value: 'toggle', label: 'Restore category', icon: 'fa-rotate-left' });
+
+            CsPopup.choose({
+                title: name,
+                message: 'What would you like to do with this category?',
+                icon: 'fa-folder',
+                choices: choices
+            }).then(function(pick) {
+
+                if (pick === 'edit') {
+
+                    openEditCategoryModal({ dataset: { id: id, name: name } });
+
+                } else if (pick === 'toggle') {
+
+                    CsPopup.confirm(state === 'active'
+                        ? { title: 'Archive category?', message: 'Archive ' + name + '? It will move to the Archived tab and can be restored any time.', okText: 'Archive', tone: 'warn', icon: 'fa-box-archive' }
+                        : { title: 'Restore category?', message: 'Restore ' + name + '? It will go back to the Active list.', okText: 'Restore', icon: 'fa-rotate-left' }
+                    ).then(function(ok) {
+                        if (ok) form.submit();
+                    });
+                }
             });
         }
-    });
 
 
-    /* ==========================================================
-       EDIT ALLERGY
-    ========================================================== */
+        /* ==========================================================
+           ALLERGY TABS
+        ========================================================== */
 
-    function openEditModalFromButton(btn) {
-        document.getElementById('edit-id').value = btn.dataset.id;
-        document.getElementById('edit-name').value = btn.dataset.name;
-        document.getElementById('edit-description').value = btn.dataset.description || '';
+        function switchTab(tabBtn) {
+            document
+                .querySelectorAll('.adm-split > .adm-panel:first-child .adm-tabs .adm-tab')
+                .forEach(function(tab) { tab.classList.remove('is-active'); });
 
-        var select = document.getElementById('edit-category');
-        for (var i = 0; i < select.options.length; i++) {
-            if (select.options[i].value === String(btn.dataset.category)) {
-                select.selectedIndex = i;
-                break;
+            tabBtn.classList.add('is-active');
+
+            var activeBody = document.getElementById('allergy-tbody');
+            var archivedBody = document.getElementById('allergy-tbody-archived');
+            activeBody.style.display = 'none';
+            archivedBody.style.display = 'none';
+
+            var target = document.getElementById(tabBtn.dataset.tbody);
+            if (target) target.style.display = '';
+
+            var activeEmpty = document.getElementById('allergy-empty-active');
+            var archivedEmpty = document.getElementById('allergy-empty-archived');
+
+            if (activeEmpty) {
+                activeEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody' ? '' : 'none';
             }
+            if (archivedEmpty) {
+                archivedEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody-archived' ? '' : 'none';
+            }
+
+            document.getElementById('allergy-search').value = '';
+            document.getElementById('allergy-cat-filter').value = '';
+
+            allergyPages.active = 1;
+            allergyPages.archived = 1;
+
+            filterActiveTable();
         }
 
-        openModal('modal-edit');
-    }
 
+        /* ==========================================================
+           ALLERGY FILTER + PAGINATION
+        ========================================================== */
 
-    /* ==========================================================
-       EDIT CATEGORY (defined for parity — wire a button to this
-       if you add inline category editing later)
-    ========================================================== */
-
-    function openEditCategoryModal(btn) {
-        document.getElementById('edit-cat-id').value = btn.dataset.id;
-        document.getElementById('edit-cat-name').value = btn.dataset.name;
-        openModal('modal-edit-category');
-    }
-
-
-    /* ==========================================================
-       ALLERGY TABS
-    ========================================================== */
-
-    function switchTab(tabBtn) {
-        document
-            .querySelectorAll('.adm-split > .adm-panel:first-child .adm-tabs .adm-tab')
-            .forEach(function (tab) { tab.classList.remove('is-active'); });
-
-        tabBtn.classList.add('is-active');
-
-        var activeBody = document.getElementById('allergy-tbody');
-        var archivedBody = document.getElementById('allergy-tbody-archived');
-        activeBody.style.display = 'none';
-        archivedBody.style.display = 'none';
-
-        var target = document.getElementById(tabBtn.dataset.tbody);
-        if (target) target.style.display = '';
-
-        var activeEmpty = document.getElementById('allergy-empty-active');
-        var archivedEmpty = document.getElementById('allergy-empty-archived');
-
-        if (activeEmpty) {
-            activeEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody' ? '' : 'none';
-        }
-        if (archivedEmpty) {
-            archivedEmpty.style.display = tabBtn.dataset.tbody === 'allergy-tbody-archived' ? '' : 'none';
+        function getCurrentAllergyBody() {
+            var selectedTab = document.querySelector(
+                '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active'
+            );
+            if (!selectedTab) return null;
+            return document.getElementById(selectedTab.dataset.tbody);
         }
 
-        document.getElementById('allergy-search').value = '';
-        document.getElementById('allergy-cat-filter').value = '';
+        function getCurrentAllergyType() {
+            var activeTab = document.querySelector(
+                '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active'
+            );
+            if (!activeTab) return 'active';
+            return activeTab.dataset.tbody === 'allergy-tbody-archived' ? 'archived' : 'active';
+        }
 
-        allergyPages.active = 1;
-        allergyPages.archived = 1;
+        function filterActiveTable() {
+            var tbody = getCurrentAllergyBody();
+            if (!tbody) return;
 
-        filterActiveTable();
-    }
+            var type = getCurrentAllergyType();
+            allergyPages[type] = 1;
+
+            renderAllergies();
+        }
+
+        function renderAllergies() {
+            var tbody = getCurrentAllergyBody();
+            if (!tbody) return;
+
+            var type = getCurrentAllergyType();
+
+            var query = document.getElementById('allergy-search').value.toLowerCase().trim();
+            var category = document.getElementById('allergy-cat-filter').value;
+
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+
+            var matchingRows = rows.filter(function(row) {
+                var name = row.dataset.name || '';
+                var rowCategory = row.dataset.cat || '';
+                var nameMatch = name.includes(query);
+                var categoryMatch = !category || rowCategory === category;
+                return nameMatch && categoryMatch;
+            });
+
+            var pageSizeValue = document.getElementById('allergy-page-size').value;
+            var allResults = pageSizeValue === 'all';
+            var pageSize = allResults ? matchingRows.length : parseInt(pageSizeValue);
+            if (pageSize < 1) pageSize = 5;
+
+            var totalPages = allResults
+                ? 1
+                : Math.max(1, Math.ceil(matchingRows.length / pageSize));
+
+            if (allergyPages[type] > totalPages) {
+                allergyPages[type] = totalPages;
+            }
+
+            var currentPage = allergyPages[type];
+            var start = allResults ? 0 : (currentPage - 1) * pageSize;
+            var end = allResults ? matchingRows.length : start + pageSize;
+
+            rows.forEach(function(row) { row.style.display = 'none'; });
+
+            matchingRows.slice(start, end).forEach(function(row) {
+                row.style.display = '';
+            });
+
+            updateAllergyPagination(matchingRows.length, currentPage, totalPages, allResults, start, end);
+        }
+
+        function updateAllergyPagination(total, currentPage, totalPages, allResults, start, end) {
+            var pagination = document.getElementById('allergy-pagination');
+            var noResults = document.getElementById('allergy-no-results');
+
+            if (total === 0) {
+                if (pagination) pagination.style.display = 'none';
+                if (noResults) noResults.style.display = '';
+                return;
+            }
+
+            if (noResults) noResults.style.display = 'none';
+
+            if (allResults) {
+                start = 0;
+                end = total;
+            }
+
+            var showingStart = total === 0 ? 0 : start + 1;
+            var showingEnd = Math.min(end, total);
+
+            document.getElementById('allergy-results-info').textContent =
+                'Showing ' + showingStart + '–' + showingEnd + ' of ' + total;
+
+            document.getElementById('allergy-page-info').textContent =
+                allResults ? 'All' : 'Page ' + currentPage + ' of ' + totalPages;
+
+            var previous = document.getElementById('allergy-prev');
+            var next = document.getElementById('allergy-next');
+
+            previous.disabled = allResults || currentPage <= 1;
+            next.disabled = allResults || currentPage >= totalPages;
+
+            pagination.style.display = totalPages <= 1 ? 'none' : 'flex';
+        }
+
+        function changeAllergyPage(direction) {
+            var type = getCurrentAllergyType();
+            allergyPages[type] += direction;
+            if (allergyPages[type] < 1) allergyPages[type] = 1;
+            renderAllergies();
+        }
+
+        function changePageSize() {
+            allergyPages.active = 1;
+            allergyPages.archived = 1;
+            renderAllergies();
+        }
 
 
-    /* ==========================================================
-       ALLERGY FILTER + PAGINATION
-    ========================================================== */
+        /* ==========================================================
+           CATEGORY TABS
+        ========================================================== */
 
-    function getCurrentAllergyBody() {
-        var selectedTab = document.querySelector(
-            '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active'
-        );
-        if (!selectedTab) return null;
-        return document.getElementById(selectedTab.dataset.tbody);
-    }
+        function switchCatTab(tabBtn) {
+            var panel = tabBtn.closest('.adm-panel');
 
-    function getCurrentAllergyType() {
-        var activeTab = document.querySelector(
-            '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active'
-        );
-        if (!activeTab) return 'active';
-        return activeTab.dataset.tbody === 'allergy-tbody-archived' ? 'archived' : 'active';
-    }
+            panel.querySelectorAll('.adm-tabs .adm-tab').forEach(function(tab) {
+                tab.classList.remove('is-active');
+            });
+            tabBtn.classList.add('is-active');
 
-    function filterActiveTable() {
-        var tbody = getCurrentAllergyBody();
-        if (!tbody) return;
+            var active = panel.querySelector('#cat-chips-active');
+            var archived = panel.querySelector('#cat-chips-archived');
+            active.style.display = 'none';
+            archived.style.display = 'none';
 
-        var type = getCurrentAllergyType();
-        allergyPages[type] = 1;
+            document.getElementById(tabBtn.dataset.target).style.display = '';
+            document.getElementById('cat-search').value = '';
 
-        renderAllergies();
-    }
+            categoryPages.active = 1;
+            categoryPages.archived = 1;
 
-    function renderAllergies() {
-        var tbody = getCurrentAllergyBody();
-        if (!tbody) return;
+            filterCatChips();
+        }
 
-        var type = getCurrentAllergyType();
 
-        var query = document.getElementById('allergy-search').value.toLowerCase().trim();
-        var category = document.getElementById('allergy-cat-filter').value;
+        /* ==========================================================
+           CATEGORY FILTER + PAGINATION
+        ========================================================== */
 
-        var rows = Array.from(tbody.querySelectorAll('tr'));
+        function filterCatChips() {
+            var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
+            if (!activeTab) return;
 
-        var matchingRows = rows.filter(function (row) {
-            var name = row.dataset.name || '';
-            var rowCategory = row.dataset.cat || '';
-            var nameMatch = name.includes(query);
-            var categoryMatch = !category || rowCategory === category;
-            return nameMatch && categoryMatch;
+            var container = document.getElementById(activeTab.dataset.target);
+            if (!container) return;
+
+            var search = document.getElementById('cat-search').value.toLowerCase().trim();
+            var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
+
+            var forms = Array.from(container.querySelectorAll('.adm-chip-form'));
+            var matching = forms.filter(function(form) {
+                return (form.dataset.name || '').includes(search);
+            });
+
+            categoryPages[type] = Math.min(
+                categoryPages[type],
+                Math.max(1, Math.ceil(matching.length / categoryPageSize))
+            );
+
+            var currentPage = categoryPages[type];
+            var start = (currentPage - 1) * categoryPageSize;
+            var end = start + categoryPageSize;
+
+            forms.forEach(function(form) { form.style.display = 'none'; });
+            matching.slice(start, end).forEach(function(form) { form.style.display = ''; });
+
+            updateCategoryPagination(matching.length, currentPage, type);
+        }
+
+        function updateCategoryPagination(total, currentPage, type) {
+            var pagination = document.getElementById('category-pagination');
+
+            pagination.style.display = total === 0 ? 'none' : 'flex';
+
+            var totalPages = Math.max(1, Math.ceil(total / categoryPageSize));
+
+            document.getElementById('cat-page-info').textContent =
+                'Page ' + currentPage + ' of ' + totalPages;
+
+            document.getElementById('cat-prev').disabled = currentPage <= 1;
+            document.getElementById('cat-next').disabled = currentPage >= totalPages;
+        }
+
+        function changeCategoryPage(direction) {
+            var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
+            if (!activeTab) return;
+
+            var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
+
+            categoryPages[type] += direction;
+            if (categoryPages[type] < 1) categoryPages[type] = 1;
+
+            filterCatChips();
+        }
+
+
+        /* ==========================================================
+           INITIALISE
+        ========================================================== */
+
+        document.addEventListener('DOMContentLoaded', function() {
+            filterCatChips();
+            renderAllergies();
         });
 
-        var pageSizeValue = document.getElementById('allergy-page-size').value;
-        var allResults = pageSizeValue === 'all';
-        var pageSize = allResults ? matchingRows.length : parseInt(pageSizeValue);
-        if (pageSize < 1) pageSize = 5;
-
-        var totalPages = allResults
-            ? 1
-            : Math.max(1, Math.ceil(matchingRows.length / pageSize));
-
-        if (allergyPages[type] > totalPages) {
-            allergyPages[type] = totalPages;
-        }
-
-        var currentPage = allergyPages[type];
-        var start = allResults ? 0 : (currentPage - 1) * pageSize;
-        var end = allResults ? matchingRows.length : start + pageSize;
-
-        rows.forEach(function (row) { row.style.display = 'none'; });
-
-        matchingRows.slice(start, end).forEach(function (row) {
-            row.style.display = '';
-        });
-
-        updateAllergyPagination(matchingRows.length, currentPage, totalPages, allResults, start, end);
-    }
-
-    function updateAllergyPagination(total, currentPage, totalPages, allResults, start, end) {
-        var pagination = document.getElementById('allergy-pagination');
-        var noResults = document.getElementById('allergy-no-results');
-
-        if (total === 0) {
-            if (pagination) pagination.style.display = 'none';
-            if (noResults) noResults.style.display = '';
-            return;
-        }
-
-        if (noResults) noResults.style.display = 'none';
-
-        if (allResults) {
-            start = 0;
-            end = total;
-        }
-
-        var showingStart = total === 0 ? 0 : start + 1;
-        var showingEnd = Math.min(end, total);
-
-        document.getElementById('allergy-results-info').textContent =
-            'Showing ' + showingStart + '–' + showingEnd + ' of ' + total;
-
-        document.getElementById('allergy-page-info').textContent =
-            allResults ? 'All' : 'Page ' + currentPage + ' of ' + totalPages;
-
-        var previous = document.getElementById('allergy-prev');
-        var next = document.getElementById('allergy-next');
-
-        previous.disabled = allResults || currentPage <= 1;
-        next.disabled = allResults || currentPage >= totalPages;
-
-        pagination.style.display = totalPages <= 1 ? 'none' : 'flex';
-    }
-
-    function changeAllergyPage(direction) {
-        var type = getCurrentAllergyType();
-        allergyPages[type] += direction;
-        if (allergyPages[type] < 1) allergyPages[type] = 1;
-        renderAllergies();
-    }
-
-    function changePageSize() {
-        allergyPages.active = 1;
-        allergyPages.archived = 1;
-        renderAllergies();
-    }
-
-
-    /* ==========================================================
-       CATEGORY TABS
-    ========================================================== */
-
-    function switchCatTab(tabBtn) {
-        var panel = tabBtn.closest('.adm-panel');
-
-        panel.querySelectorAll('.adm-tabs .adm-tab').forEach(function (tab) {
-            tab.classList.remove('is-active');
-        });
-        tabBtn.classList.add('is-active');
-
-        var active = panel.querySelector('#cat-chips-active');
-        var archived = panel.querySelector('#cat-chips-archived');
-        active.style.display = 'none';
-        archived.style.display = 'none';
-
-        document.getElementById(tabBtn.dataset.target).style.display = '';
-        document.getElementById('cat-search').value = '';
-
-        categoryPages.active = 1;
-        categoryPages.archived = 1;
-
-        filterCatChips();
-    }
-
-
-    /* ==========================================================
-       CATEGORY FILTER + PAGINATION
-    ========================================================== */
-
-    function filterCatChips() {
-        var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
-        if (!activeTab) return;
-
-        var container = document.getElementById(activeTab.dataset.target);
-        if (!container) return;
-
-        var search = document.getElementById('cat-search').value.toLowerCase().trim();
-        var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
-
-        var forms = Array.from(container.querySelectorAll('.adm-chip-form'));
-        var matching = forms.filter(function (form) {
-            return (form.dataset.name || '').includes(search);
-        });
-
-        categoryPages[type] = Math.min(
-            categoryPages[type],
-            Math.max(1, Math.ceil(matching.length / categoryPageSize))
-        );
-
-        var currentPage = categoryPages[type];
-        var start = (currentPage - 1) * categoryPageSize;
-        var end = start + categoryPageSize;
-
-        forms.forEach(function (form) { form.style.display = 'none'; });
-        matching.slice(start, end).forEach(function (form) { form.style.display = ''; });
-
-        updateCategoryPagination(matching.length, currentPage, type);
-    }
-
-    function updateCategoryPagination(total, currentPage, type) {
-        var pagination = document.getElementById('category-pagination');
-
-        pagination.style.display = total === 0 ? 'none' : 'flex';
-
-        var totalPages = Math.max(1, Math.ceil(total / categoryPageSize));
-
-        document.getElementById('cat-page-info').textContent =
-            'Page ' + currentPage + ' of ' + totalPages;
-
-        document.getElementById('cat-prev').disabled = currentPage <= 1;
-        document.getElementById('cat-next').disabled = currentPage >= totalPages;
-    }
-
-    function changeCategoryPage(direction) {
-        var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
-        if (!activeTab) return;
-
-        var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
-
-        categoryPages[type] += direction;
-        if (categoryPages[type] < 1) categoryPages[type] = 1;
-
-        filterCatChips();
-    }
-
-
-    /* ==========================================================
-       INITIALISE
-    ========================================================== */
-
-    document.addEventListener('DOMContentLoaded', function () {
-        filterCatChips();
-        renderAllergies();
-    });
-
-</script>
+    </script>
 }
 
 
 <style>
 
     /* ==========================================================
-       VARIABLES — purple stays fixed for allergies, everything
-       else matches the shared admin page look.
-    ========================================================== */
+           VARIABLES — purple stays fixed for allergies, everything
+           else matches the shared admin page look.
+        ========================================================== */
 
     :root {
         --adm-paper: #F0F7F6;
         --adm-raised: #FFFFFF;
-
         --adm-ink: #102C27;
         --adm-ink-soft: #52716C;
         --adm-ink-faint: #8FA9A3;
-
         --adm-line: #E1EEEC;
         --adm-line-strong: #CCE3DF;
-
         --adm-teal: #0E8C7F;
         --adm-teal-deep: #0A5850;
         --adm-teal-dim: #E3F4F1;
         --adm-teal-grad-start: #12A392;
         --adm-teal-grad-end: #0A4F48;
-
         --adm-red: #B0463F;
         --adm-red-dim: #F7E8E7;
-
         --adm-purple: #6D4EA8;
         --adm-purple-dim: #EEE8F9;
         --adm-allergy-accent: var(--adm-purple);
         --adm-allergy-accent-dim: var(--adm-purple-dim);
-
         --adm-radius: 20px;
         --adm-radius-sm: 13px;
-
         --adm-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
         --adm-shadow-sm: 0 3px 10px rgba(10, 60, 55, 0.06);
     }
 
 
     /* PAGE */
-    .adm-page { max-width: 1280px; margin: 0 auto; padding: 26px 24px 60px; color: var(--adm-ink); font-family: 'Inter', sans-serif; }
+    .adm-page {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 26px 24px 60px;
+        color: var(--adm-ink);
+        font-family: 'Inter', sans-serif;
+    }
 
     /* ALERTS */
-    .adm-alert { display: flex; align-items: center; gap: 10px; background: var(--adm-teal-dim); color: var(--adm-teal-deep); border-left: 4px solid var(--adm-teal); border-radius: var(--adm-radius-sm); padding: 14px 18px; font-size: 13.5px; font-weight: 600; margin-bottom: 18px; }
-    .adm-alert-error { background: var(--adm-red-dim); color: var(--adm-red); border-left-color: var(--adm-red); }
+    .adm-alert {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-left: 4px solid var(--adm-teal);
+        border-radius: var(--adm-radius-sm);
+        padding: 14px 18px;
+        font-size: 13.5px;
+        font-weight: 600;
+        margin-bottom: 18px;
+    }
+
+    .adm-alert-error {
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-left-color: var(--adm-red);
+    }
 
     /* PAGE BANNER */
-    .adm-page-banner { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 24px; background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end)); border-radius: var(--adm-radius); padding: 26px 32px; margin-bottom: 22px; box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2); overflow: hidden; flex-wrap: wrap; }
-    .adm-page-banner-pattern { position: absolute; inset: 0; background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%); pointer-events: none; }
-    .adm-page-banner-left { display: flex; align-items: center; gap: 18px; position: relative; z-index: 1; }
-    .adm-page-banner-icon { width: 58px; height: 58px; border-radius: 16px; background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.32); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; flex-shrink: 0; }
-    .adm-page-banner-left h1 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 21px; margin: 0 0 3px; color: #fff; }
-    .adm-page-banner-left p { margin: 0; color: rgba(255,255,255,.85); font-size: 13px; }
-    .adm-page-banner-right { display: flex; align-items: center; gap: 20px; position: relative; z-index: 1; flex-wrap: wrap; }
-    .adm-mini-stats { display: flex; gap: 18px; }
-    .adm-mini-stat { display: flex; flex-direction: column; align-items: center; min-width: 58px; }
-    .adm-mini-stat .num { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 20px; color: #fff; }
-    .adm-mini-stat .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: rgba(255,255,255,.75); margin-top: 2px; }
+    .adm-page-banner {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        border-radius: var(--adm-radius);
+        padding: 26px 32px;
+        margin-bottom: 22px;
+        box-shadow: 0 18px 40px rgba(10, 90, 80, 0.2);
+        overflow: hidden;
+        flex-wrap: wrap;
+    }
+
+    .adm-page-banner-pattern {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle at 85% 20%, rgba(255,255,255,.10) 0, transparent 45%), radial-gradient(circle at 95% 85%, rgba(255,255,255,.08) 0, transparent 40%);
+        pointer-events: none;
+    }
+
+    .adm-page-banner-left {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .adm-page-banner-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 16px;
+        background: rgba(255,255,255,.16);
+        border: 2px solid rgba(255,255,255,.32);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    .adm-page-banner-left h1 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 21px;
+        margin: 0 0 3px;
+        color: #fff;
+    }
+
+    .adm-page-banner-left p {
+        margin: 0;
+        color: rgba(255,255,255,.85);
+        font-size: 13px;
+    }
+
+    .adm-page-banner-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        position: relative;
+        z-index: 1;
+        flex-wrap: wrap;
+    }
+
+    .adm-mini-stats {
+        display: flex;
+        gap: 18px;
+    }
+
+    .adm-mini-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 58px;
+    }
+
+        .adm-mini-stat .num {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            color: #fff;
+        }
+
+        .adm-mini-stat .label {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: rgba(255,255,255,.75);
+            margin-top: 2px;
+        }
 
     /* BUTTONS */
-    .adm-btn { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end)); color: #fff; border: none; border-radius: var(--adm-radius-sm); padding: 11px 20px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13.5px; cursor: pointer; box-shadow: 0 8px 20px rgba(10, 90, 80, 0.22); transition: transform .15s, box-shadow .15s; }
-    .adm-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(10, 90, 80, 0.28); }
-    .adm-btn-sm { padding: 9px 16px; font-size: 12.5px; flex-shrink: 0; }
-    .adm-btn-light { background: #fff; color: var(--adm-teal-deep); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
-    .adm-btn-light:hover { box-shadow: 0 12px 24px rgba(0,0,0,0.16); }
-    .adm-btn-cancel { background: var(--adm-paper); color: var(--adm-ink-soft); border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 11px 20px; font-weight: 600; font-size: 13.5px; cursor: pointer; }
+    .adm-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        color: #fff;
+        border: none;
+        border-radius: var(--adm-radius-sm);
+        padding: 11px 20px;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 13.5px;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(10, 90, 80, 0.22);
+        transition: transform .15s, box-shadow .15s;
+    }
+
+        .adm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 26px rgba(10, 90, 80, 0.28);
+        }
+
+    .adm-btn-sm {
+        padding: 9px 16px;
+        font-size: 12.5px;
+        flex-shrink: 0;
+    }
+
+    .adm-btn-light {
+        background: #fff;
+        color: var(--adm-teal-deep);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+
+        .adm-btn-light:hover {
+            box-shadow: 0 12px 24px rgba(0,0,0,0.16);
+        }
+
+    .adm-btn-cancel {
+        background: var(--adm-paper);
+        color: var(--adm-ink-soft);
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 11px 20px;
+        font-weight: 600;
+        font-size: 13.5px;
+        cursor: pointer;
+    }
 
     /* PANELS */
-    .adm-panel { background: var(--adm-raised); border-radius: var(--adm-radius); box-shadow: var(--adm-shadow); overflow: hidden; margin-bottom: 22px; }
-    .adm-panel-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 26px; border-bottom: 1px solid var(--adm-line); }
-    .adm-panel-head span:first-child { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15.5px; display: flex; align-items: center; gap: 10px; }
-    .adm-panel-head span:first-child i { color: var(--adm-teal); }
-    .adm-panel-tag { font-weight: 600; font-size: 11.5px; background: var(--adm-teal-dim); color: var(--adm-teal-deep); padding: 6px 13px; border-radius: 999px; }
-    .adm-panel-body { padding: 20px 26px 24px; }
+    .adm-panel {
+        background: var(--adm-raised);
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        overflow: hidden;
+        margin-bottom: 22px;
+    }
+
+    .adm-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 26px;
+        border-bottom: 1px solid var(--adm-line);
+    }
+
+        .adm-panel-head span:first-child {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 15.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .adm-panel-head span:first-child i {
+                color: var(--adm-teal);
+            }
+
+    .adm-panel-tag {
+        font-weight: 600;
+        font-size: 11.5px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        padding: 6px 13px;
+        border-radius: 999px;
+    }
+
+    .adm-panel-body {
+        padding: 20px 26px 24px;
+    }
 
     /* SPLIT */
-    .adm-split { display: grid; grid-template-columns: 1.7fr 1fr; gap: 18px; align-items: start; }
+    .adm-split {
+        display: grid;
+        grid-template-columns: 1.7fr 1fr;
+        gap: 18px;
+        align-items: start;
+    }
 
     /* CATEGORY CHIPS — fixed purple */
-    .adm-chips-container { margin-bottom: 12px; min-height: 54px; }
-    .adm-chips-row { display: flex; flex-wrap: wrap; gap: 10px; min-height: 48px; }
-    .adm-chip-form { display: inline-flex; }
-    .adm-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); border: 1px solid transparent; padding: 8px 10px 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; transition: transform .18s, box-shadow .18s; animation: admGlowPulsePurple 2.8s ease-in-out infinite; }
-    .adm-chip:hover { transform: translateY(-2px); }
-    .adm-chip-name { white-space: nowrap; }
-    .adm-chip-rm { background: transparent; border: none; padding: 3px 4px; margin-left: 4px; cursor: pointer; color: inherit; opacity: .55; display: inline-flex; align-items: center; justify-content: center; }
-    .adm-chip-rm:hover { opacity: 1; }
-    .adm-chip-muted { opacity: .55; animation: none; }
-    .adm-chip-muted:hover { opacity: .8; }
-    .adm-cat-search { margin-bottom: 14px; }
-    .adm-hint { color: var(--adm-ink-faint); font-size: 13px; margin: 12px 0; }
+    .adm-chips-container {
+        margin-bottom: 12px;
+        min-height: 54px;
+    }
+
+    .adm-chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        min-height: 48px;
+    }
+
+    .adm-chip-form {
+        display: inline-flex;
+    }
+
+    .adm-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+        border: 1px solid transparent;
+        padding: 8px 10px 8px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        transition: transform .18s, box-shadow .18s;
+        animation: admGlowPulsePurple 2.8s ease-in-out infinite;
+    }
+
+        .adm-chip:hover {
+            transform: translateY(-2px);
+        }
+
+    .adm-chip-name {
+        white-space: nowrap;
+    }
+
+    /* the category name is now clickable (opens the actions popup) */
+    button.adm-chip-name {
+        background: transparent;
+        border: none;
+        padding: 0;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+    }
+
+        button.adm-chip-name:hover {
+            text-decoration: underline;
+        }
+
+    .adm-chip-rm {
+        background: transparent;
+        border: none;
+        padding: 3px 4px;
+        margin-left: 4px;
+        cursor: pointer;
+        color: inherit;
+        opacity: .55;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .adm-chip-rm:hover {
+            opacity: 1;
+        }
+
+    .adm-chip-muted {
+        opacity: .55;
+        animation: none;
+    }
+
+        .adm-chip-muted:hover {
+            opacity: .8;
+        }
+
+    .adm-cat-search {
+        margin-bottom: 14px;
+    }
+
+    .adm-hint {
+        color: var(--adm-ink-faint);
+        font-size: 13px;
+        margin: 12px 0;
+    }
 
     /* TABS */
-    .adm-tabs { display: flex; gap: 6px; padding: 16px 26px 0; }
-    .adm-tab { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--adm-ink-soft); font-weight: 600; font-size: 13.5px; padding: 10px 6px; cursor: pointer; margin-right: 18px; }
-    .adm-tab.is-active { color: var(--adm-teal-deep); border-bottom-color: var(--adm-teal); }
-    .adm-tab-count { background: var(--adm-paper); color: var(--adm-ink-faint); font-size: 11px; padding: 2px 8px; border-radius: 999px; }
-    .adm-tab.is-active .adm-tab-count { background: var(--adm-teal-dim); color: var(--adm-teal-deep); }
+    .adm-tabs {
+        display: flex;
+        gap: 6px;
+        padding: 16px 26px 0;
+    }
+
+    .adm-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--adm-ink-soft);
+        font-weight: 600;
+        font-size: 13.5px;
+        padding: 10px 6px;
+        cursor: pointer;
+        margin-right: 18px;
+    }
+
+        .adm-tab.is-active {
+            color: var(--adm-teal-deep);
+            border-bottom-color: var(--adm-teal);
+        }
+
+    .adm-tab-count {
+        background: var(--adm-paper);
+        color: var(--adm-ink-faint);
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+    }
+
+    .adm-tab.is-active .adm-tab-count {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
 
     /* TOOLBAR */
-    .adm-toolbar { display: flex; align-items: center; gap: 12px; padding: 16px 26px 0; flex-wrap: wrap; }
-    .adm-search-box { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 10px; background: var(--adm-paper); border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 10px 14px; }
-    .adm-search-box i { color: var(--adm-ink-faint); font-size: 13px; }
-    .adm-search-box input { border: none; background: transparent; outline: none; font-size: 13px; font-family: 'Inter', sans-serif; width: 100%; }
-    .adm-toolbar select { border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 10px 14px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--adm-ink); background: var(--adm-raised); }
-    .adm-show-control { display: flex; align-items: center; gap: 7px; color: var(--adm-ink-soft); font-size: 12px; font-weight: 600; white-space: nowrap; }
-    .adm-show-control select { padding: 9px 10px; min-width: 64px; }
+    .adm-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 26px 0;
+        flex-wrap: wrap;
+    }
+
+    .adm-search-box {
+        flex: 1;
+        min-width: 200px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--adm-paper);
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 10px 14px;
+    }
+
+        .adm-search-box i {
+            color: var(--adm-ink-faint);
+            font-size: 13px;
+        }
+
+        .adm-search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+        }
+
+    .adm-toolbar select {
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 10px 14px;
+        font-size: 13px;
+        font-family: 'Inter', sans-serif;
+        color: var(--adm-ink);
+        background: var(--adm-raised);
+    }
+
+    .adm-show-control {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--adm-ink-soft);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+        .adm-show-control select {
+            padding: 9px 10px;
+            min-width: 64px;
+        }
 
     /* TABLE */
-    .adm-table-wrap { padding: 16px 0 6px; width: 100%; box-sizing: border-box; overflow: visible; }
-    .adm-table-scroll { width: 100%; max-width: 100%; max-height: 430px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--adm-line-strong) var(--adm-paper); }
-    .adm-table-scroll::-webkit-scrollbar { width: 8px; }
-    .adm-table-scroll::-webkit-scrollbar-track { background: var(--adm-paper); border-radius: 10px; }
-    .adm-table-scroll::-webkit-scrollbar-thumb { background: var(--adm-line-strong); border-radius: 10px; }
-    .adm-table-scroll::-webkit-scrollbar-thumb:hover { background: var(--adm-teal); }
-    .adm-table { width: 100%; max-width: 100%; table-layout: auto; border-collapse: collapse; font-size: 13px; }
-    .adm-table th:nth-child(1), .adm-table td:nth-child(1) { width: 20%; }
-    .adm-table th:nth-child(2), .adm-table td:nth-child(2) { width: 17%; }
-    .adm-table th:nth-child(3), .adm-table td:nth-child(3) { width: 27%; }
-    .adm-table th:nth-child(4), .adm-table td:nth-child(4) { width: 13%; }
-    .adm-table th:nth-child(5), .adm-table td:nth-child(5) { width: 23%; }
-    .adm-table th { text-align: left; padding: 13px 18px; font-weight: 600; font-size: 11px; letter-spacing: .03em; text-transform: uppercase; color: var(--adm-ink-faint); background: var(--adm-paper); border-bottom: 1px solid var(--adm-line); position: sticky; top: 0; z-index: 5; }
-    .adm-th-actions { text-align: left; }
-    .adm-table td { padding: 15px 18px; border-bottom: 1px solid var(--adm-line); vertical-align: middle; overflow-wrap: break-word; word-break: normal; white-space: normal; line-height: 1.45; }
-    .adm-table tbody tr:last-child td { border-bottom: none; }
-    .adm-table tbody tr:hover { background: var(--adm-paper); }
-    .adm-td-strong { font-weight: 600; color: var(--adm-ink); overflow-wrap: anywhere; }
-    .adm-td-muted { color: var(--adm-ink-soft); overflow-wrap: anywhere; }
+    .adm-table-wrap {
+        padding: 16px 0 6px;
+        width: 100%;
+        box-sizing: border-box;
+        overflow: visible;
+    }
+
+    .adm-table-scroll {
+        width: 100%;
+        max-width: 100%;
+        max-height: 430px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        box-sizing: border-box;
+        scrollbar-width: thin;
+        scrollbar-color: var(--adm-line-strong) var(--adm-paper);
+    }
+
+        .adm-table-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .adm-table-scroll::-webkit-scrollbar-track {
+            background: var(--adm-paper);
+            border-radius: 10px;
+        }
+
+        .adm-table-scroll::-webkit-scrollbar-thumb {
+            background: var(--adm-line-strong);
+            border-radius: 10px;
+        }
+
+            .adm-table-scroll::-webkit-scrollbar-thumb:hover {
+                background: var(--adm-teal);
+            }
+
+    .adm-table {
+        width: 100%;
+        max-width: 100%;
+        table-layout: auto;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+        .adm-table th:nth-child(1), .adm-table td:nth-child(1) {
+            width: 20%;
+        }
+
+        .adm-table th:nth-child(2), .adm-table td:nth-child(2) {
+            width: 17%;
+        }
+
+        .adm-table th:nth-child(3), .adm-table td:nth-child(3) {
+            width: 27%;
+        }
+
+        .adm-table th:nth-child(4), .adm-table td:nth-child(4) {
+            width: 13%;
+        }
+
+        .adm-table th:nth-child(5), .adm-table td:nth-child(5) {
+            width: 23%;
+        }
+
+        .adm-table th {
+            text-align: left;
+            padding: 13px 18px;
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            color: var(--adm-ink-faint);
+            background: var(--adm-paper);
+            border-bottom: 1px solid var(--adm-line);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+    .adm-th-actions {
+        text-align: left;
+    }
+
+    .adm-table td {
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--adm-line);
+        vertical-align: middle;
+        overflow-wrap: break-word;
+        word-break: normal;
+        white-space: normal;
+        line-height: 1.45;
+    }
+
+    .adm-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .adm-table tbody tr:hover {
+        background: var(--adm-paper);
+    }
+
+    .adm-td-strong {
+        font-weight: 600;
+        color: var(--adm-ink);
+        overflow-wrap: anywhere;
+    }
+
+    .adm-td-muted {
+        color: var(--adm-ink-soft);
+        overflow-wrap: anywhere;
+    }
 
     /* BADGES — fixed purple */
-    .adm-badge { display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 1.3; text-align: center; background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); max-width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; animation: admGlowPulsePurple 2.6s ease-in-out infinite; }
-    .adm-badge-muted { background: var(--adm-line); color: var(--adm-ink-faint); animation: none; }
+    .adm-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.3;
+        text-align: center;
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+        max-width: 100%;
+        box-sizing: border-box;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        animation: admGlowPulsePurple 2.6s ease-in-out infinite;
+    }
+
+    .adm-badge-muted {
+        background: var(--adm-line);
+        color: var(--adm-ink-faint);
+        animation: none;
+    }
 
     /* STATUS */
-    .adm-status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; box-sizing: border-box; }
-    .adm-status-active { background: var(--adm-teal-dim); color: var(--adm-teal-deep); }
-    .adm-status-inactive { background: var(--adm-line); color: var(--adm-ink-faint); }
-    .adm-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .adm-status-active .adm-status-dot { background: var(--adm-teal); animation: admGlowPulse 2s ease-in-out infinite; }
-    .adm-status-inactive .adm-status-dot { background: var(--adm-ink-faint); box-shadow: 0 0 0 3px var(--adm-line); }
+    .adm-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+        white-space: nowrap;
+        box-sizing: border-box;
+    }
+
+    .adm-status-active {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
+
+    .adm-status-inactive {
+        background: var(--adm-line);
+        color: var(--adm-ink-faint);
+    }
+
+    .adm-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .adm-status-active .adm-status-dot {
+        background: var(--adm-teal);
+        animation: admGlowPulse 2s ease-in-out infinite;
+    }
+
+    .adm-status-inactive .adm-status-dot {
+        background: var(--adm-ink-faint);
+        box-shadow: 0 0 0 3px var(--adm-line);
+    }
 
     /* ROW ACTIONS */
-    .adm-row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; width: 100%; }
-    .adm-inline-form-tight { display: inline-flex; max-width: 100%; }
-    .adm-icon-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--adm-line-strong); background: var(--adm-raised); color: var(--adm-ink-soft); border-radius: var(--adm-radius-sm); padding: 7px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, border-color .15s; max-width: 100%; }
-    .adm-icon-btn-edit:hover { background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); border-color: var(--adm-allergy-accent-dim); }
-    .adm-icon-btn-danger:hover { background: var(--adm-red-dim); color: var(--adm-red); border-color: var(--adm-red-dim); }
-    .adm-icon-btn-restore:hover { background: var(--adm-teal-dim); color: var(--adm-teal-deep); border-color: var(--adm-teal-dim); }
+    .adm-row-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .adm-inline-form-tight {
+        display: inline-flex;
+        max-width: 100%;
+    }
+
+    .adm-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 1px solid var(--adm-line-strong);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border-radius: var(--adm-radius-sm);
+        padding: 7px 10px;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .15s, color .15s, border-color .15s;
+        max-width: 100%;
+    }
+
+    .adm-icon-btn-edit:hover {
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+        border-color: var(--adm-allergy-accent-dim);
+    }
+
+    .adm-icon-btn-danger:hover {
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-color: var(--adm-red-dim);
+    }
+
+    .adm-icon-btn-restore:hover {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-color: var(--adm-teal-dim);
+    }
 
     /* INLINE FORM */
-    .adm-inline-form { display: flex; gap: 10px; margin-top: 14px; }
-    .adm-inline-form input { flex: 1; min-width: 0; border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 10px 14px; font-size: 13px; font-family: 'Inter', sans-serif; }
-    .adm-inline-form input:focus { outline: none; border-color: var(--adm-allergy-accent); box-shadow: 0 0 0 3px var(--adm-allergy-accent-dim); }
+    .adm-inline-form {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+        .adm-inline-form input {
+            flex: 1;
+            min-width: 0;
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+        }
+
+            .adm-inline-form input:focus {
+                outline: none;
+                border-color: var(--adm-allergy-accent);
+                box-shadow: 0 0 0 3px var(--adm-allergy-accent-dim);
+            }
 
     /* PAGINATION */
-    .adm-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 12px 0 14px; }
-    .adm-page-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--adm-line-strong); background: var(--adm-raised); color: var(--adm-ink-soft); border-radius: 10px; cursor: pointer; transition: all .15s; }
-    .adm-page-btn:hover:not(:disabled) { background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); border-color: var(--adm-allergy-accent); }
-    .adm-page-btn:disabled { opacity: .35; cursor: not-allowed; }
-    .adm-page-info { min-width: 90px; text-align: center; font-size: 12px; color: var(--adm-ink-soft); font-weight: 600; }
-    .adm-condition-pagination { display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 18px; border-top: 1px solid var(--adm-line); }
-    .adm-pagination-left { color: var(--adm-ink-faint); font-size: 12px; font-weight: 600; }
-    .adm-pagination-right { display: flex; align-items: center; gap: 10px; }
+    .adm-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin: 12px 0 14px;
+    }
+
+    .adm-page-btn {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--adm-line-strong);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all .15s;
+    }
+
+        .adm-page-btn:hover:not(:disabled) {
+            background: var(--adm-allergy-accent-dim);
+            color: var(--adm-allergy-accent);
+            border-color: var(--adm-allergy-accent);
+        }
+
+        .adm-page-btn:disabled {
+            opacity: .35;
+            cursor: not-allowed;
+        }
+
+    .adm-page-info {
+        min-width: 90px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--adm-ink-soft);
+        font-weight: 600;
+    }
+
+    .adm-condition-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 26px 18px;
+        border-top: 1px solid var(--adm-line);
+    }
+
+    .adm-pagination-left {
+        color: var(--adm-ink-faint);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .adm-pagination-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
 
     /* CATEGORY BREAKDOWN — fixed purple bars */
-    .adm-breakdown { padding: 20px 26px 26px; display: flex; flex-direction: column; gap: 16px; }
-    .adm-breakdown-row { display: flex; flex-direction: column; gap: 6px; }
-    .adm-breakdown-label { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--adm-ink); }
-    .adm-breakdown-label span { overflow-wrap: anywhere; }
-    .adm-breakdown-label strong { color: var(--adm-ink-faint); font-weight: 700; flex-shrink: 0; }
-    .adm-breakdown-track { height: 8px; border-radius: 999px; background: var(--adm-paper); overflow: hidden; }
-    .adm-breakdown-fill { height: 100%; border-radius: 999px; background: var(--adm-allergy-accent); opacity: .85; transition: width .3s ease; }
+    .adm-breakdown {
+        padding: 20px 26px 26px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .adm-breakdown-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .adm-breakdown-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--adm-ink);
+    }
+
+        .adm-breakdown-label span {
+            overflow-wrap: anywhere;
+        }
+
+        .adm-breakdown-label strong {
+            color: var(--adm-ink-faint);
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+    .adm-breakdown-track {
+        height: 8px;
+        border-radius: 999px;
+        background: var(--adm-paper);
+        overflow: hidden;
+    }
+
+    .adm-breakdown-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: var(--adm-allergy-accent);
+        opacity: .85;
+        transition: width .3s ease;
+    }
 
     /* EMPTY STATE */
-    .adm-empty-state { padding: 48px 30px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-    .adm-empty-icon { width: 58px; height: 58px; border-radius: 50%; background: var(--adm-allergy-accent-dim); color: var(--adm-allergy-accent); display: flex; align-items: center; justify-content: center; font-size: 22px; }
-    .adm-empty-state h5 { margin: 0; font-size: 14.5px; font-weight: 700; }
-    .adm-empty-state p { margin: 0 auto; max-width: 340px; font-size: 13px; color: var(--adm-ink-soft); line-height: 1.6; }
+    .adm-empty-state {
+        padding: 48px 30px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .adm-empty-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .adm-empty-state h5 {
+        margin: 0;
+        font-size: 14.5px;
+        font-weight: 700;
+    }
+
+    .adm-empty-state p {
+        margin: 0 auto;
+        max-width: 340px;
+        font-size: 13px;
+        color: var(--adm-ink-soft);
+        line-height: 1.6;
+    }
 
     /* MODALS */
-    .adm-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 44, 39, 0.45); align-items: center; justify-content: center; z-index: 1000; }
-    .adm-modal-overlay.is-open { display: flex; }
-    .adm-modal { background: var(--adm-raised); border-radius: var(--adm-radius); box-shadow: var(--adm-shadow); width: 100%; max-width: 440px; padding: 26px; }
-    .adm-modal-title { display: flex; justify-content: space-between; align-items: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 16px; margin-bottom: 20px; }
-    .adm-modal-icon { margin-right: 8px; color: var(--adm-allergy-accent); }
-    .adm-modal-close { cursor: pointer; color: var(--adm-ink-faint); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-    .adm-modal-close:hover { background: var(--adm-paper); color: var(--adm-ink); }
-    .adm-form-group { margin-bottom: 16px; }
-    .adm-form-group label { display: block; font-size: 12.5px; font-weight: 600; color: var(--adm-ink-soft); margin-bottom: 6px; }
-    .adm-form-group input, .adm-form-group select { width: 100%; border: 1px solid var(--adm-line-strong); border-radius: var(--adm-radius-sm); padding: 10px 14px; font-size: 13px; font-family: 'Inter', sans-serif; color: var(--adm-ink); box-sizing: border-box; }
-    .adm-form-group input:focus, .adm-form-group select:focus { outline: none; border-color: var(--adm-allergy-accent); box-shadow: 0 0 0 3px var(--adm-allergy-accent-dim); }
-    .adm-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+    .adm-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 44, 39, 0.45);
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+        .adm-modal-overlay.is-open {
+            display: flex;
+        }
+
+    .adm-modal {
+        background: var(--adm-raised);
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        width: 100%;
+        max-width: 440px;
+        padding: 26px;
+    }
+
+    .adm-modal-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 16px;
+        margin-bottom: 20px;
+    }
+
+    .adm-modal-icon {
+        margin-right: 8px;
+        color: var(--adm-allergy-accent);
+    }
+
+    .adm-modal-close {
+        cursor: pointer;
+        color: var(--adm-ink-faint);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .adm-modal-close:hover {
+            background: var(--adm-paper);
+            color: var(--adm-ink);
+        }
+
+    .adm-form-group {
+        margin-bottom: 16px;
+    }
+
+        .adm-form-group label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--adm-ink-soft);
+            margin-bottom: 6px;
+        }
+
+        .adm-form-group input, .adm-form-group select {
+            width: 100%;
+            border: 1px solid var(--adm-line-strong);
+            border-radius: var(--adm-radius-sm);
+            padding: 10px 14px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            color: var(--adm-ink);
+            box-sizing: border-box;
+        }
+
+            .adm-form-group input:focus, .adm-form-group select:focus {
+                outline: none;
+                border-color: var(--adm-allergy-accent);
+                box-shadow: 0 0 0 3px var(--adm-allergy-accent-dim);
+            }
+
+    .adm-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 6px;
+    }
 
     /* ANIMATIONS */
     @@keyframes admGlowPulsePurple {
-        0%, 100% { box-shadow: 0 0 6px 0px rgba(109, 78, 168, .25); }
-        50% { box-shadow: 0 0 10px 2px rgba(109, 78, 168, .45); }
+        0%, 100% {
+            box-shadow: 0 0 6px 0px rgba(109, 78, 168, .25);
+        }
+
+        50% {
+            box-shadow: 0 0 10px 2px rgba(109, 78, 168, .45);
+        }
     }
 
     @@keyframes admGlowPulse {
-        0%, 100% { box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 6px 1px rgba(14, 140, 127, .45); }
-        50% { box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 14px 4px rgba(14, 140, 127, .75); }
+        0%, 100% {
+            box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 6px 1px rgba(14, 140, 127, .45);
+        }
+
+        50% {
+            box-shadow: 0 0 0 3px var(--adm-teal-dim), 0 0 14px 4px rgba(14, 140, 127, .75);
+        }
     }
 
     /* RESPONSIVE */
     @@media (max-width: 1000px) {
-        .adm-split { grid-template-columns: 1fr; }
+        .adm-split {
+            grid-template-columns: 1fr;
+        }
     }
 
     @@media (max-width: 640px) {
-        .adm-page { padding: 20px 16px 50px; }
-        .adm-page-banner { flex-direction: column; align-items: flex-start; }
-        .adm-page-banner-right { width: 100%; justify-content: space-between; }
-        .adm-row-actions { flex-wrap: wrap; }
-        .adm-toolbar { align-items: stretch; }
-        .adm-show-control { width: 100%; justify-content: flex-end; }
-        .adm-condition-pagination { flex-direction: column; gap: 12px; }
-        .adm-inline-form { flex-direction: column; }
-        .adm-table th, .adm-table td { padding: 12px 10px; }
-        .adm-table { font-size: 12px; }
-        .adm-table th { font-size: 10px; }
-        .adm-icon-btn { font-size: 10.5px; padding: 6px 8px; }
-        .adm-badge { font-size: 10px; padding: 4px 8px; }
+        .adm-page {
+            padding: 20px 16px 50px;
+        }
+
+        .adm-page-banner {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .adm-page-banner-right {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .adm-row-actions {
+            flex-wrap: wrap;
+        }
+
+        .adm-toolbar {
+            align-items: stretch;
+        }
+
+        .adm-show-control {
+            width: 100%;
+            justify-content: flex-end;
+        }
+
+        .adm-condition-pagination {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .adm-inline-form {
+            flex-direction: column;
+        }
+
+        .adm-table th, .adm-table td {
+            padding: 12px 10px;
+        }
+
+        .adm-table {
+            font-size: 12px;
+        }
+
+            .adm-table th {
+                font-size: 10px;
+            }
+
+        .adm-icon-btn {
+            font-size: 10.5px;
+            padding: 6px 8px;
+        }
+
+        .adm-badge {
+            font-size: 10px;
+            padding: 4px 8px;
+        }
     }
 
 </style>
