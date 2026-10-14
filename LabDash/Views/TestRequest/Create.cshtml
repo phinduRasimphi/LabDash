@@ -2,40 +2,40 @@
 
 @{
     ViewData["Title"] = "New Test Request";
-    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    Layout = "~/Views/Shared/_DoctorLayout.cshtml";
 
     var testTypes = ViewBag.TestTypes as IEnumerable<TestType>
                     ?? Enumerable.Empty<TestType>();
 
     int patientId = ViewBag.PatientId ?? 0;
 
-    string patientName =
-        ViewBag.PatientName ?? "Unknown Patient";
+    string patientName = ViewBag.PatientName ?? "Unknown Patient";
+    string patientIDNumber = ViewBag.PatientIDNumber ?? "Not available";
+    string patientDOB = ViewBag.PatientDOB ?? "Not available";
+    string patientEmail = ViewBag.PatientEmail ?? "Not available";
+    string patientCell = ViewBag.PatientCell ?? "Not available";
+    DateTime requestDate = ViewBag.RequestDate ?? DateTime.Today;
 
-    string patientIDNumber =
-        ViewBag.PatientIDNumber ?? "Not available";
+    var allergies = ViewBag.PatientAllergies as System.Collections.IEnumerable;
+    var conditions = ViewBag.PatientConditions as System.Collections.IEnumerable;
+    var medications = ViewBag.PatientMedications as System.Collections.IEnumerable;
+    var prevResults = ViewBag.PreviousResults as System.Collections.IEnumerable;
 
-    string patientDOB =
-        ViewBag.PatientDOB ?? "Not available";
+    // Group tests by category for display, alphabetical.
+    var groupedTests = testTypes
+        .GroupBy(t => t.TestCategory != null
+                        ? t.TestCategory.CategoryName
+                        : t.Category)
+        .OrderBy(g => g.Key);
 }
 
 <style>
-
-    /* ============================================================
-           NMB LAB - NEW TEST REQUEST
-        ============================================================ */
-
     .test-request-page {
         max-width: 1450px;
         margin: 0 auto;
         padding: 28px 30px 50px;
         color: #294943;
     }
-
-
-    /* ============================================================
-           PAGE HEADER
-        ============================================================ */
 
     .tr-page-header {
         display: flex;
@@ -58,10 +58,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient( 135deg, #0d6b63, #1a8c82 );
+        background: linear-gradient(135deg, #0d6b63, #1a8c82);
         color: #fff;
         font-size: 22px;
-        box-shadow: 0 8px 20px rgba(13, 107, 99, .18);
     }
 
     .tr-page-header h1 {
@@ -69,7 +68,6 @@
         color: #173c38;
         font-size: 25px;
         font-weight: 750;
-        letter-spacing: -.3px;
     }
 
     .tr-page-header p {
@@ -77,11 +75,6 @@
         color: #788b87;
         font-size: 13px;
     }
-
-
-    /* ============================================================
-           BACK BUTTON
-        ============================================================ */
 
     .tr-back-btn {
         display: inline-flex;
@@ -95,23 +88,16 @@
         text-decoration: none;
         font-size: 12px;
         font-weight: 700;
-        transition: all .2s ease;
     }
 
         .tr-back-btn:hover {
-            color: #0d6b63;
             background: #f3faf8;
-            border-color: #bddbd6;
+            color: #0d6b63;
         }
-
-
-    /* ============================================================
-           LAYOUT
-        ============================================================ */
 
     .tr-layout {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 325px;
+        grid-template-columns: minmax(0,1fr) 325px;
         gap: 22px;
         align-items: start;
     }
@@ -131,17 +117,12 @@
         gap: 16px;
     }
 
-
-    /* ============================================================
-           CARDS
-        ============================================================ */
-
     .tr-card {
         background: #fff;
         border: 1px solid #e0ebe8;
         border-radius: 20px;
         padding: 24px;
-        box-shadow: 0 5px 22px rgba(31, 78, 72, .055);
+        box-shadow: 0 5px 22px rgba(31,78,72,.055);
     }
 
     .tr-card-header {
@@ -160,7 +141,6 @@
         border-radius: 13px;
         background: #eaf6f4;
         color: #0d6b63;
-        flex-shrink: 0;
     }
 
     .tr-card-header h3 {
@@ -176,11 +156,7 @@
         font-size: 11px;
     }
 
-
-    /* ============================================================
-           PATIENT
-        ============================================================ */
-
+    /* ---------- patient banner ---------- */
     .patient-banner {
         display: grid;
         grid-template-columns: auto 1fr auto;
@@ -188,7 +164,7 @@
         gap: 15px;
         padding: 19px;
         border-radius: 17px;
-        background: linear-gradient( 135deg, #edf9f7, #f8fcfb );
+        background: linear-gradient(135deg,#edf9f7,#f8fcfb);
         border: 1px solid #d7ebe7;
     }
 
@@ -199,7 +175,7 @@
         align-items: center;
         justify-content: center;
         border-radius: 15px;
-        background: linear-gradient( 135deg, #0d6b63, #1a8c82 );
+        background: linear-gradient(135deg,#0d6b63,#1a8c82);
         color: #fff;
         font-size: 19px;
     }
@@ -223,12 +199,11 @@
         color: #0d6b63;
         font-size: 10px;
         font-weight: 750;
-        white-space: nowrap;
     }
 
     .patient-details {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2,1fr);
         gap: 12px;
         margin-top: 13px;
     }
@@ -256,14 +231,104 @@
         font-weight: 650;
     }
 
+    /* ---------- clinical snapshot ---------- */
+    .clinical-snap {
+        display: grid;
+        grid-template-columns: repeat(3,1fr);
+        gap: 12px;
+        margin-top: 17px;
+    }
 
-    /* ============================================================
-           FORM
-        ============================================================ */
+    .clinical-box {
+        padding: 13px 14px;
+        border-radius: 12px;
+        border: 1px solid #e2ecea;
+        background: #fbfdfc;
+    }
 
+        .clinical-box h4 {
+            margin: 0 0 8px;
+            color: #35534d;
+            font-size: 11px;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .clinical-box ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .clinical-box li {
+            color: #4b6862;
+            font-size: 11px;
+            padding: 4px 0;
+            border-bottom: 1px dashed #e7efee;
+        }
+
+            .clinical-box li:last-child {
+                border-bottom: none;
+            }
+
+            .clinical-box li span {
+                display: block;
+                color: #8fa9a3;
+                font-size: 9px;
+                margin-top: 2px;
+            }
+
+    .clinical-empty {
+        color: #9aa9a5;
+        font-size: 11px;
+        font-style: italic;
+    }
+
+    /* ---------- previous results ---------- */
+    .prev-results {
+        margin-top: 20px;
+        border-top: 1px solid #e0ebe8;
+        padding-top: 18px;
+    }
+
+        .prev-results h4 {
+            margin: 0 0 12px;
+            color: #173c38;
+            font-size: 13px;
+            font-weight: 750;
+        }
+
+    .prev-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+    }
+
+        .prev-table th {
+            text-align: left;
+            padding: 8px 10px;
+            background: #f3faf8;
+            color: #0d6b63;
+            font-weight: 700;
+            border-bottom: 1px solid #d7ebe7;
+        }
+
+        .prev-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e7efee;
+            color: #35534d;
+        }
+
+        .prev-table tr.abn td {
+            color: #b6392f;
+            background: #fff6f5;
+        }
+
+    /* ---------- form fields ---------- */
     .tr-form-grid {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2,minmax(0,1fr));
         gap: 18px;
     }
 
@@ -287,8 +352,7 @@
         color: #c64d4d;
     }
 
-    .tr-input,
-    .tr-textarea {
+    .tr-input, .tr-textarea {
         width: 100%;
         box-sizing: border-box;
         padding: 12px 14px;
@@ -298,13 +362,11 @@
         color: #294943;
         font-size: 12px;
         outline: none;
-        transition: all .2s ease;
     }
 
-        .tr-input:focus,
-        .tr-textarea:focus {
+        .tr-input:focus, .tr-textarea:focus {
             border-color: #1a8c82;
-            box-shadow: 0 0 0 3px rgba(26, 140, 130, .09);
+            box-shadow: 0 0 0 3px rgba(26,140,130,.09);
         }
 
     .tr-textarea {
@@ -313,19 +375,22 @@
         line-height: 1.6;
     }
 
-        .tr-input::placeholder,
-        .tr-textarea::placeholder {
-            color: #a4b1ae;
-        }
+    .tr-input[readonly] {
+        background: #f3faf8;
+        cursor: not-allowed;
+        color: #52716c;
+    }
 
+    .tr-help {
+        font-size: 11px;
+        color: #7d8e8a;
+        margin-top: 5px;
+    }
 
-    /* ============================================================
-           URGENCY
-        ============================================================ */
-
+    /* ---------- urgency ---------- */
     .urgency-options {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3,1fr);
         gap: 9px;
     }
 
@@ -346,7 +411,6 @@
         border: 1px solid #d9e5e2;
         border-radius: 12px;
         background: #fff;
-        transition: all .2s ease;
     }
 
         .urgency-content strong {
@@ -362,30 +426,36 @@
             font-size: 9px;
         }
 
-    .urgency-option:hover .urgency-content {
-        border-color: #1a8c82;
-        background: #f4fbfa;
-    }
-
     .urgency-option input:checked + .urgency-content {
         border-color: #0d6b63;
         background: #eaf7f5;
-        box-shadow: 0 4px 12px rgba(13, 107, 99, .08);
     }
 
         .urgency-option input:checked + .urgency-content strong {
             color: #0d6b63;
         }
 
+    /* ---------- tests grouped by category ---------- */
+    .test-group {
+        margin-bottom: 22px;
+    }
 
-    /* ============================================================
-           TEST SELECTION
-        ============================================================ */
+        .test-group:last-child {
+            margin-bottom: 0;
+        }
 
-    .test-selection-list {
+    .test-group-title {
         display: flex;
-        flex-direction: column;
-        gap: 10px;
+        align-items: center;
+        gap: 8px;
+        color: #0d6b63;
+        font-size: 12px;
+        font-weight: 750;
+        margin-bottom: 10px;
+        padding-bottom: 7px;
+        border-bottom: 2px solid #eaf6f4;
+        text-transform: uppercase;
+        letter-spacing: .5px;
     }
 
     .test-option {
@@ -393,18 +463,18 @@
         display: flex;
         align-items: center;
         gap: 13px;
-        padding: 15px;
+        padding: 13px 15px;
         border: 1px solid #dce8e6;
-        border-radius: 15px;
+        border-radius: 14px;
         background: #fff;
         cursor: pointer;
+        margin-bottom: 8px;
         transition: all .2s ease;
     }
 
         .test-option:hover {
             border-color: #1a8c82;
             background: #f7fcfb;
-            transform: translateY(-1px);
         }
 
         .test-option input {
@@ -414,8 +484,8 @@
         }
 
     .test-check {
-        width: 25px;
-        height: 25px;
+        width: 24px;
+        height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -423,12 +493,7 @@
         border-radius: 7px;
         color: transparent;
         flex-shrink: 0;
-        transition: all .2s ease;
     }
-
-        .test-check i {
-            font-size: 11px;
-        }
 
     .test-option input:checked ~ .test-check {
         background: #0d6b63;
@@ -439,7 +504,6 @@
     .test-option:has(input:checked) {
         border-color: #0d6b63;
         background: #eef9f7;
-        box-shadow: 0 5px 15px rgba(13, 107, 99, .07);
     }
 
     .test-option-content {
@@ -467,7 +531,6 @@
         color: #52716b;
         font-size: 9px;
         font-weight: 750;
-        white-space: nowrap;
     }
 
     .test-option-details {
@@ -478,134 +541,40 @@
         font-size: 10px;
     }
 
-        .test-option-details span {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
         .test-option-details i {
             color: #1a8c82;
+            margin-right: 3px;
         }
 
-
-    /* ============================================================
-           TEST SUMMARY
-        ============================================================ */
-
-    .selected-test-summary {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-        margin-top: 17px;
-        padding: 13px 15px;
-        border: 1px solid #d8ebe7;
-        border-radius: 13px;
-        background: #f3faf8;
-    }
-
-    .selected-summary-icon {
-        width: 35px;
-        height: 35px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        background: #0d6b63;
-        color: #fff;
-    }
-
-        .selected-summary-icon i {
-            font-size: 12px;
-        }
-
-    .selected-test-summary strong {
-        display: block;
-        color: #21463f;
-        font-size: 12px;
-    }
-
-    .selected-test-summary span {
-        display: block;
-        margin-top: 2px;
-        color: #83938f;
-        font-size: 10px;
-    }
-
-
-    /* ============================================================
-           SAMPLE SECTION
-        ============================================================ */
-
-    .sample-intro {
-        display: flex;
-        align-items: flex-start;
-        gap: 9px;
-        padding: 13px 15px;
-        margin-bottom: 15px;
-        border: 1px solid #dcece9;
-        border-radius: 12px;
-        background: #f5faf9;
-        color: #637873;
-        font-size: 11px;
-        line-height: 1.5;
-    }
-
-        .sample-intro i {
-            margin-top: 2px;
-            color: #0d6b63;
-        }
-
-    .sample-requirements {
+    /* ---------- barcode list ---------- */
+    .barcode-list {
         display: flex;
         flex-direction: column;
         gap: 11px;
     }
 
-    .sample-row {
+    .barcode-row {
         display: grid;
-        grid-template-columns: 190px minmax(0, 1fr);
-        gap: 15px;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
         align-items: center;
-        padding: 14px;
+        padding: 13px 15px;
         border: 1px solid #dce8e6;
-        border-radius: 15px;
+        border-radius: 14px;
         background: #fbfdfc;
     }
 
-    .sample-type {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        color: #31534d;
-        font-size: 12px;
-        font-weight: 750;
-    }
-
-    .sample-type-icon {
-        width: 35px;
-        height: 35px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        background: #e8f5f3;
-        color: #0d6b63;
-    }
-
-        .sample-type-icon i {
-            font-size: 13px;
+        .barcode-row .barcode-test-name {
+            color: #173c38;
+            font-size: 12px;
+            font-weight: 750;
         }
 
-    .barcode-label {
-        display: block;
-        margin-bottom: 6px;
-        color: #81918d;
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .4px;
-    }
+        .barcode-row .barcode-test-sample {
+            color: #7d8e8a;
+            font-size: 10px;
+            margin-top: 3px;
+        }
 
     .barcode-input-wrapper {
         position: relative;
@@ -613,201 +582,41 @@
 
         .barcode-input-wrapper i {
             position: absolute;
-            left: 13px;
+            left: 12px;
             top: 50%;
             transform: translateY(-50%);
             color: #78918b;
-            font-size: 13px;
+            font-size: 12px;
         }
 
     .barcode-input {
         width: 100%;
         box-sizing: border-box;
-        padding: 12px 13px 12px 38px;
+        padding: 11px 13px 11px 36px;
         border: 1px solid #d3e2df;
         border-radius: 11px;
         background: #fff;
         color: #294943;
         font-size: 12px;
-        outline: none;
-        transition: all .2s ease;
     }
 
         .barcode-input:focus {
             border-color: #1a8c82;
-            box-shadow: 0 0 0 3px rgba(26, 140, 130, .09);
+            box-shadow: 0 0 0 3px rgba(26,140,130,.09);
+            outline: none;
         }
 
-        .barcode-input::placeholder {
-            color: #a3b0ad;
-        }
-
-    .no-samples {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-        padding: 17px;
-        border: 1px dashed #d6e3e0;
-        border-radius: 13px;
-        background: #fafdfc;
-        color: #84948f;
+    .barcode-empty {
+        color: #9aa9a5;
         font-size: 11px;
-    }
-
-        .no-samples i {
-            color: #0d6b63;
-            font-size: 17px;
-        }
-
-
-    /* ============================================================
-           SIDEBAR
-        ============================================================ */
-
-    .tr-side-card {
-        background: #fff;
-        border: 1px solid #e0ebe8;
-        border-radius: 18px;
-        padding: 18px;
-        box-shadow: 0 5px 18px rgba(31, 78, 72, .045);
-    }
-
-    .tr-side-title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 13px;
-        color: #294b45;
-        font-size: 12px;
-        font-weight: 750;
-    }
-
-        .tr-side-title i {
-            color: #0d6b63;
-        }
-
-
-    /* ============================================================
-           SELECTED TESTS
-        ============================================================ */
-
-    .selected-test-list {
-        display: flex;
-        flex-direction: column;
-        gap: 7px;
-        max-height: 250px;
-        overflow-y: auto;
-    }
-
-    .selected-test-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 7px;
-        padding: 9px;
-        border-radius: 10px;
-        background: #f5faf9;
-        color: #4b6862;
-        font-size: 10px;
-        line-height: 1.4;
-    }
-
-        .selected-test-item i {
-            margin-top: 2px;
-            color: #0d6b63;
-        }
-
-    .empty-selected-tests {
-        padding: 14px;
-        border: 1px dashed #d8e4e1;
-        border-radius: 10px;
-        color: #9aa9a5;
         text-align: center;
-        font-size: 10px;
+        padding: 20px;
+        border: 1px dashed #d6e3e0;
+        border-radius: 12px;
+        background: #fafdfc;
     }
 
-
-    /* ============================================================
-           SAMPLE PILLS
-        ============================================================ */
-
-    .sample-needed-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-
-    .sample-pill {
-        padding: 6px 9px;
-        border-radius: 20px;
-        background: #eaf6f4;
-        color: #0d6b63;
-        font-size: 9px;
-        font-weight: 750;
-    }
-
-        .sample-pill i {
-            margin-right: 4px;
-        }
-
-    .empty-sample-pill {
-        color: #9aa9a5;
-        font-size: 10px;
-    }
-
-
-    /* ============================================================
-           TURNAROUND
-        ============================================================ */
-
-    .turnaround-box {
-        padding: 15px;
-        border: 1px solid #e0ebe8;
-        border-radius: 13px;
-        background: #f8fbfa;
-    }
-
-    .turnaround-number {
-        color: #0d6b63;
-        font-size: 25px;
-        font-weight: 800;
-    }
-
-    .turnaround-label {
-        color: #7b8c88;
-        font-size: 9px;
-        line-height: 1.4;
-    }
-
-
-    /* ============================================================
-           TIPS
-        ============================================================ */
-
-    .tip-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .tip {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        color: #71827e;
-        font-size: 10px;
-        line-height: 1.5;
-    }
-
-        .tip i {
-            margin-top: 2px;
-            color: #1a8c82;
-        }
-
-
-    /* ============================================================
-           VALIDATION
-        ============================================================ */
-
+    /* ---------- client errors ---------- */
     .client-error {
         display: none;
         align-items: center;
@@ -825,15 +634,10 @@
             display: flex;
         }
 
-
-    /* ============================================================
-           ACTIONS
-        ============================================================ */
-
+    /* ---------- actions ---------- */
     .tr-actions {
         display: flex;
         justify-content: flex-end;
-        align-items: center;
         gap: 10px;
         padding-top: 3px;
     }
@@ -850,7 +654,6 @@
         font-weight: 750;
         cursor: pointer;
         text-decoration: none;
-        transition: all .2s ease;
     }
 
     .tr-btn-secondary {
@@ -866,27 +669,87 @@
 
     .tr-btn-primary {
         border: none;
-        background: linear-gradient( 135deg, #0d6b63, #1a8c82 );
+        background: linear-gradient(135deg,#0d6b63,#1a8c82);
         color: #fff;
-        box-shadow: 0 7px 16px rgba(13, 107, 99, .18);
     }
 
         .tr-btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 9px 20px rgba(13, 107, 99, .23);
+            opacity: .92;
         }
 
         .tr-btn-primary:disabled {
             opacity: .6;
             cursor: not-allowed;
-            transform: none;
         }
 
+    /* ---------- sidebar ---------- */
+    .tr-side-card {
+        background: #fff;
+        border: 1px solid #e0ebe8;
+        border-radius: 18px;
+        padding: 18px;
+    }
 
-    /* ============================================================
-           CONFIRMATION MODAL
-        ============================================================ */
+    .tr-side-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 13px;
+        color: #294b45;
+        font-size: 12px;
+        font-weight: 750;
+    }
 
+        .tr-side-title i {
+            color: #0d6b63;
+        }
+
+    .selected-test-list {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        max-height: 250px;
+        overflow-y: auto;
+    }
+
+    .selected-test-item {
+        padding: 9px;
+        border-radius: 10px;
+        background: #f5faf9;
+        color: #4b6862;
+        font-size: 10px;
+    }
+
+    .empty-selected-tests {
+        padding: 14px;
+        border: 1px dashed #d8e4e1;
+        border-radius: 10px;
+        color: #9aa9a5;
+        text-align: center;
+        font-size: 10px;
+    }
+
+    .sample-needed-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .sample-pill {
+        padding: 6px 9px;
+        border-radius: 20px;
+        background: #eaf6f4;
+        color: #0d6b63;
+        font-size: 9px;
+        font-weight: 750;
+    }
+
+    .empty-sample-pill {
+        color: #9aa9a5;
+        font-size: 10px;
+    }
+
+    /* ---------- confirmation modal ---------- */
     .confirm-overlay {
         position: fixed;
         inset: 0;
@@ -895,7 +758,7 @@
         align-items: center;
         justify-content: center;
         padding: 20px;
-        background: rgba(17, 43, 39, .58);
+        background: rgba(17,43,39,.58);
         backdrop-filter: blur(4px);
     }
 
@@ -909,7 +772,7 @@
         padding: 27px;
         border-radius: 21px;
         background: #fff;
-        box-shadow: 0 25px 70px rgba(0, 0, 0, .20);
+        box-shadow: 0 25px 70px rgba(0,0,0,.20);
     }
 
     .confirm-icon {
@@ -923,10 +786,6 @@
         background: #e8f5f3;
         color: #0d6b63;
     }
-
-        .confirm-icon i {
-            font-size: 20px;
-        }
 
     .confirm-modal h3 {
         margin: 0;
@@ -974,13 +833,7 @@
         gap: 9px;
     }
 
-
-    /* ============================================================
-           RESPONSIVE
-        ============================================================ */
-
-    media (max-width: 1100px) {
-
+    @@media (max-width: 1100px) {
         .tr-layout {
             grid-template-columns: 1fr;
         }
@@ -988,13 +841,11 @@
         .tr-sidebar {
             position: static;
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(3,minmax(0,1fr));
         }
     }
 
-
-    media (max-width: 820px) {
-
+    @@media (max-width: 820px) {
         .test-request-page {
             padding: 20px 15px 40px;
         }
@@ -1013,17 +864,19 @@
         }
 
         .tr-sidebar {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2,minmax(0,1fr));
         }
 
-        .sample-row {
+        .clinical-snap {
+            grid-template-columns: 1fr;
+        }
+
+        .barcode-row {
             grid-template-columns: 1fr;
         }
     }
 
-
-    media (max-width: 600px) {
-
+    @@media (max-width: 600px) {
         .tr-card {
             padding: 18px;
         }
@@ -1049,17 +902,6 @@
             grid-template-columns: 1fr;
         }
 
-        .test-option-top {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .test-option-details {
-            flex-direction: column;
-            gap: 5px;
-        }
-
         .tr-actions {
             flex-direction: column-reverse;
             align-items: stretch;
@@ -1077,773 +919,407 @@
                 width: 100%;
             }
     }
-
 </style>
 
 
 <div class="test-request-page">
 
-    <!-- ============================================================
-         PAGE HEADER
-    ============================================================ -->
-
+    <!-- HEADER -->
     <div class="tr-page-header">
-
         <div class="tr-header-left">
-
-            <div class="tr-header-icon">
-                <i class="fas fa-file-medical"></i>
-            </div>
-
+            <div class="tr-header-icon"><i class="fas fa-file-medical"></i></div>
             <div>
-
-                <h1>
-                    New Test Request
-                </h1>
-
-                <p>
-                    Create and submit a laboratory test request
-                    for the selected patient.
-                </p>
-
+                <h1>New Test Request</h1>
+                <p>Create and submit a laboratory test request for the selected patient.</p>
             </div>
-
         </div>
 
-
-        <a asp-controller="Doctor"
-           asp-action="ManagePatients"
-           class="tr-back-btn">
-
-            <i class="fas fa-arrow-left"></i>
-
-            Back to Patients
-
+        <a asp-controller="Doctor" asp-action="ManagePatients" class="tr-back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Patients
         </a>
-
     </div>
 
-
-    <!-- ============================================================
-         FORM
-    ============================================================ -->
-
-    <form asp-controller="TestRequest"
-          asp-action="Create"
-          method="post"
-          id="testRequestForm">
-
+    <form asp-controller="TestRequest" asp-action="Create" method="post" id="testRequestForm">
         @Html.AntiForgeryToken()
-
-        <input type="hidden"
-               name="patientId"
-               value="@patientId" />
-
+        <input type="hidden" name="patientId" value="@patientId" />
 
         <div class="tr-layout">
 
-
-            <!-- ====================================================
-                 MAIN
-            ===================================================== -->
-
             <main class="tr-main">
 
-
-                <!-- =================================================
-                     PATIENT INFORMATION
-                ================================================== -->
-
+                <!-- PATIENT + CLINICAL SNAPSHOT -->
                 <div class="tr-card">
 
                     <div class="tr-card-header">
-
-                        <div class="tr-card-icon">
-                            <i class="fas fa-user-injured"></i>
-                        </div>
-
+                        <div class="tr-card-icon"><i class="fas fa-user-injured"></i></div>
                         <div>
-
-                            <h3>
-                                Patient Information
-                            </h3>
-
-                            <p>
-                                Patient selected for this laboratory
-                                request.
-                            </p>
-
+                            <h3>Patient Information</h3>
+                            <p>Patient details, allergies, conditions and medications.</p>
                         </div>
-
                     </div>
-
 
                     <div class="patient-banner">
-
-                        <div class="patient-avatar">
-
-                            <i class="fas fa-user"></i>
-
-                        </div>
-
-
+                        <div class="patient-avatar"><i class="fas fa-user"></i></div>
                         <div>
+                            <div class="patient-main-name">@patientName</div>
+                            <div class="patient-main-id">ID Number: @patientIDNumber</div>
+                        </div>
+                        <div class="patient-badge">
+                            <i class="fas fa-check-circle"></i> Patient Selected
+                        </div>
+                    </div>
 
-                            <div class="patient-main-name">
-                                @patientName
-                            </div>
+                    <div class="patient-details">
+                        <div class="patient-detail">
+                            <span class="patient-detail-label">Date of Birth</span>
+                            <span class="patient-detail-value">@patientDOB</span>
+                        </div>
+                        <div class="patient-detail">
+                            <span class="patient-detail-label">Email</span>
+                            <span class="patient-detail-value">@patientEmail</span>
+                        </div>
+                        <div class="patient-detail">
+                            <span class="patient-detail-label">Cellphone</span>
+                            <span class="patient-detail-value">@patientCell</span>
+                        </div>
+                        <div class="patient-detail">
+                            <span class="patient-detail-label">Patient ID</span>
+                            <span class="patient-detail-value">#@patientId</span>
+                        </div>
+                    </div>
 
-                            <div class="patient-main-id">
-                                ID Number: @patientIDNumber
-                            </div>
+                    <!-- Clinical snapshot -->
+                    <div class="clinical-snap">
 
+                        <div class="clinical-box">
+                            <h4>Allergies</h4>
+                            @if (allergies != null && allergies.Cast<object>().Any())
+                            {
+                                <ul>
+                                    @foreach (dynamic a in allergies)
+                                    {
+                                        <li>
+                                            @a.Name
+                                            <span>@a.Category @(string.IsNullOrEmpty((string)a.Severity) ? "" : "· " + a.Severity)</span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="clinical-empty">None recorded</div>
+                            }
                         </div>
 
+                        <div class="clinical-box">
+                            <h4>Medical Conditions</h4>
+                            @if (conditions != null && conditions.Cast<object>().Any())
+                            {
+                                <ul>
+                                    @foreach (dynamic c in conditions)
+                                    {
+                                        <li>
+                                            @c.Name
+                                            <span>@c.Category @(string.IsNullOrEmpty((string)c.Severity) ? "" : "· " + c.Severity)</span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="clinical-empty">None recorded</div>
+                            }
+                        </div>
 
-                        <div class="patient-badge">
-
-                            <i class="fas fa-check-circle"></i>
-
-                            Patient Selected
-
+                        <div class="clinical-box">
+                            <h4>Medications</h4>
+                            @if (medications != null && medications.Cast<object>().Any())
+                            {
+                                <ul>
+                                    @foreach (dynamic m in medications)
+                                    {
+                                        <li>
+                                            @m.Name
+                                            <span>
+                                                @m.Category
+                                                @(string.IsNullOrEmpty((string)m.Dosage) ? "" : "· " + m.Dosage)
+                                                @(string.IsNullOrEmpty((string)m.Frequency) ? "" : "· " + m.Frequency)
+                                            </span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <div class="clinical-empty">None recorded</div>
+                            }
                         </div>
 
                     </div>
 
+                    <!-- Previous results -->
+                    <div class="prev-results">
+                        <h4>
+                            <i class="fas fa-clock-rotate-left"></i>
+                            Previous Test Results
+                        </h4>
 
-                    <div class="patient-details">
+                        @if (prevResults != null && prevResults.Cast<object>().Any())
+                        {
+                            <table class="prev-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Test</th>
+                                        <th>Result</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (dynamic r in prevResults)
+                                    {
+                                        DateTime capturedDate = (DateTime)r.DateCaptured;
+                                        string? units = (string?)r.Units;
+                                        bool abnormal = (bool)r.IsAbnormal;
 
-                        <div class="patient-detail">
-
-                            <span class="patient-detail-label">
-                                Patient ID
-                            </span>
-
-                            <span class="patient-detail-value">
-                                #@patientId
-                            </span>
-
-                        </div>
-
-
-                        <div class="patient-detail">
-
-                            <span class="patient-detail-label">
-                                Date of Birth
-                            </span>
-
-                            <span class="patient-detail-value">
-                                @patientDOB
-                            </span>
-
-                        </div>
-
+                                        <tr class="@(abnormal ? "abn" : "")">
+                                            <td>@capturedDate.ToString("dd MMM yyyy")</td>
+                                            <td>@r.TestName</td>
+                                            <td>
+                                                @r.ResultValue
+                                                @if (!string.IsNullOrWhiteSpace(units))
+                                                {
+                                                    <text>@units</text>
+                                                }
+                                            </td>
+                                            <td>@(abnormal ? "Abnormal" : "Normal")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="clinical-empty">No previous results for this patient.</div>
+                        }
                     </div>
 
                 </div>
 
-
-
-                <!-- =================================================
-                     REQUEST DETAILS
-                ================================================== -->
-
+                <!-- REQUEST DETAILS -->
                 <div class="tr-card">
 
                     <div class="tr-card-header">
-
-                        <div class="tr-card-icon">
-
-                            <i class="fas fa-clipboard-list"></i>
-
-                        </div>
-
+                        <div class="tr-card-icon"><i class="fas fa-clipboard-list"></i></div>
                         <div>
-
-                            <h3>
-                                Request Details
-                            </h3>
-
-                            <p>
-                                Provide the information required
-                                for the laboratory request.
-                            </p>
-
+                            <h3>Request Details</h3>
+                            <p>Request date is recorded automatically to today.</p>
                         </div>
-
                     </div>
-
 
                     <div class="tr-form-grid">
 
-
-                        <!-- Request Date -->
-
                         <div class="tr-form-group">
+                            <label class="tr-label">Request Date</label>
 
-                            <label class="tr-label"
-                                   for="requestDate">
-
-                                Request Date
-                                <span class="tr-required">*</span>
-
-                            </label>
-
-                            <input type="date"
-                                   id="requestDate"
-                                   name="requestDate"
+                            <input type="text"
                                    class="tr-input"
-                                   value="@DateTime.Today.ToString("yyyy-MM-dd")"
-                                   max="@DateTime.Today.ToString("yyyy-MM-dd")"
-                                   required />
+                                   value="@requestDate.ToString("dd MMM yyyy")"
+                                   readonly />
 
+                            <div class="tr-help">
+                                Request date is set automatically to today.
+                            </div>
                         </div>
-
-
-                        <!-- Urgency -->
 
                         <div class="tr-form-group">
-
                             <label class="tr-label">
-
-                                Urgency
-                                <span class="tr-required">*</span>
-
+                                Urgency <span class="tr-required">*</span>
                             </label>
-
-
                             <div class="urgency-options">
-
-
                                 <label class="urgency-option">
-
-                                    <input type="radio"
-                                           name="urgency"
-                                           value="Routine"
-                                           checked />
-
+                                    <input type="radio" name="urgency" value="Routine" checked />
                                     <div class="urgency-content">
-
-                                        <strong>
-                                            Routine
-                                        </strong>
-
-                                        <span>
-                                            Standard processing
-                                        </span>
-
+                                        <strong>Routine</strong>
+                                        <span>Standard processing</span>
                                     </div>
-
                                 </label>
-
-
                                 <label class="urgency-option">
-
-                                    <input type="radio"
-                                           name="urgency"
-                                           value="Urgent" />
-
+                                    <input type="radio" name="urgency" value="Urgent" />
                                     <div class="urgency-content">
-
-                                        <strong>
-                                            Urgent
-                                        </strong>
-
-                                        <span>
-                                            Priority processing
-                                        </span>
-
+                                        <strong>Urgent</strong>
+                                        <span>Priority processing</span>
                                     </div>
-
                                 </label>
-
-
                                 <label class="urgency-option">
-
-                                    <input type="radio"
-                                           name="urgency"
-                                           value="STAT" />
-
+                                    <input type="radio" name="urgency" value="STAT" />
                                     <div class="urgency-content">
-
-                                        <strong>
-                                            STAT
-                                        </strong>
-
-                                        <span>
-                                            Immediate priority
-                                        </span>
-
+                                        <strong>STAT</strong>
+                                        <span>Immediate priority</span>
                                     </div>
-
                                 </label>
-
                             </div>
-
                         </div>
-
-
-                        <!-- Clinical Notes -->
 
                         <div class="tr-form-group full-width">
-
-                            <label class="tr-label"
-                                   for="clinicalNotes">
-
-                                Clinical Notes
-
-                            </label>
-
+                            <label class="tr-label" for="clinicalNotes">Clinical Notes</label>
                             <textarea id="clinicalNotes"
                                       name="clinicalNotes"
                                       class="tr-textarea"
                                       placeholder="Enter relevant symptoms, diagnosis, clinical findings or other information that may assist the laboratory..."></textarea>
-
                         </div>
 
                     </div>
 
                 </div>
 
-
-
-                <!-- =================================================
-                     TEST SELECTION
-                ================================================== -->
-
+                <!-- TESTS GROUPED BY CATEGORY -->
                 <div class="tr-card">
 
                     <div class="tr-card-header">
-
-                        <div class="tr-card-icon">
-
-                            <i class="fas fa-flask"></i>
-
-                        </div>
-
+                        <div class="tr-card-icon"><i class="fas fa-flask"></i></div>
                         <div>
-
-                            <h3>
-                                Laboratory Tests
-                            </h3>
-
-                            <p>
-                                Select the tests that need to be
-                                performed for this patient.
-                            </p>
-
+                            <h3>Laboratory Tests</h3>
+                            <p>Select the tests that need to be performed. Grouped by category.</p>
                         </div>
-
                     </div>
 
-
-                    <div class="client-error"
-                         id="testSelectionError">
-
+                    <div class="client-error" id="testSelectionError">
                         <i class="fas fa-exclamation-circle"></i>
-
-                        <span>
-                            Please select at least one laboratory test.
-                        </span>
-
+                        <span>Please select at least one laboratory test.</span>
                     </div>
 
-
-                    <div class="test-selection-list">
-
-
-                        @if (testTypes.Any())
+                    @if (testTypes.Any())
+                    {
+                        foreach (var group in groupedTests)
                         {
+                            <div class="test-group">
 
-                            foreach (var test in testTypes)
-                            {
+                                <div class="test-group-title">
+                                    <i class="fas fa-folder"></i>
+                                    @group.Key
+                                </div>
 
-                                <label class="test-option">
+                                @foreach (var test in group.OrderBy(t => t.Name))
+                                {
+                                    <label class="test-option">
+                                        <input type="checkbox"
+                                               name="selectedTestTypeIds"
+                                               value="@test.Id"
+                                               class="test-checkbox"
+                                               data-test-name="@test.Name"
+                                               data-sample="@test.RequiredSampleType"
+                                               data-turnaround="@test.TurnaroundTimeMinutes" />
 
-                                    <input type="checkbox"
-                                           name="selectedTestTypeIds"
-                                           value="@test.Id"
-                                           class="test-checkbox"
-                                           data-test-name="@test.Name"
-                                           data-sample="@test.RequiredSampleType"
-                                           data-turnaround="@test.TurnaroundTimeMinutes" />
+                                        <div class="test-check"><i class="fas fa-check"></i></div>
 
-
-                                    <div class="test-check">
-
-                                        <i class="fas fa-check"></i>
-
-                                    </div>
-
-
-                                    <div class="test-option-content">
-
-                                        <div class="test-option-top">
-
-                                            <span class="test-name">
-                                                @test.Name
-                                            </span>
-
-                                            <span class="test-category">
-                                                @test.Category
-                                            </span>
-
+                                        <div class="test-option-content">
+                                            <div class="test-option-top">
+                                                <span class="test-name">@test.Name</span>
+                                                <span class="test-category">@test.Category</span>
+                                            </div>
+                                            <div class="test-option-details">
+                                                <span><i class="fas fa-vial"></i> @test.RequiredSampleType</span>
+                                                <span><i class="fas fa-clock"></i> @test.TurnaroundTimeMinutes min</span>
+                                            </div>
                                         </div>
-
-
-                                        <div class="test-option-details">
-
-                                            <span>
-
-                                                <i class="fas fa-vial"></i>
-
-                                                @test.RequiredSampleType
-
-                                            </span>
-
-
-                                            <span>
-
-                                                <i class="fas fa-clock"></i>
-
-                                                @test.TurnaroundTimeMinutes
-                                                minutes
-
-                                            </span>
-
-                                        </div>
-
-                                    </div>
-
-                                </label>
-
-                            }
-
-                        }
-                        else
-                        {
-
-                            <div class="no-samples">
-
-                                <i class="fas fa-exclamation-triangle"></i>
-
-                                <span>
-                                    No laboratory tests are currently
-                                    available in the system.
-                                </span>
+                                    </label>
+                                }
 
                             </div>
-
                         }
-
-                    </div>
-
-
-                    <div class="selected-test-summary">
-
-                        <div class="selected-summary-icon">
-
-                            <i class="fas fa-check-double"></i>
-
+                    }
+                    else
+                    {
+                        <div class="barcode-empty">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>No laboratory tests are currently available in the system.</span>
                         </div>
-
-                        <div>
-
-                            <strong id="selectedTestCount">
-                                0 tests selected
-                            </strong>
-
-                            <span>
-                                Select at least one test to continue.
-                            </span>
-
-                        </div>
-
-                    </div>
+                    }
 
                 </div>
 
-
-
-                <!-- =================================================
-                     SAMPLES AND BARCODES
-                ================================================== -->
-
+                <!-- BARCODES — one per selected test -->
                 <div class="tr-card">
 
                     <div class="tr-card-header">
-
-                        <div class="tr-card-icon">
-
-                            <i class="fas fa-vials"></i>
-
-                        </div>
-
+                        <div class="tr-card-icon"><i class="fas fa-barcode"></i></div>
                         <div>
-
-                            <h3>
-                                Sample Collection
-                            </h3>
-
-                            <p>
-                                Record the barcode for every sample
-                                required by the selected tests.
-                            </p>
-
+                            <h3>Sample Barcodes</h3>
+                            <p>Each selected test has its own unique barcode.</p>
                         </div>
-
                     </div>
 
-
-                    <div class="sample-intro">
-
-                        <i class="fas fa-info-circle"></i>
-
-                        <span>
-                            Sample requirements are generated
-                            automatically from the selected laboratory
-                            tests. Each required sample must have a
-                            unique barcode.
-                        </span>
-
-                    </div>
-
-
-                    <div class="client-error"
-                         id="sampleError">
-
+                    <div class="client-error" id="barcodeError">
                         <i class="fas fa-exclamation-circle"></i>
-
-                        <span id="sampleErrorText">
-                            Please enter all required sample barcodes.
-                        </span>
-
+                        <span id="barcodeErrorText">Please enter a barcode for every selected test.</span>
                     </div>
 
-
-                    <div id="sampleRequirements"
-                         class="sample-requirements">
-
-                        <div class="no-samples"
-                             id="noSamplesMessage">
-
-                            <i class="fas fa-vial"></i>
-
-                            <span>
-                                Select a laboratory test above to
-                                display the required sample types.
-                            </span>
-
+                    <div id="barcodeList" class="barcode-list">
+                        <div class="barcode-empty" id="barcodeEmptyMsg">
+                            <i class="fas fa-barcode"></i>
+                            <div style="margin-top:8px;">Select a test above to add its barcode.</div>
                         </div>
-
                     </div>
 
                 </div>
 
-
-
-                <!-- =================================================
-                     ACTIONS
-                ================================================== -->
-
+                <!-- ACTIONS -->
                 <div class="tr-actions">
-
                     <a asp-controller="Doctor"
                        asp-action="ManagePatients"
                        class="tr-btn tr-btn-secondary">
-
-                        <i class="fas fa-times"></i>
-
-                        Cancel
-
+                        <i class="fas fa-times"></i> Cancel
                     </a>
-
 
                     <button type="submit"
                             class="tr-btn tr-btn-primary"
                             id="submitRequestBtn">
-
-                        <i class="fas fa-paper-plane"></i>
-
-                        Submit Test Request
-
+                        <i class="fas fa-paper-plane"></i> Submit Test Request
                     </button>
-
                 </div>
-
 
             </main>
 
-
-
-            <!-- ====================================================
-                 SIDEBAR
-            ===================================================== -->
-
+            <!-- SIDEBAR -->
             <aside class="tr-sidebar">
 
-
-                <!-- =================================================
-                     SELECTED TESTS
-                ================================================== -->
-
                 <div class="tr-side-card">
-
                     <div class="tr-side-title">
-
-                        <i class="fas fa-list-check"></i>
-
-                        Selected Tests
-
+                        <i class="fas fa-list-check"></i> Selected Tests
                     </div>
-
-
-                    <div id="selectedTestList"
-                         class="selected-test-list">
-
-                        <div class="empty-selected-tests">
-
-                            No tests selected yet.
-
-                        </div>
-
+                    <div id="selectedTestList" class="selected-test-list">
+                        <div class="empty-selected-tests">No tests selected yet.</div>
                     </div>
-
                 </div>
 
-
-
-                <!-- =================================================
-                     SAMPLES NEEDED
-                ================================================== -->
-
                 <div class="tr-side-card">
-
                     <div class="tr-side-title">
-
-                        <i class="fas fa-vial"></i>
-
-                        Samples Required
-
+                        <i class="fas fa-vial"></i> Samples Required
                     </div>
-
-
-                    <div id="samplesNeededBox"
-                         class="sample-needed-list">
-
-                        <span class="empty-sample-pill">
-                            Select tests first.
-                        </span>
-
+                    <div id="samplesNeededBox" class="sample-needed-list">
+                        <span class="empty-sample-pill">Select tests first.</span>
                     </div>
-
                 </div>
 
-
-
-                <!-- =================================================
-                     TURNAROUND
-                ================================================== -->
-
                 <div class="tr-side-card">
-
                     <div class="tr-side-title">
-
-                        <i class="fas fa-clock"></i>
-
-                        Estimated Turnaround
-
+                        <i class="fas fa-circle-info"></i> Guidelines
                     </div>
-
-
-                    <div class="turnaround-box">
-
-                        <div id="turnaroundNumber"
-                             class="turnaround-number">
-
-                            —
-
-                        </div>
-
-                        <div class="turnaround-label">
-
-                            Maximum estimated turnaround
-                            based on selected tests
-
-                        </div>
-
+                    <div style="font-size:11px;color:#7d8e8a;line-height:1.6;">
+                        <p style="margin:0 0 6px;">
+                            <i class="fas fa-check" style="color:#0d6b63;"></i>
+                            Select one or more laboratory tests.
+                        </p>
+                        <p style="margin:0 0 6px;">
+                            <i class="fas fa-barcode" style="color:#0d6b63;"></i>
+                            Each test needs a unique barcode.
+                        </p>
+                        <p style="margin:0;">
+                            <i class="fas fa-paper-plane" style="color:#0d6b63;"></i>
+                            Patient is notified by email on submit.
+                        </p>
                     </div>
-
-                </div>
-
-
-
-                <!-- =================================================
-                     INFORMATION
-                ================================================== -->
-
-                <div class="tr-side-card">
-
-                    <div class="tr-side-title">
-
-                        <i class="fas fa-circle-info"></i>
-
-                        Request Guidelines
-
-                    </div>
-
-
-                    <div class="tip-list">
-
-
-                        <div class="tip">
-
-                            <i class="fas fa-check"></i>
-
-                            <span>
-                                Select one or more laboratory tests.
-                            </span>
-
-                        </div>
-
-
-                        <div class="tip">
-
-                            <i class="fas fa-barcode"></i>
-
-                            <span>
-                                Enter a unique barcode for every
-                                required sample.
-                            </span>
-
-                        </div>
-
-
-                        <div class="tip">
-
-                            <i class="fas fa-notes-medical"></i>
-
-                            <span>
-                                Include relevant clinical information
-                                when necessary.
-                            </span>
-
-                        </div>
-
-
-                        <div class="tip">
-
-                            <i class="fas fa-paper-plane"></i>
-
-                            <span>
-                                The request will be sent to the
-                                laboratory after confirmation.
-                            </span>
-
-                        </div>
-
-                    </div>
-
                 </div>
 
             </aside>
@@ -1854,120 +1330,51 @@
 
 </div>
 
-
-
-<!-- ================================================================
-     CONFIRMATION MODAL
-================================================================ -->
-
-<div class="confirm-overlay"
-     id="confirmOverlay">
-
+<!-- CONFIRMATION MODAL -->
+<div class="confirm-overlay" id="confirmOverlay">
     <div class="confirm-modal">
 
-        <div class="confirm-icon">
+        <div class="confirm-icon"><i class="fas fa-paper-plane"></i></div>
 
-            <i class="fas fa-paper-plane"></i>
+        <h3>Confirm Test Request</h3>
 
-        </div>
-
-
-        <h3>
-            Confirm Test Request
-        </h3>
-
-
-        <p>
-            Please review the request information before submitting
-            it to the laboratory.
-        </p>
-
+        <p>Please review the request information before submitting it to the laboratory.</p>
 
         <div class="confirm-summary">
 
             <div class="confirm-summary-row">
-
-                <span>
-                    Patient
-                </span>
-
-                <span>
-                    @patientName
-                </span>
-
+                <span>Patient</span>
+                <span>@patientName</span>
             </div>
 
-
             <div class="confirm-summary-row">
-
-                <span>
-                    Tests
-                </span>
-
-                <span id="confirmTests">
-                    0 tests
-                </span>
-
+                <span>Tests</span>
+                <span id="confirmTests">0 tests</span>
             </div>
 
-
             <div class="confirm-summary-row">
-
-                <span>
-                    Samples
-                </span>
-
-                <span id="confirmSamples">
-                    0 samples
-                </span>
-
+                <span>Barcodes</span>
+                <span id="confirmBarcodes">0</span>
             </div>
 
-
             <div class="confirm-summary-row">
-
-                <span>
-                    Urgency
-                </span>
-
-                <span id="confirmUrgency">
-                    Routine
-                </span>
-
+                <span>Urgency</span>
+                <span id="confirmUrgency">Routine</span>
             </div>
 
         </div>
 
-
         <div class="confirm-actions">
-
-            <button type="button"
-                    class="tr-btn tr-btn-secondary"
-                    id="cancelConfirm">
-
-                <i class="fas fa-arrow-left"></i>
-
-                Review Request
-
+            <button type="button" class="tr-btn tr-btn-secondary" id="cancelConfirm">
+                <i class="fas fa-arrow-left"></i> Review
             </button>
-
-
-            <button type="button"
-                    class="tr-btn tr-btn-primary"
-                    id="confirmSubmit">
-
-                <i class="fas fa-paper-plane"></i>
-
-                Confirm & Submit
-
+            <button type="button" class="tr-btn tr-btn-primary" id="confirmSubmit">
+                <i class="fas fa-paper-plane"></i> Confirm & Submit
             </button>
-
         </div>
 
     </div>
-
 </div>
-
 
 
 @section Scripts {
@@ -1976,843 +1383,246 @@
 
         document.addEventListener("DOMContentLoaded", function () {
 
-            /* ============================================================
-               ELEMENTS
-            ============================================================ */
-
-            const form =
-                document.getElementById("testRequestForm");
-
-            const checkboxes =
-                document.querySelectorAll(".test-checkbox");
-
-            const selectedTestCount =
-                document.getElementById("selectedTestCount");
-
-            const selectedTestList =
-                document.getElementById("selectedTestList");
-
-            const samplesNeededBox =
-                document.getElementById("samplesNeededBox");
-
-            const sampleRequirements =
-                document.getElementById("sampleRequirements");
-
-            const testSelectionError =
-                document.getElementById("testSelectionError");
-
-            const sampleError =
-                document.getElementById("sampleError");
-
-            const sampleErrorText =
-                document.getElementById("sampleErrorText");
-
-            const turnaroundNumber =
-                document.getElementById("turnaroundNumber");
-
-            const confirmOverlay =
-                document.getElementById("confirmOverlay");
-
-            const cancelConfirm =
-                document.getElementById("cancelConfirm");
-
-            const confirmSubmit =
-                document.getElementById("confirmSubmit");
-
-            const confirmTests =
-                document.getElementById("confirmTests");
-
-            const confirmSamples =
-                document.getElementById("confirmSamples");
-
-            const confirmUrgency =
-                document.getElementById("confirmUrgency");
-
-            const submitRequestBtn =
-                document.getElementById("submitRequestBtn");
-
-
-            /* ============================================================
-               ESCAPE HTML
-            ============================================================ */
+            const form = document.getElementById("testRequestForm");
+            const checkboxes = document.querySelectorAll(".test-checkbox");
+            const selectedTestList = document.getElementById("selectedTestList");
+            const samplesNeededBox = document.getElementById("samplesNeededBox");
+            const barcodeList = document.getElementById("barcodeList");
+            const barcodeEmptyMsg = document.getElementById("barcodeEmptyMsg");
+            const testSelectionError = document.getElementById("testSelectionError");
+            const barcodeError = document.getElementById("barcodeError");
+            const barcodeErrorText = document.getElementById("barcodeErrorText");
+            const confirmOverlay = document.getElementById("confirmOverlay");
+            const cancelConfirm = document.getElementById("cancelConfirm");
+            const confirmSubmit = document.getElementById("confirmSubmit");
+            const confirmTests = document.getElementById("confirmTests");
+            const confirmBarcodes = document.getElementById("confirmBarcodes");
+            const confirmUrgency = document.getElementById("confirmUrgency");
+            const submitRequestBtn = document.getElementById("submitRequestBtn");
 
             function escapeHtml(value) {
-
                 return String(value)
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;")
                     .replace(/"/g, "&quot;")
                     .replace(/'/g, "&#039;");
-
             }
-
-
-            /* ============================================================
-               SELECTED TESTS
-            ============================================================ */
 
             function getSelectedTests() {
-
-                return Array.from(
-                    document.querySelectorAll(
-                        ".test-checkbox:checked"
-                    )
-                );
-
+                return Array.from(document.querySelectorAll(".test-checkbox:checked"));
             }
 
-
-            /* ============================================================
-               REQUIRED SAMPLES
-            ============================================================ */
-
-            function getRequiredSampleTypes() {
-
-                const selectedTests =
-                    getSelectedTests();
-
-                const sampleTypes = [];
-
-
-                selectedTests.forEach(function (checkbox) {
-
-                    const sample =
-                        (checkbox.dataset.sample || "").trim();
-
-
-                    if (sample.length > 0) {
-
-                        const alreadyExists =
-                            sampleTypes.some(function (existing) {
-
-                                return existing.toLowerCase() ===
-                                       sample.toLowerCase();
-
-                            });
-
-
-                        if (!alreadyExists) {
-
-                            sampleTypes.push(sample);
-
-                        }
-
-                    }
-
+            // Preserve barcodes when the checkbox set changes.
+            function readExistingBarcodes() {
+                const map = {};
+                barcodeList.querySelectorAll(".barcode-row").forEach(function (row) {
+                    const testId = row.dataset.testId;
+                    const input = row.querySelector(".barcode-input");
+                    if (testId && input) { map[testId] = input.value; }
                 });
-
-
-                return sampleTypes.sort(
-                    function (a, b) {
-
-                        return a.localeCompare(b);
-
-                    }
-                );
-
+                return map;
             }
 
+            function renderBarcodeInputs() {
+                const selected = getSelectedTests();
+                const existing = readExistingBarcodes();
 
-            /* ============================================================
-               UPDATE TEST COUNT
-            ============================================================ */
-
-            function updateTestCount() {
-
-                const count =
-                    getSelectedTests().length;
-
-
-                if (count === 0) {
-
-                    selectedTestCount.textContent =
-                        "0 tests selected";
-
-                }
-                else if (count === 1) {
-
-                    selectedTestCount.textContent =
-                        "1 test selected";
-
-                }
-                else {
-
-                    selectedTestCount.textContent =
-                        count + " tests selected";
-
+                if (selected.length === 0) {
+                    barcodeList.innerHTML = `
+                        <div class="barcode-empty" id="barcodeEmptyMsg">
+                            <i class="fas fa-barcode"></i>
+                            <div style="margin-top:8px;">Select a test above to add its barcode.</div>
+                        </div>
+                    `;
+                    return;
                 }
 
+                barcodeList.innerHTML = selected.map(function (cb) {
+                    const testId = cb.value;
+                    const testName = cb.dataset.testName || "Test";
+                    const sampleType = cb.dataset.sample || "";
+                    const prevValue = existing[testId] || "";
+
+                    return `
+                        <div class="barcode-row" data-test-id="${escapeHtml(testId)}">
+                            <div>
+                                <div class="barcode-test-name">${escapeHtml(testName)}</div>
+                                <div class="barcode-test-sample">
+                                    ${sampleType ? "Sample: " + escapeHtml(sampleType) : ""}
+                                </div>
+                            </div>
+                            <div class="barcode-input-wrapper">
+                                <i class="fas fa-barcode"></i>
+                                <input type="text"
+                                       name="barcodes"
+                                       class="barcode-input"
+                                       value="${escapeHtml(prevValue)}"
+                                       placeholder="Enter barcode for this test"
+                                       maxlength="100"
+                                       autocomplete="off" />
+                            </div>
+                        </div>
+                    `;
+                }).join("");
             }
 
+            function updateSidebar() {
+                const selected = getSelectedTests();
 
-            /* ============================================================
-               UPDATE SELECTED TEST SIDEBAR
-            ============================================================ */
-
-            function updateSelectedTestList() {
-
-                const selectedTests =
-                    getSelectedTests();
-
-
-                if (selectedTests.length === 0) {
-
+                if (selected.length === 0) {
                     selectedTestList.innerHTML = `
-                        <div class="empty-selected-tests">
-                            No tests selected yet.
+                        <div class="empty-selected-tests">No tests selected yet.</div>
+                    `;
+                    samplesNeededBox.innerHTML = `
+                        <span class="empty-sample-pill">Select tests first.</span>
+                    `;
+                    return;
+                }
+
+                selectedTestList.innerHTML = selected.map(function (cb) {
+                    const name = cb.dataset.testName || "Laboratory Test";
+                    return `
+                        <div class="selected-test-item">
+                            <i class="fas fa-check-circle"></i>
+                            ${escapeHtml(name)}
                         </div>
                     `;
+                }).join("");
 
-                    return;
-
-                }
-
-
-                selectedTestList.innerHTML =
-                    selectedTests.map(function (checkbox) {
-
-                        const name =
-                            checkbox.dataset.testName ||
-                            "Laboratory Test";
-
-
-                        return `
-                            <div class="selected-test-item">
-
-                                <i class="fas fa-check-circle"></i>
-
-                                <span>
-                                    ${escapeHtml(name)}
-                                </span>
-
-                            </div>
-                        `;
-
-                    }).join("");
-
-            }
-
-
-            /* ============================================================
-               UPDATE SAMPLE SIDEBAR
-            ============================================================ */
-
-            function updateSamplesNeeded() {
-
-                const sampleTypes =
-                    getRequiredSampleTypes();
-
-
-                if (sampleTypes.length === 0) {
-
-                    samplesNeededBox.innerHTML = `
-                        <span class="empty-sample-pill">
-                            Select tests first.
-                        </span>
-                    `;
-
-                    return;
-
-                }
-
-
-                samplesNeededBox.innerHTML =
-                    sampleTypes.map(function (sample) {
-
-                        return `
-                            <span class="sample-pill">
-
-                                <i class="fas fa-vial"></i>
-
-                                ${escapeHtml(sample)}
-
-                            </span>
-                        `;
-
-                    }).join("");
-
-            }
-
-
-            /* ============================================================
-               KEEP EXISTING BARCODE VALUES
-            ============================================================ */
-
-            function getExistingBarcodes() {
-
-                const values = {};
-
-
-                const rows =
-                    sampleRequirements.querySelectorAll(
-                        ".sample-row"
-                    );
-
-
-                rows.forEach(function (row) {
-
-                    const sampleType =
-                        row.dataset.sampleType;
-
-
-                    const input =
-                        row.querySelector(
-                            ".barcode-input"
-                        );
-
-
-                    if (sampleType && input) {
-
-                        values[
-                            sampleType.toLowerCase()
-                        ] = input.value;
-
-                    }
-
+                const sampleSet = new Set();
+                selected.forEach(function (cb) {
+                    const s = (cb.dataset.sample || "").trim();
+                    if (s) sampleSet.add(s);
                 });
 
-
-                return values;
-
-            }
-
-
-            /* ============================================================
-               CREATE SAMPLE TEXTBOXES
-            ============================================================ */
-
-            function renderSampleInputs() {
-
-                const sampleTypes =
-                    getRequiredSampleTypes();
-
-
-                const existingBarcodes =
-                    getExistingBarcodes();
-
-
-                if (sampleTypes.length === 0) {
-
-                    sampleRequirements.innerHTML = `
-                        <div class="no-samples">
-
-                            <i class="fas fa-vial"></i>
-
-                            <span>
-                                Select a laboratory test above to display
-                                the required sample types.
-                            </span>
-
-                        </div>
+                if (sampleSet.size === 0) {
+                    samplesNeededBox.innerHTML = `
+                        <span class="empty-sample-pill">No samples required.</span>
                     `;
-
-                    return;
-
+                } else {
+                    samplesNeededBox.innerHTML = Array.from(sampleSet)
+                        .sort()
+                        .map(function (s) {
+                            return `
+                                <span class="sample-pill">
+                                    <i class="fas fa-vial"></i> ${escapeHtml(s)}
+                                </span>
+                            `;
+                        }).join("");
                 }
-
-
-                sampleRequirements.innerHTML =
-                    sampleTypes.map(function (sampleType) {
-
-                        const previousBarcode =
-                            existingBarcodes[
-                                sampleType.toLowerCase()
-                            ] || "";
-
-
-                        return `
-                            <div class="sample-row"
-                                 data-sample-type="${escapeHtml(sampleType)}">
-
-                                <div class="sample-type">
-
-                                    <div class="sample-type-icon">
-
-                                        <i class="fas fa-vial"></i>
-
-                                    </div>
-
-                                    <span>
-                                        ${escapeHtml(sampleType)}
-                                    </span>
-
-                                </div>
-
-
-                                <div>
-
-                                    <label class="barcode-label">
-                                        Sample Barcode
-                                    </label>
-
-                                    <div class="barcode-input-wrapper">
-
-                                        <i class="fas fa-barcode"></i>
-
-                                        <input
-                                            type="text"
-                                            name="sampleBarcodes"
-                                            class="barcode-input"
-                                            value="${escapeHtml(previousBarcode)}"
-                                            placeholder="Enter ${escapeHtml(sampleType)} sample barcode"
-                                            maxlength="100"
-                                            autocomplete="off"
-                                        />
-
-                                        <input
-                                            type="hidden"
-                                            name="sampleTypes"
-                                            value="${escapeHtml(sampleType)}"
-                                        />
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-                        `;
-
-                    }).join("");
-
             }
-
-
-            /* ============================================================
-               TURNAROUND
-            ============================================================ */
-
-            function updateTurnaround() {
-
-                const selectedTests =
-                    getSelectedTests();
-
-
-                if (selectedTests.length === 0) {
-
-                    turnaroundNumber.textContent = "—";
-
-                    return;
-
-                }
-
-
-                const turnaroundValues =
-                    selectedTests
-                        .map(function (checkbox) {
-
-                            return parseInt(
-                                checkbox.dataset.turnaround || "0"
-                            );
-
-                        })
-                        .filter(function (value) {
-
-                            return value > 0;
-
-                        });
-
-
-                if (turnaroundValues.length === 0) {
-
-                    turnaroundNumber.textContent = "—";
-
-                    return;
-
-                }
-
-
-                turnaroundNumber.textContent =
-                    Math.max(...turnaroundValues);
-
-            }
-
-
-            /* ============================================================
-               UPDATE PAGE
-            ============================================================ */
 
             function updatePage() {
-
-                updateTestCount();
-
-                updateSelectedTestList();
-
-                updateSamplesNeeded();
-
-                updateTurnaround();
-
-                renderSampleInputs();
-
+                updateSidebar();
+                renderBarcodeInputs();
+                testSelectionError.classList.remove("show");
+                barcodeError.classList.remove("show");
             }
 
-
-            /* ============================================================
-               TEST CHECKBOX EVENTS
-            ============================================================ */
-
-            checkboxes.forEach(function (checkbox) {
-
-                checkbox.addEventListener(
-                    "change",
-                    function () {
-
-                        testSelectionError.classList.remove(
-                            "show"
-                        );
-
-                        sampleError.classList.remove(
-                            "show"
-                        );
-
-                        updatePage();
-
-                    }
-                );
-
+            checkboxes.forEach(function (cb) {
+                cb.addEventListener("change", updatePage);
             });
 
-
-            /* ============================================================
-               VALIDATE TEST SELECTION
-            ============================================================ */
-
             function validateTests() {
-
-                const selectedTests =
-                    getSelectedTests();
-
-
-                if (selectedTests.length === 0) {
-
-                    testSelectionError.classList.add(
-                        "show"
-                    );
-
-                    testSelectionError.scrollIntoView({
-                        behavior: "smooth",
-                        block: "center"
-                    });
-
+                if (getSelectedTests().length === 0) {
+                    testSelectionError.classList.add("show");
+                    testSelectionError.scrollIntoView({ behavior: "smooth", block: "center" });
                     return false;
-
                 }
-
-
-                testSelectionError.classList.remove(
-                    "show"
-                );
-
                 return true;
-
             }
 
-
-            /* ============================================================
-               VALIDATE SAMPLE BARCODES
-            ============================================================ */
-
-            function validateSamples() {
-
-                const rows =
-                    sampleRequirements.querySelectorAll(
-                        ".sample-row"
-                    );
-
-
+            function validateBarcodes() {
+                const rows = barcodeList.querySelectorAll(".barcode-row");
                 if (rows.length === 0) {
-
-                    sampleErrorText.textContent =
-                        "Please select at least one test.";
-
-                    sampleError.classList.add(
-                        "show"
-                    );
-
+                    barcodeErrorText.textContent =
+                        "Please select at least one test before adding barcodes.";
+                    barcodeError.classList.add("show");
                     return false;
-
                 }
 
-
-                let valid = true;
-
-                let firstEmptyInput = null;
-
+                const values = [];
+                let firstEmpty = null;
 
                 rows.forEach(function (row) {
-
-                    const input =
-                        row.querySelector(
-                            ".barcode-input"
-                        );
-
-
-                    if (!input ||
-                        input.value.trim() === "") {
-
-                        valid = false;
-
-                        if (!firstEmptyInput) {
-
-                            firstEmptyInput = input;
-
-                        }
-
+                    const input = row.querySelector(".barcode-input");
+                    const v = (input.value || "").trim();
+                    if (!v) {
+                        if (!firstEmpty) firstEmpty = input;
+                    } else {
+                        values.push(v.toLowerCase());
                     }
-
                 });
 
-
-                if (!valid) {
-
-                    sampleErrorText.textContent =
-                        "Please enter a barcode for every required sample.";
-
-                    sampleError.classList.add(
-                        "show"
-                    );
-
-
-                    if (firstEmptyInput) {
-
-                        firstEmptyInput.focus();
-
-                    }
-
+                if (firstEmpty) {
+                    barcodeErrorText.textContent =
+                        "Each selected test needs its own barcode.";
+                    barcodeError.classList.add("show");
+                    firstEmpty.focus();
                     return false;
-
                 }
 
-
-                /* ========================================================
-                   DUPLICATE BARCODE CHECK
-                ======================================================== */
-
-                const barcodeInputs =
-                    Array.from(
-                        sampleRequirements.querySelectorAll(
-                            ".barcode-input"
-                        )
-                    );
-
-
-                const barcodes =
-                    barcodeInputs.map(function (input) {
-
-                        return input.value
-                            .trim()
-                            .toLowerCase();
-
-                    });
-
-
-                const duplicates =
-                    barcodes.filter(function (
-                        barcode,
-                        index
-                    ) {
-
-                        return barcodes.indexOf(barcode)
-                               !== index;
-
-                    });
-
-
-                if (duplicates.length > 0) {
-
-                    sampleErrorText.textContent =
-                        "Each sample must have a unique barcode.";
-
-                    sampleError.classList.add(
-                        "show"
-                    );
-
+                if (new Set(values).size !== values.length) {
+                    barcodeErrorText.textContent =
+                        "Each barcode must be unique.";
+                    barcodeError.classList.add("show");
                     return false;
-
                 }
-
-
-                sampleError.classList.remove(
-                    "show"
-                );
 
                 return true;
-
             }
 
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
 
-            /* ============================================================
-               FORM SUBMIT
-            ============================================================ */
+                if (!validateTests()) return;
 
-            form.addEventListener(
-                "submit",
-                function (event) {
-
-                    event.preventDefault();
-
-
-                    if (!validateTests()) {
-
-                        return;
-
-                    }
-
-
-                    if (!validateSamples()) {
-
-                        sampleError.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center"
-                        });
-
-                        return;
-
-                    }
-
-
-                    const selectedTests =
-                        getSelectedTests();
-
-
-                    const sampleRows =
-                        sampleRequirements.querySelectorAll(
-                            ".sample-row"
-                        );
-
-
-                    confirmTests.textContent =
-                        selectedTests.length +
-                        (
-                            selectedTests.length === 1
-                                ? " test"
-                                : " tests"
-                        );
-
-
-                    confirmSamples.textContent =
-                        sampleRows.length +
-                        (
-                            sampleRows.length === 1
-                                ? " sample"
-                                : " samples"
-                        );
-
-
-                    const urgency =
-                        document.querySelector(
-                            'input[name="urgency"]:checked'
-                        );
-
-
-                    confirmUrgency.textContent =
-                        urgency
-                            ? urgency.value
-                            : "Routine";
-
-
-                    confirmOverlay.classList.add(
-                        "show"
-                    );
-
+                if (!validateBarcodes()) {
+                    barcodeError.scrollIntoView({ behavior: "smooth", block: "center" });
+                    return;
                 }
-            );
 
+                const selected = getSelectedTests();
+                const barcodeRows = barcodeList.querySelectorAll(".barcode-row");
 
-            /* ============================================================
-               CANCEL CONFIRMATION
-            ============================================================ */
+                confirmTests.textContent = selected.length +
+                    (selected.length === 1 ? " test" : " tests");
 
-            cancelConfirm.addEventListener(
-                "click",
-                function () {
+                confirmBarcodes.textContent = barcodeRows.length;
 
-                    confirmOverlay.classList.remove(
-                        "show"
-                    );
+                const urgency = document.querySelector('input[name="urgency"]:checked');
+                confirmUrgency.textContent = urgency ? urgency.value : "Routine";
 
+                confirmOverlay.classList.add("show");
+            });
+
+            cancelConfirm.addEventListener("click", function () {
+                confirmOverlay.classList.remove("show");
+            });
+
+            confirmSubmit.addEventListener("click", function () {
+                confirmSubmit.disabled = true;
+                confirmSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+                submitRequestBtn.disabled = true;
+                HTMLFormElement.prototype.submit.call(form);
+            });
+
+            confirmOverlay.addEventListener("click", function (e) {
+                if (e.target === confirmOverlay) {
+                    confirmOverlay.classList.remove("show");
                 }
-            );
+            });
 
-
-            /* ============================================================
-               CONFIRM SUBMIT
-            ============================================================ */
-
-            confirmSubmit.addEventListener(
-                "click",
-                function () {
-
-                    confirmSubmit.disabled = true;
-
-                    confirmSubmit.innerHTML = `
-                        <i class="fas fa-spinner fa-spin"></i>
-                        Submitting...
-                    `;
-
-
-                    submitRequestBtn.disabled = true;
-
-
-                    /*
-                     * Native submit bypasses the submit event,
-                     * preventing the confirmation from appearing again.
-                     */
-
-                    HTMLFormElement.prototype.submit.call(form);
-
+            document.addEventListener("keydown", function (e) {
+                if (e.key === "Escape") {
+                    confirmOverlay.classList.remove("show");
                 }
-            );
+            });
 
-
-            /* ============================================================
-               CLOSE MODAL OUTSIDE
-            ============================================================ */
-
-            confirmOverlay.addEventListener(
-                "click",
-                function (event) {
-
-                    if (event.target === confirmOverlay) {
-
-                        confirmOverlay.classList.remove(
-                            "show"
-                        );
-
-                    }
-
-                }
-            );
-
-
-            /* ============================================================
-               ESCAPE KEY
-            ============================================================ */
-
-            document.addEventListener(
-                "keydown",
-                function (event) {
-
-                    if (event.key === "Escape") {
-
-                        confirmOverlay.classList.remove(
-                            "show"
-                        );
-
-                    }
-
-                }
-            );
-
-
-            /* ============================================================
-               INITIAL LOAD
-            ============================================================ */
-
+            // Initial render
             updatePage();
-
         });
 
     </script>
-
 }

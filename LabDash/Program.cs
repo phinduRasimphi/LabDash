@@ -2,6 +2,7 @@
 using LabDash.Areas.Identity.Data;
 using LabDash.Models;
 using LabDash.Services;
+using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddSession();
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+Console.WriteLine($"CONN: {cs}");
 
 builder.Services.AddScoped<LabDash.Services.NotificationService>();
 builder.Services.AddScoped<IEmailSender, EmailSender>();
@@ -30,8 +33,11 @@ builder.Services.AddScoped<IVerifiedResultsPdfGenerator, VerifiedResultsPdfGener
 builder.Services.AddScoped<IVerifiedResultsNotificationService, VerifiedResultsNotificationService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditService, LabDash.Services.AuditService>();
+builder.Services.AddScoped<IRazorEmailRenderer, RazorEmailRenderer>();
 
 var app = builder.Build();
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+QuestPDF.Settings.UseSystemFonts = true;
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

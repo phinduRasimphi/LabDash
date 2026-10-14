@@ -46,26 +46,13 @@
         ? $"{testType.ReferenceRangeLow} - {testType.ReferenceRangeHigh}"
         : "Not specified";
 
-    string turnaroundTime = "Not specified";
+    
+string turnaroundTime = "Not specified";
 
-    if (testType != null && testType.TurnaroundTimeMinutes > 0)
-    {
-        int hours = testType.TurnaroundTimeMinutes / 60;
-        int minutes = testType.TurnaroundTimeMinutes % 60;
-
-        if (hours > 0 && minutes > 0)
-        {
-            turnaroundTime = $"{hours} hr {minutes} min";
-        }
-        else if (hours > 0)
-        {
-            turnaroundTime = $"{hours} hr";
-        }
-        else
-        {
-            turnaroundTime = $"{minutes} min";
-        }
-    }
+if (testType != null && testType.TurnaroundTimeMinutes > 0)
+{
+    turnaroundTime = $"{testType.TurnaroundTimeMinutes} minutes";
+}
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -2431,143 +2418,99 @@
     </div>
 
 
+<!-- =====================================================
+     CONSUMABLES
+     ===================================================== -->
 
-    <!-- =====================================================
-         CONSUMABLES
-         ===================================================== -->
-
-    <div class="pt-panel">
-
-
-        <div class="pt-panel-header">
-
-
-            <div>
-
-                <i class="fa-solid fa-boxes-stacked"></i>
-
-                <span>
-                    Consumables
-                </span>
-
-            </div>
-
-
-            <span class="pt-consumable-rule">
-                Required for test
-            </span>
-
-
+<div class="pt-panel">
+    <div class="pt-panel-header">
+        <div>
+            <i class="fa-solid fa-boxes-stacked"></i>
+            <span>Consumables</span>
         </div>
 
+        <span class="pt-consumable-rule">
+            Current stock after test starts
+        </span>
+    </div>
 
-        <div class="pt-panel-body">
+    <div class="pt-panel-body">
+        @if (consumables.Any())
+        {
+            <div class="pt-table-wrapper">
+                <table class="pt-table">
+                    <thead>
+                        <tr>
+                            <th>Consumable</th>
+                            <th>Quantity Required</th>
+                            <th>Quantity Left</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
 
-
-            @if (consumables.Any())
-            {
-
-                <div class="pt-table-wrapper">
-
-
-                    <table class="pt-table">
-
-
-                        <thead>
+                    <tbody>
+                        @foreach (var consumable in consumables)
+                        {
+                            var stockLeft =
+                                consumable.Consumable?.StockLevel ?? 0;
 
                             <tr>
+                                <td>
+                                    <strong>
+                                        <i class="fa-solid fa-vial"></i>
+                                        @(consumable.Consumable?.Name
+                                            ?? "Consumable")
+                                    </strong>
+                                </td>
 
-                                <th>
-                                    Consumable
-                                </th>
+                                <td>
+                                    @consumable.QuantityRequired
+                                </td>
 
-                                <th>
-                                    Quantity Required
-                                </th>
+                                <td>
+                                    <strong>@stockLeft</strong>
+                                </td>
 
-                                <th>
-                                    Status
-                                </th>
-
-                            </tr>
-
-                        </thead>
-
-
-                        <tbody>
-
-
-                            @foreach (var consumable in consumables)
-                            {
-
-                                <tr>
-
-
-                                    <td>
-
-                                        <strong>
-
-                                            <i class="fa-solid fa-vial"></i>
-
-                                            @(consumable.Consumable?.Name
-                                                ?? "Consumable")
-
-                                        </strong>
-
-                                    </td>
-
-
-                                    <td>
-
-                                        @consumable.QuantityRequired
-
-                                    </td>
-
-
-                                    <td>
-
-                                        <span class="pt-stock good">
-
-                                            <i class="fa-solid fa-circle-check"></i>
-
-                                            Available
-
+                                <td>
+                                    @if (stockLeft <= 0)
+                                    {
+                                        <span class="pt-stock danger">
+                                            <i class="fa-solid fa-circle-xmark"></i>
+                                            Out of stock
                                         </span>
-
-                                    </td>
-
-
-                                </tr>
-
-                            }
-
-
-                        </tbody>
-
-
-                    </table>
-
-
-                </div>
-
-            }
-            else
-            {
-
-                <div class="pt-no-data">
-
-                    <i class="fa-solid fa-box-open"></i>
-
-                    No consumables have been assigned to this test.
-
-                </div>
-
-            }
-
-
-        </div>
-
+                                    }
+                                    else if (stockLeft <=
+                                        (consumable.Consumable?.ReorderLevel ?? 5))
+                                    {
+                                        <span class="pt-stock warning">
+                                            <i class="fa-solid fa-triangle-exclamation"></i>
+                                            Low stock
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="pt-stock good">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                            Available
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="pt-no-data">
+                <i class="fa-solid fa-box-open"></i>
+                No consumables have been assigned to this test.
+            </div>
+        }
     </div>
+</div>
+
 
 
 

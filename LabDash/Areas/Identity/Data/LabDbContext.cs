@@ -30,6 +30,8 @@ public class LabDbContext : IdentityDbContext<LabUser>
 
     public DbSet<TestVerification> TestVerifications { get; set; }
 
+    public DbSet<TestReviewHistory> TestReviewHistories { get; set; }
+
     public DbSet<TechnicianAssignment> TechnicianAssignments { get; set; }
 
     public DbSet<MedicalCondition> MedicalConditions { get; set; }
@@ -43,6 +45,11 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<Notification> Notifications { get; set; }
 
     public DbSet<AuditLog> AuditLogs { get; set; }
+    public DbSet<SouthAfricanLocation> SouthAfricanLocations
+    {
+        get;
+        set;
+    }
 
     public DbSet<Category> Categories { get; set; }
 
@@ -70,6 +77,8 @@ public class LabDbContext : IdentityDbContext<LabUser>
     public DbSet<PatientMedication> PatientMedications { get; set; }
 
     public DbSet<PatientMedicalCondition> PatientMedicalConditions { get; set; }
+  
+  
 
     public DbSet<ConsumableOrderItem> ConsumableOrderItems { get; set; }
 
@@ -197,11 +206,11 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .HasIndex(n => n.CreatedAt);
 
 
-        // ============================================================
-        // TEST REQUEST
-        // ============================================================
+    // ============================================================
+    // TEST REQUEST
+    // ============================================================
 
-        builder.Entity<TestRequest>()
+    builder.Entity<TestRequest>()
             .HasOne(t => t.Patient)
             .WithMany()
             .HasForeignKey(t => t.PatientId)

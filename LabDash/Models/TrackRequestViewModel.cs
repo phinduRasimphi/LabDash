@@ -1,10 +1,8 @@
-﻿using LabDash.Models;
-
-namespace LabDash.Models
+﻿namespace LabDash.ViewModels
 {
     public class TrackRequestViewModel
     {
-        public Patient Patient { get; set; }
-        public List<TestRequest> Requests { get; set; }
+        public LabDash.Models.Patient? Patient { get; set; }
+        public List<LabDash.Models.TestRequest> Requests { get; set; } = new();
     }
 }

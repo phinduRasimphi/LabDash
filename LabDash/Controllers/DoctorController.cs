@@ -1,10 +1,12 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
+using LabDash.Services;
 using LabDash.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using LabDash.Services;
@@ -19,6 +21,7 @@ namespace LabDash.Controllers
         private readonly SignInManager<LabUser> _signInManager;
         private readonly IEmailSender _emailSender;
         private readonly IAuditService _audit;
+        private readonly IRazorEmailRenderer _emailRenderer;
 
         public DoctorController(
             LabDbContext context,
@@ -28,26 +31,35 @@ namespace LabDash.Controllers
 
 
 
+            IEmailSender emailSender,
+            IRazorEmailRenderer emailRenderer)
         {
             _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
             _emailSender = emailSender;
             _audit = audit;
+            _emailRenderer = emailRenderer;
         }
 
         // =========================================================
         // MANAGE PATIENTS
         // =========================================================
+
         [HttpGet]
         public async Task<IActionResult> ManagePatients(string? searchIDNumber)
         {
-            var vm = new ManagePatientsViewModel { SearchIDNumber = searchIDNumber };
+            var vm = new ManagePatientsViewModel
+            {
+                SearchIDNumber = searchIDNumber
+            };
 
             if (!string.IsNullOrWhiteSpace(searchIDNumber))
             {
                 vm.HasSearched = true;
+
                 var patient = await _context.Patients
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.IDNumber == searchIDNumber.Trim());
 
                 if (patient != null)
@@ -74,8 +86,157 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // CREATE PATIENT — GET
+        // CONSENTED PATIENTS (SharedWithMe)
         // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> SharedWithMe()
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+
+            if (currentUser == null)
+            {
+                return Challenge();
+            }
+
+            var consents = await _context.PatientDoctorConsents
+                .AsNoTracking()
+                .Where(c => c.DoctorId == currentUser.Id && c.IsActive)
+                .Include(c => c.Patient)
+                .Include(c => c.ConsentItemAccesses)
+                .OrderByDescending(c => c.GrantedDate)
+                .ToListAsync();
+
+            var model = new SharedWithMeViewModel
+            {
+                Patients = consents
+                    .Where(c => c.Patient != null)
+                    .GroupBy(c => c.PatientID)
+                    .Select(g =>
+                    {
+                        var latest = g.OrderByDescending(c => c.GrantedDate).First();
+                        var totalItems = g.Sum(c => c.ConsentItemAccesses?.Count ?? 0);
+
+                        return new SharedPatientViewModel
+                        {
+                            PatientID = latest.Patient!.PatientID,
+                            Name = latest.Patient.Name,
+                            Surname = latest.Patient.Surname,
+                            IDNumber = latest.Patient.IDNumber,
+                            Email = latest.Patient.Email ?? "",
+                            SharedItemCount = totalItems,
+                            LastGrantedDate = latest.GrantedDate
+                        };
+                    })
+                    .OrderByDescending(p => p.LastGrantedDate)
+                    .ToList()
+            };
+
+            return View(model);
+        }
+
+        // =========================================================
+        // PATIENT SHARED RESULTS
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> PatientSharedResults(int patientId)
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+
+            if (currentUser == null)
+            {
+                return Challenge();
+            }
+
+            var patient = await _context.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PatientID == patientId);
+
+            if (patient == null)
+            {
+                return NotFound();
+            }
+
+            var hasAccess = await _context.PatientDoctorConsents
+                .AsNoTracking()
+                .AnyAsync(c =>
+                    c.PatientID == patientId &&
+                    c.DoctorId == currentUser.Id &&
+                    c.IsActive);
+
+            if (!hasAccess)
+            {
+                return Forbid();
+            }
+
+            var grantedItems = await _context.ConsentItemAccesses
+                .AsNoTracking()
+                .Where(a =>
+                    a.Consent != null &&
+                    a.Consent.PatientID == patientId &&
+                    a.Consent.DoctorId == currentUser.Id &&
+                    a.Consent.IsActive)
+                .Include(a => a.TestRequestItem)
+                    .ThenInclude(i => i!.TestType)
+                .Include(a => a.TestRequestItem)
+                    .ThenInclude(i => i!.TestRequest)
+                .Include(a => a.TestRequestItem)
+                    .ThenInclude(i => i!.TestResults)
+                .ToListAsync();
+
+            var results = grantedItems
+                .Where(a => a.TestRequestItem != null)
+                .Select(a =>
+                {
+                    var item = a.TestRequestItem!;
+                    var request = item.TestRequest;
+                    var testType = item.TestType;
+
+                    var result = item.TestResults?
+                        .Where(r => !string.IsNullOrWhiteSpace(r.ResultValue))
+                        .OrderByDescending(r => r.DateCaptured)
+                        .FirstOrDefault();
+
+                    return new SharedResultViewModel
+                    {
+                        RequestID = request?.RequestId ?? 0,
+                        RequestDate = request?.RequestDate ?? DateTime.MinValue,
+                        Urgency = request?.Urgency ?? "Routine",
+                        RequestStatus = request?.Status ?? "",
+
+                        TestRequestItemID = item.TestRequestItemId,
+                        TestName = testType?.Name ?? "Unknown Test",
+                        Category = testType?.Category ?? "",
+
+                        ResultValue = result?.ResultValue ?? "",
+                        Unit = result?.Units ?? "",
+                        IsAbnormal = result?.IsAbnormal ?? false,
+                        DateCaptured = result?.DateCaptured,
+                        TechnicianNotes = result?.Comments ?? ""
+                    };
+                })
+                .OrderByDescending(r => r.RequestDate)
+                .ThenBy(r => r.TestName)
+                .ToList();
+
+            var model = new PatientSharedResultsViewModel
+            {
+                PatientID = patient.PatientID,
+                Name = patient.Name,
+                Surname = patient.Surname,
+                IDNumber = patient.IDNumber,
+                Email = patient.Email ?? "",
+                Results = results
+            };
+
+            return View(model);
+        }
+
+        // =========================================================
+        // CREATE PATIENT - GET
+        // =========================================================
+
         [HttpGet]
         public async Task<IActionResult> CreatePatient(string? idNumber)
         {
@@ -88,29 +249,56 @@ namespace LabDash.Controllers
             }
 
             await PopulateDropdownsAsync(vm);
+
             return View(vm);
         }
 
         // =========================================================
-        // CREATE PATIENT — POST
+        // CREATE PATIENT - POST
         // =========================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreatePatient(PatientCreateViewModel model)
         {
             if (model == null)
             {
-                ModelState.AddModelError(string.Empty, "Patient information could not be received.");
+                ModelState.AddModelError(string.Empty,
+                    "Patient information could not be received.");
+
                 var blank = new PatientCreateViewModel();
                 await PopulateDropdownsAsync(blank);
                 return View(blank);
             }
 
-            // SA ID validation (Luhn + embedded date)
+            // ---- SA ID validation ----
             if (!string.IsNullOrWhiteSpace(model.IDNumber) &&
-                !IsValidSouthAfricanId(model.IDNumber, out string idError))
+                !IsValidSouthAfricanId(model.IDNumber.Trim(), out string idError))
             {
                 ModelState.AddModelError(nameof(model.IDNumber), idError);
+            }
+
+            // ---- Address validation ----
+            bool validLocation = false;
+
+            if (!string.IsNullOrWhiteSpace(model.Province) &&
+                !string.IsNullOrWhiteSpace(model.City) &&
+                !string.IsNullOrWhiteSpace(model.Suburb) &&
+                !string.IsNullOrWhiteSpace(model.PostalCode))
+            {
+                validLocation = await _context.SouthAfricanLocations
+                    .AsNoTracking()
+                    .AnyAsync(x =>
+                        x.Province == model.Province &&
+                        x.City == model.City &&
+                        x.Suburb == model.Suburb &&
+                        x.PostalCode == model.PostalCode);
+            }
+
+            if (!validLocation)
+            {
+                ModelState.AddModelError(nameof(model.PostalCode),
+                    "Select a valid province, city, suburb and postal code.");
             }
 
             if (!ModelState.IsValid)
@@ -119,28 +307,51 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
+            // ---- Normalise ----
             string name = model.Name.Trim();
             string surname = model.Surname.Trim();
             string idNumber = model.IDNumber.Trim();
             string cellphone = model.CellphoneNumber.Trim();
             string email = model.Email.Trim().ToLowerInvariant();
+
             string address1 = model.AddressLine1.Trim();
-            string? address2 = string.IsNullOrWhiteSpace(model.AddressLine2) ? null : model.AddressLine2.Trim();
-            string? suburb = string.IsNullOrWhiteSpace(model.Suburb) ? null : model.Suburb.Trim();
-            string? city = string.IsNullOrWhiteSpace(model.City) ? null : model.City.Trim();
+
+            string? address2 = string.IsNullOrWhiteSpace(model.AddressLine2)
+                ? null
+                : model.AddressLine2.Trim();
+
+            string suburb = model.Suburb.Trim();
+            string city = model.City.Trim();
             string province = model.Province.Trim();
-            string? postalCode = string.IsNullOrWhiteSpace(model.PostalCode) ? null : model.PostalCode.Trim();
+            string postalCode = model.PostalCode.Trim();
 
-            // Resolve medical lookups
-            string medicalConditions = await ResolveNameAsync(model.SelectedMedicalConditionId, "condition");
-            string allergies = await ResolveNameAsync(model.SelectedAllergyId, "allergy");
-            string medication = await ResolveNameAsync(model.SelectedMedicationId, "medication");
+            // ---- Resolve medical selections ----
+            var medicalConditions = await ResolveMedicalNameAsync(
+                model.SelectedMedicalConditionId, "condition");
 
-            // Duplicate checks
+            var allergies = await ResolveMedicalNameAsync(
+                model.SelectedAllergyId, "allergy");
+
+            var medication = await ResolveMedicalNameAsync(
+                model.SelectedMedicationId, "medication");
+
+            if (!medicalConditions.Valid ||
+                !allergies.Valid ||
+                !medication.Valid)
+            {
+                ModelState.AddModelError(string.Empty,
+                    "One or more medical selections are invalid. Please select them again.");
+
+                await PopulateDropdownsAsync(model);
+                return View(model);
+            }
+
+            // ---- Duplicate checks ----
             if (await _context.Patients.AnyAsync(p => p.IDNumber == idNumber))
             {
                 ModelState.AddModelError(nameof(model.IDNumber),
                     "A patient with this South African ID number already exists.");
+
                 await PopulateDropdownsAsync(model);
                 return View(model);
             }
@@ -149,6 +360,7 @@ namespace LabDash.Controllers
             {
                 ModelState.AddModelError(nameof(model.Email),
                     "An account with this email address already exists.");
+
                 await PopulateDropdownsAsync(model);
                 return View(model);
             }
@@ -157,12 +369,16 @@ namespace LabDash.Controllers
             {
                 ModelState.AddModelError(nameof(model.IDNumber),
                     "An account with this South African ID number already exists.");
+
                 await PopulateDropdownsAsync(model);
                 return View(model);
             }
 
-            // Create Identity user
-            string generatedPassword = GenerateTemporaryPassword();
+            // ---- Create Identity account ----
+            string internalPlaceholder =
+                Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+            string activationToken = GenerateActivationToken();
 
             var user = new LabUser
             {
@@ -174,20 +390,24 @@ namespace LabDash.Controllers
                 PhoneNumb = cellphone,
                 SouthAfricanID = idNumber,
                 HPCSANumber = null,
-                MustChangePassword = true,
-                Timestamp_AccountCreated = DateTime.UtcNow
+                MustChangePassword = false,
+                Timestamp_AccountCreated = DateTime.UtcNow,
+                ActivationTokenHash = HashActivationToken(activationToken),
+                ActivationTokenExpiresUtc = DateTime.UtcNow.AddHours(48)
             };
 
             IdentityResult createResult;
 
             try
             {
-                createResult = await _userManager.CreateAsync(user, generatedPassword);
+                createResult = await _userManager.CreateAsync(user, internalPlaceholder);
             }
             catch (Exception ex)
             {
-                string error = ex.InnerException?.Message ?? ex.Message;
-                ModelState.AddModelError(string.Empty, "The patient account could not be created. " + error);
+                ModelState.AddModelError(string.Empty,
+                    "The patient account could not be created. " +
+                    (ex.InnerException?.Message ?? ex.Message));
+
                 await PopulateDropdownsAsync(model);
                 return View(model);
             }
@@ -195,27 +415,57 @@ namespace LabDash.Controllers
             if (!createResult.Succeeded)
             {
                 foreach (var error in createResult.Errors)
+                {
                     ModelState.AddModelError(string.Empty, error.Description);
+                }
 
                 await PopulateDropdownsAsync(model);
                 return View(model);
             }
 
-            // Assign Patient role
+            // ---- Assign Patient role ----
             try
             {
-                await _userManager.AddToRoleAsync(user, "Patient");
+                var roleResult = await _userManager.AddToRoleAsync(user, "Patient");
+
+                if (!roleResult.Succeeded)
+                {
+                    foreach (var error in roleResult.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+
+                    await _userManager.DeleteAsync(user);
+                    await PopulateDropdownsAsync(model);
+                    return View(model);
+                }
             }
             catch (Exception ex)
             {
                 await _userManager.DeleteAsync(user);
-                string error = ex.InnerException?.Message ?? ex.Message;
-                ModelState.AddModelError(string.Empty, "The Patient role could not be assigned. " + error);
+
+                ModelState.AddModelError(string.Empty,
+                    "The Patient role could not be assigned. " +
+                    (ex.InnerException?.Message ?? ex.Message));
+
                 await PopulateDropdownsAsync(model);
                 return View(model);
             }
 
-            // Create Patient entity
+            // ---- Build full address ----
+            string fullAddress = string.Join(", ",
+                new[]
+                {
+                    address1,
+                    address2,
+                    suburb,
+                    city,
+                    province,
+                    postalCode
+                }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+
+            // ---- Create Patient record ----
             var newPatient = new Patient
             {
                 UserId = user.Id,
@@ -225,16 +475,18 @@ namespace LabDash.Controllers
                 CellphoneNumber = cellphone,
                 DOB = model.DOB,
                 Email = email,
+
                 AddressLine1 = address1,
                 AddressLine2 = address2,
                 Suburb = suburb,
                 City = city,
                 Province = province,
                 PostalCode = postalCode,
-                HomeAddress = address1,
-                MedicalConditions = medicalConditions,
-                Allergies = allergies,
-                Medication = medication
+                HomeAddress = fullAddress,
+
+                MedicalConditions = medicalConditions.Name,
+                Allergies = allergies.Name,
+                Medication = medication.Name
             };
 
             _context.Patients.Add(newPatient);
@@ -246,201 +498,293 @@ namespace LabDash.Controllers
             }
             catch (Exception ex)
             {
+                _context.Patients.Remove(newPatient);
+                await _context.SaveChangesAsync();
+
                 await _userManager.DeleteAsync(user);
-                string error = ex.InnerException?.Message ?? ex.Message;
-                ModelState.AddModelError(string.Empty, "The patient could not be saved. " + error);
+
+                ModelState.AddModelError(string.Empty,
+                    "The patient could not be saved. " +
+                    (ex.InnerException?.Message ?? ex.Message));
+
                 await PopulateDropdownsAsync(model);
                 return View(model);
             }
 
-            // Send welcome email — failure is non-blocking
-            bool emailSent = false;
-
-            try
-            {
-                string? loginUrl = Url.Action("Login", "Account", new { area = "Identity" }, Request.Scheme);
-                string emailBody = $@"
-                    <h2>Welcome to NMB LAB</h2>
-                    <p>Hi {name},</p>
-                    <p>Your patient account has been created.</p>
-                    <p>
-                        <strong>Username:</strong> {email}<br/>
-                        <strong>Temporary Password:</strong> {generatedPassword}
-                    </p>
-                    <p>You will be required to change your password at first login.</p>
-                    <p><a href='{loginUrl}'>Login here</a></p>
-                    <p>Regards,<br/>NMB Haematology Laboratory</p>";
-
-                await _emailSender.SendEmailAsync(email, "Your NMB LAB Patient Account", emailBody);
-                emailSent = true;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"EMAIL FAILED: {ex.Message}");
-            }
+            // ---- Send activation email ----
+            bool emailSent = await TrySendActivationEmailAsync(
+                user, name, activationToken);
 
             if (emailSent)
             {
-                TempData["Success"] = "Patient registered successfully. Login details have been emailed.";
+                TempData["Success"] =
+                    "Patient registered successfully. An activation link has been emailed to the patient.";
             }
             else
             {
                 TempData["Warning"] =
-                    $"Patient registered, but the email could not be sent. " +
-                    $"Give them this temporary password: {generatedPassword}";
+                    "Patient registered, but the activation email could not be sent. " +
+                    "Use 'Resend activation' from the patient's record.";
             }
 
             return RedirectToAction(nameof(ManagePatients));
         }
 
         // =========================================================
-        // HELPERS — DROPDOWNS
+        // RESEND ACTIVATION
         // =========================================================
-        private async Task PopulateDropdownsAsync(PatientCreateViewModel vm)
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResendActivation(int patientId)
         {
-            // Provinces (fixed list)
-            vm.Provinces = new List<SelectOption>
-            {
-                new() { Value = "Eastern Cape",  Text = "Eastern Cape" },
-                new() { Value = "Free State",    Text = "Free State" },
-                new() { Value = "Gauteng",       Text = "Gauteng" },
-                new() { Value = "KwaZulu-Natal", Text = "KwaZulu-Natal" },
-                new() { Value = "Limpopo",       Text = "Limpopo" },
-                new() { Value = "Mpumalanga",    Text = "Mpumalanga" },
-                new() { Value = "Northern Cape", Text = "Northern Cape" },
-                new() { Value = "North West",    Text = "North West" },
-                new() { Value = "Western Cape",  Text = "Western Cape" }
-            };
+            var patient = await _context.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PatientID == patientId);
 
-            vm.Cities = new List<SelectOption>();
-            vm.Suburbs = new List<SelectOption>();
+            if (patient == null) return NotFound();
 
-            // ----- Medical Conditions -----
-            try
-            {
-                vm.MedicalConditionOptions = await _context.MedicalConditions
-                    .Include(m => m.Category)
-                    .Where(m => m.IsActive)
-                    .OrderBy(m => m.ConditionName)
-                    .Select(m => new MedicalOption
-                    {
-                        Id = m.MedicalConditionId,
-                        Name = m.ConditionName,
-                        Category = m.Category != null ? m.Category.Name : "Uncategorised"
-                    })
-                    .ToListAsync();
+            var user = await _userManager.FindByIdAsync(patient.UserId);
+            if (user == null) return NotFound();
 
-                vm.MedicalConditionCategories = vm.MedicalConditionOptions
-                    .Select(o => o.Category)
-                    .Distinct()
-                    .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            catch
-            {
-                vm.MedicalConditionOptions = new();
-                vm.MedicalConditionCategories = new();
-            }
+            string activationToken = GenerateActivationToken();
+            user.ActivationTokenHash = HashActivationToken(activationToken);
+            user.ActivationTokenExpiresUtc = DateTime.UtcNow.AddHours(48);
+            await _userManager.UpdateAsync(user);
 
-            // ----- Allergies -----
-            try
-            {
-                vm.AllergyOptions = await _context.Allergies
-                    .Include(a => a.Category)
-                    .Where(a => a.IsActive)
-                    .OrderBy(a => a.AllergyName)
-                    .Select(a => new MedicalOption
-                    {
-                        Id = a.AllergyId,
-                        Name = a.AllergyName,
-                        Category = a.Category != null ? a.Category.Name : "Uncategorised"
-                    })
-                    .ToListAsync();
+            bool sent = await TrySendActivationEmailAsync(
+                user, patient.Name, activationToken);
 
-                vm.AllergyCategories = vm.AllergyOptions
-                    .Select(o => o.Category)
-                    .Distinct()
-                    .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            catch
-            {
-                vm.AllergyOptions = new();
-                vm.AllergyCategories = new();
-            }
+            TempData[sent ? "Success" : "Warning"] = sent
+                ? $"Activation email sent to {user.Email}."
+                : "Could not send the activation email.";
 
-            // ----- Medications -----
-            try
-            {
-                vm.MedicationOptions = await _context.Medications
-                    .Include(m => m.Category)
-                    .Where(m => m.IsActive)
-                    .OrderBy(m => m.MedicationName)
-                    .Select(m => new MedicalOption
-                    {
-                        Id = m.MedicationId,
-                        Name = m.MedicationName,
-                        Category = m.Category != null ? m.Category.Name : "Uncategorised"
-                    })
-                    .ToListAsync();
-
-                vm.MedicationCategories = vm.MedicationOptions
-                    .Select(o => o.Category)
-                    .Distinct()
-                    .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            catch
-            {
-                vm.MedicationOptions = new();
-                vm.MedicationCategories = new();
-            }
+            return RedirectToAction(nameof(ManagePatients),
+                new { searchIDNumber = patient.IDNumber });
         }
 
         // =========================================================
-        // HELPERS — RESOLVE MEDICAL NAME
+        // ADDRESS DROPDOWN ENDPOINTS
         // =========================================================
-        private async Task<string> ResolveNameAsync(int? id, string type)
+
+        [HttpGet]
+        public async Task<IActionResult> GetCities(string? province)
         {
-            if (id == null) return "None";
+            if (string.IsNullOrWhiteSpace(province))
+                return Json(new List<string>());
+
+            var cities = await _context.SouthAfricanLocations
+                .AsNoTracking()
+                .Where(x => x.Province == province)
+                .Select(x => x.City)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync();
+
+            return Json(cities);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetSuburbs(string? province, string? city)
+        {
+            if (string.IsNullOrWhiteSpace(province) ||
+                string.IsNullOrWhiteSpace(city))
+                return Json(new List<string>());
+
+            var suburbs = await _context.SouthAfricanLocations
+                .AsNoTracking()
+                .Where(x => x.Province == province && x.City == city)
+                .Select(x => x.Suburb)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync();
+
+            return Json(suburbs);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetPostalCodes(
+            string? province, string? city, string? suburb)
+        {
+            if (string.IsNullOrWhiteSpace(province) ||
+                string.IsNullOrWhiteSpace(city) ||
+                string.IsNullOrWhiteSpace(suburb))
+                return Json(new List<string>());
+
+            var postalCodes = await _context.SouthAfricanLocations
+                .AsNoTracking()
+                .Where(x =>
+                    x.Province == province &&
+                    x.City == city &&
+                    x.Suburb == suburb)
+                .Select(x => x.PostalCode)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync();
+
+            return Json(postalCodes);
+        }
+
+        // =========================================================
+        // POPULATE DROPDOWNS
+        // =========================================================
+
+        private async Task PopulateDropdownsAsync(PatientCreateViewModel vm)
+        {
+            vm.Provinces = new List<SelectListItem>
+            {
+                new("Eastern Cape", "Eastern Cape"),
+                new("Free State", "Free State"),
+                new("Gauteng", "Gauteng"),
+                new("KwaZulu-Natal", "KwaZulu-Natal"),
+                new("Limpopo", "Limpopo"),
+                new("Mpumalanga", "Mpumalanga"),
+                new("Northern Cape", "Northern Cape"),
+                new("North West", "North West"),
+                new("Western Cape", "Western Cape")
+            };
+
+            foreach (var province in vm.Provinces)
+            {
+                province.Selected = province.Value == vm.Province;
+            }
+
+            var conditions = await _context.MedicalConditions
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.ConditionName)
+                .ToListAsync();
+
+            vm.MedicalConditionOptions = conditions
+                .Select(x => new MedicalOption
+                {
+                    Id = x.MedicalConditionId,
+                    Name = x.ConditionName,
+                    Category = x.Category?.Name ?? "Uncategorised"
+                })
+                .ToList();
+
+            vm.MedicalConditionCategories = GetCategories(vm.MedicalConditionOptions);
+
+            var allergies = await _context.Allergies
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.AllergyName)
+                .ToListAsync();
+
+            vm.AllergyOptions = allergies
+                .Select(x => new MedicalOption
+                {
+                    Id = x.AllergyId,
+                    Name = x.AllergyName,
+                    Category = x.Category?.Name ?? "Uncategorised"
+                })
+                .ToList();
+
+            vm.AllergyCategories = GetCategories(vm.AllergyOptions);
+
+            var medications = await _context.Medications
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.MedicationName)
+                .ToListAsync();
+
+            vm.MedicationOptions = medications
+                .Select(x => new MedicalOption
+                {
+                    Id = x.MedicationId,
+                    Name = x.MedicationName,
+                    Category = x.Category?.Name ?? "Uncategorised"
+                })
+                .ToList();
+
+            vm.MedicationCategories = GetCategories(vm.MedicationOptions);
+        }
+
+        private static List<string> GetCategories(IEnumerable<MedicalOption> options)
+        {
+            return options
+                .Select(x => x.Category)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        // =========================================================
+        // RESOLVE MEDICAL SELECTION
+        // =========================================================
+
+        private async Task<(bool Valid, string Name)> ResolveMedicalNameAsync(
+            int? id, string type)
+        {
+            if (!id.HasValue) return (true, "None");
 
             switch (type)
             {
                 case "condition":
-                    var c = await _context.MedicalConditions.FindAsync(id.Value);
-                    return c?.ConditionName ?? "None";
+                    var condition = await _context.MedicalConditions
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(x =>
+                            x.MedicalConditionId == id.Value && x.IsActive);
+
+                    return condition == null
+                        ? (false, "None")
+                        : (true, condition.ConditionName);
+
                 case "allergy":
-                    var a = await _context.Allergies.FindAsync(id.Value);
-                    return a?.AllergyName ?? "None";
+                    var allergy = await _context.Allergies
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(x =>
+                            x.AllergyId == id.Value && x.IsActive);
+
+                    return allergy == null
+                        ? (false, "None")
+                        : (true, allergy.AllergyName);
+
                 case "medication":
-                    var m = await _context.Medications.FindAsync(id.Value);
-                    return m?.MedicationName ?? "None";
+                    var medication = await _context.Medications
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(x =>
+                            x.MedicationId == id.Value && x.IsActive);
+
+                    return medication == null
+                        ? (false, "None")
+                        : (true, medication.MedicationName);
+
                 default:
-                    return "None";
+                    return (false, "None");
             }
         }
 
         // =========================================================
-        // HELPERS — SA ID VALIDATION + DOB EXTRACTION
+        // SA ID VALIDATION
         // =========================================================
+
         private static bool IsValidSouthAfricanId(string id, out string error)
         {
             error = string.Empty;
 
-            if (string.IsNullOrWhiteSpace(id) || id.Length != 13 || !id.All(char.IsDigit))
+            if (string.IsNullOrWhiteSpace(id) ||
+                id.Length != 13 ||
+                !id.All(char.IsDigit))
             {
                 error = "ID number must be exactly 13 digits.";
                 return false;
             }
 
-            string yy = id.Substring(0, 2);
-            string mm = id.Substring(2, 2);
-            string dd = id.Substring(4, 2);
+            if (!int.TryParse(id.Substring(2, 2), out int month) ||
+                !int.TryParse(id.Substring(4, 2), out int day))
+            {
+                error = "ID number contains an invalid birth date.";
+                return false;
+            }
 
-            int year2 = int.Parse(yy);
-            int month = int.Parse(mm);
-            int day = int.Parse(dd);
-
+            int year2 = int.Parse(id.Substring(0, 2));
             int currentYY = DateTime.UtcNow.Year % 100;
             int century = year2 > currentYY ? 1900 : 2000;
             int fullYear = century + year2;
@@ -485,15 +829,14 @@ namespace LabDash.Controllers
 
         private static void TryPopulateDobFromId(PatientCreateViewModel vm)
         {
-            if (string.IsNullOrWhiteSpace(vm.IDNumber) || vm.IDNumber.Length < 6) return;
+            if (string.IsNullOrWhiteSpace(vm.IDNumber) ||
+                vm.IDNumber.Length != 13 ||
+                !vm.IDNumber.All(char.IsDigit))
+                return;
 
-            string yy = vm.IDNumber.Substring(0, 2);
-            string mm = vm.IDNumber.Substring(2, 2);
-            string dd = vm.IDNumber.Substring(4, 2);
-
-            if (!int.TryParse(yy, out int year2) ||
-                !int.TryParse(mm, out int month) ||
-                !int.TryParse(dd, out int day)) return;
+            int year2 = int.Parse(vm.IDNumber.Substring(0, 2));
+            int month = int.Parse(vm.IDNumber.Substring(2, 2));
+            int day = int.Parse(vm.IDNumber.Substring(4, 2));
 
             int currentYY = DateTime.UtcNow.Year % 100;
             int century = year2 > currentYY ? 1900 : 2000;
@@ -503,48 +846,176 @@ namespace LabDash.Controllers
             {
                 vm.DOB = new DateTime(fullYear, month, day);
             }
-            catch { /* invalid date — leave DOB untouched */ }
+            catch
+            {
+                // Ignore an invalid date encoded in the ID.
+            }
         }
 
         // =========================================================
-        // HELPERS — PASSWORD GENERATION
+        // ACTIVATION TOKEN HELPERS
         // =========================================================
-        private string GenerateTemporaryPassword()
+
+        private static string GenerateActivationToken()
         {
-            const string uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-            const string lowercase = "abcdefghijkmnopqrstuvwxyz";
-            const string numbers = "23456789";
-            const string special = "!@#$%";
+            return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+                .Replace("+", "-")
+                .Replace("/", "_")
+                .Replace("=", "");
+        }
 
-            var password = new List<char>
+        private static string HashActivationToken(string token)
+        {
+            using var sha = SHA256.Create();
+            var bytes = System.Text.Encoding.UTF8.GetBytes(token);
+            var hash = sha.ComputeHash(bytes);
+            return Convert.ToBase64String(hash);
+        }
+
+        // =========================================================
+        // SEND ACTIVATION EMAIL
+        // =========================================================
+
+        private async Task<bool> TrySendActivationEmailAsync(
+            LabUser user, string firstName, string activationToken)
+        {
+            try
             {
-                GetRandomCharacter(uppercase),
-                GetRandomCharacter(lowercase),
-                GetRandomCharacter(numbers),
-                GetRandomCharacter(special)
-            };
+                string? activationUrl = Url.Action(
+                    "ActivateAccount",
+                    "Account",
+                    new
+                    {
+                        area = "Identity",
+                        token = activationToken,
+                        email = user.Email
+                    },
+                    Request.Scheme);
 
-            const string allCharacters = uppercase + lowercase + numbers + special;
+                var emailModel = new PatientActivationEmailViewModel
+                {
+                    FirstName = firstName,
+                    Email = user.Email ?? string.Empty,
+                    ActivationUrl = activationUrl ?? "#"
+                };
 
-            while (password.Count < 12)
-                password.Add(GetRandomCharacter(allCharacters));
+                string emailBody = await _emailRenderer.RenderAsync(
+                    "~/Views/Emails/PatientActivation.cshtml",
+                    emailModel,
+                    HttpContext);
 
-            for (int i = password.Count - 1; i > 0; i--)
+                await _emailSender.SendEmailAsync(
+                    user.Email!,
+                    "Activate your NMB LAB patient account",
+                    emailBody);
+
+                return true;
+            }
+            catch (Exception ex)
             {
-                int j = RandomNumberGenerator.GetInt32(i + 1);
-                (password[i], password[j]) = (password[j], password[i]);
+                System.Diagnostics.Debug.WriteLine(
+                    $"EMAIL FAILED for {user.Email}: {ex.Message}");
+                return false;
+            }
+        }
+
+        // =========================================================
+        // DOCTOR PROFILE
+        // =========================================================
+
+        [HttpGet]
+        public async Task<IActionResult> DoctorProfile(bool edit = false)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return NotFound();
+
+            ViewBag.EditMode = edit;
+            return View(user);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DoctorProfile(
+            string FirstName,
+            string LastName,
+            string Email,
+            string HPCSANumber,
+            string EmployeeNumber,
+            string PhoneNumb,
+            string? Gender,
+            string? SouthAfricanID)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return NotFound();
+
+            if (string.IsNullOrWhiteSpace(FirstName))
+                ModelState.AddModelError("FirstName", "First name is required.");
+            if (string.IsNullOrWhiteSpace(LastName))
+                ModelState.AddModelError("LastName", "Last name is required.");
+            if (string.IsNullOrWhiteSpace(Email))
+                ModelState.AddModelError("Email", "Email is required.");
+            if (string.IsNullOrWhiteSpace(HPCSANumber))
+                ModelState.AddModelError("HPCSANumber", "HPCSA number is required.");
+            if (string.IsNullOrWhiteSpace(EmployeeNumber))
+                ModelState.AddModelError("EmployeeNumber", "Employee number is required.");
+            if (string.IsNullOrWhiteSpace(PhoneNumb))
+                ModelState.AddModelError("PhoneNumb", "Phone number is required.");
+
+            string newEmail = (Email ?? "").Trim().ToLowerInvariant();
+
+            if (ModelState.IsValid &&
+                !string.Equals(newEmail, user.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                var existing = await _userManager.FindByEmailAsync(newEmail);
+                if (existing != null && existing.Id != user.Id)
+                    ModelState.AddModelError("Email", "That email is already in use.");
             }
 
-            return new string(password.ToArray());
-        }
+            if (!ModelState.IsValid)
+            {
+                user.FirstName = FirstName;
+                user.LastName = LastName;
+                user.Email = Email;
+                user.HPCSANumber = HPCSANumber;
+                user.EmployeeNumber = EmployeeNumber;
+                user.PhoneNumb = PhoneNumb;
+                user.Gender = Gender;
+                user.SouthAfricanID = SouthAfricanID;
 
-        private char GetRandomCharacter(string characters)
-        {
-            if (string.IsNullOrEmpty(characters))
-                throw new ArgumentException("Character set cannot be empty.", nameof(characters));
+                ViewBag.EditMode = true;
+                return View(user);
+            }
 
-            int index = RandomNumberGenerator.GetInt32(characters.Length);
-            return characters[index];
+            user.FirstName = FirstName.Trim();
+            user.LastName = LastName.Trim();
+            user.HPCSANumber = HPCSANumber.Trim();
+            user.EmployeeNumber = EmployeeNumber.Trim();
+            user.PhoneNumb = PhoneNumb.Trim();
+            user.Gender = Gender;
+            user.SouthAfricanID = string.IsNullOrWhiteSpace(SouthAfricanID)
+                ? null : SouthAfricanID.Trim();
+
+            if (!string.Equals(newEmail, user.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                user.Email = newEmail;
+                user.UserName = newEmail;
+            }
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                    ModelState.AddModelError(string.Empty, error.Description);
+
+                ViewBag.EditMode = true;
+                return View(user);
+            }
+
+            await _signInManager.RefreshSignInAsync(user);
+            TempData["Success"] = "Profile updated successfully.";
+
+            return RedirectToAction(nameof(DoctorProfile));
         }
     }
 }
