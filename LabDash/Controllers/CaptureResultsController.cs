@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace LabDash.Controllers
 {
@@ -283,6 +284,8 @@ namespace LabDash.Controllers
 
             bool isAbnormal =
                 DetermineIfAbnormal(item, result.ResultValue);
+
+
 
             // --------------------------------------------------------
             // FIND EXISTING RESULT
