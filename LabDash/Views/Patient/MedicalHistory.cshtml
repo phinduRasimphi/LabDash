@@ -1,4 +1,7 @@
 ﻿@using System.Linq
+@using System.Text.Json
+@using System.Globalization
+@using LabDash.Models
 @model LabDash.Models.MedicalHistoryViewModel
 
 @{
@@ -6,29 +9,40 @@
     ViewData["Title"] = "Medical History";
     ViewData["ActivePage"] = "MedicalHistory";
 
-    var conditionCount  = Model.Conditions?.Count  ?? 0;
-    var allergyCount    = Model.Allergies?.Count   ?? 0;
-    var medicationCount = Model.Medications?.Count ?? 0;
-    var totalRecords    = conditionCount + allergyCount + medicationCount;
+    var today = DateTime.Today;
 
-    // ---- Build a single list of records from the three record types ----
-    // NOTE: dates are not guaranteed to be present on every record (lab-entered
-    // history is frequently backfilled without a confirmed event date), so the
-    // view no longer assumes every item can be placed on a timeline. Records
-    // are split into "dated" (placed on the chronological timeline) and
-    // "undated" (shown separately, flagged as needing verification) instead of
-    // silently sorting missing dates to DateTime.MinValue.
-    var allItems = new List<RecordItem>();
-    var refCounters = new Dictionary<string, int>();
+    // ---------- small helpers ----------
+    string Fmt(DateTime d) { return d.ToString("dd MMM yyyy"); }
 
-    string NextRef(string type)
+    // Culture-safe number for CSS / SVG (some locales use a comma as the decimal separator)
+    string Inv(double v) { return v.ToString("0.##", CultureInfo.InvariantCulture); }
+
+    string Span(DateTime from, DateTime to)
     {
-        var prefix = type == "allergy" ? "ALG" : type == "medication" ? "MED" : "CND";
-        refCounters.TryGetValue(prefix, out var n);
-        n += 1;
-        refCounters[prefix] = n;
-        return $"{prefix}-{n:D3}";
+        if (to < from) { return ""; }
+        var months = (to.Year - from.Year) * 12 + (to.Month - from.Month);
+        if (to.Day < from.Day) { months--; }
+        if (months < 1) { return "less than a month"; }
+        var y = months / 12;
+        var m = months % 12;
+        var parts = new List<string>();
+        if (y > 0) { parts.Add(y + (y == 1 ? " year" : " years")); }
+        if (m > 0) { parts.Add(m + (m == 1 ? " month" : " months")); }
+        return string.Join(" ", parts);
     }
+
+    string TypeLabel(string type)
+    {
+        return type == "allergy" ? "Allergy" : type == "medication" ? "Medication" : "Medical condition";
+    }
+
+    string TypeIcon(string type)
+    {
+        return type == "allergy" ? "fa-allergies" : type == "medication" ? "fa-pills" : "fa-heart-pulse";
+    }
+
+    // ---------- build one list from the three record types ----------
+    var allItems = new List<RecordItem>();
 
     if (Model.Conditions != null)
     {
@@ -36,16 +50,16 @@
         {
             allItems.Add(new RecordItem
             {
-                Type        = "condition",
-                Ref         = NextRef("condition"),
-                Name        = c.Name,
-                Category    = c.CategoryName,
+                RecordId = c.Id,
+                Type = "condition",
+                Name = c.Name,
+                Category = c.CategoryName,
                 PrimaryDate = c.DiagnosisDate,
-                DateLabel   = "Diagnosed",
-                Severity    = c.Severity,
+                DateLabel = "Diagnosed",
+                Severity = c.Severity,
                 SeverityCss = c.SeverityCssClass,
-                Doctor      = c.RecordedByDoctorName,
-                Notes       = c.Notes
+                Doctor = c.RecordedByDoctorName,
+                Notes = c.Notes
             });
         }
     }
@@ -56,16 +70,16 @@
         {
             allItems.Add(new RecordItem
             {
-                Type        = "allergy",
-                Ref         = NextRef("allergy"),
-                Name        = a.Name,
-                Category    = a.CategoryName,
+                RecordId = a.Id,
+                Type = "allergy",
+                Name = a.Name,
+                Category = a.CategoryName,
                 PrimaryDate = a.RecordedDate,
-                DateLabel   = "Recorded",
-                Severity    = a.Severity,
+                DateLabel = "Recorded",
+                Severity = a.Severity,
                 SeverityCss = a.SeverityCssClass,
-                Doctor      = a.RecordedByDoctorName,
-                Notes       = a.Notes
+                Doctor = a.RecordedByDoctorName,
+                Notes = a.Notes
             });
         }
     }
@@ -76,21 +90,40 @@
         {
             allItems.Add(new RecordItem
             {
-                Type        = "medication",
-                Ref         = NextRef("medication"),
-                Name        = m.Name,
-                Category    = m.CategoryName,
+                RecordId = m.Id,
+                Type = "medication",
+                Name = m.Name,
+                Category = m.CategoryName,
                 PrimaryDate = m.StartDate,
-                EndDate     = m.EndDate,
-                DateLabel   = "Started",
-                Doctor      = m.RecordedByDoctorName,
-                Notes       = m.Notes,
-                Dosage      = m.Dosage,
-                Frequency   = m.Frequency,
-                IsActive    = m.IsActive
+                EndDate = m.EndDate,
+                DateLabel = "Started",
+                Doctor = m.RecordedByDoctorName,
+                Notes = m.Notes,
+                Dosage = m.Dosage,
+                Frequency = m.Frequency,
+                IsActive = m.IsActive
             });
         }
     }
+
+    // ---------- NO DUPLICATES ----------
+    // One entry per condition / allergy / medication. If the database ever holds
+    // the same item twice, keep the most complete row (doctor-recorded first, then dated).
+    allItems = allItems
+        .GroupBy(i => i.Type + "|" + (i.Name ?? "").Trim().ToLowerInvariant())
+        .Select(g => g
+            .OrderByDescending(x => !string.IsNullOrWhiteSpace(x.Doctor))
+            .ThenByDescending(x => x.PrimaryDate.HasValue)
+            .ThenBy(x => x.RecordId)
+            .First())
+        .ToList();
+
+    for (var k = 0; k < allItems.Count; k++) { allItems[k].Id = k; }
+
+    var conditionCount = allItems.Count(i => i.Type == "condition");
+    var allergyCount = allItems.Count(i => i.Type == "allergy");
+    var medicationCount = allItems.Count(i => i.Type == "medication");
+    var totalRecords = allItems.Count;
 
     var datedItems = allItems
         .Where(i => i.PrimaryDate.HasValue)
@@ -102,17 +135,132 @@
         .OrderBy(i => i.Name)
         .ToList();
 
-    var undatedCount   = undatedItems.Count;
+    var undatedCount = undatedItems.Count;
+    var needsReview = undatedCount > 0;
     var completenessPct = totalRecords > 0
         ? (int)Math.Round(100.0 * datedItems.Count / totalRecords)
         : 100;
+    var ringDash = completenessPct / 100.0 * 125.66;
+
+    var years = datedItems
+        .Select(i => i.PrimaryDate.Value.Year)
+        .Distinct()
+        .OrderByDescending(y => y)
+        .ToList();
+
+    // ---------- clinical snapshot ----------
+    var severeAllergies = allItems
+        .Where(i => i.Type == "allergy" && string.Equals(i.Severity, "Severe", StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    var activeMeds = allItems.Where(i => i.Type == "medication" && i.IsActive == true).ToList();
+    var pastMeds = allItems.Where(i => i.Type == "medication" && i.IsActive != true).ToList();
+
+    var latestCondition = allItems
+        .Where(i => i.Type == "condition" && i.PrimaryDate.HasValue)
+        .OrderByDescending(i => i.PrimaryDate)
+        .FirstOrDefault();
+
+    var conditionNote = conditionCount == 0
+        ? "None recorded"
+        : latestCondition != null
+            ? "Latest: " + latestCondition.Name
+            : "No diagnosis dates on file";
+
+    var allergyNote = allergyCount == 0
+        ? "None recorded"
+        : severeAllergies.Count > 0
+            ? severeAllergies.Count + " severe"
+            : "No severe allergies flagged";
+
+    var medicationNote = medicationCount == 0
+        ? "None recorded"
+        : activeMeds.Count + " active · " + pastMeds.Count + " completed";
+
+    var snapAllergies = allItems.Where(i => i.Type == "allergy").ToList();
+    var snapConditions = allItems.Where(i => i.Type == "condition").ToList();
+    const int SnapMax = 8;
+
+    // ---------- medication history chart ----------
+    var datedMeds = allItems
+        .Where(i => i.Type == "medication" && i.PrimaryDate.HasValue)
+        .OrderBy(i => i.PrimaryDate)
+        .ToList();
+
+    var gFirstYear = datedMeds.Any() ? datedMeds.Min(i => i.PrimaryDate.Value.Year) : today.Year;
+    var gLastYear = Math.Max(today.Year, datedMeds.Any() ? datedMeds.Max(i => (i.EndDate ?? i.PrimaryDate.Value).Year) : today.Year);
+    var gStart = new DateTime(gFirstYear, 1, 1);
+    var gEnd = new DateTime(gLastYear, 12, 31);
+    var gSpan = Math.Max((gEnd - gStart).TotalDays, 1);
+
+    double GPos(DateTime d)
+    {
+        var p = (d - gStart).TotalDays / gSpan * 100.0;
+        return Math.Min(Math.Max(p, 0), 100);
+    }
+
+    var gYears = Enumerable.Range(gFirstYear, gLastYear - gFirstYear + 1).ToList();
+    var gStep = (int)Math.Ceiling(gYears.Count / 8.0);
+    var gToday = GPos(today);
+    const int GanttMax = 12;
+
+    // ---------- records by category chart ----------
+    var catGroups = allItems
+        .GroupBy(i => string.IsNullOrWhiteSpace(i.Category) ? "Uncategorised" : i.Category)
+        .Select(g => new
+        {
+            Name = g.Key,
+            C = g.Count(x => x.Type == "condition"),
+            A = g.Count(x => x.Type == "allergy"),
+            M = g.Count(x => x.Type == "medication"),
+            Total = g.Count()
+        })
+        .OrderByDescending(x => x.Total)
+        .ThenBy(x => x.Name)
+        .Take(8)
+        .ToList();
+
+    var catMax = catGroups.Any() ? catGroups.Max(x => x.Total) : 1;
+
+    // ---------- data for the "open file" panel + print summary ----------
+    var fileData = allItems.Select(i => new
+    {
+        id = i.Id,
+        refNo = i.Ref,
+        type = i.Type,
+        typeLabel = TypeLabel(i.Type),
+        name = i.Name ?? "",
+        category = i.Category ?? "",
+        severity = i.Severity ?? "",
+        sevCss = i.SeverityCss ?? "",
+        doctor = i.Doctor ?? "",
+        notes = i.Notes ?? "",
+        dosage = i.Dosage ?? "",
+        frequency = i.Frequency ?? "",
+        dateLabel = i.DateLabel ?? "",
+        dateText = i.PrimaryDate.HasValue ? Fmt(i.PrimaryDate.Value) : "",
+        endText = i.Type == "medication"
+                        ? (i.EndDate.HasValue ? Fmt(i.EndDate.Value) : "Present")
+                        : "",
+        status = i.Type == "medication" ? (i.IsActive == true ? "Active" : "Completed") : "",
+        duration = !i.PrimaryDate.HasValue
+                        ? ""
+                        : i.Type == "medication"
+                            ? (i.IsActive == true
+                                ? Span(i.PrimaryDate.Value, today)
+                                : (i.EndDate.HasValue ? Span(i.PrimaryDate.Value, i.EndDate.Value) : ""))
+                            : Span(i.PrimaryDate.Value, today)
+    }).ToList();
+
+    var fileJson = JsonSerializer.Serialize(fileData);
 }
 
 @functions {
     public class RecordItem
     {
+        public int Id { get; set; }          // position on this page (used by the file panel)
+        public int RecordId { get; set; }    // real database id (used for the reference number)
         public string Type { get; set; }
-        public string Ref { get; set; }
         public string Name { get; set; }
         public string Category { get; set; }
         public DateTime? PrimaryDate { get; set; }
@@ -125,6 +273,15 @@
         public string Dosage { get; set; }
         public string Frequency { get; set; }
         public bool? IsActive { get; set; }
+
+        public string Ref
+        {
+            get
+            {
+                var prefix = Type == "allergy" ? "ALG" : Type == "medication" ? "MED" : "CND";
+                return prefix + "-" + RecordId.ToString("D4");
+            }
+        }
     }
 }
 
@@ -155,9 +312,8 @@
                 <h1>Medical History</h1>
 
                 <p>
-                    A lab-maintained record of your conditions, allergies and
-                    medication — including entries still awaiting a confirmed
-                    date.
+                    Your conditions, allergies and medication in one place.
+                    Open any entry to see its full file.
                 </p>
             </div>
 
@@ -165,9 +321,11 @@
 
         <div class="mh-hero-right">
 
-            <div class="mh-health-status">
+            <div class="mh-health-status @(needsReview ? "mh-needs-review" : "")">
                 <span class="mh-status-dot"></span>
-                Health Record Active
+                @(needsReview
+                    ? undatedCount + " to review"
+                    : "Record complete")
             </div>
 
             <div class="mh-hero-stat">
@@ -176,13 +334,60 @@
             </div>
 
             <div class="mh-hero-stat mh-hero-stat-divider">
-                <strong>@completenessPct%</strong>
+                <strong>@activeMeds.Count</strong>
+                <span>Active meds</span>
+            </div>
+
+            <div class="mh-hero-stat mh-hero-stat-divider">
+                <div class="mh-hero-ring" title="@completenessPct% of your records have a date">
+                    <svg viewBox="0 0 48 48" width="54" height="54" aria-hidden="true">
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="5"></circle>
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="#79E1D2" stroke-width="5"
+                                stroke-linecap="round" stroke-dasharray="@Inv(ringDash) 125.66"
+                                transform="rotate(-90 24 24)"></circle>
+                    </svg>
+                    <b>@completenessPct%</b>
+                </div>
                 <span>Dated</span>
             </div>
 
         </div>
 
     </section>
+
+
+    <!-- ==========================================
+         NOTIFICATION BARS
+    =========================================== -->
+    @if (severeAllergies.Count > 0)
+    {
+        <div class="mh-alert">
+            <div class="mh-alert-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <div class="mh-alert-text">
+                <strong>Severe allergy@(severeAllergies.Count == 1 ? "" : "ies") on file</strong>
+                <div class="mh-alert-chips">
+                    @foreach (var sa in severeAllergies)
+                    {
+                        <button type="button" class="mh-alert-chip" data-open="@sa.Id">@sa.Name</button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (undatedCount > 0)
+    {
+        <div class="mh-completeness-banner">
+            <div class="mh-completeness-icon"><i class="fas fa-clipboard-question"></i></div>
+            <div class="mh-completeness-text">
+                <strong>@undatedCount record@(undatedCount == 1 ? "" : "s") missing a confirmed date</strong>
+                <span>These entries are on file but haven't been dated yet. They're listed separately below.</span>
+            </div>
+            <a href="#mhUndatedSection" class="mh-completeness-jump" id="mhReviewJump">
+                Review <i class="fas fa-arrow-down"></i>
+            </a>
+        </div>
+    }
 
 
     <!-- ==========================================
@@ -195,7 +400,7 @@
             <div class="mh-summary-info">
                 <span>Conditions</span>
                 <strong>@conditionCount</strong>
-                <small>Recorded conditions</small>
+                <small>@conditionNote</small>
             </div>
             <div class="mh-summary-arrow"><i class="fas fa-notes-medical"></i></div>
         </div>
@@ -205,7 +410,7 @@
             <div class="mh-summary-info">
                 <span>Allergies</span>
                 <strong>@allergyCount</strong>
-                <small>Known allergies</small>
+                <small>@allergyNote</small>
             </div>
             <div class="mh-summary-arrow"><i class="fas fa-triangle-exclamation"></i></div>
         </div>
@@ -215,25 +420,87 @@
             <div class="mh-summary-info">
                 <span>Medication</span>
                 <strong>@medicationCount</strong>
-                <small>Recorded medications</small>
+                <small>@medicationNote</small>
             </div>
             <div class="mh-summary-arrow"><i class="fas fa-prescription-bottle-medical"></i></div>
         </div>
 
     </section>
 
-    @if (undatedCount > 0)
+
+    @if (totalRecords > 0)
     {
-        <div class="mh-completeness-banner">
-            <div class="mh-completeness-icon"><i class="fas fa-clipboard-question"></i></div>
-            <div class="mh-completeness-text">
-                <strong>@undatedCount record@(undatedCount == 1 ? "" : "s") missing a confirmed date</strong>
-                <span>These entries are on file but haven't been dated by the recording clinician yet. They're listed separately below.</span>
+        <!-- ==========================================
+             HEALTH SNAPSHOT
+        =========================================== -->
+        <section class="mh-snapshot">
+
+            <div class="mh-snap-head">
+                <span class="mh-section-eyebrow"><i class="fas fa-bolt"></i> Quick view</span>
+                <h2>Health snapshot</h2>
             </div>
-            <a href="#mhUndatedSection" class="mh-completeness-jump">
-                Review <i class="fas fa-arrow-down"></i>
-            </a>
-        </div>
+
+            <div class="mh-snap-grid">
+
+                <div class="mh-snap-col">
+                    <h3><i class="fas fa-allergies"></i> Allergies</h3>
+                    <div class="mh-snap-chips">
+                        @if (snapAllergies.Count == 0)
+                        {
+                            <span class="mh-snap-none">None recorded</span>
+                        }
+                        @foreach (var s in snapAllergies.Take(SnapMax))
+                        {
+                            <button type="button" class="mh-snap-chip mh-snap-allergy @s.SeverityCss" data-open="@s.Id">@s.Name</button>
+                        }
+                        @if (snapAllergies.Count > SnapMax)
+                        {
+                            <span class="mh-snap-more">+@(snapAllergies.Count - SnapMax) more in your timeline</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="mh-snap-col">
+                    <h3><i class="fas fa-pills"></i> Current medication</h3>
+                    <div class="mh-snap-chips">
+                        @if (activeMeds.Count == 0)
+                        {
+                            <span class="mh-snap-none">No active medication</span>
+                        }
+                        @foreach (var s in activeMeds.Take(SnapMax))
+                        {
+                            <button type="button" class="mh-snap-chip mh-snap-medication" data-open="@s.Id">
+                                @s.Name@(string.IsNullOrWhiteSpace(s.Dosage) ? "" : " · " + s.Dosage)
+                            </button>
+                        }
+                        @if (activeMeds.Count > SnapMax)
+                        {
+                            <span class="mh-snap-more">+@(activeMeds.Count - SnapMax) more in your timeline</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="mh-snap-col">
+                    <h3><i class="fas fa-heart-pulse"></i> Conditions</h3>
+                    <div class="mh-snap-chips">
+                        @if (snapConditions.Count == 0)
+                        {
+                            <span class="mh-snap-none">None recorded</span>
+                        }
+                        @foreach (var s in snapConditions.Take(SnapMax))
+                        {
+                            <button type="button" class="mh-snap-chip mh-snap-condition" data-open="@s.Id">@s.Name</button>
+                        }
+                        @if (snapConditions.Count > SnapMax)
+                        {
+                            <span class="mh-snap-more">+@(snapConditions.Count - SnapMax) more in your timeline</span>
+                        }
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
     }
 
 
@@ -245,20 +512,24 @@
         <div class="mh-section-heading">
             <div>
                 <span class="mh-section-eyebrow">
-                    <i class="fas fa-folder-open"></i>
+                    <i class="fas fa-timeline"></i>
                     Health Information
                 </span>
                 <h2>Your Medical File</h2>
-                <p>Dated entries, most recent first.</p>
+                <p>Dated entries grouped by year. Filter by type, year or name.</p>
             </div>
 
-            <div class="mh-record-count">
-                @totalRecords
-                <span>Total records</span>
+            <div class="mh-heading-actions">
+                <a href="@Url.Action("Profile", "Patient")" class="mh-ghost-btn">
+                    <i class="fas fa-pen-to-square"></i> Update my history
+                </a>
+                <button type="button" class="mh-ghost-btn" id="mhPrintBtn">
+                    <i class="fas fa-print"></i> Print summary
+                </button>
             </div>
         </div>
 
-        <!-- Filter tabs + search -->
+        <!-- Filter tabs + year + sort + search -->
         <div class="mh-toolbar">
 
             <div class="mh-filters" role="tablist" aria-label="Filter medical history">
@@ -276,34 +547,70 @@
                 </button>
             </div>
 
-            <div class="mh-search">
-                <i class="fas fa-magnifying-glass"></i>
-                <input type="text" id="mhSearchInput" placeholder="Search records by name…" aria-label="Search medical records">
+            <div class="mh-toolbar-right">
+
+                <label class="mh-select-wrap" title="Filter by year">
+                    <i class="fas fa-calendar"></i>
+                    <select id="mhYear" aria-label="Filter by year">
+                        <option value="all">All years</option>
+                        @foreach (var y in years)
+                        {
+                            <option value="@y">@y</option>
+                        }
+                        @if (undatedCount > 0)
+                        {
+                            <option value="none">No date on file</option>
+                        }
+                    </select>
+                </label>
+
+                <label class="mh-select-wrap" title="Sort order">
+                    <i class="fas fa-arrow-down-wide-short"></i>
+                    <select id="mhSort" aria-label="Sort order">
+                        <option value="desc">Newest first</option>
+                        <option value="asc">Oldest first</option>
+                    </select>
+                </label>
+
+                <div class="mh-search">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <input type="text" id="mhSearchInput" placeholder="Search name or category…" aria-label="Search medical records">
+                </div>
+
             </div>
 
         </div>
 
+        <div class="mh-showing-row">
+            <span id="mhShowing">Showing @totalRecords of @totalRecords records</span>
+            <button type="button" class="mh-reset hidden-reset" id="mhReset">
+                <i class="fas fa-rotate-left"></i> Reset filters
+            </button>
+        </div>
+
         @if (datedItems.Any())
         {
+            int lastYear = 0;
+
             <div class="mh-timeline" id="mhTimeline">
 
                 @foreach (var item in datedItems)
                 {
-                    var typeIcon = item.Type == "allergy" ? "fa-allergies"
-                                 : item.Type == "medication" ? "fa-pills"
-                                 : "fa-heart-pulse";
+                    var year = item.PrimaryDate.Value.Year;
 
-                    var dateText = item.PrimaryDate.HasValue
-                        ? item.PrimaryDate.Value.ToString("dd MMM yyyy")
-                        : "Not recorded";
+                    if (year != lastYear)
+                    {
+                        lastYear = year;
+                        <div class="mh-year" data-year="@year">@year</div>
+                    }
 
-                    string resultsHref = string.IsNullOrWhiteSpace(item.Category)
-                        ? Url.Action("Results", "Patient")
-                        : Url.Action("Results", "Patient", new { category = item.Category });
-
+                    var typeIcon = TypeIcon(item.Type);
+                    var dateText = Fmt(item.PrimaryDate.Value);
+                    var dateKey = item.PrimaryDate.Value.ToString("yyyyMMdd");
+                    var searchKey = ((item.Name ?? "") + " " + (item.Category ?? "")).ToLowerInvariant();
                     var hasNotes = !string.IsNullOrWhiteSpace(item.Notes);
 
-                    <article class="mh-timeline-item mh-item-@item.Type" data-type="@item.Type" data-name="@item.Name.ToLowerInvariant()">
+                    <article class="mh-timeline-item mh-item-@item.Type" data-type="@item.Type" data-name="@searchKey" data-year="@year" data-date="@dateKey">
 
                         <div class="mh-timeline-marker">
                             <i class="fas @typeIcon"></i>
@@ -347,9 +654,7 @@
 
                                 @if (item.Type == "medication")
                                 {
-                                    var endText = item.EndDate.HasValue
-                                        ? item.EndDate.Value.ToString("dd MMM yyyy")
-                                        : "Present";
+                                    var endText = item.EndDate.HasValue ? Fmt(item.EndDate.Value) : "Present";
 
                                     <span class="mh-meta-pill">
                                         <i class="fas fa-calendar-days"></i>
@@ -371,8 +676,8 @@
                                 }
 
                                 <span class="mh-meta-pill @(string.IsNullOrWhiteSpace(item.Doctor) ? "mh-meta-muted" : "")">
-                                    <i class="fas fa-user-doctor"></i>
-                                    @(string.IsNullOrWhiteSpace(item.Doctor) ? "Doctor not specified" : item.Doctor)
+                                    <i class="fas @(string.IsNullOrWhiteSpace(item.Doctor) ? "fa-user" : "fa-user-doctor")"></i>
+                                    @(string.IsNullOrWhiteSpace(item.Doctor) ? "Added by you" : item.Doctor)
                                 </span>
 
                             </div>
@@ -398,11 +703,11 @@
                             }
 
                             <div class="mh-tc-footer">
-                                <a href="@resultsHref" class="mh-trend-link">
-                                    <i class="fas fa-chart-line"></i>
-                                    View related test results
+                                <button type="button" class="mh-file-btn" data-open="@item.Id">
+                                    <i class="fas fa-folder-open"></i>
+                                    Open file
                                     <i class="fas fa-arrow-right"></i>
-                                </a>
+                                </button>
                             </div>
 
                         </div>
@@ -416,10 +721,20 @@
         {
             <div class="mh-empty mh-empty-global">
                 <div class="mh-empty-icon mh-empty-teal">
-                    <i class="fas fa-folder-open"></i>
+                    <i class="fas fa-timeline"></i>
                 </div>
-                <strong>No dated records yet</strong>
-                <span>Conditions, allergies and medication with a confirmed date will appear here.</span>
+                <strong>@(totalRecords == 0 ? "Nothing on file yet" : "No dated records yet")</strong>
+                <span>
+                    @(totalRecords == 0
+                        ? "Add your conditions, allergies and medication from your profile and they will appear here."
+                        : "Entries with a date appear on the timeline. Entries without one are listed below.")
+                </span>
+                @if (totalRecords == 0)
+                {
+                    <a href="@Url.Action("Profile", "Patient")" class="mh-empty-cta">
+                        <i class="fas fa-pen-to-square"></i> Go to my profile
+                    </a>
+                }
             </div>
         }
 
@@ -428,7 +743,7 @@
                 <i class="fas fa-magnifying-glass"></i>
             </div>
             <strong>No matching records</strong>
-            <span>Try a different search term or filter.</span>
+            <span>Try a different search term, year or filter.</span>
         </div>
 
     </section>
@@ -460,12 +775,11 @@
             <div class="mh-undated-grid" id="mhUndatedGrid">
                 @foreach (var item in undatedItems)
                 {
-                    var typeIcon = item.Type == "allergy" ? "fa-allergies"
-                                 : item.Type == "medication" ? "fa-pills"
-                                 : "fa-heart-pulse";
+                    var typeIcon = TypeIcon(item.Type);
+                    var searchKey = ((item.Name ?? "") + " " + (item.Category ?? "")).ToLowerInvariant();
                     var hasNotes = !string.IsNullOrWhiteSpace(item.Notes);
 
-                    <article class="mh-undated-card mh-item-@item.Type" data-type="@item.Type" data-name="@item.Name.ToLowerInvariant()">
+                    <article class="mh-undated-card mh-item-@item.Type" data-type="@item.Type" data-name="@searchKey" data-year="none" data-date="0">
 
                         <div class="mh-uc-top">
                             <div class="mh-uc-icon"><i class="fas @typeIcon"></i></div>
@@ -505,8 +819,8 @@
                                 }
                             }
                             <span class="mh-meta-pill @(string.IsNullOrWhiteSpace(item.Doctor) ? "mh-meta-muted" : "")">
-                                <i class="fas fa-user-doctor"></i>
-                                @(string.IsNullOrWhiteSpace(item.Doctor) ? "Doctor not specified" : item.Doctor)
+                                <i class="fas @(string.IsNullOrWhiteSpace(item.Doctor) ? "fa-user" : "fa-user-doctor")"></i>
+                                @(string.IsNullOrWhiteSpace(item.Doctor) ? "Added by you" : item.Doctor)
                             </span>
                         </div>
 
@@ -524,8 +838,170 @@
                             </div>
                         }
 
+                        <div class="mh-tc-footer mh-tc-footer-left">
+                            <button type="button" class="mh-file-btn" data-open="@item.Id">
+                                <i class="fas fa-folder-open"></i>
+                                Open file
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+
                     </article>
                 }
+            </div>
+
+        </section>
+    }
+
+
+    <!-- ==========================================
+         INSIGHTS
+    =========================================== -->
+    @if (totalRecords > 0)
+    {
+        <section class="mh-section mh-insights-section">
+
+            <div class="mh-section-heading">
+                <div>
+                    <span class="mh-section-eyebrow">
+                        <i class="fas fa-chart-simple"></i>
+                        Insights
+                    </span>
+                    <h2>Medication history &amp; categories</h2>
+                    <p>See how long you have been on each medication, and where your records sit.</p>
+                </div>
+            </div>
+
+            <div class="mh-insights">
+
+                <!-- Medication history chart -->
+                <div class="mh-panel">
+
+                    <div class="mh-panel-head">
+                        <h3><i class="fas fa-pills"></i> Medication history</h3>
+                        <div class="mh-legend">
+                            <span><i class="mh-dot mh-dot-active"></i> Active</span>
+                            <span><i class="mh-dot mh-dot-past"></i> Completed</span>
+                            <span><i class="mh-dot mh-dot-today"></i> Today</span>
+                        </div>
+                    </div>
+
+                    @if (datedMeds.Any())
+                    {
+                        <div class="mh-gantt">
+                            <div class="mh-gantt-inner">
+
+                                <div class="mh-g-axis">
+                                    @for (var gi = 0; gi < gYears.Count; gi += gStep)
+                                    {
+                                        <span class="mh-g-tick" style="left:@Inv(GPos(new DateTime(gYears[gi], 1, 1)))%">@gYears[gi]</span>
+                                    }
+                                </div>
+
+                                <div class="mh-g-body">
+
+                                    <div class="mh-g-grid">
+                                        @for (var gi = 0; gi < gYears.Count; gi += gStep)
+                                        {
+                                            <span class="mh-g-line" style="left:@Inv(GPos(new DateTime(gYears[gi], 1, 1)))%"></span>
+                                        }
+                                        <span class="mh-g-line mh-g-today" style="left:@Inv(gToday)%"></span>
+                                    </div>
+
+                                    @foreach (var med in datedMeds.Take(GanttMax))
+                                    {
+                                        var barStart = med.PrimaryDate.Value;
+                                        var barEnd = med.EndDate ?? today;
+                                        if (barEnd < barStart) { barEnd = barStart; }
+
+                                        var barLeft = GPos(barStart);
+                                        var barWidth = Math.Max(GPos(barEnd) - barLeft, 1.4);
+
+                                        var barTip = med.Name + " · " + Fmt(barStart) + " → " + (med.EndDate.HasValue ? Fmt(med.EndDate.Value) : "Present");
+
+                                        <div class="mh-g-row">
+                                            <div class="mh-g-label">
+                                                <strong>@med.Name</strong>
+                                                @if (!string.IsNullOrWhiteSpace(med.Dosage))
+                                                {
+                                                    <small>@med.Dosage</small>
+                                                }
+                                            </div>
+                                            <div class="mh-g-track">
+                                                <button type="button"
+                                                        class="mh-g-bar @(med.IsActive == true ? "mh-g-bar-active" : "mh-g-bar-past")"
+                                                        style="left:@Inv(barLeft)%;width:@Inv(barWidth)%"
+                                                        title="@barTip"
+                                                        data-open="@med.Id"></button>
+                                            </div>
+                                        </div>
+                                    }
+
+                                </div>
+
+                            </div>
+                        </div>
+
+                        @if (datedMeds.Count > GanttMax)
+                        {
+                            <p class="mh-panel-note">Showing the first @GanttMax of @datedMeds.Count dated medications.</p>
+                        }
+                    }
+                    else
+                    {
+                        <div class="mh-panel-empty">
+                            <i class="fas fa-pills"></i>
+                            <span>No medication with a start date yet. Once a start date is on file, each medication shows here as a bar.</span>
+                        </div>
+                    }
+
+                </div>
+
+                <!-- Records by category -->
+                <div class="mh-panel">
+
+                    <div class="mh-panel-head">
+                        <h3><i class="fas fa-layer-group"></i> Records by category</h3>
+                    </div>
+
+                    <div class="mh-legend mh-legend-block">
+                        <span><i class="mh-dot mh-dot-condition"></i> Conditions</span>
+                        <span><i class="mh-dot mh-dot-allergy"></i> Allergies</span>
+                        <span><i class="mh-dot mh-dot-medication"></i> Medication</span>
+                    </div>
+
+                    <div class="mh-cats">
+                        @foreach (var cat in catGroups)
+                        {
+                            var catWidth = 100.0 * cat.Total / catMax;
+
+                            <div class="mh-cat-row">
+                                <div class="mh-cat-name">
+                                    <span>@cat.Name</span>
+                                    <b>@cat.Total</b>
+                                </div>
+                                <div class="mh-cat-track">
+                                    <div class="mh-cat-bar" style="width:@Inv(catWidth)%">
+                                        @if (cat.C > 0)
+                                        {
+                                            <span class="mh-seg mh-seg-condition" style="flex:@cat.C" title="@cat.C condition(s)"></span>
+                                        }
+                                        @if (cat.A > 0)
+                                        {
+                                            <span class="mh-seg mh-seg-allergy" style="flex:@cat.A" title="@cat.A allergy(ies)"></span>
+                                        }
+                                        @if (cat.M > 0)
+                                        {
+                                            <span class="mh-seg mh-seg-medication" style="flex:@cat.M" title="@cat.M medication(s)"></span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                </div>
+
             </div>
 
         </section>
@@ -539,17 +1015,40 @@
         <div class="mh-info-footer-icon"><i class="fas fa-circle-info"></i></div>
         <div>
             <strong>Keep your medical information up to date</strong>
-            <p>Your medical history helps healthcare professionals provide safer and more informed care. If any of the entries above are missing a date, ask your clinician to confirm it at your next visit.</p>
+            <p>Your medical history helps healthcare professionals provide safer and more informed care. Use <a href="@Url.Action("Profile", "Patient")">your profile</a> to change what is listed here. If any entries are missing a date, ask your clinician to confirm it at your next visit.</p>
         </div>
     </div>
 
 </div>
 
+
+<!-- ==========================================
+     RECORD FILE (slide-over panel)
+=========================================== -->
+<div class="mh-overlay" id="mhOverlay"></div>
+
+<aside class="mh-file" id="mhFile" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Medical record file">
+    <div class="mh-file-head" id="mhFileHead"></div>
+    <div class="mh-file-body" id="mhFileBody"></div>
+    <div class="mh-file-foot">
+        <div class="mh-file-links">
+            <a href="@Url.Action("Profile", "Patient")" class="mh-file-cta">
+                <i class="fas fa-pen-to-square"></i> Update my history
+            </a>
+            <a href="@Url.Action("Results", "Patient")" class="mh-file-link">
+                <i class="fas fa-chart-line"></i> My test results
+            </a>
+        </div>
+        <button type="button" class="mh-file-close-btn" id="mhFileCloseBottom">Close</button>
+    </div>
+</aside>
+
+
 <style>
 
     /* =========================================================
-       MEDICAL HISTORY — shared visual language with Consent.cshtml
-       ========================================================= */
+           MEDICAL HISTORY — shared visual language with Consent.cshtml
+           ========================================================= */
 
     :root {
         --mh-paper: #F0F7F6;
@@ -572,6 +1071,8 @@
         --mh-orange-dim: #FFF0E8;
         --mh-amber: #B3860A;
         --mh-amber-dim: #FFF6DF;
+        --mh-red: #B3261E;
+        --mh-red-dim: #FCE7E7;
         --mh-radius: 20px;
         --mh-radius-sm: 14px;
         --mh-shadow: 0 8px 28px rgba(10, 60, 55, .08);
@@ -584,6 +1085,10 @@
         padding: 28px 24px 60px;
         color: var(--mh-ink);
         font-family: 'Inter', sans-serif;
+    }
+
+    .mh-hidden {
+        display: none !important;
     }
 
     /* ---------- HERO ---------- */
@@ -606,446 +1111,2327 @@
         position: absolute;
         inset: 0;
         pointer-events: none;
-        background: radial-gradient(circle at 80% 15%, rgba(255,255,255,.12), transparent 32%),
-                    radial-gradient(circle at 95% 90%, rgba(255,255,255,.08), transparent 35%);
+        background: radial-gradient(circle at 80% 15%, rgba(255,255,255,.12), transparent 32%), radial-gradient(circle at 95% 90%, rgba(255,255,255,.08), transparent 35%);
     }
 
-    .mh-hero-left { position: relative; z-index: 1; display: flex; align-items: center; gap: 19px; }
+    .mh-hero-left {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 19px;
+    }
 
     .mh-hero-icon {
-        width: 64px; height: 64px; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center;
-        border-radius: 18px; color: #fff; font-size: 25px;
+        width: 64px;
+        height: 64px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 18px;
+        color: #fff;
+        font-size: 25px;
         background: rgba(255,255,255,.15);
         border: 2px solid rgba(255,255,255,.30);
         box-shadow: inset 0 0 20px rgba(255,255,255,.06);
     }
 
     .mh-eyebrow {
-        display: flex; align-items: center; gap: 7px; margin-bottom: 4px;
-        color: rgba(255,255,255,.72); font-size: 10.5px; font-weight: 700;
-        letter-spacing: .08em; text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 4px;
+        color: rgba(255,255,255,.72);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
     }
 
-    .mh-hero h1 { margin: 0 0 5px; color: #fff; font-family: 'Poppins', sans-serif; font-size: 24px; font-weight: 700; }
-    .mh-hero p { margin: 0; max-width: 560px; color: rgba(255,255,255,.84); font-size: 13px; line-height: 1.5; }
+    .mh-hero h1 {
+        margin: 0 0 5px;
+        color: #fff;
+        font-family: 'Poppins', sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+    }
 
-    .mh-hero-right { position: relative; z-index: 1; display: flex; align-items: center; gap: 22px; }
+    .mh-hero p {
+        margin: 0;
+        max-width: 560px;
+        color: rgba(255,255,255,.84);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .mh-hero-right {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+    }
 
     .mh-health-status {
-        display: flex; align-items: center; gap: 8px; padding: 8px 13px;
-        border-radius: 999px; color: #fff; font-size: 11px; font-weight: 600;
-        background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 13px;
+        border-radius: 999px;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        white-space: nowrap;
     }
 
     .mh-status-dot {
-        width: 7px; height: 7px; border-radius: 50%; background: #79E1D2;
-        box-shadow: 0 0 0 4px rgba(121,225,210,.14); animation: mhPulse 2s infinite;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #79E1D2;
+        box-shadow: 0 0 0 4px rgba(121,225,210,.14);
+        animation: mhPulse 2s infinite;
     }
 
-    .mh-hero-stat { display: flex; flex-direction: column; align-items: center; }
-    .mh-hero-stat strong { color: #fff; font-family: 'Poppins', sans-serif; font-size: 27px; line-height: 1; }
-    .mh-hero-stat span { margin-top: 4px; color: rgba(255,255,255,.65); font-size: 9px; letter-spacing: .07em; text-transform: uppercase; }
-    .mh-hero-stat-divider { padding-left: 22px; border-left: 1px solid rgba(255,255,255,.22); }
+    .mh-needs-review .mh-status-dot {
+        background: #F5C94A;
+        box-shadow: 0 0 0 4px rgba(245,201,74,.18);
+    }
+
+    .mh-hero-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+        .mh-hero-stat strong {
+            color: #fff;
+            font-family: 'Poppins', sans-serif;
+            font-size: 27px;
+            line-height: 1;
+        }
+
+        .mh-hero-stat span {
+            margin-top: 4px;
+            color: rgba(255,255,255,.65);
+            font-size: 9px;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+        }
+
+    .mh-hero-stat-divider {
+        padding-left: 22px;
+        border-left: 1px solid rgba(255,255,255,.22);
+    }
+
+    .mh-hero-ring {
+        position: relative;
+        width: 54px;
+        height: 54px;
+    }
+
+        .mh-hero-ring b {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-family: 'Poppins', sans-serif;
+            font-size: 11.5px;
+            font-weight: 700;
+        }
+
+    /* ---------- NOTIFICATION BARS ---------- */
+
+    .mh-alert {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 18px;
+        margin-bottom: 14px;
+        background: var(--mh-red-dim);
+        border: 1px solid #F3C4C1;
+        border-left: 4px solid var(--mh-red);
+        border-radius: var(--mh-radius-sm);
+    }
+
+    .mh-alert-icon {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 11px;
+        background: #F8CFCC;
+        color: var(--mh-red);
+        font-size: 15px;
+    }
+
+    .mh-alert-text strong {
+        display: block;
+        font-size: 12.5px;
+        color: #8E1E18;
+        margin-bottom: 7px;
+    }
+
+    .mh-alert-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+    }
+
+    .mh-alert-chip {
+        border: 1px solid #E8A8A4;
+        background: #fff;
+        color: #8E1E18;
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-family: 'Inter', sans-serif;
+        font-size: 11.5px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background .15s, color .15s;
+    }
+
+        .mh-alert-chip:hover {
+            background: var(--mh-red);
+            color: #fff;
+        }
+
+    .mh-completeness-banner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 18px;
+        margin-bottom: 22px;
+        background: var(--mh-amber-dim);
+        border: 1px solid #F0DFA0;
+        border-radius: var(--mh-radius-sm);
+    }
+
+    .mh-completeness-icon {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: #FCEDBB;
+        color: var(--mh-amber);
+        font-size: 14px;
+    }
+
+    .mh-completeness-text {
+        flex: 1;
+    }
+
+        .mh-completeness-text strong {
+            display: block;
+            font-size: 12px;
+            color: #6B4F04;
+        }
+
+        .mh-completeness-text span {
+            display: block;
+            margin-top: 2px;
+            font-size: 11px;
+            color: #7A5E11;
+            line-height: 1.5;
+        }
+
+    .mh-completeness-jump {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 13px;
+        border-radius: 999px;
+        background: var(--mh-amber);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+        .mh-completeness-jump:hover {
+            background: #96700A;
+            color: #fff;
+            text-decoration: none;
+        }
 
     /* ---------- SUMMARY ---------- */
 
-    .mh-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 18px; }
+    .mh-summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 18px;
+    }
 
     .mh-summary-card {
-        position: relative; display: flex; align-items: center; gap: 14px;
-        min-height: 105px; padding: 17px 19px; background: var(--mh-white);
-        border: 1px solid var(--mh-line); border-radius: var(--mh-radius);
-        box-shadow: var(--mh-shadow); overflow: hidden;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-height: 105px;
+        padding: 17px 19px;
+        background: var(--mh-white);
+        border: 1px solid var(--mh-line);
+        border-radius: var(--mh-radius);
+        box-shadow: var(--mh-shadow);
+        overflow: hidden;
         transition: transform .2s ease, box-shadow .2s ease;
     }
-    .mh-summary-card:hover { transform: translateY(-3px); box-shadow: var(--mh-shadow-hover); }
-    .mh-summary-card::after {
-        content: ""; position: absolute; right: -30px; bottom: -40px;
-        width: 100px; height: 100px; border-radius: 50%; opacity: .55;
+
+        .mh-summary-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--mh-shadow-hover);
+        }
+
+        .mh-summary-card::after {
+            content: "";
+            position: absolute;
+            right: -30px;
+            bottom: -40px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            opacity: .55;
+        }
+
+    .mh-summary-condition::after {
+        background: var(--mh-teal-dim);
     }
-    .mh-summary-condition::after { background: var(--mh-teal-dim); }
-    .mh-summary-allergy::after { background: var(--mh-purple-dim); }
-    .mh-summary-medication::after { background: var(--mh-orange-dim); }
+
+    .mh-summary-allergy::after {
+        background: var(--mh-purple-dim);
+    }
+
+    .mh-summary-medication::after {
+        background: var(--mh-orange-dim);
+    }
 
     .mh-summary-icon {
-        position: relative; z-index: 1; width: 48px; height: 48px; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center; border-radius: 14px; font-size: 18px;
+        position: relative;
+        z-index: 1;
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        font-size: 18px;
     }
-    .mh-summary-condition .mh-summary-icon { background: var(--mh-teal-dim); color: var(--mh-teal); }
-    .mh-summary-allergy .mh-summary-icon { background: var(--mh-purple-dim); color: var(--mh-purple); }
-    .mh-summary-medication .mh-summary-icon { background: var(--mh-orange-dim); color: var(--mh-orange); }
 
-    .mh-summary-info { position: relative; z-index: 1; display: flex; flex-direction: column; }
-    .mh-summary-info span { color: var(--mh-ink-soft); font-size: 12px; font-weight: 600; }
-    .mh-summary-info strong { margin-top: 1px; font-family: 'Poppins', sans-serif; font-size: 25px; line-height: 1; }
-    .mh-summary-info small { margin-top: 4px; color: var(--mh-ink-faint); font-size: 10.5px; }
-    .mh-summary-arrow { position: relative; z-index: 1; margin-left: auto; color: var(--mh-ink-faint); font-size: 14px; }
+    .mh-summary-condition .mh-summary-icon {
+        background: var(--mh-teal-dim);
+        color: var(--mh-teal);
+    }
 
-    /* ---------- COMPLETENESS BANNER ---------- */
+    .mh-summary-allergy .mh-summary-icon {
+        background: var(--mh-purple-dim);
+        color: var(--mh-purple);
+    }
 
-    .mh-completeness-banner {
-        display: flex; align-items: center; gap: 14px;
-        padding: 14px 18px; margin-bottom: 26px;
-        background: var(--mh-amber-dim); border: 1px solid #F0DFA0;
-        border-radius: var(--mh-radius-sm);
+    .mh-summary-medication .mh-summary-icon {
+        background: var(--mh-orange-dim);
+        color: var(--mh-orange);
     }
-    .mh-completeness-icon {
-        width: 36px; height: 36px; flex-shrink: 0; display: flex;
-        align-items: center; justify-content: center; border-radius: 10px;
-        background: #FCEDBB; color: var(--mh-amber); font-size: 14px;
+
+    .mh-summary-info {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
     }
-    .mh-completeness-text { flex: 1; }
-    .mh-completeness-text strong { display: block; font-size: 12px; color: #6B4F04; }
-    .mh-completeness-text span { display: block; margin-top: 2px; font-size: 11px; color: #7A5E11; line-height: 1.5; }
-    .mh-completeness-jump {
-        flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
-        padding: 8px 13px; border-radius: 999px; background: var(--mh-amber);
-        color: #fff; font-size: 11px; font-weight: 700; text-decoration: none;
-        white-space: nowrap;
+
+        .mh-summary-info span {
+            color: var(--mh-ink-soft);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .mh-summary-info strong {
+            margin-top: 1px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 25px;
+            line-height: 1;
+        }
+
+        .mh-summary-info small {
+            margin-top: 4px;
+            color: var(--mh-ink-faint);
+            font-size: 10.5px;
+        }
+
+    .mh-summary-arrow {
+        position: relative;
+        z-index: 1;
+        margin-left: auto;
+        color: var(--mh-ink-faint);
+        font-size: 14px;
     }
-    .mh-completeness-jump:hover { background: #96700A; }
+
+    /* ---------- SNAPSHOT ---------- */
+
+    .mh-snapshot {
+        margin-bottom: 30px;
+        padding: 20px 22px;
+        background: var(--mh-white);
+        border: 1px solid var(--mh-line);
+        border-radius: var(--mh-radius);
+        box-shadow: var(--mh-shadow);
+    }
+
+    .mh-snap-head {
+        margin-bottom: 14px;
+    }
+
+        .mh-snap-head h2 {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+    .mh-snap-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+
+    .mh-snap-col h3 {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 0 0 10px;
+        font-family: 'Poppins', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--mh-ink-soft);
+    }
+
+        .mh-snap-col h3 i {
+            color: var(--mh-teal);
+            font-size: 12px;
+        }
+
+    .mh-snap-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+    }
+
+    .mh-snap-chip {
+        border: 1px solid var(--mh-line-strong);
+        background: var(--mh-paper);
+        color: var(--mh-ink);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-family: 'Inter', sans-serif;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .15s, border-color .15s, color .15s;
+        text-align: left;
+    }
+
+        .mh-snap-chip:hover {
+            border-color: var(--mh-teal);
+            background: var(--mh-teal-dim);
+            color: var(--mh-teal-deep);
+        }
+
+    .mh-snap-condition {
+        background: var(--mh-teal-dim);
+        border-color: transparent;
+        color: var(--mh-teal-deep);
+    }
+
+    .mh-snap-allergy {
+        background: var(--mh-purple-dim);
+        border-color: transparent;
+        color: var(--mh-purple-deep);
+    }
+
+    .mh-snap-medication {
+        background: var(--mh-orange-dim);
+        border-color: transparent;
+        color: var(--mh-orange-deep);
+    }
+
+    .mh-snap-allergy.mh-sev-severe {
+        background: var(--mh-red-dim);
+        color: #8E1E18;
+    }
+
+    .mh-snap-allergy.mh-sev-moderate {
+        background: #FFF1D6;
+        color: #96650A;
+    }
+
+    .mh-snap-none, .mh-snap-more {
+        color: var(--mh-ink-faint);
+        font-size: 11.5px;
+        font-style: italic;
+        padding: 5px 0;
+    }
 
     /* ---------- SECTION HEADER ---------- */
 
-    .mh-section { margin-top: 8px; }
+    .mh-section {
+        margin-top: 8px;
+    }
 
     .mh-section-heading {
-        display: flex; align-items: flex-end; justify-content: space-between;
-        gap: 20px; margin-bottom: 16px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 16px;
     }
+
     .mh-section-eyebrow {
-        display: flex; align-items: center; gap: 7px; margin-bottom: 4px;
-        color: var(--mh-teal); font-size: 10.5px; font-weight: 700;
-        text-transform: uppercase; letter-spacing: .07em;
-    }
-    .mh-section-eyebrow-amber { color: var(--mh-amber); }
-    .mh-section-heading h2 { margin: 0; font-family: 'Poppins', sans-serif; font-size: 19px; font-weight: 700; }
-    .mh-section-heading p { margin: 3px 0 0; color: var(--mh-ink-soft); font-size: 12.5px; }
-
-    .mh-record-count { display: flex; flex-direction: column; align-items: flex-end; color: var(--mh-ink-soft); font-size: 11px; }
-    .mh-record-count span { margin-top: 2px; color: var(--mh-ink-faint); font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; }
-
-    /* ---------- TOOLBAR: FILTERS + SEARCH ---------- */
-
-    .mh-toolbar {
-        display: flex; align-items: center; justify-content: space-between;
-        flex-wrap: wrap; gap: 12px; margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 4px;
+        color: var(--mh-teal);
+        font-size: 10.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .07em;
     }
 
-    .mh-filters { display: flex; flex-wrap: wrap; gap: 9px; }
+    .mh-section-eyebrow-amber {
+        color: var(--mh-amber);
+    }
 
-    .mh-filter-btn {
-        display: flex; align-items: center; gap: 7px;
-        padding: 9px 15px; border-radius: 999px;
-        border: 1px solid var(--mh-line-strong); background: var(--mh-white);
-        color: var(--mh-ink-soft); font-family: 'Inter', sans-serif;
-        font-size: 12px; font-weight: 600; cursor: pointer;
+    .mh-section-heading h2 {
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        font-size: 19px;
+        font-weight: 700;
+    }
+
+    .mh-section-heading p {
+        margin: 3px 0 0;
+        color: var(--mh-ink-soft);
+        font-size: 12.5px;
+    }
+
+    .mh-record-count {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        color: var(--mh-ink-soft);
+        font-size: 11px;
+    }
+
+        .mh-record-count span {
+            margin-top: 2px;
+            color: var(--mh-ink-faint);
+            font-size: 9.5px;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+    .mh-heading-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+    }
+
+    .mh-ghost-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: var(--mh-white);
+        border: 1px solid var(--mh-line-strong);
+        color: var(--mh-teal-deep);
+        font-family: 'Inter', sans-serif;
+        font-size: 11.5px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
         transition: all .15s ease;
     }
-    .mh-filter-btn:hover { border-color: var(--mh-teal); color: var(--mh-teal-deep); }
-    .mh-filter-count {
-        background: var(--mh-paper); color: var(--mh-ink-soft);
-        border-radius: 999px; padding: 1px 7px; font-size: 10.5px;
+
+        .mh-ghost-btn:hover {
+            border-color: var(--mh-teal);
+            background: var(--mh-teal-dim);
+            color: var(--mh-teal-deep);
+            text-decoration: none;
+        }
+
+    /* ---------- TOOLBAR ---------- */
+
+    .mh-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 10px;
     }
-    .mh-filter-btn.active { background: var(--mh-teal); border-color: var(--mh-teal); color: #fff; }
-    .mh-filter-btn.active .mh-filter-count { background: rgba(255,255,255,.25); color: #fff; }
-    .mh-filter-btn.mh-filter-allergy.active { background: var(--mh-purple); border-color: var(--mh-purple); }
-    .mh-filter-btn.mh-filter-medication.active { background: var(--mh-orange); border-color: var(--mh-orange); }
+
+    .mh-toolbar-right {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .mh-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+    }
+
+    .mh-filter-btn {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 15px;
+        border-radius: 999px;
+        border: 1px solid var(--mh-line-strong);
+        background: var(--mh-white);
+        color: var(--mh-ink-soft);
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+
+        .mh-filter-btn:hover {
+            border-color: var(--mh-teal);
+            color: var(--mh-teal-deep);
+        }
+
+    .mh-filter-count {
+        background: var(--mh-paper);
+        color: var(--mh-ink-soft);
+        border-radius: 999px;
+        padding: 1px 7px;
+        font-size: 10.5px;
+    }
+
+    .mh-filter-btn.active {
+        background: var(--mh-teal);
+        border-color: var(--mh-teal);
+        color: #fff;
+    }
+
+        .mh-filter-btn.active .mh-filter-count {
+            background: rgba(255,255,255,.25);
+            color: #fff;
+        }
+
+    .mh-filter-btn.mh-filter-allergy.active {
+        background: var(--mh-purple);
+        border-color: var(--mh-purple);
+    }
+
+    .mh-filter-btn.mh-filter-medication.active {
+        background: var(--mh-orange);
+        border-color: var(--mh-orange);
+    }
+
+    .mh-select-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin: 0;
+        background: var(--mh-white);
+        border: 1px solid var(--mh-line-strong);
+        border-radius: 999px;
+        padding: 0 12px 0 13px;
+        gap: 8px;
+    }
+
+        .mh-select-wrap:focus-within {
+            border-color: var(--mh-teal);
+        }
+
+        .mh-select-wrap i {
+            color: var(--mh-ink-faint);
+            font-size: 12px;
+        }
+
+        .mh-select-wrap select {
+            border: none;
+            outline: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 9px 4px 9px 0;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--mh-ink-soft);
+        }
 
     .mh-search {
-        display: flex; align-items: center; gap: 9px;
-        min-width: 230px; padding: 9px 14px;
-        background: var(--mh-white); border: 1px solid var(--mh-line-strong);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 210px;
+        padding: 9px 14px;
+        background: var(--mh-white);
+        border: 1px solid var(--mh-line-strong);
         border-radius: 999px;
     }
-    .mh-search i { color: var(--mh-ink-faint); font-size: 12px; }
-    .mh-search input {
-        border: none; outline: none; background: none; width: 100%;
-        font-family: 'Inter', sans-serif; font-size: 12.5px; color: var(--mh-ink);
+
+        .mh-search i {
+            color: var(--mh-ink-faint);
+            font-size: 12px;
+        }
+
+        .mh-search input {
+            border: none;
+            outline: none;
+            background: none;
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            font-size: 12.5px;
+            color: var(--mh-ink);
+        }
+
+            .mh-search input::placeholder {
+                color: var(--mh-ink-faint);
+            }
+
+        .mh-search:focus-within {
+            border-color: var(--mh-teal);
+        }
+
+    .mh-showing-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 20px;
+        min-height: 22px;
+        color: var(--mh-ink-faint);
+        font-size: 11px;
     }
-    .mh-search input::placeholder { color: var(--mh-ink-faint); }
-    .mh-search:focus-within { border-color: var(--mh-teal); }
+
+    .mh-reset {
+        border: none;
+        background: none;
+        cursor: pointer;
+        padding: 0;
+        color: var(--mh-teal-deep);
+        font-family: 'Inter', sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+        .mh-reset:hover {
+            text-decoration: underline;
+        }
+
+    .hidden-reset {
+        visibility: hidden;
+    }
 
     /* ---------- TIMELINE ---------- */
 
-    .mh-timeline { position: relative; padding-left: 46px; }
-    .mh-timeline::before {
-        content: ""; position: absolute; left: 19px; top: 6px; bottom: 6px;
-        width: 2px; background: var(--mh-line-strong);
+    .mh-timeline {
+        position: relative;
+        padding-left: 46px;
     }
 
-    .mh-timeline-item { position: relative; margin-bottom: 18px; }
-    .mh-timeline-item:last-child { margin-bottom: 0; }
-    .mh-hidden { display: none !important; }
+        .mh-timeline::before {
+            content: "";
+            position: absolute;
+            left: 19px;
+            top: 6px;
+            bottom: 6px;
+            width: 2px;
+            background: var(--mh-line-strong);
+        }
+
+    .mh-year {
+        position: relative;
+        display: block;
+        width: max-content;
+        margin: 4px 0 14px;
+        padding: 3px 13px;
+        border-radius: 999px;
+        background: var(--mh-teal-dim);
+        color: var(--mh-teal-deep);
+        font-family: 'Poppins', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+        .mh-year::before {
+            content: "";
+            position: absolute;
+            left: -36px;
+            top: 50%;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            background: var(--mh-teal);
+            border: 3px solid var(--mh-paper);
+            box-shadow: 0 0 0 2px var(--mh-line-strong);
+            box-sizing: content-box;
+        }
+
+    .mh-timeline-item {
+        position: relative;
+        margin-bottom: 18px;
+    }
+
+        .mh-timeline-item:last-child {
+            margin-bottom: 0;
+        }
 
     .mh-timeline-marker {
-        position: absolute; left: -46px; top: 14px;
-        width: 39px; height: 39px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 14px; background: var(--mh-teal-dim); color: var(--mh-teal);
-        border: 3px solid var(--mh-paper); box-shadow: 0 0 0 2px var(--mh-line-strong);
+        position: absolute;
+        left: -46px;
+        top: 14px;
+        width: 39px;
+        height: 39px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        background: var(--mh-teal-dim);
+        color: var(--mh-teal);
+        border: 3px solid var(--mh-paper);
+        box-shadow: 0 0 0 2px var(--mh-line-strong);
         z-index: 1;
     }
-    .mh-item-allergy .mh-timeline-marker { background: var(--mh-purple-dim); color: var(--mh-purple); }
-    .mh-item-medication .mh-timeline-marker { background: var(--mh-orange-dim); color: var(--mh-orange); }
+
+    .mh-item-allergy .mh-timeline-marker {
+        background: var(--mh-purple-dim);
+        color: var(--mh-purple);
+    }
+
+    .mh-item-medication .mh-timeline-marker {
+        background: var(--mh-orange-dim);
+        color: var(--mh-orange);
+    }
 
     .mh-timeline-card {
-        background: var(--mh-white); border: 1px solid var(--mh-line);
+        background: var(--mh-white);
+        border: 1px solid var(--mh-line);
         border-left: 4px solid var(--mh-teal);
-        border-radius: var(--mh-radius-sm); box-shadow: var(--mh-shadow);
-        padding: 16px 20px; transition: transform .2s ease, box-shadow .2s ease;
+        border-radius: var(--mh-radius-sm);
+        box-shadow: var(--mh-shadow);
+        padding: 16px 20px;
+        transition: transform .2s ease, box-shadow .2s ease;
     }
-    .mh-timeline-card:hover { transform: translateY(-2px); box-shadow: var(--mh-shadow-hover); }
-    .mh-item-allergy .mh-timeline-card { border-left-color: var(--mh-purple); }
-    .mh-item-medication .mh-timeline-card { border-left-color: var(--mh-orange); }
 
-    .mh-tc-top { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-bottom: 10px; }
-    .mh-tc-title { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-right: auto; }
-    .mh-tc-title h3 { margin: 0; font-family: 'Poppins', sans-serif; font-size: 14.5px; font-weight: 700; }
+        .mh-timeline-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--mh-shadow-hover);
+        }
+
+    .mh-item-allergy .mh-timeline-card {
+        border-left-color: var(--mh-purple);
+    }
+
+    .mh-item-medication .mh-timeline-card {
+        border-left-color: var(--mh-orange);
+    }
+
+    .mh-tc-top {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-bottom: 10px;
+    }
+
+    .mh-tc-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex-wrap: wrap;
+        margin-right: auto;
+    }
+
+        .mh-tc-title h3 {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 14.5px;
+            font-weight: 700;
+        }
 
     .mh-ref {
-        font-family: 'Inter', sans-serif; font-size: 9.5px; font-weight: 700;
-        letter-spacing: .04em; color: var(--mh-ink-faint);
-        background: var(--mh-paper); border: 1px solid var(--mh-line-strong);
-        border-radius: 6px; padding: 1px 6px;
+        font-family: 'Inter', sans-serif;
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        color: var(--mh-ink-faint);
+        background: var(--mh-paper);
+        border: 1px solid var(--mh-line-strong);
+        border-radius: 6px;
+        padding: 1px 6px;
     }
 
     .mh-chip {
-        background: var(--mh-paper); color: var(--mh-ink-soft);
-        border: 1px solid var(--mh-line-strong); border-radius: 999px;
-        padding: 2px 9px; font-size: 10px; font-weight: 600;
+        background: var(--mh-paper);
+        color: var(--mh-ink-soft);
+        border: 1px solid var(--mh-line-strong);
+        border-radius: 999px;
+        padding: 2px 9px;
+        font-size: 10px;
+        font-weight: 600;
     }
 
     .mh-badge {
-        padding: 3px 10px; border-radius: 999px; font-size: 9.5px;
-        font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 9.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .04em;
         white-space: nowrap;
     }
-    .mh-sev-severe   { background: #FCE7E7; color: #B3261E; }
-    .mh-sev-moderate { background: #FFF1D6; color: #96650A; }
-    .mh-sev-mild     { background: #E5F5E9; color: #1E7D42; }
-    .mh-sev-unknown  { background: #EEF1F1; color: #5B6C69; }
+
+    .mh-sev-severe {
+        background: #FCE7E7;
+        color: #B3261E;
+    }
+
+    .mh-sev-moderate {
+        background: #FFF1D6;
+        color: #96650A;
+    }
+
+    .mh-sev-mild {
+        background: #E5F5E9;
+        color: #1E7D42;
+    }
+
+    .mh-sev-unknown {
+        background: #EEF1F1;
+        color: #5B6C69;
+    }
 
     .mh-pill {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 3px 10px; border-radius: 999px; font-size: 10px; font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
         white-space: nowrap;
     }
-    .mh-pill i { font-size: 7px; }
-    .mh-pill-active { background: var(--mh-teal-dim); color: var(--mh-teal-deep); }
-    .mh-pill-past { background: #EEF1F1; color: #5B6C69; }
 
-    .mh-tc-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .mh-pill i {
+            font-size: 7px;
+        }
+
+    .mh-pill-active {
+        background: var(--mh-teal-dim);
+        color: var(--mh-teal-deep);
+    }
+
+    .mh-pill-past {
+        background: #EEF1F1;
+        color: #5B6C69;
+    }
+
+    .mh-tc-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
 
     .mh-meta-pill {
-        display: inline-flex; align-items: center; gap: 6px;
-        background: var(--mh-paper); border: 1px solid var(--mh-line);
-        border-radius: 10px; padding: 6px 10px;
-        font-size: 11px; color: var(--mh-ink-soft); font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--mh-paper);
+        border: 1px solid var(--mh-line);
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-size: 11px;
+        color: var(--mh-ink-soft);
+        font-weight: 500;
     }
-    .mh-meta-pill i { color: var(--mh-ink-faint); font-size: 10px; }
-    .mh-meta-arrow { font-size: 8px; margin: 0 1px; }
-    .mh-meta-muted { color: var(--mh-ink-faint); font-style: italic; }
+
+        .mh-meta-pill i {
+            color: var(--mh-ink-faint);
+            font-size: 10px;
+        }
+
+    .mh-meta-arrow {
+        font-size: 8px;
+        margin: 0 1px;
+    }
+
+    .mh-meta-muted {
+        color: var(--mh-ink-faint);
+    }
 
     .mh-tc-notes {
-        border-top: 1px dashed var(--mh-line); padding-top: 10px; margin-bottom: 10px;
+        border-top: 1px dashed var(--mh-line);
+        padding-top: 10px;
+        margin-bottom: 10px;
     }
+
     .mh-tc-notes-empty {
-        color: var(--mh-ink-faint); font-size: 11px; display: flex;
-        align-items: center; gap: 7px;
+        color: var(--mh-ink-faint);
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
     }
 
     .mh-notes-toggle {
-        display: flex; align-items: center; gap: 7px; width: 100%;
-        background: none; border: none; cursor: pointer; padding: 0;
-        color: var(--mh-teal-deep); font-family: 'Inter', sans-serif;
-        font-size: 11.5px; font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        width: 100%;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        color: var(--mh-teal-deep);
+        font-family: 'Inter', sans-serif;
+        font-size: 11.5px;
+        font-weight: 600;
     }
-    .mh-notes-chevron { margin-left: auto; font-size: 10px; transition: transform .2s ease; }
-    .mh-notes-body {
-        max-height: 0; overflow: hidden; transition: max-height .25s ease;
-    }
-    .mh-notes-body p {
-        margin: 9px 0 0; padding: 10px 12px; background: var(--mh-paper);
-        border-radius: 10px; color: var(--mh-ink-soft); font-size: 12px; line-height: 1.55;
-    }
-    .mh-tc-notes.mh-open .mh-notes-body { max-height: 300px; }
-    .mh-tc-notes.mh-open .mh-notes-chevron { transform: rotate(180deg); }
 
-    .mh-tc-footer { display: flex; justify-content: flex-end; }
-    .mh-trend-link {
-        display: inline-flex; align-items: center; gap: 7px;
-        color: var(--mh-teal-deep); background: var(--mh-teal-dim);
-        border-radius: 999px; padding: 7px 13px; font-size: 11.5px; font-weight: 700;
-        text-decoration: none; transition: background .15s ease;
+    .mh-notes-chevron {
+        margin-left: auto;
+        font-size: 10px;
+        transition: transform .2s ease;
     }
-    .mh-trend-link:hover { background: var(--mh-teal); color: #fff; }
-    .mh-item-allergy .mh-trend-link { color: var(--mh-purple-deep); background: var(--mh-purple-dim); }
-    .mh-item-allergy .mh-trend-link:hover { background: var(--mh-purple); color: #fff; }
-    .mh-item-medication .mh-trend-link { color: var(--mh-orange-deep); background: var(--mh-orange-dim); }
-    .mh-item-medication .mh-trend-link:hover { background: var(--mh-orange); color: #fff; }
+
+    .mh-notes-body {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height .25s ease;
+    }
+
+        .mh-notes-body p {
+            margin: 9px 0 0;
+            padding: 10px 12px;
+            background: var(--mh-paper);
+            border-radius: 10px;
+            color: var(--mh-ink-soft);
+            font-size: 12px;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+    .mh-tc-notes.mh-open .mh-notes-body {
+        max-height: 600px;
+    }
+
+    .mh-tc-notes.mh-open .mh-notes-chevron {
+        transform: rotate(180deg);
+    }
+
+    .mh-tc-footer {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .mh-tc-footer-left {
+        justify-content: flex-start;
+    }
+
+    .mh-file-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--mh-teal-deep);
+        background: var(--mh-teal-dim);
+        border: none;
+        border-radius: 999px;
+        padding: 7px 14px;
+        font-family: 'Inter', sans-serif;
+        font-size: 11.5px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background .15s ease, color .15s ease;
+    }
+
+        .mh-file-btn:hover {
+            background: var(--mh-teal);
+            color: #fff;
+        }
+
+    .mh-item-allergy .mh-file-btn {
+        color: var(--mh-purple-deep);
+        background: var(--mh-purple-dim);
+    }
+
+        .mh-item-allergy .mh-file-btn:hover {
+            background: var(--mh-purple);
+            color: #fff;
+        }
+
+    .mh-item-medication .mh-file-btn {
+        color: var(--mh-orange-deep);
+        background: var(--mh-orange-dim);
+    }
+
+        .mh-item-medication .mh-file-btn:hover {
+            background: var(--mh-orange);
+            color: #fff;
+        }
 
     /* ---------- UNDATED SECTION ---------- */
 
-    .mh-undated-section { margin-top: 34px; }
+    .mh-undated-section {
+        margin-top: 34px;
+    }
 
     .mh-undated-grid {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
         gap: 14px;
     }
 
     .mh-undated-card {
-        background: var(--mh-white); border: 1px dashed var(--mh-line-strong);
-        border-radius: var(--mh-radius-sm); box-shadow: var(--mh-shadow);
-        padding: 15px 17px; transition: transform .2s ease, box-shadow .2s ease;
+        background: var(--mh-white);
+        border: 1px dashed var(--mh-line-strong);
+        border-radius: var(--mh-radius-sm);
+        box-shadow: var(--mh-shadow);
+        padding: 15px 17px;
+        transition: transform .2s ease, box-shadow .2s ease;
     }
-    .mh-undated-card:hover { transform: translateY(-2px); box-shadow: var(--mh-shadow-hover); }
 
-    .mh-uc-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+        .mh-undated-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--mh-shadow-hover);
+        }
+
+    .mh-uc-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
     .mh-uc-icon {
-        width: 34px; height: 34px; flex-shrink: 0; display: flex;
-        align-items: center; justify-content: center; border-radius: 10px;
-        background: var(--mh-teal-dim); color: var(--mh-teal); font-size: 13px;
+        width: 34px;
+        height: 34px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: var(--mh-teal-dim);
+        color: var(--mh-teal);
+        font-size: 13px;
     }
-    .mh-item-allergy .mh-uc-icon { background: var(--mh-purple-dim); color: var(--mh-purple); }
-    .mh-item-medication .mh-uc-icon { background: var(--mh-orange-dim); color: var(--mh-orange); }
 
-    .mh-uc-title { flex: 1; min-width: 0; }
-    .mh-uc-title h3 { margin: 0; font-family: 'Poppins', sans-serif; font-size: 13.5px; font-weight: 700; }
-    .mh-uc-title .mh-ref { display: inline-block; margin-top: 4px; }
+    .mh-item-allergy .mh-uc-icon {
+        background: var(--mh-purple-dim);
+        color: var(--mh-purple);
+    }
+
+    .mh-item-medication .mh-uc-icon {
+        background: var(--mh-orange-dim);
+        color: var(--mh-orange);
+    }
+
+    .mh-uc-title {
+        flex: 1;
+        min-width: 0;
+    }
+
+        .mh-uc-title h3 {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 13.5px;
+            font-weight: 700;
+        }
+
+        .mh-uc-title .mh-ref {
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+    /* ---------- INSIGHTS ---------- */
+
+    .mh-insights-section {
+        margin-top: 38px;
+    }
+
+    .mh-insights {
+        display: grid;
+        grid-template-columns: 1.7fr 1fr;
+        gap: 18px;
+    }
+
+    .mh-panel {
+        background: var(--mh-white);
+        border: 1px solid var(--mh-line);
+        border-radius: var(--mh-radius);
+        box-shadow: var(--mh-shadow);
+        padding: 20px 22px;
+        min-width: 0;
+    }
+
+    .mh-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+        .mh-panel-head h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+            .mh-panel-head h3 i {
+                color: var(--mh-teal);
+                font-size: 13px;
+            }
+
+    .mh-panel-note {
+        margin: 12px 0 0;
+        color: var(--mh-ink-faint);
+        font-size: 11px;
+    }
+
+    .mh-panel-empty {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 22px 16px;
+        border: 1px dashed var(--mh-line-strong);
+        border-radius: var(--mh-radius-sm);
+        color: var(--mh-ink-soft);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+        .mh-panel-empty i {
+            color: var(--mh-orange);
+            font-size: 18px;
+        }
+
+    .mh-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        color: var(--mh-ink-soft);
+        font-size: 10.5px;
+        font-weight: 600;
+    }
+
+        .mh-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+    .mh-legend-block {
+        margin-bottom: 14px;
+    }
+
+    .mh-dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+    }
+
+    .mh-dot-active {
+        background: var(--mh-orange);
+    }
+
+    .mh-dot-past {
+        background: #EBC3AA;
+    }
+
+    .mh-dot-today {
+        background: var(--mh-teal);
+        border-radius: 2px;
+        width: 3px;
+        height: 11px;
+    }
+
+    .mh-dot-condition {
+        background: var(--mh-teal);
+    }
+
+    .mh-dot-allergy {
+        background: var(--mh-purple);
+    }
+
+    .mh-dot-medication {
+        background: var(--mh-orange);
+    }
+
+    /* medication history chart */
+    .mh-gantt {
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .mh-gantt-inner {
+        min-width: 520px;
+    }
+
+    .mh-g-axis {
+        position: relative;
+        height: 24px;
+        margin-left: 150px;
+        border-bottom: 1px solid var(--mh-line-strong);
+    }
+
+    .mh-g-tick {
+        position: absolute;
+        top: 0;
+        padding-left: 4px;
+        color: var(--mh-ink-faint);
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .mh-g-body {
+        position: relative;
+    }
+
+    .mh-g-grid {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 150px;
+        right: 0;
+        pointer-events: none;
+    }
+
+    .mh-g-line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: var(--mh-line);
+    }
+
+    .mh-g-today {
+        width: 2px;
+        background: var(--mh-teal);
+        opacity: .55;
+    }
+
+    .mh-g-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        align-items: center;
+        height: 40px;
+    }
+
+    .mh-g-label {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        padding-right: 10px;
+    }
+
+        .mh-g-label strong {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 11.5px;
+        }
+
+        .mh-g-label small {
+            color: var(--mh-ink-faint);
+            font-size: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+    .mh-g-track {
+        position: relative;
+        height: 100%;
+    }
+
+    .mh-g-bar {
+        position: absolute;
+        top: 11px;
+        height: 18px;
+        min-width: 6px;
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        padding: 0;
+        transition: transform .15s ease, filter .15s ease;
+    }
+
+        .mh-g-bar:hover {
+            transform: scaleY(1.2);
+            filter: brightness(1.05);
+        }
+
+    .mh-g-bar-active {
+        background: linear-gradient(90deg, var(--mh-orange), #F0A070);
+    }
+
+    .mh-g-bar-past {
+        background: #EBC3AA;
+    }
+
+    /* category chart */
+    .mh-cats {
+        display: flex;
+        flex-direction: column;
+        gap: 13px;
+    }
+
+    .mh-cat-name {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 5px;
+        font-size: 11.5px;
+        font-weight: 600;
+    }
+
+        .mh-cat-name span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .mh-cat-name b {
+            color: var(--mh-ink-soft);
+        }
+
+    .mh-cat-track {
+        height: 10px;
+        border-radius: 999px;
+        background: var(--mh-paper);
+        overflow: hidden;
+    }
+
+    .mh-cat-bar {
+        display: flex;
+        height: 100%;
+        border-radius: 999px;
+        overflow: hidden;
+        min-width: 12px;
+    }
+
+    .mh-seg {
+        display: block;
+        height: 100%;
+    }
+
+    .mh-seg-condition {
+        background: var(--mh-teal);
+    }
+
+    .mh-seg-allergy {
+        background: var(--mh-purple);
+    }
+
+    .mh-seg-medication {
+        background: var(--mh-orange);
+    }
 
     /* ---------- EMPTY STATE ---------- */
 
     .mh-empty {
-        min-height: 190px; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; text-align: center; padding: 24px 12px;
+        min-height: 190px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px 12px;
     }
+
     .mh-empty-global {
-        background: var(--mh-white); border: 1px solid var(--mh-line);
-        border-radius: var(--mh-radius); box-shadow: var(--mh-shadow);
+        background: var(--mh-white);
+        border: 1px solid var(--mh-line);
+        border-radius: var(--mh-radius);
+        box-shadow: var(--mh-shadow);
     }
+
     .mh-empty-icon {
-        width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;
-        margin-bottom: 10px; border-radius: 50%; font-size: 18px;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+        border-radius: 50%;
+        font-size: 18px;
     }
-    .mh-empty-teal { background: var(--mh-teal-dim); color: var(--mh-teal); }
-    .mh-empty strong { font-size: 12.5px; }
-    .mh-empty span { max-width: 280px; margin-top: 5px; color: var(--mh-ink-soft); font-size: 10.5px; line-height: 1.55; }
+
+    .mh-empty-teal {
+        background: var(--mh-teal-dim);
+        color: var(--mh-teal);
+    }
+
+    .mh-empty strong {
+        font-size: 12.5px;
+    }
+
+    .mh-empty span {
+        max-width: 320px;
+        margin-top: 5px;
+        color: var(--mh-ink-soft);
+        font-size: 11px;
+        line-height: 1.55;
+    }
+
+    .mh-empty-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 14px;
+        padding: 9px 16px;
+        border-radius: 999px;
+        background: var(--mh-teal);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+        .mh-empty-cta:hover {
+            background: var(--mh-teal-deep);
+            color: #fff;
+            text-decoration: none;
+        }
 
     /* ---------- FOOTER ---------- */
 
     .mh-info-footer {
-        display: flex; align-items: center; gap: 13px; margin-top: 26px;
-        padding: 15px 18px; border: 1px solid var(--mh-line);
-        border-radius: var(--mh-radius-sm); background: rgba(255,255,255,.72);
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        margin-top: 26px;
+        padding: 15px 18px;
+        border: 1px solid var(--mh-line);
+        border-radius: var(--mh-radius-sm);
+        background: rgba(255,255,255,.72);
     }
+
     .mh-info-footer-icon {
-        width: 35px; height: 35px; flex-shrink: 0; display: flex;
-        align-items: center; justify-content: center; border-radius: 10px;
-        background: var(--mh-teal-dim); color: var(--mh-teal); font-size: 14px;
+        width: 35px;
+        height: 35px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: var(--mh-teal-dim);
+        color: var(--mh-teal);
+        font-size: 14px;
     }
-    .mh-info-footer strong { display: block; font-size: 11.5px; }
-    .mh-info-footer p { margin: 2px 0 0; color: var(--mh-ink-soft); font-size: 10.5px; }
+
+    .mh-info-footer strong {
+        display: block;
+        font-size: 11.5px;
+    }
+
+    .mh-info-footer p {
+        margin: 2px 0 0;
+        color: var(--mh-ink-soft);
+        font-size: 10.5px;
+    }
+
+    .mh-info-footer a {
+        color: var(--mh-teal-deep);
+        font-weight: 700;
+    }
+
+    /* ---------- RECORD FILE PANEL ---------- */
+
+    .mh-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1990;
+        background: rgba(10, 40, 36, .45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s ease;
+    }
+
+        .mh-overlay.mh-open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+    .mh-file {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 2000;
+        width: 470px;
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        background: var(--mh-white);
+        box-shadow: -18px 0 50px rgba(10, 60, 55, .18);
+        transform: translateX(105%);
+        transition: transform .3s ease;
+        font-family: 'Inter', sans-serif;
+        color: var(--mh-ink);
+    }
+
+        .mh-file.mh-open {
+            transform: translateX(0);
+        }
+
+    .mh-file-head {
+        position: relative;
+        padding: 24px 24px 20px;
+        color: #fff;
+        background: linear-gradient(125deg, var(--mh-teal-start), var(--mh-teal-end));
+    }
+
+    .mh-file-allergy .mh-file-head {
+        background: linear-gradient(125deg, #8467C4, #4A2D85);
+    }
+
+    .mh-file-medication .mh-file-head {
+        background: linear-gradient(125deg, #E4813F, #A94C20);
+    }
+
+    .mh-file-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        background: rgba(255,255,255,.18);
+        color: #fff;
+        font-size: 14px;
+    }
+
+        .mh-file-close:hover {
+            background: rgba(255,255,255,.3);
+        }
+
+    .mh-file-type {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 8px;
+        color: rgba(255,255,255,.8);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .mh-file-head h2 {
+        margin: 0 40px 10px 0;
+        font-family: 'Poppins', sans-serif;
+        font-size: 21px;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    .mh-file-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+    }
+
+        .mh-file-tags .mh-chip {
+            background: rgba(255,255,255,.18);
+            border-color: rgba(255,255,255,.3);
+            color: #fff;
+        }
+
+        .mh-file-tags .mh-pill-active, .mh-file-tags .mh-pill-past {
+            background: rgba(255,255,255,.92);
+        }
+
+    .mh-file-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 22px 24px;
+    }
+
+    .mh-f-section {
+        margin-bottom: 22px;
+    }
+
+        .mh-f-section h4 {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin: 0 0 10px;
+            color: var(--mh-ink-faint);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+            .mh-f-section h4 i {
+                color: var(--mh-teal);
+            }
+
+    .mh-f-grid {
+        border: 1px solid var(--mh-line);
+        border-radius: var(--mh-radius-sm);
+        overflow: hidden;
+    }
+
+    .mh-f-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 10px 14px;
+        font-size: 12px;
+        background: var(--mh-white);
+    }
+
+        .mh-f-row + .mh-f-row {
+            border-top: 1px solid var(--mh-line);
+        }
+
+        .mh-f-row:nth-child(even) {
+            background: var(--mh-paper);
+        }
+
+        .mh-f-row span {
+            color: var(--mh-ink-soft);
+        }
+
+        .mh-f-row strong {
+            text-align: right;
+            font-weight: 600;
+        }
+
+    .mh-f-notes {
+        margin: 0;
+        padding: 13px 15px;
+        background: var(--mh-paper);
+        border-radius: var(--mh-radius-sm);
+        color: var(--mh-ink-soft);
+        font-size: 12.5px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .mh-f-notes-empty {
+        font-style: italic;
+        color: var(--mh-ink-faint);
+    }
+
+    .mh-f-callout {
+        display: flex;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: var(--mh-radius-sm);
+        background: var(--mh-amber-dim);
+        border: 1px solid #F0DFA0;
+        color: #6B4F04;
+        font-size: 11.5px;
+        line-height: 1.5;
+        margin-top: 10px;
+    }
+
+        .mh-f-callout i {
+            margin-top: 2px;
+            color: var(--mh-amber);
+        }
+
+    .mh-f-related {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+    }
+
+    .mh-file-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 24px;
+        border-top: 1px solid var(--mh-line);
+        background: var(--mh-paper);
+    }
+
+    .mh-file-links {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .mh-file-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 16px;
+        border-radius: 999px;
+        background: var(--mh-teal);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+        .mh-file-cta:hover {
+            background: var(--mh-teal-deep);
+            color: #fff;
+            text-decoration: none;
+        }
+
+    .mh-file-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--mh-teal-deep);
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+        .mh-file-link:hover {
+            text-decoration: underline;
+            color: var(--mh-teal-deep);
+        }
+
+    .mh-file-close-btn {
+        padding: 9px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--mh-line-strong);
+        background: #fff;
+        color: var(--mh-ink-soft);
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .mh-file-close-btn:hover {
+            border-color: var(--mh-teal);
+            color: var(--mh-teal-deep);
+        }
 
     @@keyframes mhPulse {
-        0%, 100% { box-shadow: 0 0 0 4px rgba(121,225,210,.14), 0 0 6px rgba(121,225,210,.2); }
-        50% { box-shadow: 0 0 0 5px rgba(121,225,210,.18), 0 0 12px rgba(121,225,210,.5); }
+        0%, 100% {
+            box-shadow: 0 0 0 4px rgba(121,225,210,.14), 0 0 6px rgba(121,225,210,.2);
+        }
+
+        50% {
+            box-shadow: 0 0 0 5px rgba(121,225,210,.18), 0 0 12px rgba(121,225,210,.5);
+        }
     }
 
     /* ---------- RESPONSIVE ---------- */
 
+    @@media (max-width: 1100px) {
+        .mh-insights {
+            grid-template-columns: 1fr;
+        }
+
+        .mh-hero-right {
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+    }
+
     @@media (max-width: 1050px) {
-        .mh-timeline { padding-left: 40px; }
-        .mh-timeline::before { left: 16px; }
-        .mh-timeline-marker { left: -40px; width: 34px; height: 34px; font-size: 12px; }
+        .mh-timeline {
+            padding-left: 40px;
+        }
+
+            .mh-timeline::before {
+                left: 16px;
+            }
+
+        .mh-timeline-marker {
+            left: -40px;
+            width: 34px;
+            height: 34px;
+            font-size: 12px;
+        }
+
+        .mh-year::before {
+            left: -33px;
+        }
+
+        .mh-snap-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
     @@media (max-width: 800px) {
-        .mh-summary { grid-template-columns: 1fr; }
-        .mh-hero { flex-direction: column; align-items: flex-start; }
-        .mh-hero-right { width: 100%; justify-content: space-between; }
-        .mh-toolbar { flex-direction: column; align-items: stretch; }
-        .mh-search { min-width: 0; }
+        .mh-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .mh-hero {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .mh-hero-right {
+            width: 100%;
+        }
+
+        .mh-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .mh-toolbar-right {
+            width: 100%;
+        }
+
+        .mh-search {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .mh-section-heading {
+            align-items: flex-start;
+            flex-direction: column;
+        }
     }
 
     @@media (max-width: 600px) {
-        .mh-page { padding: 20px 15px 45px; }
-        .mh-hero { padding: 23px 20px; }
-        .mh-hero-left { align-items: flex-start; }
-        .mh-hero-icon { width: 52px; height: 52px; font-size: 20px; }
-        .mh-hero h1 { font-size: 20px; }
-        .mh-hero p { font-size: 11.5px; }
-        .mh-section-heading { align-items: flex-start; flex-direction: column; }
-        .mh-record-count { align-items: flex-start; }
-        .mh-info-footer { align-items: flex-start; }
-        .mh-timeline { padding-left: 34px; }
-        .mh-timeline::before { left: 13px; }
-        .mh-timeline-marker { left: -34px; width: 28px; height: 28px; font-size: 11px; }
-        .mh-tc-footer { justify-content: flex-start; }
-        .mh-completeness-banner { flex-wrap: wrap; }
+        .mh-page {
+            padding: 20px 15px 45px;
+        }
+
+        .mh-hero {
+            padding: 23px 20px;
+        }
+
+        .mh-hero-left {
+            align-items: flex-start;
+        }
+
+        .mh-hero-icon {
+            width: 52px;
+            height: 52px;
+            font-size: 20px;
+        }
+
+        .mh-hero h1 {
+            font-size: 20px;
+        }
+
+        .mh-hero p {
+            font-size: 11.5px;
+        }
+
+        .mh-record-count {
+            align-items: flex-start;
+        }
+
+        .mh-info-footer {
+            align-items: flex-start;
+        }
+
+        .mh-timeline {
+            padding-left: 34px;
+        }
+
+            .mh-timeline::before {
+                left: 13px;
+            }
+
+        .mh-timeline-marker {
+            left: -34px;
+            width: 28px;
+            height: 28px;
+            font-size: 11px;
+        }
+
+        .mh-year::before {
+            left: -28px;
+        }
+
+        .mh-tc-footer {
+            justify-content: flex-start;
+        }
+
+        .mh-completeness-banner {
+            flex-wrap: wrap;
+        }
+
+        .mh-file-foot {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+
+        .mh-file-links {
+            justify-content: center;
+        }
+
+        .mh-file-close-btn {
+            text-align: center;
+        }
     }
 
 </style>
 
 <script>
     (function () {
-        // ---- Notes expand/collapse ----
-        document.querySelectorAll('.mh-notes-toggle').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var wrapper = btn.closest('.mh-tc-notes');
-                var isOpen = wrapper.classList.toggle('mh-open');
-                var label = btn.querySelector('.mh-notes-label');
-                if (label) { label.textContent = isOpen ? 'Hide notes' : 'View notes'; }
-            });
-        });
+        "use strict";
 
-        // ---- Combined filter + search across both the dated timeline
-        //      and the undated grid ----
-        var filterButtons = document.querySelectorAll('.mh-filter-btn');
-        var timelineItems = document.querySelectorAll('#mhTimeline .mh-timeline-item');
-        var undatedCards  = document.querySelectorAll('#mhUndatedGrid .mh-undated-card');
-        var searchInput   = document.getElementById('mhSearchInput');
-        var noResults     = document.getElementById('mhNoResults');
+        function initMedicalHistory() {
+            const fileEl = document.getElementById("mhFile");
+            const headEl = document.getElementById("mhFileHead");
+            const bodyEl = document.getElementById("mhFileBody");
+            const overlayEl = document.getElementById("mhOverlay");
 
-        var activeFilter = 'all';
-
-        function applyFilters() {
-            var term = (searchInput ? searchInput.value : '').trim().toLowerCase();
-            var visibleCount = 0;
-
-            timelineItems.forEach(function (item) {
-                var matchesType = activeFilter === 'all' || item.getAttribute('data-type') === activeFilter;
-                var matchesTerm = !term || (item.getAttribute('data-name') || '').indexOf(term) !== -1;
-                var show = matchesType && matchesTerm;
-                item.classList.toggle('mh-hidden', !show);
-                if (show) { visibleCount++; }
-            });
-
-            undatedCards.forEach(function (card) {
-                var matchesType = activeFilter === 'all' || card.getAttribute('data-type') === activeFilter;
-                var matchesTerm = !term || (card.getAttribute('data-name') || '').indexOf(term) !== -1;
-                var show = matchesType && matchesTerm;
-                card.classList.toggle('mh-hidden', !show);
-                if (show) { visibleCount++; }
-            });
-
-            if (noResults) {
-                noResults.classList.toggle('mh-hidden', visibleCount !== 0);
+            if (!fileEl || !headEl || !bodyEl || !overlayEl) {
+                console.error("Medical History: file panel elements were not found.");
+                return;
             }
-        }
 
-        filterButtons.forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                filterButtons.forEach(function (b) { b.classList.remove('active'); });
-                btn.classList.add('active');
-                activeFilter = btn.getAttribute('data-filter');
+            const records = @Html.Raw(fileJson);
+            const recordsById = new Map(records.map(r => [Number(r.id), r]));
+            let lastOpener = null;
+
+            function escapeHtml(value) {
+                return String(value ?? "").replace(/[&<>"']/g, ch => ({
+                    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+                })[ch]);
+            }
+
+            function typeIcon(type) {
+                if (type === "allergy") return "fa-allergies";
+                if (type === "medication") return "fa-pills";
+                return "fa-heart-pulse";
+            }
+
+            function row(label, value) {
+                if (value === null || value === undefined || value === "") return "";
+                return `<div class="mh-f-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+            }
+
+            /* ================= FILE PANEL ================= */
+
+            function openFile(id, opener) {
+                const record = recordsById.get(Number(id));
+                if (!record) return;
+                if (opener && !fileEl.contains(opener)) lastOpener = opener;
+
+                fileEl.classList.remove("mh-file-condition", "mh-file-allergy", "mh-file-medication");
+                fileEl.classList.add("mh-file-" + record.type);
+
+                const tags = [
+                    record.category ? `<span class="mh-chip">${escapeHtml(record.category)}</span>` : "",
+                    record.severity ? `<span class="mh-badge ${escapeHtml(record.sevCss)}">${escapeHtml(record.severity)} severity</span>` : "",
+                    record.status === "Active" ? '<span class="mh-pill mh-pill-active">Active</span>' : "",
+                    record.status === "Completed" ? '<span class="mh-pill mh-pill-past">Completed</span>' : ""
+                ].join("");
+
+                headEl.innerHTML = `
+                    <button type="button" class="mh-file-close" id="mhFileCloseTop" aria-label="Close file">
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                    <div class="mh-file-type">
+                        <i class="fas ${typeIcon(record.type)}"></i>
+                        ${escapeHtml(record.typeLabel)} file · ${escapeHtml(record.refNo)}
+                    </div>
+                    <h2>${escapeHtml(record.name)}</h2>
+                    <div class="mh-file-tags">${tags}</div>`;
+
+                let details = "";
+                details += row("Reference", record.refNo);
+                details += row("Type", record.typeLabel);
+                details += row("Category", record.category);
+
+                if (record.type === "medication") {
+                    details += row("Dosage", record.dosage);
+                    details += row("Frequency", record.frequency);
+                    details += row("Started", record.dateText);
+                    details += row("Ended", record.endText);
+                    details += row("Status", record.status);
+                    details += row("Duration", record.duration);
+                } else {
+                    details += row(record.dateLabel, record.dateText);
+                    details += row("Time since", record.duration ? record.duration + " ago" : "");
+                    details += row("Severity", record.severity);
+                }
+
+                details += row("Entered by", record.doctor || "You (self-reported)");
+                details += row("Date confirmed", record.dateText ? "Yes" : "No");
+
+                const notes = record.notes
+                    ? `<p class="mh-f-notes">${escapeHtml(record.notes)}</p>`
+                    : '<p class="mh-f-notes mh-f-notes-empty">No notes recorded.</p>';
+
+                const related = records.filter(item =>
+                    Number(item.id) !== Number(record.id) &&
+                    record.category && item.category === record.category);
+
+                const relatedHtml = related.length
+                    ? `<div class="mh-f-section">
+                        <h4><i class="fas fa-link"></i> Also in ${escapeHtml(record.category)}</h4>
+                        <div class="mh-f-related">
+                            ${related.map(item => `
+                                <button type="button" class="mh-snap-chip mh-snap-${escapeHtml(item.type)}"
+                                        data-open="${Number(item.id)}">${escapeHtml(item.name)}</button>`).join("")}
+                        </div>
+                    </div>` : "";
+
+                const dateWarning = record.dateText ? "" : `
+                    <div class="mh-f-callout">
+                        <i class="fas fa-circle-info"></i>
+                        <span>No confirmed date is available for this record.</span>
+                    </div>`;
+
+                bodyEl.innerHTML = `
+                    <div class="mh-f-section"><h4><i class="fas fa-list-check"></i> Details</h4><div class="mh-f-grid">${details}</div></div>
+                    ${dateWarning ? `<div class="mh-f-section"><h4><i class="fas fa-calendar-check"></i> Date information</h4>${dateWarning}</div>` : ""}
+                    <div class="mh-f-section"><h4><i class="fas fa-note-sticky"></i> Notes</h4>${notes}</div>
+                    ${relatedHtml}`;
+
+                fileEl.classList.add("mh-open");
+                overlayEl.classList.add("mh-open");
+                fileEl.setAttribute("aria-hidden", "false");
+                document.body.style.overflow = "hidden";
+                bodyEl.scrollTop = 0;
+                document.getElementById("mhFileCloseTop")?.focus();
+            }
+
+            function closeFile() {
+                fileEl.classList.remove("mh-open");
+                overlayEl.classList.remove("mh-open");
+                fileEl.setAttribute("aria-hidden", "true");
+                document.body.style.overflow = "";
+                if (lastOpener && document.body.contains(lastOpener)) lastOpener.focus();
+                lastOpener = null;
+            }
+
+            /* ================= GLOBAL CLICK HANDLER ================= */
+
+            document.addEventListener("click", function (event) {
+                // X button (created dynamically, so delegate)
+                if (event.target.closest("#mhFileCloseTop, #mhFileCloseBottom")) {
+                    closeFile();
+                    return;
+                }
+
+                // open a record
+                const trigger = event.target.closest("[data-open]");
+                if (trigger) {
+                    const id = trigger.getAttribute("data-open");
+                    if (id !== null && id.trim() !== "") openFile(id, trigger);
+                    return;
+                }
+
+                // notes expand / collapse
+                const notesBtn = event.target.closest(".mh-notes-toggle");
+                if (notesBtn) {
+                    const wrapper = notesBtn.closest(".mh-tc-notes");
+                    if (!wrapper) return;
+                    const isOpen = wrapper.classList.toggle("mh-open");
+                    const label = notesBtn.querySelector(".mh-notes-label");
+                    if (label) label.textContent = isOpen ? "Hide notes" : "View notes";
+                }
+            });
+
+            overlayEl.addEventListener("click", closeFile);
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape" && fileEl.classList.contains("mh-open")) closeFile();
+            });
+
+            /* ================= FILTERS / YEAR / SORT / SEARCH ================= */
+
+            const timelineEl = document.getElementById("mhTimeline");
+            const undatedSection = document.getElementById("mhUndatedSection");
+            const filterBtns = Array.from(document.querySelectorAll(".mh-filter-btn"));
+            const yearSel = document.getElementById("mhYear");
+            const sortSel = document.getElementById("mhSort");
+            const searchEl = document.getElementById("mhSearchInput");
+            const showingEl = document.getElementById("mhShowing");
+            const resetBtn = document.getElementById("mhReset");
+            const noResultsEl = document.getElementById("mhNoResults");
+
+            const tlItems = timelineEl ? Array.from(timelineEl.querySelectorAll(".mh-timeline-item")) : [];
+            const yearHeaders = new Map();
+            if (timelineEl) {
+                timelineEl.querySelectorAll(".mh-year").forEach(h => yearHeaders.set(h.getAttribute("data-year"), h));
+            }
+            const undatedCards = undatedSection ? Array.from(undatedSection.querySelectorAll(".mh-undated-card")) : [];
+
+            const state = { type: "all", year: "all", sort: "desc", q: "" };
+
+            function matches(el) {
+                if (state.type !== "all" && el.getAttribute("data-type") !== state.type) return false;
+                if (state.year !== "all" && el.getAttribute("data-year") !== state.year) return false;
+                if (state.q && (el.getAttribute("data-name") || "").indexOf(state.q) === -1) return false;
+                return true;
+            }
+
+            function applyFilters() {
+                let visible = 0;
+
+                // timeline: sort, then rebuild with year headers
+                if (timelineEl) {
+                    const dir = state.sort === "asc" ? 1 : -1;
+                    const sorted = tlItems.slice().sort((a, b) =>
+                        dir * (Number(a.getAttribute("data-date")) - Number(b.getAttribute("data-date"))));
+
+                    yearHeaders.forEach(h => { if (h.parentNode === timelineEl) timelineEl.removeChild(h); });
+
+                    let lastYear = null;
+                    sorted.forEach(item => {
+                        const show = matches(item);
+                        item.classList.toggle("mh-hidden", !show);
+                        if (show) {
+                            visible++;
+                            const y = item.getAttribute("data-year");
+                            if (y !== lastYear) {
+                                lastYear = y;
+                                const h = yearHeaders.get(y);
+                                if (h) timelineEl.appendChild(h);
+                            }
+                        }
+                        timelineEl.appendChild(item);
+                    });
+                }
+
+                // undated cards
+                let undatedVisible = 0;
+                undatedCards.forEach(card => {
+                    const show = matches(card);
+                    card.classList.toggle("mh-hidden", !show);
+                    if (show) undatedVisible++;
+                });
+                visible += undatedVisible;
+                if (undatedSection) undatedSection.classList.toggle("mh-hidden", undatedVisible === 0);
+
+                if (showingEl) showingEl.textContent = "Showing " + visible + " of " + records.length + " records";
+                if (noResultsEl) noResultsEl.classList.toggle("mh-hidden", visible !== 0 || records.length === 0);
+
+                const isFiltered = state.type !== "all" || state.year !== "all" || state.q !== "" || state.sort !== "desc";
+                if (resetBtn) resetBtn.classList.toggle("hidden-reset", !isFiltered);
+            }
+
+            filterBtns.forEach(btn => {
+                btn.addEventListener("click", function () {
+                    filterBtns.forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    state.type = btn.getAttribute("data-filter") || "all";
+                    applyFilters();
+                });
+            });
+
+            yearSel?.addEventListener("change", function () { state.year = yearSel.value; applyFilters(); });
+            sortSel?.addEventListener("change", function () { state.sort = sortSel.value; applyFilters(); });
+            searchEl?.addEventListener("input", function () {
+                state.q = searchEl.value.trim().toLowerCase();
                 applyFilters();
             });
-        });
 
-        if (searchInput) {
-            searchInput.addEventListener('input', applyFilters);
+            resetBtn?.addEventListener("click", function () {
+                state.type = "all"; state.year = "all"; state.sort = "desc"; state.q = "";
+                filterBtns.forEach(b => b.classList.toggle("active", b.getAttribute("data-filter") === "all"));
+                if (yearSel) yearSel.value = "all";
+                if (sortSel) sortSel.value = "desc";
+                if (searchEl) searchEl.value = "";
+                applyFilters();
+            });
+
+            // "Review" banner jump
+            document.getElementById("mhReviewJump")?.addEventListener("click", function (e) {
+                e.preventDefault();
+                if (undatedSection) {
+                    undatedSection.classList.remove("mh-hidden");
+                    undatedSection.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+            });
+
+            /* ================= PRINT SUMMARY ================= */
+
+            document.getElementById("mhPrintBtn")?.addEventListener("click", function () {
+                const groups = [
+                    ["Conditions", "condition"],
+                    ["Allergies", "allergy"],
+                    ["Medication", "medication"]
+                ];
+
+                let html = "";
+                groups.forEach(function (g) {
+                    const list = records.filter(r => r.type === g[1]);
+                    html += "<h2>" + g[0] + " (" + list.length + ")</h2>";
+                    if (!list.length) { html += "<p class='none'>None recorded</p>"; return; }
+                    html += "<table><tr><th>Name</th><th>Ref</th><th>Details</th><th>Date</th><th>Entered by</th></tr>";
+                    list.forEach(function (r) {
+                        let det = [];
+                        if (r.category) det.push(r.category);
+                        if (r.severity) det.push(r.severity);
+                        if (r.dosage) det.push(r.dosage);
+                        if (r.frequency) det.push(r.frequency);
+                        if (r.status) det.push(r.status);
+                        let date = r.dateText ? r.dateText : "Not on file";
+                        if (r.type === "medication" && r.dateText) date += " – " + r.endText;
+                        html += "<tr><td>" + escapeHtml(r.name) + "</td><td>" + escapeHtml(r.refNo) + "</td><td>" +
+                            escapeHtml(det.join(" · ")) + "</td><td>" + escapeHtml(date) + "</td><td>" +
+                            escapeHtml(r.doctor || "Self-reported") + "</td></tr>";
+                    });
+                    html += "</table>";
+                });
+
+                const w = window.open("", "_blank");
+                if (!w) { window.print(); return; }
+                w.document.write(
+                    "<!doctype html><html><head><meta charset='utf-8'><title>Medical History Summary</title>" +
+                    "<style>body{font-family:Arial,sans-serif;color:#102C27;padding:28px}h1{margin:0 0 4px}" +
+                    "h2{margin:24px 0 8px;font-size:16px;border-bottom:2px solid #0E8C7F;padding-bottom:4px}" +
+                    "table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:6px 8px;border:1px solid #ccc}" +
+                    "th{background:#E3F4F1}.none{color:#888;font-style:italic}.sub{color:#666;font-size:12px}</style></head><body>" +
+                    "<h1>Medical History Summary</h1><div class='sub'>Printed " + new Date().toLocaleDateString() + "</div>" +
+                    html + "<\/body><\/html>");
+                w.document.close();
+                w.focus();
+                setTimeout(function () { w.print(); }, 300);
+            });
+
+            applyFilters();
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initMedicalHistory, { once: true });
+        } else {
+            initMedicalHistory();
         }
     })();
 </script>

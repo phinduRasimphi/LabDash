@@ -40,6 +40,12 @@
     {
             if (User.IsInRole("Admin"))
             {
+               var currentUser = await UserManager.GetUserAsync(User);
+var rawName = currentUser?.FullName ?? User.Identity?.Name ?? "Administrator";
+var parts = rawName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+var fullName = parts.Length > 2 ? $"{parts[0]} {parts[^1]}" : rawName;
+var initials = string.Join("", parts.Take(2).Select(n => n[0])).ToUpper();
+
                 <style>
                     .admin-modern-container {
                     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -348,6 +354,21 @@
                     color: #fff;
                     line-height: 1.3;
                     }
+                    .a-user-strip > div:last-child { min-width: 0; }
+.a-user-name {
+    max-width: 130px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+button.a-logout {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+}
 
                     .a-user-role {
                     display: flex;
@@ -498,13 +519,13 @@
                     </div>
 
                         <!-- Admin identity strip -->
-                        <div class="a-user-strip">
-                            <div class="a-user-av">AD</div>
-                            <div>
-                                <div class="a-user-name">Administrator</div>
-                                <div class="a-user-role"><i class="fas fa-circle"></i> Online</div>
-                            </div>
+                      <div class="a-user-strip">
+                       <div class="a-user-av">@initials</div>
+                      <div>
+                       <div class="a-user-name" title="@fullName">@fullName</div>
+                       <div class="a-user-role"><i class="fas fa-circle"></i> Online</div>
                         </div>
+                      </div>
 
                         <!-- Navigation -->
                         <nav class="a-nav">
@@ -551,9 +572,13 @@
     <a href="@Url.Action("AdminProfile", "Admin")" class="a-logout">
         <i class="fas fa-user-circle"></i> My Profile
     </a>
-    <a href="@Url.Action("Index", "Home")" class="a-logout">
-        <i class="fas fa-sign-out-alt"></i> Log Out
-    </a>
+                        <a href="@Url.Action("Index", "Home")" class="a-logout"
+                           data-cs-confirm="You'll need to sign in again to continue."
+                           data-cs-title="Log out?"
+                           data-cs-yes="Log out"
+                           data-cs-icon="fa-right-from-bracket">
+                            <i class="fas fa-sign-out-alt"></i> Log Out
+                        </a>
     <div class="a-footer-note">LabDash &copy; 2026</div>
 </div>  
 
@@ -565,21 +590,7 @@
                     ═══════════════════════════ -->
                     <div class="a-main">
 
-                        <!-- TOP BAR -->
-                        <div class="a-topbar">
-                            <div class="a-tb-left">
-                                <div class="a-tb-title">@(ViewData["Title"] ?? "Dashboard")</div>
-                                <div class="a-tb-sub">
-                                    @DateTime.Now.ToString("dddd, dd MMMM yyyy") &nbsp;·&nbsp; Admin Panel
-                                </div>
-                            </div>
-                            <div class="a-tb-right">
-                                <div class="a-notif">
-                                    <i class="fas fa-bell"></i>
-                                    <div class="a-ndot"></div>
-                                </div>
-                            </div>
-                        </div>
+                       
 
                         <!-- PAGE CONTENT -->
                         <div class="a-content">
@@ -2286,13 +2297,14 @@
             else if (User.IsInRole("Patient"))
 
             {
+                var currentUser = await UserManager.GetUserAsync(User);
+var rawName = currentUser?.FullName ?? User.Identity?.Name ?? "Patient";
+var parts = rawName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+var fullName = parts.Length > 2 ? $"{parts[0]} {parts[^1]}" : rawName;
+var initials = string.Join("", parts.Take(2).Select(n => n[0])).ToUpper();
                 <style>
                     /* ========================================================
-                    PATIENT SIDEBAR — restyled to match the Lab Technician
-                    theme (deep teal background, gold active/press accent,
-                    same identity-card treatment). Only colours/visuals
-                    change — every href and label in the markup below is
-                    untouched.
+                    PATIENT SIDEBAR 
                     ======================================================== */
                     .p-sidebar {
                     background: #0F5E56 !important;
@@ -2371,6 +2383,21 @@
                     color: #fff;
                     line-height: 1.3;
                     }
+                   .p-user-strip > div:last-child { min-width: 0; }
+                   .p-user-name {
+                   max-width: 130px;
+                   white-space: nowrap;
+                   overflow: hidden;
+                   text-overflow: ellipsis;
+                   }
+                   button.p-logout {
+                   width: 100%;
+                   background: none;
+                   border: none;
+                   text-align: left;
+                   font-family: inherit;
+                   cursor: pointer;
+}
 
                     .p-user-role {
                     display: flex;
@@ -2511,12 +2538,12 @@
 
                         <!-- Patient identity strip -->
                         <div class="p-user-strip">
-                            <div class="p-user-av">@(ViewData["PatientInitials"] ?? "PT")</div>
-                            <div>
-                                <div class="p-user-name">@(ViewData["PatientName"] ?? "Patient")</div>
-                                <div class="p-user-role"><i class="fas fa-circle"></i> Online</div>
+                       <div class="p-user-av">@initials</div>
+                        <div>
+                        <div class="p-user-name" title="@fullName">@fullName</div>
+                         <div class="p-user-role"><i class="fas fa-circle"></i> Online</div>
                             </div>
-                        </div>
+                         </div>
 
                         <!-- Navigation -->
                         <nav class="p-nav">
@@ -2575,10 +2602,14 @@
 
                         <!-- Sidebar footer -->
                         <div class="p-sidebar-footer">
-                            <a href="@Url.Action("Index", "Home")" class="p-logout">
-                                <i class="fas fa-sign-out-alt"></i> Log Out
-                            </a>
-                            <div class="p-footer-note">LabPulse ; 2026</div>
+                        <a href="@Url.Action("Index", "Home")" class="p-logout"
+                           data-cs-confirm="You'll need to sign in again to view your records."
+                           data-cs-title="Log out?"
+                           data-cs-yes="Log out"
+                           data-cs-icon="fa-right-from-bracket">
+                            <i class="fas fa-sign-out-alt"></i> Log Out
+                        </a>
+                            <p class="footer-copy">LabDASH © 2026</p>
                         </div>
 
                     </aside>
@@ -2588,21 +2619,7 @@
                     ═══════════════════════════ -->
                     <div class="p-main">
 
-                        <!-- TOP BAR -->
-                        <div class="p-topbar">
-                            <div class="p-tb-left">
-                                <div class="p-tb-title">@(ViewData["Title"] ?? "Dashboard")</div>
-                                <div class="p-tb-sub">
-                                    @DateTime.Now.ToString("dddd, dd MMMM yyyy") &nbsp;·&nbsp; @(ViewData["PatientName"] ?? "Patient")
-                                </div>
-                            </div>
-                            <div class="p-tb-right">
-                                <div class="p-notif">
-                                    <i class="fas fa-bell"></i>
-                                    <div class="p-ndot"></div>
-                                </div>
-                            </div>
-                        </div>
+                      
 
                         <!-- PAGE CONTENT -->
                         <div class="p-content">
@@ -2663,5 +2680,6 @@
             }
             else { }
         }
+    @await Html.PartialAsync("_Popups")
 </body>
 </html>

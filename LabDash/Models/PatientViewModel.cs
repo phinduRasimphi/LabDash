@@ -84,7 +84,13 @@ namespace LabDash.Models
         public List<Medication> MedicationOptions { get; set; } = new();
 
         public string OtherMedication { get; set; } = "";
+        public List<NewHealthEntry> NewMedications { get; set; } = new();
+        public List<NewHealthEntry> NewAllergies { get; set; } = new();
+        public List<NewHealthEntry> NewConditions { get; set; } = new();
 
+        public List<CategoryOption> MedicationCategories { get; set; } = new();
+        public List<CategoryOption> AllergyCategories { get; set; } = new();
+        public List<CategoryOption> ConditionCategories { get; set; } = new();
         // ============================================================
         // COMPUTED DISPLAY HELPERS
         // ============================================================
@@ -95,7 +101,24 @@ namespace LabDash.Models
         public string FullName =>
             $"{Name} {Surname}";
     }
+    public class NewHealthEntry
+    {
+        public string? Name { get; set; }
+        public int? CategoryId { get; set; }
+        public string? NewCategoryName { get; set; }
+        public string? Dosage { get; set; }
+        public string? Frequency { get; set; }
+        public string? Severity { get; set; }
+        public string? StartDate { get; set; }   // "yyyy-MM" or "yyyy-MM-dd"
+        public string? EndDate { get; set; }
+        public string? Notes { get; set; }
+    }
 
+    public class CategoryOption
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
     // ── 2. Test Request ──────────────────────────────────────
     public class TestRequestViewModel
     {
@@ -157,6 +180,7 @@ namespace LabDash.Models
 
     public class ConditionRecordViewModel
     {
+        public int Id { get; set; }
         public string Name { get; set; } = "";
         public string? CategoryName { get; set; }
         public DateTime? DiagnosisDate { get; set; }
@@ -175,6 +199,7 @@ namespace LabDash.Models
 
     public class AllergyRecordViewModel
     {
+        public int Id { get; set; }
         public string Name { get; set; } = "";
         public string? CategoryName { get; set; }
         public DateTime? RecordedDate { get; set; }
@@ -193,6 +218,7 @@ namespace LabDash.Models
 
     public class MedicationRecordViewModel
     {
+        public int Id { get; set; }
         public string Name { get; set; } = "";
         public string? CategoryName { get; set; }
         public string? Dosage { get; set; }

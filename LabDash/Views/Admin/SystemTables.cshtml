@@ -194,7 +194,12 @@
 
                                             <form asp-action="DeactivateSampleType"
                                                   method="post"
-                                                  class="adm-inline-form-tight">
+                                                  class="adm-inline-form-tight"
+                                                  data-cs-confirm="Deactivate @(s.Name)? It will move to the Archived tab and can be reactivated any time."
+                                                  data-cs-title="Deactivate sample type?"
+                                                  data-cs-yes="Deactivate"
+                                                  data-cs-tone="warn"
+                                                  data-cs-icon="fa-box-archive">
 
                                                 @Html.AntiForgeryToken()
 
@@ -242,7 +247,11 @@
 
                                         <form asp-action="ReactivateSampleType"
                                               method="post"
-                                              class="adm-inline-form-tight">
+                                              class="adm-inline-form-tight"
+                                              data-cs-confirm="Reactivate @(s.Name)? It will be available across the system again."
+                                              data-cs-title="Reactivate sample type?"
+                                              data-cs-yes="Reactivate"
+                                              data-cs-icon="fa-rotate-left">
 
                                             @Html.AntiForgeryToken()
 
@@ -355,7 +364,11 @@
             <!-- ADD SAMPLE TYPE -->
             <form asp-action="AddSampleType"
                   method="post"
-                  class="adm-add-bar">
+                  class="adm-add-bar"
+                  data-cs-confirm="Add this new sample type to the system?"
+                  data-cs-title="Add sample type?"
+                  data-cs-yes="Add sample type"
+                  data-cs-icon="fa-vial">
 
                 @Html.AntiForgeryToken()
 
@@ -506,7 +519,12 @@
 
                                             <form asp-action="DeactivateUnit"
                                                   method="post"
-                                                  class="adm-inline-form-tight">
+                                                  class="adm-inline-form-tight"
+                                                  data-cs-confirm="Deactivate @(u.Name)? It will move to the Archived tab and can be reactivated any time."
+                                                  data-cs-title="Deactivate unit?"
+                                                  data-cs-yes="Deactivate"
+                                                  data-cs-tone="warn"
+                                                  data-cs-icon="fa-box-archive">
 
                                                 @Html.AntiForgeryToken()
 
@@ -554,7 +572,11 @@
 
                                         <form asp-action="ReactivateUnit"
                                               method="post"
-                                              class="adm-inline-form-tight">
+                                              class="adm-inline-form-tight"
+                                              data-cs-confirm="Reactivate @(u.Name)? It will be available across the system again."
+                                              data-cs-title="Reactivate unit?"
+                                              data-cs-yes="Reactivate"
+                                              data-cs-icon="fa-rotate-left">
 
                                             @Html.AntiForgeryToken()
 
@@ -667,7 +689,11 @@
             <!-- ADD UNIT -->
             <form asp-action="AddUnit"
                   method="post"
-                  class="adm-add-bar">
+                  class="adm-add-bar"
+                  data-cs-confirm="Add this new unit to the system?"
+                  data-cs-title="Add unit?"
+                  data-cs-yes="Add unit"
+                  data-cs-icon="fa-ruler">
 
                 @Html.AntiForgeryToken()
 
@@ -702,7 +728,12 @@
 
         <h3 id="editModalTitle">Edit Item</h3>
 
-        <form id="editModalForm" method="post">
+        <form id="editModalForm"
+              method="post"
+              data-cs-confirm="Save your changes?"
+              data-cs-title="Save changes?"
+              data-cs-yes="Save changes"
+              data-cs-icon="fa-floppy-disk">
 
             @Html.AntiForgeryToken()
 
@@ -956,7 +987,15 @@
             document.getElementById('editModalTitle').innerText =
                 type === 'sampletype' ? 'Edit Sample Type' : 'Edit Unit';
 
-            document.getElementById('editModalForm').action = editModalUrls[type];
+            var form = document.getElementById('editModalForm');
+
+            form.action = editModalUrls[type];
+
+            // popup wording that matches what is being edited
+            form.dataset.csConfirm =
+                type === 'sampletype'
+                    ? 'Save your changes to this sample type?'
+                    : 'Save your changes to this unit?';
 
             document.getElementById('editModal').style.display = 'flex';
         }
@@ -975,6 +1014,13 @@
         // Close modal on Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
+
+                // a confirmation popup is open: let it handle Escape on its own
+                var pp = document.getElementById('ppOverlay');
+                if (pp && !pp.hidden) {
+                    return;
+                }
+
                 closeEditModal();
             }
         });
@@ -1615,6 +1661,12 @@
             margin: 0 0 6px;
             font-size: 16.5px;
             color: var(--adm-ink);
+        }
+
+        .adm-modal form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .adm-modal label {
