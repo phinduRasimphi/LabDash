@@ -871,44 +871,40 @@ namespace LabDash.Controllers
                 nameof(Completed));
         }
 
-        // =========================================================
-        // COMPLETED TESTS
-        // =========================================================
 
         [HttpGet]
         public async Task<IActionResult> Completed()
         {
-            var technician =
-                await _userManager.GetUserAsync(User);
+            var technician = await _userManager.GetUserAsync(User);
 
             if (technician == null)
                 return Challenge();
 
-            var tests =
-                await _context.TestRequestItems
-                    .Include(x => x.TestType)
-                    .Include(x => x.TestRequest)
-                        .ThenInclude(x => x.Patient)
-                    .Where(x =>
-                        x.AssignedTechnicianId ==
-                            technician.Id
-                        &&
-                        (
-                            x.Status ==
-                                "Completed"
-                            ||
-                            x.Status ==
-                                "Verified"
-                            ||
-                            x.Status ==
-                                "To Be Reviewed"
-                        ))
-                    .OrderByDescending(
-                        x => x.CompletionDateTime)
-                    .ToListAsync();
+            var tests = await _context.TestRequestItems
+                .Include(x => x.TestType)
+
+                .Include(x => x.TestRequest)
+                    .ThenInclude(x => x.Patient)
+
+                // Load the technician assigned to each test
+                .Include(x => x.AssignedTechnician)
+
+                // IMPORTANT: Load all recorded returns for review
+                .Include(x => x.ReviewHistory)
+
+                .Where(x =>
+                    x.AssignedTechnicianId == technician.Id &&
+                    (
+                        x.Status == "Completed" ||
+                        x.Status == "Verified" ||
+                        x.Status == "To Be Reviewed"
+                    ))
+                .OrderByDescending(x => x.CompletionDateTime)
+                .ToListAsync();
 
             return View(tests);
         }
+
         // =========================================================
         // VIEW COMPLETED TEST DETAILS
         // =========================================================
