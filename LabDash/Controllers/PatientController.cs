@@ -1973,5 +1973,127 @@ namespace LabDash.Controllers
                 })
                 .ToList();
         }
+
+
+        // =====================================================================
+        // PASTE THIS INSIDE YOUR EXISTING PatientController CLASS.
+        //
+        // Add this using at the top of PatientController.cs:
+        //     using LabDash.Helpers;          // for RequestBuckets
+        // (LabDash.ViewModels, LabDash.Models and EF are already there.)
+        //
+        // This is the ONLY new action you need. "Results" and the report
+        // download already exist in your controller:
+        //     Results(int? requestId)         -> View results
+        //     DownloadResultsPdf(int requestId) -> Laboratory Report
+        // =====================================================================
+
+        private static string ToCssKey(string? value) =>
+            (value ?? "").Replace(" ", "").Trim().ToLowerInvariant();
+
+        [HttpGet]
+        public async Task<IActionResult> RequestDetails(int id)
+        {
+            var patient = await GetCurrentPatientAsync();
+
+            if (patient == null)
+            {
+                return NotFound("No patient profile is linked to your account.");
+            }
+
+            // Ownership check: only this patient's own request can be found
+            var request = await _context.TestRequests
+                .AsNoTracking()
+                .Include(r => r.RequestingDoctor)
+                .Include(r => r.TestRequestItems)
+                    .ThenInclude(i => i.TestType)
+                .Include(r => r.TestRequestItems)
+                    .ThenInclude(i => i.TestResults)
+                .FirstOrDefaultAsync(r =>
+                    r.RequestId == id &&
+                    r.PatientId == patient.PatientID);
+
+            if (request == null)
+            {
+                TempData["ErrorMessage"] = "That request could not be found.";
+                return RedirectToAction(nameof(Requests));
+            }
+
+            var status = string.IsNullOrWhiteSpace(request.Status) ? "Submitted" : request.Status;
+
+            var cancelled = status.Contains("Cancel", StringComparison.OrdinalIgnoreCase);
+
+            // Same release gate as Results() and DownloadResultsPdf()
+            var released = status.Contains("Release", StringComparison.OrdinalIgnoreCase);
+
+            int step =
+                released ? 4 :
+                cancelled ? 0 :
+                RequestBuckets.In(RequestBuckets.InProgress, status) ? 2 :
+                RequestBuckets.In(RequestBuckets.Pending, status) ? 1 :
+                3;
+
+            var items = request.TestRequestItems
+                .Where(i => i.TestType != null)
+                .Select(i =>
+                {
+                    var type = i.TestType;
+
+                    // Patients only ever see values once the request is released
+                    var result = released
+                        ? i.TestResults?
+                            .Where(r => !string.IsNullOrWhiteSpace(r.ResultValue))
+                            .OrderByDescending(r => r.DateCaptured)
+                            .FirstOrDefault()
+                        : null;
+
+                    var low = type.ReferenceRangeLow ?? 0m;
+                    var high = type.ReferenceRangeHigh ?? 0m;
+
+                    return new PatientResultRowViewModel
+                    {
+                        TestName = type.Name,
+                        Category = type.Category ?? "",
+                        ResultValue = result?.ResultValue ?? "",
+                        Unit = result?.Units ?? "",
+                        RangeText = low + high > 0m ? $"{low:0.##} - {high:0.##}" : "-",
+                        IsAbnormal = result?.IsAbnormal ?? false,
+                        Comments = result == null
+                            ? ""
+                            : (!string.IsNullOrWhiteSpace(result.VerificationNote)
+                                ? result.VerificationNote
+                                : result.Comments ?? "")
+                    };
+                })
+                .OrderBy(r => r.TestName)
+                .ToList();
+
+            var vm = new PatientRequestDetailsViewModel
+            {
+                RequestID = request.RequestId,
+                RequestDate = request.RequestDate,
+                DoctorName = request.RequestingDoctor?.FullName ?? "Unknown",
+                Urgency = string.IsNullOrWhiteSpace(request.Urgency) ? "Routine" : request.Urgency,
+                Status = status,
+                StatusCssClass = ToCssKey(status),
+                UrgencyCssClass = ToCssKey(request.Urgency),
+                Step = step,
+                ResultsReleased = released,
+                IsCancelled = cancelled,
+                CancelReason = request.CancellationReason ?? "",
+                ReleaseDate = request.ReleaseDate,
+                ReleaseNote = request.ReleaseNote ?? "",
+                Items = items
+            };
+
+            return View(vm);
+        }
+
+
     }
+
+
+
+
+
 }

@@ -1,0 +1,163 @@
+﻿@model LabDash.ViewModels.PatientRequestDetailsViewModel
+@{
+    ViewData["Title"] = $"Request #{Model.RequestID}";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    var labels = new[] { "Submitted", "In progress", "Completed", "Released" };
+
+    string NextText() =>
+        Model.IsCancelled ? "This request was cancelled, so no further results will be added." :
+        Model.Step switch
+        {
+            1 => "The laboratory will receive your sample and a technician will pick up the test.",
+            2 => "A technician is analysing your sample. Results are checked before they are released.",
+            3 => "Testing is complete. Your doctor will review and release the results.",
+            4 => "Your results are released. You can view them or download the report.",
+            _ => "Check back soon for an update."
+        };
+}
+
+@await Html.PartialAsync("_PatientPageStyles")
+
+<div class="pp-wrap">
+
+    <nav class="pp-crumb" aria-label="Breadcrumb">
+        <a href="@Url.Action("Index", "Dashboard")">Patient Portal</a>
+        <i class="fa-solid fa-chevron-right"></i>
+        <a href="@Url.Action("Requests", "Patient")">Test Requests</a>
+        <i class="fa-solid fa-chevron-right"></i>
+        <strong aria-current="page">Request #@Model.RequestID</strong>
+    </nav>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="pp-note warn"><i class="fa-solid fa-triangle-exclamation"></i><span>@TempData["ErrorMessage"]</span></div>
+    }
+
+    <div class="pp-banner">
+        <div>
+            <h1>Request #@Model.RequestID</h1>
+            <p>Submitted @Model.RequestDate.ToString("dd MMMM yyyy") &middot; Dr. @Model.DoctorName</p>
+        </div>
+        <span class="pp-status @Model.StatusCssClass">@Model.Status</span>
+    </div>
+
+    @if (Model.IsCancelled)
+    {
+        <div class="pp-note warn">
+            <i class="fa-solid fa-ban"></i>
+            <span><strong>This request was cancelled.</strong> @Model.CancelReason</span>
+        </div>
+    }
+
+    <div class="pp-panel">
+        <div class="pp-panel-head"><span><i class="fa-solid fa-bars-progress"></i> Progress</span></div>
+        <div class="pp-body">
+            <div class="pp-track">
+                @for (int i = 1; i <= 4; i++)
+                {
+                    var done = Model.Step > 0 && (i < Model.Step || Model.Step == 4);
+                    var current = i == Model.Step && Model.Step < 4;
+                    <div class="pp-tstep @(done ? "done" : "") @(current ? "current" : "")">
+                        <span class="pp-tdot">@Html.Raw(done ? "<i class=\"fa-solid fa-check\"></i>" : i.ToString())</span>
+                        <span class="pp-tlabel">@labels[i - 1]</span>
+                    </div>
+                }
+            </div>
+
+            <div class="pp-facts">
+                <div><small>Request number</small><strong>#@Model.RequestID</strong></div>
+                <div><small>Submitted</small><strong>@Model.RequestDate.ToString("dd MMM yyyy")</strong></div>
+                <div><small>Urgency</small><span class="pp-urgency @Model.UrgencyCssClass">@Model.Urgency</span></div>
+                <div><small>@(Model.ReleaseDate.HasValue ? "Released" : "Status")</small>
+                    @if (Model.ReleaseDate.HasValue)
+                    {
+                        <strong>@Model.ReleaseDate.Value.ToString("dd MMM yyyy")</strong>
+                    }
+                    else
+                    {
+                        <span class="pp-status @Model.StatusCssClass">@Model.Status</span>
+                    }
+                </div>
+            </div>
+
+            <p style="margin:20px 0 0;color:var(--ink-s);font-size:13.5px;line-height:1.6"><strong style="color:var(--ink)">What happens next:</strong> @NextText()</p>
+        </div>
+    </div>
+
+    <div class="pp-panel">
+        <div class="pp-panel-head"><span><i class="fa-solid fa-vials"></i> Tests in this request</span></div>
+
+        @if (!Model.ResultsReleased && !Model.IsCancelled)
+        {
+            <div class="pp-body" style="padding-bottom:0">
+                <div class="pp-note"><i class="fa-solid fa-circle-info"></i><span>Result values appear here once your doctor has released them.</span></div>
+            </div>
+        }
+
+        @if (Model.Items.Count == 0)
+        {
+            <div class="pp-empty"><i class="fa-regular fa-folder-open"></i>No tests found on this request.</div>
+        }
+        else
+        {
+            <div class="pp-table-wrap">
+                <table class="pp-table">
+                    <thead>
+                        <tr>
+                            <th>Test</th>
+                            <th>Category</th>
+                            <th>Result</th>
+                            <th>Reference range</th>
+                            <th>Flag</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr class="@(item.IsAbnormal ? "is-abnormal" : "")">
+                                <td><strong>@item.TestName</strong></td>
+                                <td>@item.Category</td>
+                                <td>
+                                    @if (item.HasResult)
+                                    {
+                                        <strong>@item.ResultValue</strong> <span>@item.Unit</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:var(--ink-s)">@(Model.ResultsReleased ? "No result recorded" : "Pending")</span>
+                                    }
+                                </td>
+                                <td>@item.RangeText</td>
+                                <td>
+                                    @if (item.HasResult)
+                                    {
+                                        <span class="pp-flag @(item.IsAbnormal ? "abnormal" : "normal")">@(item.IsAbnormal ? "Outside range" : "Normal")</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @if (Model.ResultsReleased && !string.IsNullOrWhiteSpace(Model.ReleaseNote))
+    {
+        <div class="pp-note"><i class="fa-solid fa-user-doctor"></i><span><strong>Doctor's note:</strong> @Model.ReleaseNote</span></div>
+    }
+
+    <div class="pp-actions">
+        <a class="pp-btn" href="@Url.Action("Requests", "Patient")"><i class="fa-solid fa-arrow-left"></i> Back to requests</a>
+
+        @if (Model.ResultsReleased)
+        {
+            <a class="pp-btn primary" href="@Url.Action("Results", "Patient", new { requestId = Model.RequestID })"><i class="fa-solid fa-vial-circle-check"></i> View results</a>
+            <a class="pp-btn" href="@Url.Action("DownloadResultsPdf", "Patient", new { requestId = Model.RequestID })"><i class="fa-solid fa-file-pdf"></i> Download report</a>
+        }
+        else
+        {
+            <span class="pp-btn primary is-disabled" aria-disabled="true" title="Available once results are released"><i class="fa-solid fa-vial-circle-check"></i> View results</span>
+        }
+    </div>
+</div>

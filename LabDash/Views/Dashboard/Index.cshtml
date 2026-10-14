@@ -1327,21 +1327,128 @@ if (User.IsInRole("Admin"))
     
     else if (User.IsInRole("Patient"))
     {
-        @* ===================================================================
-   PATIENT DASHBOARD — replaces everything INSIDE
-   else if (User.IsInRole("Patient")) { ... }
-   (delete the old commented-out mock block, then paste this in its place)
+   @* ===================================================================
+   PATIENT DASHBOARD (UPGRADED)
+   Replace everything INSIDE   else if (User.IsInRole("Patient")) { ... }
+   (keep the braces of the else-if, replace only what is between them)
    =================================================================== *@
 
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+        // ---------- server-side helpers + data (plain C#, no markup yet) ----------
+        // Flip each to true once the matching controller action + view exists.
+        // While false, the button is disabled (or opens the preview drawer) instead of leading to a 404.
+        const bool summaryPageReady = true;    // Patient/RequestDetails
+        const bool resultsPageReady = true;    // Patient/Results (already exists)
+        const bool reportPageReady = true;     // Patient/DownloadResultsPdf (already exists)
 
-        <div class="pat-wrap">
+        var profile = Model.PatientProfile;
+          var fullName = $"{profile.Name} {profile.Surname}".Trim();
+  var recent = Model.PatientRecentRequests != null ? Model.PatientRecentRequests.Take(5).ToList() : null;
+  int totalReq = Model.PatientTotalRequests;
+  int otherReq = Math.Max(0, totalReq - Model.PatientPendingRequests - Model.PatientInProgressRequests - Model.PatientResultsReady);
+
+  // StatusKey is still used for URGENCY (stat / urgent / routine).
+  string StatusKey(string css) => (css ?? "").Trim().ToLowerInvariant();
+
+  // The request STAGE always comes from the status text, using the one shared rule
+  // (same rule as Patient/RequestDetails), never from the CSS class.
+  string StageKey(string status) => LabDash.Helper.RequestStage.KeyOf(status);
+
+  int StepOf(string key) => key switch { "submitted" => 1, "inprogress" => 2, "completed" => 3, "released" => 4, "cancelled" => 0, _ => 1 };
+  int Pct(int v) => totalReq == 0 ? 0 : (int)Math.Round(v * 100.0 / totalReq);
+  string TimeInSystem(DateTime d)
+  {
+      var span = DateTime.Now - d;
+      if (span.TotalMinutes < 1) return "Just now";
+      if (span.TotalHours < 1) return $"{(int)span.TotalMinutes} min";
+      if (span.TotalDays < 1) return $"{(int)span.TotalHours} h";
+      var days = (int)span.TotalDays;
+      return days == 1 ? "1 day" : $"{days} days";
+  }
+  string UrgencyText(string css) => StatusKey(css) switch
+  {
+      "stat" => "STAT means the laboratory treats this as an emergency and processes it before everything else.",
+      "urgent" => "Urgent requests are processed ahead of routine work, usually within the same day.",
+      _ => "Routine requests are processed in the normal order the laboratory receives them."
+  };
+  string NextText(string key) => key switch
+  {
+      "submitted" => "The laboratory will receive your sample and a technician will pick up the test.",
+      "inprogress" => "A technician is analysing your sample. Results are verified before they are released.",
+      "completed" => "Testing is complete. Your results are being checked and will be released shortly.",
+      "released" => "Your results are released. You can view them or download the report.",
+      "cancelled" => "This request was cancelled, so no further results will be added.",
+      _ => "Open the request for the latest status."
+  };
+  int StatusCount(string key) => recent == null ? 0 : recent.Count(r => StageKey(r.Status) == key);
+  int UrgencyCount(string key) => recent == null ? 0 : recent.Count(r => StatusKey(r.UrgencyCssClass) == key);
+
+  var missing = new List<string>();
+  if (string.IsNullOrWhiteSpace(profile.Name)) missing.Add("Name");
+  if (string.IsNullOrWhiteSpace(profile.Surname)) missing.Add("Surname");
+  if (string.IsNullOrWhiteSpace(profile.IDNumber?.ToString())) missing.Add("ID number");
+  if (string.IsNullOrWhiteSpace(profile.Cellphone?.ToString())) missing.Add("Contact number");
+  if (string.IsNullOrWhiteSpace(profile.Email?.ToString())) missing.Add("Email");
+  int completePct = (int)Math.Round((5 - missing.Count) * 100.0 / 5);
+  bool hasContact = !missing.Contains("Contact number");
+
+  var dataJson = System.Text.Json.JsonSerializer.Serialize(new
+  {
+      abnormal = Model.PatientAbnormalCount,
+      ready = Model.PatientResultsReady,
+      inprogress = Model.PatientInProgressRequests,
+      total = totalReq,
+      chart = new[] { Model.PatientPendingRequests, Model.PatientInProgressRequests, Model.PatientResultsReady, otherReq },
+      abnormalUrl = Url.Action("Results", "Patient", new { abnormal = true }),
+      readyUrl = Url.Action("Requests", "Patient", new { status = "ready" }),
+      progressUrl = Url.Action("Requests", "Patient", new { status = "inprogress" }),
+      requests = recent == null
+          ? new List<object>()
+          : recent.Take(3).Select(r => (object)new
+          {
+              id = r.RequestID.ToString(),
+              key = StageKey(r.Status),
+              status = r.Status,
+              date = r.RequestDate.ToString("dd MMM yyyy"),
+              url = Url.Action("RequestDetails", "Patient", new { id = r.RequestID })
+          }).ToList()
+  });
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+
+  <div class="pat-wrap" id="patWrap" data-user="@profile.IDNumber">
 
             <!-- ==========================================
-        HEADER / WELCOME BANNER
-    =========================================== -->
+                 TOP BAR: BREADCRUMB + NOTIFICATION BELL
+            =========================================== -->
+            <div class="pat-topbar" id="patTopbar">
+                <nav class="pat-crumb" aria-label="Breadcrumb">
+                    <span>Patient Portal</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                    <strong aria-current="page">Dashboard</strong>
+                </nav>
+
+                <div class="pat-bell-slot" id="patBellSlot">
+                    <div class="pat-bell-wrap" id="patBellWrap">
+                        <button type="button" class="pat-bell" id="patBell" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+                            <i class="fa-solid fa-bell"></i>
+                            <span class="pat-bell-badge" id="patBellBadge" hidden>0</span>
+                        </button>
+                        <div class="pat-notif-panel" id="patNotifPanel" hidden>
+                            <div class="pat-notif-head">
+                                <span><i class="fa-solid fa-bell"></i> Notifications</span>
+                                <button type="button" class="pat-notif-markall" id="patMarkAll">Mark all as read</button>
+                            </div>
+                            <div class="pat-notif-list" id="patNotifList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 WELCOME BANNER
+            =========================================== -->
             <div class="pat-banner">
                 <div class="pat-banner-pattern"></div>
                 <div class="pat-banner-left">
@@ -1350,10 +1457,10 @@ if (User.IsInRole("Admin"))
                         <i class="fa-solid fa-hand-holding-heart"></i>
                     </div>
                     <div class="pat-banner-text">
-                        <h1>Welcome, <span>@($"{Model.PatientProfile.Name} {Model.PatientProfile.Surname}".Trim())</span></h1>
+                        <h1><span id="patGreeting" style="color:#fff">Welcome</span>, <span>@fullName</span></h1>
                         <p>Your Laboratory Results & Health Dashboard</p>
                         <div class="pat-pills">
-                            <span class="pat-pill"><i class="fa-solid fa-id-card"></i> ID: @Model.PatientProfile.IDNumber</span>
+                            <span class="pat-pill"><i class="fa-solid fa-id-card"></i> ID: @profile.IDNumber</span>
                             <span class="pat-pill"><i class="fa-solid fa-calendar-check"></i> Updated @DateTime.Now.ToString("d MMM yyyy")</span>
                         </div>
                     </div>
@@ -1365,9 +1472,12 @@ if (User.IsInRole("Admin"))
                 </div>
             </div>
 
+            <!-- hidden data used by notifications + chart (swapped on refresh) -->
+            <div id="patData" hidden><script type="application/json" id="patDataJson">@Html.Raw(dataJson)</script></div>
+
             <!-- ==========================================
-        STATUS OVERVIEW CARDS  (each card is a link to the matching, filtered list)
-    =========================================== -->
+                 STATUS OVERVIEW CARDS
+            =========================================== -->
             <div class="pat-section-head">
                 <div>
                     <h3>Test Request Overview</h3>
@@ -1419,9 +1529,8 @@ if (User.IsInRole("Admin"))
             </div>
 
             <!-- ==========================================
-        ALERT STRIPS — both are rendered, the unused one is hidden
-        (keeps the live refresh simple: the whole block is swapped)
-    =========================================== -->
+                 ALERT STRIPS
+            =========================================== -->
             <div id="patAlerts">
                 <div class="pat-alert-strip warning" @(Model.PatientAbnormalCount > 0 ? "" : "hidden")>
                     <span class="pat-alert-dot"></span>
@@ -1436,22 +1545,32 @@ if (User.IsInRole("Admin"))
             </div>
 
             <!-- ==========================================
-        RECENT REQUESTS + PROFILE SPLIT
-    =========================================== -->
+                 RECENT REQUESTS + PROFILE
+            =========================================== -->
             <div class="pat-section-head pat-mt-lg">
                 <div>
                     <h3>Recent Activity</h3>
-                    <p>Your latest test requests and health profile.</p>
+                    <p>Your latest test requests and health profile. Select a request to see more.</p>
                 </div>
             </div>
 
             <div id="patSplit" class="pat-split">
-                <!-- RECENT REQUESTS TABLE -->
+
+                <!-- RECENT REQUESTS -->
                 <div class="pat-panel">
                     <div class="pat-panel-head">
                         <span><i class="fa-solid fa-list-check"></i> Recent Test Requests</span>
                         <a class="pat-panel-link" href="@Url.Action("Requests", "Patient")">View All <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
+
+                    <div class="pat-chips" role="group" aria-label="Filter requests by status">
+                        <button type="button" class="pat-chip is-active" data-filter="all" aria-pressed="true">All <b>@(recent == null ? 0 : recent.Count)</b></button>
+                        <button type="button" class="pat-chip" data-filter="submitted" aria-pressed="false">Submitted <b>@StatusCount("submitted")</b></button>
+                        <button type="button" class="pat-chip" data-filter="inprogress" aria-pressed="false">In Progress <b>@StatusCount("inprogress")</b></button>
+                        <button type="button" class="pat-chip" data-filter="completed" aria-pressed="false">Completed <b>@StatusCount("completed")</b></button>
+                        <button type="button" class="pat-chip" data-filter="released" aria-pressed="false">Released <b>@StatusCount("released")</b></button>
+                    </div>
+
                     <div class="pat-table-wrap">
                         <table class="pat-table">
                             <thead>
@@ -1463,22 +1582,71 @@ if (User.IsInRole("Admin"))
                                 </tr>
                             </thead>
                             <tbody>
-                                @if (Model.PatientRecentRequests != null && Model.PatientRecentRequests.Any())
+                                @if (recent != null && recent.Count > 0)
                                 {
-                                    foreach (var req in Model.PatientRecentRequests.Take(5))
+                                    foreach (var req in recent)
                                     {
-                                        <tr class="pat-row-link" tabindex="0" role="link"
-                                            data-href="@Url.Action("RequestDetails", "Patient", new { id = req.RequestID })">
-                                            <td><strong>@req.RequestID</strong></td>
+                                        var key = StageKey(req.Status);
+                                        var step = StepOf(key);
+                                        var id = req.RequestID;
+                                        var dateTxt = req.RequestDate.ToString("dd MMM yyyy");
+                                        var inSystem = TimeInSystem(req.RequestDate);
+                                        var canView = step >= 4 && resultsPageReady;
+                                        var detailsUrl = summaryPageReady ? Url.Action("RequestDetails", "Patient", new { id = req.RequestID }) : "";
+                                        var resultsUrl = resultsPageReady ? Url.Action("Results", "Patient", new { requestId = req.RequestID }) : "";
+                                        var reportUrl = reportPageReady ? Url.Action("DownloadResultsPdf", "Patient", new { requestId = req.RequestID }) : "";
+
+                                        <tr class="pat-row" tabindex="0" role="button" aria-expanded="false"
+                                            data-id="@id" data-status="@key" data-step="@step" data-date="@dateTxt"
+                                            data-time="@inSystem" data-urgency="@req.Urgency" data-urgencyclass="@req.UrgencyCssClass"
+                                            data-statuslabel="@req.Status" data-statusclass="@req.StatusCssClass"
+                                            data-summary="@detailsUrl" data-results="@resultsUrl" data-report="@reportUrl">
+                                            <td><i class="fa-solid fa-chevron-right pat-chev"></i> <strong>@id</strong></td>
                                             <td>@req.RequestDate.ToString("dd/MM/yyyy")</td>
-                                            <td>
-                                                <span class="pat-urgency @req.UrgencyCssClass">@req.Urgency</span>
-                                            </td>
-                                            <td>
-                                                <span class="pat-status @req.StatusCssClass">@req.Status</span>
+                                            <td><span class="pat-urgency @req.UrgencyCssClass">@req.Urgency</span></td>
+                                            <td><span class="pat-status @req.StatusCssClass">@req.Status</span></td>
+                                        </tr>
+                                        <tr class="pat-detail-row" hidden>
+                                            <td colspan="4">
+                                                <div class="pat-detail">
+                                                    <div class="pat-track" data-step="@step"></div>
+
+                                                    <div class="pat-facts">
+                                                        <div><small>Request number</small><strong>#@id</strong></div>
+                                                        <div><small>Submitted</small><strong>@dateTxt</strong></div>
+                                                        <div><small>Time in system</small><strong>@inSystem</strong></div>
+                                                        <div><small>Urgency</small><span class="pat-urgency @req.UrgencyCssClass">@req.Urgency</span></div>
+                                                    </div>
+
+                                                    <p class="pat-explain"><i class="fa-solid fa-circle-info"></i> <span><strong>What @req.Urgency means:</strong> @UrgencyText(req.UrgencyCssClass)</span></p>
+                                                    <p class="pat-explain"><i class="fa-solid fa-forward"></i> <span><strong>What happens next:</strong> @NextText(key)</span></p>
+
+                                                    <div class="pat-detail-actions">
+                                                        @if (canView)
+                                                        {
+                                                            <a class="pat-btn primary" href="@resultsUrl"><i class="fa-solid fa-vial-circle-check"></i> View results</a>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="pat-btn primary is-disabled" aria-disabled="true" title="@(resultsPageReady ? "Available once results are released" : "Coming soon")"><i class="fa-solid fa-vial-circle-check"></i> View results</span>
+                                                        }
+                                                        @if (summaryPageReady)
+                                                        {
+                                                            <a class="pat-btn" href="@detailsUrl"><i class="fa-solid fa-file-lines"></i> Request summary</a>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button type="button" class="pat-btn" data-preview="@id"><i class="fa-solid fa-file-lines"></i> Request summary</button>
+                                                        }
+                                                        <button type="button" class="pat-btn" data-preview="@id"><i class="fa-solid fa-up-right-from-square"></i> Full preview</button>
+                                                    </div>
+                                                </div>
                                             </td>
                                         </tr>
                                     }
+                                    <tr class="pat-filter-empty" id="patFilterEmpty" hidden>
+                                        <td colspan="4" class="pat-table-empty"><i class="fa-solid fa-filter-circle-xmark"></i><br />No requests with this status.</td>
+                                    </tr>
                                 }
                                 else
                                 {
@@ -1494,40 +1662,58 @@ if (User.IsInRole("Admin"))
                     </div>
                 </div>
 
-                <!-- PROFILE SUMMARY PANEL -->
+                <!-- PROFILE -->
                 <div class="pat-panel">
                     <div class="pat-panel-head">
                         <span><i class="fa-solid fa-user-circle"></i> Your Profile</span>
                         <a class="pat-panel-link" href="@Url.Action("Profile", "Patient")">Edit <i class="fa-solid fa-pen"></i></a>
                     </div>
+
+                    <div class="pat-complete">
+                        <div class="pat-ring" style="--pct:@completePct" role="img" aria-label="Profile @completePct percent complete">
+                            <span>@completePct%</span>
+                        </div>
+                        <div class="pat-complete-text">
+                            <strong>@(missing.Count == 0 ? "Profile complete" : "Profile completeness")</strong>
+                            @if (missing.Count == 0)
+                            {
+                                <small>All your details are filled in.</small>
+                            }
+                            else
+                            {
+                                <small>Missing: @string.Join(", ", missing)</small>
+                            }
+                        </div>
+                    </div>
+
                     <div class="pat-profile-list">
                         <div class="pat-profile-row">
                             <span class="pat-profile-label">Full Name</span>
-                            <span class="pat-profile-val">@($"{Model.PatientProfile.Name} {Model.PatientProfile.Surname}".Trim())</span>
+                            <span class="pat-profile-val">@fullName</span>
                         </div>
                         <div class="pat-profile-row">
                             <span class="pat-profile-label">ID Number</span>
-                            <span class="pat-profile-val">@Model.PatientProfile.IDNumber</span>
+                            <span class="pat-profile-val">@profile.IDNumber</span>
                         </div>
                         <div class="pat-profile-row">
                             <span class="pat-profile-label">Date of Birth</span>
-                            <span class="pat-profile-val">@Model.PatientProfile.DateOfBirth.ToString("dd MMM yyyy")</span>
+                            <span class="pat-profile-val">@profile.DateOfBirth.ToString("dd MMM yyyy")</span>
                         </div>
                         <div class="pat-profile-row">
                             <span class="pat-profile-label">Contact</span>
-                            <span class="pat-profile-val">@Model.PatientProfile.Cellphone</span>
+                            <span class="pat-profile-val">@profile.Cellphone</span>
                         </div>
                         <div class="pat-profile-row">
                             <span class="pat-profile-label">Email</span>
-                            <span class="pat-profile-val">@Model.PatientProfile.Email</span>
+                            <span class="pat-profile-val">@profile.Email</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- ==========================================
-        QUICK ACTIONS
-    =========================================== -->
+                 QUICK ACTIONS
+            =========================================== -->
             <div class="pat-section-head pat-mt-lg">
                 <div>
                     <h3>Quick Actions</h3>
@@ -1605,8 +1791,179 @@ if (User.IsInRole("Admin"))
             </div>
 
             <!-- ==========================================
-        FOOTER
-    =========================================== -->
+                 HEALTH INSIGHTS
+            =========================================== -->
+            <div class="pat-section-head pat-mt-lg">
+                <div>
+                    <h3>Health Insights</h3>
+                    <p>A quick picture of your requests and what to do next.</p>
+                </div>
+            </div>
+
+            <div id="patInsights" class="pat-insights">
+
+                <!-- DOUGHNUT -->
+                <div class="pat-panel">
+                    <div class="pat-panel-head">
+                        <span><i class="fa-solid fa-chart-pie"></i> Request Status</span>
+                    </div>
+                    <div class="pat-donut-body">
+                        @if (totalReq > 0)
+                        {
+                            <div class="pat-donut">
+                                <canvas id="patDonut" aria-label="Doughnut chart of request status" role="img"></canvas>
+                                <div class="pat-donut-center"><strong>@totalReq</strong><small>total</small></div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="pat-mini-empty"><i class="fa-regular fa-folder-open"></i><span>No requests yet. Your chart will appear here.</span></div>
+                        }
+                        <ul class="pat-legend">
+                            <li><span class="pat-dot" style="background:#2C6E9E"></span>Pending <strong>@Model.PatientPendingRequests</strong></li>
+                            <li><span class="pat-dot" style="background:#B76A2C"></span>In Progress <strong>@Model.PatientInProgressRequests</strong></li>
+                            <li><span class="pat-dot" style="background:#0E8C7F"></span>Results Ready <strong>@Model.PatientResultsReady</strong></li>
+                            <li><span class="pat-dot" style="background:#6D4EA8"></span>Other <strong>@otherReq</strong></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- TIMELINE -->
+                <div class="pat-panel">
+                    <div class="pat-panel-head">
+                        <span><i class="fa-solid fa-clock-rotate-left"></i> Activity Timeline</span>
+                    </div>
+                    @if (recent != null && recent.Count > 0)
+                    {
+                        <ul class="pat-timeline">
+                            @foreach (var t in recent.Take(4))
+                            {
+                                <li>
+                                    <span class="pat-tl-dot @StatusKey(t.StatusCssClass)"></span>
+                                    <a href="@Url.Action("RequestDetails", "Patient", new { id = t.RequestID })">
+                                        <strong>Request #@t.RequestID</strong>
+                                        <span>@t.Status</span>
+                                        <small>@t.RequestDate.ToString("dd MMM yyyy") &middot; @TimeInSystem(t.RequestDate) ago</small>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="pat-mini-empty"><i class="fa-regular fa-folder-open"></i><span>Nothing here yet. New requests will show up in this timeline.</span></div>
+                    }
+                </div>
+
+                <!-- NEXT STEPS -->
+                <div class="pat-panel">
+                    <div class="pat-panel-head">
+                        <span><i class="fa-solid fa-list-check"></i> Your Next Steps</span>
+                    </div>
+                    <ul class="pat-steps">
+                        <li>
+                            <a href="@Url.Action("Results", "Patient", new { abnormal = true })" class="@(Model.PatientAbnormalCount == 0 ? "is-done" : "")">
+                                <span class="pat-check"><i class="fa-solid @(Model.PatientAbnormalCount == 0 ? "fa-check" : "fa-exclamation")"></i></span>
+                                <span><strong>Review abnormal results</strong><small>@(Model.PatientAbnormalCount == 0 ? "Nothing to review right now." : $"{Model.PatientAbnormalCount} outside the reference range.")</small></span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="@Url.Action("Reports", "Patient")">
+                                <span class="pat-check"><i class="fa-solid fa-file-arrow-down"></i></span>
+                                <span><strong>Download your latest report</strong><small>@(Model.PatientResultsReady == 0 ? "No released report yet." : "Save a PDF copy for your records.")</small></span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="@Url.Action("Consent", "Patient")">
+                                <span class="pat-check"><i class="fa-solid fa-user-shield"></i></span>
+                                <span><strong>Check who has access</strong><small>Grant or revoke doctor access.</small></span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="@Url.Action("Profile", "Patient")" class="@(hasContact ? "is-done" : "")">
+                                <span class="pat-check"><i class="fa-solid @(hasContact ? "fa-check" : "fa-phone")"></i></span>
+                                <span><strong>Add a contact number</strong><small>@(hasContact ? "Your contact number is saved." : "So the laboratory can reach you.")</small></span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 PIPELINE + URGENCY
+            =========================================== -->
+            <div id="patPipeline" class="pat-split pat-split-even pat-mt-md">
+                <div class="pat-panel">
+                    <div class="pat-panel-head">
+                        <span><i class="fa-solid fa-diagram-project"></i> Request Pipeline</span>
+                    </div>
+                    <div class="pat-bars">
+                        <div class="pat-bar-row"><div class="pat-bar-label"><span>Pending</span><strong>@Model.PatientPendingRequests</strong></div><div class="pat-bar"><span class="b-blue" style="width:@Pct(Model.PatientPendingRequests)%"></span></div></div>
+                        <div class="pat-bar-row"><div class="pat-bar-label"><span>In Progress</span><strong>@Model.PatientInProgressRequests</strong></div><div class="pat-bar"><span class="b-orange" style="width:@Pct(Model.PatientInProgressRequests)%"></span></div></div>
+                        <div class="pat-bar-row"><div class="pat-bar-label"><span>Results Ready</span><strong>@Model.PatientResultsReady</strong></div><div class="pat-bar"><span class="b-teal" style="width:@Pct(Model.PatientResultsReady)%"></span></div></div>
+                        <div class="pat-bar-row"><div class="pat-bar-label"><span>Other</span><strong>@otherReq</strong></div><div class="pat-bar"><span class="b-purple" style="width:@Pct(otherReq)%"></span></div></div>
+                    </div>
+                </div>
+
+                <div class="pat-panel">
+                    <div class="pat-panel-head">
+                        <span><i class="fa-solid fa-gauge-high"></i> Urgency of Recent Requests</span>
+                    </div>
+                    <div class="pat-bars">
+                        <div class="pat-stack">
+                            <span class="s-routine" style="flex-grow:@UrgencyCount("routine")"></span>
+                            <span class="s-urgent" style="flex-grow:@UrgencyCount("urgent")"></span>
+                            <span class="s-stat" style="flex-grow:@UrgencyCount("stat")"></span>
+                        </div>
+                        <ul class="pat-legend pat-legend-2">
+                            <li><span class="pat-dot" style="background:#0E8C7F"></span>Routine <strong>@UrgencyCount("routine")</strong></li>
+                            <li><span class="pat-dot" style="background:#B76A2C"></span>Urgent <strong>@UrgencyCount("urgent")</strong></li>
+                            <li><span class="pat-dot" style="background:#B0463F"></span>STAT <strong>@UrgencyCount("stat")</strong></li>
+                        </ul>
+                        <p class="pat-note">Based on your 5 most recent requests.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==========================================
+                 HELPFUL INFORMATION
+            =========================================== -->
+            <div class="pat-section-head pat-mt-lg">
+                <div>
+                    <h3>Helpful Information</h3>
+                    <p>Short guides to help you get the most from your results.</p>
+                </div>
+            </div>
+
+            <div class="pat-grid pat-grid-3">
+                <div class="pat-tip">
+                    <div class="pat-tip-icon"><i class="fa-solid fa-droplet"></i></div>
+                    <h5>Before your blood test</h5>
+                    <p>Follow any fasting instructions from your doctor, drink water, and tell the laboratory about medication you take.</p>
+                </div>
+                <div class="pat-tip">
+                    <div class="pat-tip-icon"><i class="fa-solid fa-ruler-horizontal"></i></div>
+                    <h5>Understanding reference ranges</h5>
+                    <p>A reference range is the span of values seen in most healthy people. A result outside it is a reason to talk to your doctor, not a diagnosis.</p>
+                </div>
+                <div class="pat-tip">
+                    <div class="pat-tip-icon"><i class="fa-solid fa-lock"></i></div>
+                    <h5>You control your records</h5>
+                    <p>Only doctors you approve can see your laboratory records. You can change this under Doctor Access at any time.</p>
+                </div>
+            </div>
+
+            <div class="pat-help">
+                <div>
+                    <h4>Need help with a request?</h4>
+                    <p>Open any request to see its status and summary, or contact the laboratory team.</p>
+                </div>
+                <a class="pat-help-btn" href="@Url.Action("Requests", "Patient")">Go to my requests <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+
+            <!-- ==========================================
+                 FOOTER
+            =========================================== -->
             <div class="pat-footer">
                 <hr />
                 <div class="pat-footer-content">
@@ -1619,104 +1976,423 @@ if (User.IsInRole("Admin"))
 
         </div>
 
+        <!-- ==========================================
+             PAGE-WIDE EXTRAS (outside .pat-wrap)
+        =========================================== -->
+        <div class="pat-progress" id="patProgress" aria-hidden="true"></div>
+        <div class="pat-toasts" id="patToasts" aria-live="polite"></div>
+        <button type="button" class="pat-backtop" id="patBackTop" aria-label="Back to top"><i class="fa-solid fa-arrow-up"></i></button>
+
+        <div class="pat-overlay" id="patOverlay" hidden></div>
+        <aside class="pat-drawer" id="patDrawer" role="dialog" aria-modal="true" aria-labelledby="patDrawerTitle" aria-hidden="true">
+            <div class="pat-drawer-head">
+                <h4 id="patDrawerTitle">Request</h4>
+                <button type="button" class="pat-drawer-close" id="patDrawerClose" aria-label="Close preview"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="pat-drawer-body" id="patDrawerBody"></div>
+        </aside>
+
         <script>
-            (function() {
-                /* ---------- Clock ---------- */
-                function updatePatClock() {
+            (function () {
+                'use strict';
+
+                var $ = function (s, r) { return (r || document).querySelector(s); };
+                var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+                var wrap = document.getElementById('patWrap');
+                var USER = (wrap && wrap.dataset.user) || 'patient';
+                var READ_KEY = 'patNotifRead:' + USER;
+                var TOAST_KEY = 'patToasted:' + USER;
+                var BASE_TITLE = document.title;
+                var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                var STEP_LABELS = ['Submitted', 'In progress', 'Completed', 'Released'];
+                var SWAP_IDS = ['patData', 'patStats', 'patAlerts', 'patSplit', 'patActions', 'patInsights', 'patPipeline'];
+
+                function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+                function getList(storage, key) { try { return JSON.parse(storage.getItem(key) || '[]'); } catch (e) { return []; } }
+                function setList(storage, key, list) { try { storage.setItem(key, JSON.stringify(list)); } catch (e) { } }
+
+                /* ---------- Clock + greeting ---------- */
+                function tick() {
                     var now = new Date();
-                    document.getElementById("patCurrentDate").textContent = now.toLocaleDateString("en-ZA", {
-                        weekday: "long", day: "numeric", month: "long", year: "numeric"
-                    });
-                    document.getElementById("patCurrentTime").textContent = now.toLocaleTimeString("en-ZA", {
-                        hour: "2-digit", minute: "2-digit", second: "2-digit"
-                    });
+                    var h = now.getHours();
+                    var g = h < 12 ? 'Good morning' : (h < 18 ? 'Good afternoon' : 'Good evening');
+                    var greet = document.getElementById('patGreeting');
+                    if (greet) greet.textContent = g;
+                    document.getElementById('patCurrentDate').textContent = now.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                    document.getElementById('patCurrentTime').textContent = now.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 }
-                updatePatClock();
-                setInterval(updatePatClock, 1000);
+                tick();
+                setInterval(tick, 1000);
 
-                /* ---------- Count-up animation for the stat numbers ---------- */
-                var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
+                /* ---------- Count-up ---------- */
                 function countUp(el, from, to) {
                     if (reduceMotion || from === to) { el.textContent = to; return; }
                     var start = performance.now(), dur = 700;
-                    (function tick(now) {
+                    (function frame(now) {
                         var p = Math.min((now - start) / dur, 1);
                         el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3)));
-                        if (p < 1) requestAnimationFrame(tick);
+                        if (p < 1) requestAnimationFrame(frame);
                     })(start);
                 }
-
                 function statValues() {
                     var out = {};
-                    document.querySelectorAll("#patStats [data-stat]").forEach(function(el) {
-                        out[el.dataset.stat] = parseInt(el.textContent, 10) || 0;
-                    });
+                    $$('#patStats [data-stat]').forEach(function (el) { out[el.dataset.stat] = parseInt(el.textContent, 10) || 0; });
                     return out;
                 }
 
-                // The real number is already in the HTML, so if JS fails the cards are still correct.
-                document.querySelectorAll("#patStats [data-stat]").forEach(function(el) {
-                    countUp(el, 0, parseInt(el.textContent, 10) || 0);
-                });
+                /* ---------- Progress trackers (rows + drawer) ---------- */
+                function trackerHtml(step) {
+                    var html = '';
+                    for (var i = 1; i <= 4; i++) {
+                        var done = i < step || step === 4;
+                        var current = i === step && step < 4;
+                        html += '<div class="pat-tstep' + (done ? ' done' : '') + (current ? ' current' : '') + '">'
+                            + '<span class="pat-tdot">' + (done ? '<i class="fa-solid fa-check"></i>' : i) + '</span>'
+                            + '<span class="pat-tlabel">' + STEP_LABELS[i - 1] + '</span></div>';
+                    }
+                    return html;
+                }
+                function hydrateTrackers() {
+                    $$('.pat-track').forEach(function (t) {
+                        if (!t.firstChild) t.innerHTML = trackerHtml(parseInt(t.dataset.step, 10) || 1);
+                    });
+                }
 
-                /* ---------- Live refresh: re-reads this page and swaps the data sections ---------- */
+                /* ---------- Request rows: filter + expand ---------- */
+                var activeFilter = 'all';
+                var expanded = {};
+
+                function detailOf(row) {
+                    var n = row.nextElementSibling;
+                    return n && n.classList.contains('pat-detail-row') ? n : null;
+                }
+                function setRow(row, open) {
+                    var det = detailOf(row);
+                    if (!det) return;
+                    det.hidden = !open;
+                    row.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    if (open) expanded[row.dataset.id] = 1; else delete expanded[row.dataset.id];
+                }
+                function applyFilter() {
+                    var rows = $$('#patSplit tr.pat-row');
+                    var any = false;
+                    rows.forEach(function (r) {
+                        var show = activeFilter === 'all' || r.dataset.status === activeFilter;
+                        r.classList.toggle('pat-hide', !show);
+                        var det = detailOf(r);
+                        if (det) det.classList.toggle('pat-hide', !show);
+                        if (show) any = true;
+                    });
+                    var empty = document.getElementById('patFilterEmpty');
+                    if (empty) empty.hidden = any || !rows.length;
+                    $$('.pat-chip').forEach(function (c) {
+                        var on = c.dataset.filter === activeFilter;
+                        c.classList.toggle('is-active', on);
+                        c.setAttribute('aria-pressed', on ? 'true' : 'false');
+                    });
+                }
+                function restoreExpanded() {
+                    $$('#patSplit tr.pat-row').forEach(function (r) { if (expanded[r.dataset.id]) setRow(r, true); });
+                }
+
+                /* ---------- Drawer ---------- */
+                var drawer = document.getElementById('patDrawer');
+                var overlay = document.getElementById('patOverlay');
+                var drawerTrigger = null;
+
+                function actionBtn(href, icon, label, enabled, primary) {
+                    if (enabled) return '<a class="pat-btn' + (primary ? ' primary' : '') + '" href="' + esc(href) + '"><i class="fa-solid ' + icon + '"></i> ' + label + '</a>';
+                    return '<span class="pat-btn' + (primary ? ' primary' : '') + ' is-disabled" aria-disabled="true" title="Coming soon"><i class="fa-solid ' + icon + '"></i> ' + label + '</span>';
+                }
+                function openDrawer(id, trigger) {
+                    var row = $('tr.pat-row[data-id="' + id + '"]');
+                    if (!row) return;
+                    var d = row.dataset;
+                    var step = parseInt(d.step, 10) || 1;
+                    var can = step >= 4;
+                    document.getElementById('patDrawerTitle').textContent = 'Request #' + id;
+                    document.getElementById('patDrawerBody').innerHTML =
+                        '<div class="pat-track" data-step="' + step + '"></div>'
+                        + '<dl class="pat-dl">'
+                        + '<div><dt>Request number</dt><dd>#' + esc(id) + '</dd></div>'
+                        + '<div><dt>Submitted</dt><dd>' + esc(d.date) + '</dd></div>'
+                        + '<div><dt>Time in system</dt><dd>' + esc(d.time) + '</dd></div>'
+                        + '<div><dt>Urgency</dt><dd><span class="pat-urgency ' + esc(d.urgencyclass) + '">' + esc(d.urgency) + '</span></dd></div>'
+                        + '<div><dt>Status</dt><dd><span class="pat-status ' + esc(d.statusclass) + '">' + esc(d.statuslabel) + '</span></dd></div>'
+                        + '</dl>'
+                        + '<div class="pat-drawer-actions">'
+                        + actionBtn(d.report, 'fa-file-arrow-down', 'Laboratory Report', can && !!d.report, true)
+                        + actionBtn(d.results, 'fa-vial-circle-check', 'View results', can && !!d.results, false)
+                        + actionBtn(d.summary, 'fa-file-lines', 'Request Summary', !!d.summary, false)
+                        + '<button type="button" class="pat-btn" data-copy="' + esc(id) + '"><i class="fa-regular fa-copy"></i> <span>Copy No.</span></button>'
+                        + '</div>';
+                    hydrateTrackers();
+                    drawerTrigger = trigger || null;
+                    overlay.hidden = false;
+                    requestAnimationFrame(function () {
+                        drawer.classList.add('is-open');
+                        overlay.classList.add('is-open');
+                    });
+                    drawer.setAttribute('aria-hidden', 'false');
+                    document.getElementById('patDrawerClose').focus();
+                }
+                function closeDrawer() {
+                    if (!drawer.classList.contains('is-open')) return;
+                    drawer.classList.remove('is-open');
+                    overlay.classList.remove('is-open');
+                    drawer.setAttribute('aria-hidden', 'true');
+                    setTimeout(function () { overlay.hidden = true; }, reduceMotion ? 0 : 250);
+                    if (drawerTrigger && drawerTrigger.focus) drawerTrigger.focus();
+                }
+                function copyText(text, btn) {
+                    function done() {
+                        var s = btn.querySelector('span');
+                        if (s) { s.textContent = 'Copied'; setTimeout(function () { s.textContent = 'Copy No.'; }, 1500); }
+                    }
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(text).then(done, done);
+                    } else {
+                        var ta = document.createElement('textarea');
+                        ta.value = text; document.body.appendChild(ta); ta.select();
+                        try { document.execCommand('copy'); } catch (e) { }
+                        document.body.removeChild(ta); done();
+                    }
+                }
+
+                /* ---------- Notifications ---------- */
+                var notifs = [];
+                var bell = document.getElementById('patBell');
+                var panel = document.getElementById('patNotifPanel');
+
+                function readData() {
+                    var el = document.getElementById('patDataJson');
+                    try { return JSON.parse(el.textContent); } catch (e) { return null; }
+                }
+                function buildNotifs(d) {
+                    var n = [];
+                    if (!d) return n;
+                    if (d.abnormal > 0) n.push({ id: 'abn-' + d.abnormal, type: 'warn', icon: 'fa-triangle-exclamation', title: d.abnormal + (d.abnormal === 1 ? ' result is' : ' results are') + ' outside the normal range', text: 'Please review with your doctor.', href: d.abnormalUrl });
+                    if (d.ready > 0) n.push({ id: 'ready-' + d.ready, type: 'ok', icon: 'fa-circle-check', title: d.ready + (d.ready === 1 ? ' result is' : ' results are') + ' ready', text: 'Verified reports are available to view.', href: d.readyUrl });
+                    if (d.inprogress > 0) n.push({ id: 'prog-' + d.inprogress, type: 'info', icon: 'fa-flask', title: d.inprogress + (d.inprogress === 1 ? ' sample is' : ' samples are') + ' in progress', text: 'The laboratory is analysing them now.', href: d.progressUrl });
+                    (d.requests || []).forEach(function (r) {
+                        n.push({ id: 'req-' + r.id + '-' + r.key, type: 'req', icon: 'fa-file-waveform', title: 'Request #' + r.id, text: r.status + ' \u00B7 ' + r.date, href: r.url });
+                    });
+                    return n;
+                }
+                function unreadList() {
+                    var read = getList(localStorage, READ_KEY);
+                    return notifs.filter(function (n) { return read.indexOf(n.id) === -1; });
+                }
+                function markRead(ids) {
+                    var read = getList(localStorage, READ_KEY);
+                    ids.forEach(function (id) { if (read.indexOf(id) === -1) read.push(id); });
+                    setList(localStorage, READ_KEY, read.slice(-200));
+                }
+                function renderBell() {
+                    var read = getList(localStorage, READ_KEY);
+                    var unread = unreadList().length;
+                    var badge = document.getElementById('patBellBadge');
+                    badge.hidden = unread === 0;
+                    badge.textContent = unread > 9 ? '9+' : unread;
+                    bell.classList.toggle('is-ringing', unread > 0 && !reduceMotion);
+                    bell.setAttribute('aria-label', unread > 0 ? 'Notifications, ' + unread + ' unread' : 'Notifications');
+                    document.title = unread > 0 ? '(' + unread + ') ' + BASE_TITLE : BASE_TITLE;
+
+                    var list = document.getElementById('patNotifList');
+                    if (!notifs.length) {
+                        list.innerHTML = '<div class="pat-mini-empty"><i class="fa-regular fa-bell-slash"></i><span>You have no notifications.</span></div>';
+                        return;
+                    }
+                    list.innerHTML = notifs.map(function (n) {
+                        var isRead = read.indexOf(n.id) !== -1;
+                        return '<a class="pat-nitem n-' + n.type + (isRead ? ' is-read' : '') + '" href="' + esc(n.href) + '" data-nid="' + esc(n.id) + '">'
+                            + '<span class="pat-nicon"><i class="fa-solid ' + n.icon + '"></i></span>'
+                            + '<span class="pat-ntext"><strong>' + esc(n.title) + '</strong><small>' + esc(n.text) + '</small></span>'
+                            + (isRead ? '' : '<span class="pat-ndot" aria-label="Unread"></span>')
+                            + '</a>';
+                    }).join('');
+                }
+                function setPanel(open) {
+                    panel.hidden = !open;
+                    bell.setAttribute('aria-expanded', open ? 'true' : 'false');
+                }
+
+                /* ---------- Toasts (once per browser session) ---------- */
+                function showToasts() {
+                    var shown = getList(sessionStorage, TOAST_KEY);
+                    var fresh = unreadList().filter(function (n) { return shown.indexOf(n.id) === -1; }).slice(0, 3);
+                    if (!fresh.length) return;
+                    fresh.forEach(function (n) { shown.push(n.id); });
+                    setList(sessionStorage, TOAST_KEY, shown.slice(-200));
+                    var box = document.getElementById('patToasts');
+                    fresh.forEach(function (n, i) {
+                        setTimeout(function () {
+                            var t = document.createElement('a');
+                            t.className = 'pat-toast n-' + n.type;
+                            t.href = n.href;
+                            t.innerHTML = '<span class="pat-nicon"><i class="fa-solid ' + n.icon + '"></i></span>'
+                                + '<span class="pat-ntext"><strong>' + esc(n.title) + '</strong><small>' + esc(n.text) + '</small></span>'
+                                + '<button type="button" class="pat-toast-x" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>'
+                                + '<span class="pat-toast-bar"></span>';
+                            var timer = setTimeout(remove, 8000);
+                            function remove() { clearTimeout(timer); if (t.parentNode) t.parentNode.removeChild(t); }
+                            t.addEventListener('click', function (e) {
+                                if (e.target.closest('.pat-toast-x')) { e.preventDefault(); remove(); return; }
+                                markRead([n.id]); renderBell();
+                            });
+                            box.appendChild(t);
+                        }, i * 250);
+                    });
+                }
+
+                function loadNotifs(allowToast) {
+                    notifs = buildNotifs(readData());
+                    renderBell();
+                    if (allowToast) showToasts();
+                }
+
+                /* ---------- Chart ---------- */
+                var donut = null;
+                function renderChart() {
+                    var cv = document.getElementById('patDonut');
+                    if (donut) { donut.destroy(); donut = null; }
+                    if (!cv || !window.Chart) return;
+                    var d = readData();
+                    if (!d || !d.total) return;
+                    donut = new Chart(cv, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Pending', 'In Progress', 'Results Ready', 'Other'],
+                            datasets: [{ data: d.chart, backgroundColor: ['#2C6E9E', '#B76A2C', '#0E8C7F', '#6D4EA8'], borderWidth: 0 }]
+                        },
+                        options: {
+                            cutout: '68%',
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            animation: reduceMotion ? false : { duration: 700 }
+                        }
+                    });
+                }
+
+                /* ---------- Hydrate everything that depends on swapped HTML ---------- */
+                function hydrate() {
+                    hydrateTrackers();
+                    applyFilter();
+                    restoreExpanded();
+                    renderChart();
+                }
+
+                /* ---------- Live refresh ---------- */
                 var REFRESH_MS = 60000;
-                var SWAP_IDS = ["patStats", "patAlerts", "patSplit", "patActions"];
-                var btn = document.getElementById("patRefresh");
-                var label = document.getElementById("patRefreshLabel");
+                var btn = document.getElementById('patRefresh');
+                var label = document.getElementById('patRefreshLabel');
                 var busy = false;
 
                 async function refresh() {
                     if (busy) return;
                     busy = true;
-                    btn.classList.add("is-loading");
+                    btn.classList.add('is-loading');
                     try {
                         var res = await fetch(window.location.href, {
-                            credentials: "same-origin",
-                            cache: "no-store",
-                            headers: { "X-Requested-With": "XMLHttpRequest" }
+                            credentials: 'same-origin',
+                            cache: 'no-store',
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
                         });
-                        if (!res.ok) throw new Error("HTTP " + res.status);
-
-                        var doc = new DOMParser().parseFromString(await res.text(), "text/html");
-                        if (!doc.getElementById("patStats")) throw new Error("Not the dashboard (session expired?)");
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        var doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+                        if (!doc.getElementById('patStats')) throw new Error('Not the dashboard (session expired?)');
 
                         var before = statValues();
-                        SWAP_IDS.forEach(function(id) {
+                        SWAP_IDS.forEach(function (id) {
                             var cur = document.getElementById(id), next = doc.getElementById(id);
                             if (cur && next) cur.innerHTML = next.innerHTML;
                         });
-                        document.querySelectorAll("#patStats [data-stat]").forEach(function(el) {
-                            var to = parseInt(el.textContent, 10) || 0;
-                            countUp(el, before[el.dataset.stat] || 0, to);
+                        $$('#patStats [data-stat]').forEach(function (el) {
+                            countUp(el, before[el.dataset.stat] || 0, parseInt(el.textContent, 10) || 0);
                         });
-
-                        label.textContent = "Updated " + new Date().toLocaleTimeString("en-ZA", {
-                            hour: "2-digit", minute: "2-digit", second: "2-digit"
-                        });
+                        hydrate();
+                        loadNotifs(true);
+                        label.textContent = 'Updated ' + new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     } catch (err) {
-                        label.textContent = "Refresh failed — retry";
+                        label.textContent = 'Refresh failed \u2014 retry';
                     } finally {
                         busy = false;
-                        btn.classList.remove("is-loading");
+                        btn.classList.remove('is-loading');
                     }
                 }
+                btn.addEventListener('click', refresh);
+                setInterval(function () { if (!document.hidden) refresh(); }, REFRESH_MS);
+                document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
 
-                btn.addEventListener("click", refresh);
-                setInterval(function() { if (!document.hidden) refresh(); }, REFRESH_MS);
-                document.addEventListener("visibilitychange", function() { if (!document.hidden) refresh(); });
+                /* ---------- Click handling (delegated, survives refresh) ---------- */
+                document.addEventListener('click', function (e) {
+                    var chip = e.target.closest('.pat-chip');
+                    if (chip) { activeFilter = chip.dataset.filter; applyFilter(); return; }
 
-                /* ---------- Clickable table rows (works after refresh too) ---------- */
-                document.addEventListener("click", function(e) {
-                    var row = e.target.closest("tr[data-href]");
-                    if (row && !e.target.closest("a")) window.location.href = row.dataset.href;
+                    var prev = e.target.closest('[data-preview]');
+                    if (prev) { openDrawer(prev.dataset.preview, prev); return; }
+
+                    var copy = e.target.closest('[data-copy]');
+                    if (copy) { copyText(copy.dataset.copy, copy); return; }
+
+                    var row = e.target.closest('tr.pat-row');
+                    if (row && !e.target.closest('a,button')) { setRow(row, row.getAttribute('aria-expanded') !== 'true'); return; }
+
+                    var item = e.target.closest('.pat-nitem');
+                    if (item) { markRead([item.dataset.nid]); renderBell(); return; }
+
+                    if (e.target.closest('#patOverlay') || e.target.closest('#patDrawerClose')) { closeDrawer(); return; }
+
+                    if (!e.target.closest('#patBellWrap')) setPanel(false);
                 });
-                document.addEventListener("keydown", function(e) {
-                    if (e.key !== "Enter") return;
-                    var row = e.target.closest && e.target.closest("tr[data-href]");
-                    if (row) window.location.href = row.dataset.href;
+
+                bell.addEventListener('click', function () { setPanel(panel.hidden); });
+                document.getElementById('patMarkAll').addEventListener('click', function () {
+                    markRead(notifs.map(function (n) { return n.id; }));
+                    renderBell();
                 });
+
+                /* ---------- Keyboard ---------- */
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        closeDrawer();
+                        if (!panel.hidden) { setPanel(false); bell.focus(); }
+                        return;
+                    }
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    var row = e.target.closest && e.target.closest('tr.pat-row');
+                    if (row && e.target === row) {
+                        e.preventDefault();
+                        setRow(row, row.getAttribute('aria-expanded') !== 'true');
+                    }
+                });
+
+                /* ---------- Scroll: progress bar, back-to-top, floating bell ---------- */
+                var progress = document.getElementById('patProgress');
+                var backTop = document.getElementById('patBackTop');
+                var bellWrap = document.getElementById('patBellWrap');
+                var slot = document.getElementById('patBellSlot');
+                function onScroll() {
+                    var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+                    var h = document.documentElement.scrollHeight - window.innerHeight;
+                    progress.style.width = (h > 0 ? Math.min(100, (y / h) * 100) : 0) + '%';
+                    backTop.classList.toggle('is-show', y > 420);
+                    bellWrap.classList.toggle('is-float', slot.getBoundingClientRect().bottom < 8);
+                }
+                window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+                window.addEventListener('resize', onScroll);
+                backTop.addEventListener('click', function () {
+                    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+                });
+
+                /* ---------- Initial load ---------- */
+                $$('#patStats [data-stat]').forEach(function (el) {
+                    countUp(el, 0, parseInt(el.textContent, 10) || 0);
+                });
+                hydrate();
+                loadNotifs(true);
+                onScroll();
+                window.addEventListener('load', renderChart);
             })();
         </script>
 
@@ -1744,713 +2420,354 @@ if (User.IsInRole("Admin"))
                 --sh-sm: 0 3px 10px rgba(10,60,55,.06)
             }
 
-            .pat-wrap {
-                max-width: 1280px;
-                margin: 0 auto;
-                padding: 26px 24px 60px;
-                color: var(--ink);
-                font-family: 'Inter',sans-serif;
-                animation: patFadeIn .5s ease
+            .pat-wrap { position: relative; max-width: 1280px; margin: 0 auto; padding: 26px 24px 60px; color: var(--ink); font-family: 'Inter',sans-serif; animation: patFadeIn .5s ease }
+            .pat-hide { display: none !important }
+
+            @@keyframes patFadeIn { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: translateY(0) } }
+            @@keyframes patSpin { to { transform: rotate(360deg) } }
+            @@keyframes patRingPulse { 0% { transform: scale(.9); opacity: .8 } 100% { transform: scale(1.35); opacity: 0 } }
+            @@keyframes patBell { 0%,40%,100% { transform: rotate(0) } 6% { transform: rotate(16deg) } 12% { transform: rotate(-14deg) } 18% { transform: rotate(10deg) } 24% { transform: rotate(-8deg) } 30% { transform: rotate(4deg) } }
+            @@keyframes patToastIn { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: translateX(0) } }
+            @@keyframes patToastBar { from { transform: scaleX(1) } to { transform: scaleX(0) } }
+
+            /* ---------- top bar + bell ---------- */
+            .pat-topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; min-height: 46px }
+            .pat-crumb { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-s) }
+            .pat-crumb i { font-size: 10px; color: #8FA9A3 }
+            .pat-crumb strong { color: var(--ink); font-weight: 600 }
+            .pat-bell-slot { position: relative; width: 46px; height: 46px; flex-shrink: 0 }
+            .pat-bell-wrap { position: absolute; top: 0; right: 0 }
+            .pat-bell-wrap.is-float { position: fixed; top: 16px; right: 22px; z-index: 1050 }
+            .pat-bell { position: relative; width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--ln); background: var(--bg); color: var(--pt-deep); font-size: 17px; box-shadow: var(--sh-sm); cursor: pointer; transition: background .2s }
+            .pat-bell:hover { background: var(--pt-dim) }
+            .pat-bell.is-ringing i { display: inline-block; transform-origin: 50% 0; animation: patBell 2.4s ease-in-out infinite }
+            .pat-bell-badge { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--rd); color: #fff; font: 700 11px/20px 'Inter',sans-serif; text-align: center; border: 2px solid #fff }
+            .pat-bell-badge[hidden] { display: none }
+            .pat-notif-panel { position: absolute; top: 56px; right: 0; width: 360px; max-width: calc(100vw - 32px); background: var(--bg); border: 1px solid var(--ln); border-radius: 16px; box-shadow: 0 14px 36px rgba(10,60,55,.18); overflow: hidden; z-index: 1051 }
+            .pat-notif-panel[hidden] { display: none }
+            .pat-notif-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--ln) }
+            .pat-notif-head span { font: 700 14px 'Poppins',sans-serif; display: flex; align-items: center; gap: 8px }
+            .pat-notif-head span i { color: var(--pt) }
+            .pat-notif-markall { border: 0; background: none; color: var(--pt-deep); font: 600 12.5px 'Inter',sans-serif; cursor: pointer }
+            .pat-notif-markall:hover { text-decoration: underline }
+            .pat-notif-list { max-height: 380px; overflow-y: auto }
+            .pat-nitem, .pat-toast { display: flex; align-items: flex-start; gap: 12px; padding: 13px 18px; color: inherit; text-decoration: none; border-bottom: 1px solid var(--ln); position: relative }
+            .pat-nitem:last-child { border-bottom: 0 }
+            .pat-nitem:hover { background: #F0F7F6; text-decoration: none; color: inherit }
+            .pat-nitem.is-read { opacity: .62 }
+            .pat-nicon { width: 36px; height: 36px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px }
+            .n-warn .pat-nicon { background: var(--or-dim); color: var(--or) }
+            .n-ok .pat-nicon { background: var(--pt-dim); color: var(--pt) }
+            .n-info .pat-nicon { background: var(--bl-dim); color: var(--bl) }
+            .n-req .pat-nicon { background: var(--pr-dim); color: var(--pr) }
+            .pat-ntext { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px }
+            .pat-ntext strong { font-size: 13px; font-weight: 600 }
+            .pat-ntext small { color: var(--ink-s); font-size: 12px }
+            .pat-ndot { width: 9px; height: 9px; border-radius: 50%; background: var(--pt); margin: 6px 0 0 auto; flex-shrink: 0 }
+
+            /* ---------- toasts ---------- */
+            .pat-toasts { position: fixed; top: 82px; right: 22px; z-index: 1060; display: flex; flex-direction: column; gap: 10px; width: 330px; max-width: calc(100vw - 32px) }
+            .pat-toast { background: var(--bg); border: 1px solid var(--ln); border-left: 4px solid var(--pt); border-radius: 14px; box-shadow: 0 12px 30px rgba(10,60,55,.18); overflow: hidden; padding-right: 40px; animation: patToastIn .3s ease }
+            .pat-toast:hover { text-decoration: none; color: inherit }
+            .pat-toast.n-warn { border-left-color: var(--or) }
+            .pat-toast.n-info { border-left-color: var(--bl) }
+            .pat-toast.n-req { border-left-color: var(--pr) }
+            .pat-toast-x { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-s); cursor: pointer }
+            .pat-toast-x:hover { background: var(--pt-dim) }
+            .pat-toast-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--pt); transform-origin: left; animation: patToastBar 8s linear forwards }
+            .pat-toast.n-warn .pat-toast-bar { background: var(--or) }
+            .pat-toast.n-info .pat-toast-bar { background: var(--bl) }
+            .pat-toast.n-req .pat-toast-bar { background: var(--pr) }
+
+            /* ---------- page-wide extras ---------- */
+            .pat-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: linear-gradient(90deg,#12A392,#0A4F48); z-index: 1200; transition: width .1s linear }
+            .pat-backtop { position: fixed; right: 24px; bottom: 24px; width: 46px; height: 46px; border: 0; border-radius: 50%; background: var(--pt); color: #fff; font-size: 16px; cursor: pointer; box-shadow: 0 8px 20px rgba(10,90,80,.3); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .2s, transform .2s, background .2s; z-index: 1040 }
+            .pat-backtop.is-show { opacity: 1; transform: translateY(0); pointer-events: auto }
+            .pat-backtop:hover { background: var(--pt-deep) }
+
+            /* ---------- drawer ---------- */
+            .pat-overlay { position: fixed; inset: 0; background: rgba(16,44,39,.45); opacity: 0; transition: opacity .25s; z-index: 1100 }
+            .pat-overlay.is-open { opacity: 1 }
+            .pat-overlay[hidden] { display: none }
+            .pat-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100vw; background: var(--bg); box-shadow: -12px 0 40px rgba(10,60,55,.2); transform: translateX(100%); transition: transform .3s ease; z-index: 1110; display: flex; flex-direction: column; font-family: 'Inter',sans-serif; color: var(--ink) }
+            .pat-drawer.is-open { transform: translateX(0) }
+            .pat-drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--ln) }
+            .pat-drawer-head h4 { margin: 0; font: 700 18px 'Poppins',sans-serif }
+            .pat-drawer-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--pt-dim); color: var(--pt-deep); cursor: pointer }
+            .pat-drawer-close:hover { background: var(--pt); color: #fff }
+            .pat-drawer-body { padding: 24px; overflow-y: auto; flex: 1 }
+            .pat-dl { margin: 22px 0 0; display: flex; flex-direction: column }
+            .pat-dl > div { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--ln); font-size: 13.5px }
+            .pat-dl dt { font-weight: 600; color: var(--ink-s) }
+            .pat-dl dd { margin: 0; font-weight: 600 }
+            .pat-drawer-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px }
+            .pat-drawer-actions .pat-btn { justify-content: center }
+
+            /* ---------- banner ---------- */
+            .pat-banner { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 24px; background: linear-gradient(125deg,#12A392,#0A4F48); border-radius: var(--r); padding: 32px 36px; margin-bottom: 22px; box-shadow: 0 18px 40px rgba(10,90,80,.2); overflow: hidden }
+            .pat-banner-pattern { position: absolute; inset: 0; background: radial-gradient(circle at 85% 20%,rgba(255,255,255,.1) 0,transparent 45%) }
+            .pat-banner-left { display: flex; align-items: center; gap: 22px; position: relative; z-index: 1 }
+            .pat-banner-icon { position: relative; width: 76px; height: 76px; border-radius: 50%; background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.32); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 30px }
+            .pat-icon-ring { position: absolute; inset: -6px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.4); animation: patRingPulse 2.4s ease-out infinite }
+            .pat-banner-text h1 { font-family: 'Poppins',sans-serif; font-weight: 700; font-size: 26px; margin: 0 0 4px; color: #fff }
+            .pat-banner-text h1 span { color: #E9FFFB }
+            .pat-banner-text p { margin: 0 0 14px; color: rgba(255,255,255,.85); font-size: 14.5px }
+            .pat-pills { display: flex; gap: 10px; flex-wrap: wrap }
+            .pat-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 15px; border-radius: 999px; background: rgba(255,255,255,.16); color: #fff; font-size: 12.5px }
+            .pat-clock { min-width: 230px; border-left: 1px solid rgba(255,255,255,.28); padding-left: 28px; position: relative; z-index: 1 }
+            .pat-clock small { text-transform: uppercase; color: #DFF9F8; font-size: 11px }
+            #patCurrentDate { margin-top: 6px; font-size: 14px; color: #fff }
+            #patCurrentTime { font-family: 'IBM Plex Mono',monospace; font-size: 26px; font-weight: 600; color: #fff; margin-top: 2px }
+
+            /* ---------- alert strips ---------- */
+            .pat-alert-strip { background: var(--bg); border-radius: var(--r); box-shadow: var(--sh-sm); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; border-left: 4px solid; gap: 12px; flex-wrap: wrap }
+            .pat-alert-strip[hidden] { display: none }
+            .pat-alert-strip.warning { border-left-color: var(--or); background: var(--or-dim) }
+            .pat-alert-strip.ok { border-left-color: var(--gn); background: var(--gn-dim) }
+            .pat-alert-dot { width: 10px; height: 10px; border-radius: 50% }
+            .pat-alert-strip.warning .pat-alert-dot { background: var(--or); box-shadow: 0 0 0 4px var(--or-dim) }
+            .pat-alert-strip.ok .pat-alert-dot { background: var(--gn); box-shadow: 0 0 0 4px var(--gn-dim) }
+            .pat-alert-link { color: var(--pt-deep); font-weight: 600; font-size: 13.5px; text-decoration: none }
+            .pat-alert-link:hover { text-decoration: underline }
+
+            /* ---------- section heads + refresh ---------- */
+            .pat-section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px }
+            .pat-section-head h3 { font-family: 'Poppins',sans-serif; font-weight: 700; font-size: 20px; margin: 0 }
+            .pat-section-head p { margin: 0; color: var(--ink-s); font-size: 13.5px }
+            .pat-mt-lg { margin-top: 44px }
+            .pat-mt-md { margin-top: 18px }
+            .pat-refresh { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--ln); background: var(--bg); color: var(--pt-deep); font: 600 13px 'Inter',sans-serif; padding: 9px 16px; border-radius: 999px; cursor: pointer; box-shadow: var(--sh-sm); transition: background .2s,transform .2s }
+            .pat-refresh:hover { background: var(--pt-dim) }
+            .pat-refresh:active { transform: scale(.97) }
+            .pat-refresh.is-loading i { animation: patSpin .8s linear infinite }
+
+            .pat-grid { display: grid; gap: 18px }
+            .pat-grid-4 { grid-template-columns: repeat(4,1fr) }
+            .pat-grid-3 { grid-template-columns: repeat(3,1fr) }
+
+            /* ---------- stat cards ---------- */
+            .pat-stat { background: var(--bg); border-radius: var(--r); box-shadow: var(--sh-sm); padding: 22px; display: flex; align-items: center; gap: 16px; border-top: 3px solid var(--pt); transition: transform .2s,box-shadow .2s; text-decoration: none; color: inherit; cursor: pointer }
+            .pat-stat:hover { transform: translateY(-5px); box-shadow: var(--sh); text-decoration: none; color: inherit }
+            .pat-stat-body { flex: 1; min-width: 0 }
+            .pat-stat-body h5 { margin: 0; font-weight: 700; font-size: 15px }
+            .pat-stat-body small { color: var(--ink-s) }
+            .pat-stat-go { color: var(--pt); opacity: .35; transition: transform .2s,opacity .2s }
+            .pat-stat:hover .pat-stat-go { transform: translateX(4px); opacity: 1 }
+            .pat-stat-icon { width: 54px; height: 54px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 21px; flex-shrink: 0 }
+            .pat-stat-icon.c-teal { background: var(--pt-dim); color: var(--pt) }
+            .pat-stat-icon.c-blue { background: var(--bl-dim); color: var(--bl) }
+            .pat-stat-icon.c-purple { background: var(--pr-dim); color: var(--pr) }
+            .pat-stat-icon.c-orange { background: var(--or-dim); color: var(--or) }
+            .pat-stat .num { font-family: 'Poppins',sans-serif; font-size: 27px; font-weight: 700 }
+
+            /* ---------- panels + table ---------- */
+            .pat-split { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px; align-items: start }
+            .pat-split-even { grid-template-columns: 1fr 1fr }
+            .pat-panel { background: var(--bg); border-radius: var(--r); box-shadow: var(--sh); overflow: hidden }
+            .pat-panel-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 26px; border-bottom: 1px solid var(--ln) }
+            .pat-panel-head span { font-family: 'Poppins',sans-serif; font-weight: 700; font-size: 15.5px; display: flex; align-items: center; gap: 10px }
+            .pat-panel-head span i { color: var(--pt) }
+            .pat-panel-link { color: var(--pt-deep); font-weight: 600; font-size: 13px; text-decoration: none }
+            .pat-panel-link:hover { text-decoration: underline }
+            .pat-table-wrap { overflow-x: auto }
+            .pat-table { width: 100%; border-collapse: collapse }
+            .pat-table th { background: #F0F7F6; text-align: left; padding: 12px 26px; font-size: 12px; text-transform: uppercase; color: var(--ink-s); border-bottom: 1px solid var(--ln) }
+            .pat-table td { padding: 14px 26px; border-bottom: 1px solid var(--ln); font-size: 14px }
+            .pat-table-empty { text-align: center; color: var(--ink-s); padding: 40px 26px !important }
+            .pat-row { cursor: pointer; transition: background .15s }
+            .pat-row:hover { background: #F0F7F6 }
+            .pat-row[aria-expanded="true"] { background: #F0F7F6 }
+            .pat-chev { font-size: 10px; color: var(--pt); margin-right: 8px; transition: transform .2s }
+            .pat-row[aria-expanded="true"] .pat-chev { transform: rotate(90deg) }
+
+            .pat-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 26px; border-bottom: 1px solid var(--ln) }
+            .pat-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--ln); background: var(--bg); color: var(--ink-s); font: 600 12px 'Inter',sans-serif; padding: 6px 13px; border-radius: 999px; cursor: pointer; transition: background .15s,color .15s,border-color .15s }
+            .pat-chip b { font-weight: 700; background: #F0F4F8; color: #3C5770; border-radius: 999px; padding: 1px 8px; font-size: 11px }
+            .pat-chip:hover { background: var(--pt-dim) }
+            .pat-chip.is-active { background: var(--pt); border-color: var(--pt); color: #fff }
+            .pat-chip.is-active b { background: rgba(255,255,255,.22); color: #fff }
+
+            .pat-detail-row > td { background: #F7FBFA; padding: 0 !important }
+            .pat-detail { padding: 22px 26px 24px }
+            .pat-track { display: flex }
+            .pat-tstep { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; text-align: center }
+            .pat-tstep::before { content: ""; position: absolute; top: 15px; right: 50%; width: 100%; height: 3px; background: var(--ln); z-index: 0 }
+            .pat-tstep:first-child::before { display: none }
+            .pat-tstep.done::before, .pat-tstep.current::before { background: var(--pt) }
+            .pat-tdot { position: relative; z-index: 1; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg); border: 2px solid var(--ln); color: var(--ink-s); font: 700 12px 'Inter',sans-serif }
+            .pat-tstep.done .pat-tdot { background: var(--pt); border-color: var(--pt); color: #fff }
+            .pat-tstep.current .pat-tdot { border-color: var(--pt); color: var(--pt-deep); box-shadow: 0 0 0 4px var(--pt-dim) }
+            .pat-tlabel { font-size: 11.5px; font-weight: 600; color: var(--ink-s) }
+            .pat-tstep.done .pat-tlabel, .pat-tstep.current .pat-tlabel { color: var(--ink) }
+            .pat-facts { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin: 20px 0 14px }
+            .pat-facts > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; background: var(--bg); border: 1px solid var(--ln); border-radius: 12px; padding: 11px 13px }
+            .pat-facts small { font-size: 11px; font-weight: 600; color: var(--ink-s); text-transform: uppercase; letter-spacing: .03em }
+            .pat-facts strong { font-size: 14px }
+            .pat-explain { display: flex; gap: 10px; margin: 8px 0; font-size: 13px; line-height: 1.55; color: var(--ink-s) }
+            .pat-explain i { color: var(--pt); margin-top: 3px }
+            .pat-explain strong { color: var(--ink) }
+            .pat-detail-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px }
+            .pat-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--ln); background: var(--bg); color: var(--pt-deep); font: 600 13px 'Inter',sans-serif; padding: 9px 16px; border-radius: 999px; cursor: pointer; text-decoration: none; transition: background .15s,color .15s,border-color .15s }
+            .pat-btn:hover { background: var(--pt-dim); color: var(--pt-deep); text-decoration: none }
+            .pat-btn.primary { background: var(--pt); border-color: var(--pt); color: #fff }
+            .pat-btn.primary:hover { background: var(--pt-deep); border-color: var(--pt-deep); color: #fff }
+            .pat-btn.is-disabled { opacity: .5; cursor: not-allowed; pointer-events: auto }
+            .pat-btn.is-disabled:hover { background: var(--pt); border-color: var(--pt) }
+
+            .pat-urgency { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600 }
+            .pat-urgency.routine { background: var(--pt-dim); color: var(--pt-deep) }
+            .pat-urgency.urgent { background: var(--or-dim); color: #924E18 }
+            .pat-urgency.stat { background: var(--rd-dim); color: #942F28 }
+            .pat-status { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600 }
+            .pat-status.submitted { background: #F0F4F8; color: #3C5770 }
+            .pat-status.inprogress { background: var(--or-dim); color: #924E18 }
+            .pat-status.completed { background: var(--gn-dim); color: var(--gn) }
+            .pat-status.released { background: var(--pt-dim); color: var(--pt-deep) }
+
+            /* ---------- profile ---------- */
+            .pat-complete { display: flex; align-items: center; gap: 18px; padding: 20px 26px; border-bottom: 1px solid var(--ln) }
+            .pat-ring { --pct: 0; width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0; background: conic-gradient(var(--pt) calc(var(--pct) * 1%), var(--ln) 0); display: flex; align-items: center; justify-content: center; position: relative }
+            .pat-ring::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg) }
+            .pat-ring span { position: relative; font: 700 15px 'Poppins',sans-serif; color: var(--pt-deep) }
+            .pat-complete-text { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+            .pat-complete-text strong { font-size: 14.5px }
+            .pat-complete-text small { color: var(--ink-s); font-size: 12.5px; line-height: 1.5 }
+            .pat-profile-list { padding: 10px 26px 18px }
+            .pat-profile-row { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--ln); font-size: 13.5px }
+            .pat-profile-val { text-align: right; overflow-wrap: anywhere }
+            .pat-profile-label { font-weight: 600; color: var(--ink-s) }
+
+            /* ---------- quick actions ---------- */
+            .pat-action { display: flex; flex-direction: column; text-decoration: none; color: inherit; background: var(--bg); border-radius: var(--r); padding: 28px 24px; box-shadow: var(--sh-sm); position: relative; overflow: hidden; transition: transform .25s,box-shadow .25s }
+            .pat-action::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg,var(--pt),var(--pt-deep)) }
+            .pat-action:hover { transform: translateY(-6px); box-shadow: var(--sh); text-decoration: none; color: inherit }
+            .pat-action-icon { width: 54px; height: 54px; margin-bottom: 16px; border-radius: 16px; background: var(--pt-dim); color: var(--pt); display: flex; align-items: center; justify-content: center; font-size: 23px }
+            .pat-action h5 { font-weight: 700; margin: 0 0 8px; font-size: 15px }
+            .pat-action p { margin: 0; color: var(--ink-s); font-size: 13px; line-height: 1.6 }
+            .pat-action-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; padding-top: 16px; min-height: 48px }
+            .pat-badges { display: flex; gap: 6px; flex-wrap: wrap }
+            .pat-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: #F0F4F8; color: #3C5770 }
+            .pat-badge.info { background: var(--bl-dim); color: var(--bl) }
+            .pat-badge.ok { background: var(--pt-dim); color: var(--pt-deep) }
+            .pat-badge.warn { background: var(--or-dim); color: #924E18 }
+            .pat-action-go { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--pt-dim); color: var(--pt); margin-left: auto; transition: transform .2s,background .2s,color .2s }
+            .pat-action:hover .pat-action-go { transform: translateX(4px); background: var(--pt); color: #fff }
+
+            /* ---------- health insights ---------- */
+            .pat-insights { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; align-items: start }
+            .pat-donut-body { padding: 22px 26px 24px }
+            .pat-donut { position: relative; height: 190px; margin-bottom: 18px }
+            .pat-donut canvas { max-width: 100%; max-height: 100% }
+            .pat-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none }
+            .pat-donut-center strong { font: 700 28px 'Poppins',sans-serif }
+            .pat-donut-center small { color: var(--ink-s); font-size: 12px }
+            .pat-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px }
+            .pat-legend-2 { margin-top: 14px }
+            .pat-legend li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-s) }
+            .pat-legend strong { margin-left: auto; color: var(--ink) }
+            .pat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0 }
+            .pat-mini-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 32px 26px; text-align: center; color: var(--ink-s); font-size: 13px; line-height: 1.55 }
+            .pat-mini-empty i { font-size: 24px; color: var(--pt) }
+
+            .pat-timeline { list-style: none; margin: 0; padding: 10px 26px 14px; position: relative }
+            .pat-timeline li { position: relative; padding: 12px 0 12px 26px }
+            .pat-timeline li::before { content: ""; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; background: var(--ln) }
+            .pat-timeline li:first-child::before { top: 50% }
+            .pat-timeline li:last-child::before { bottom: 50% }
+            .pat-tl-dot { position: absolute; left: 0; top: 18px; width: 12px; height: 12px; border-radius: 50%; background: #3C5770; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--ln) }
+            .pat-tl-dot.inprogress { background: var(--or) }
+            .pat-tl-dot.completed { background: var(--gn) }
+            .pat-tl-dot.released { background: var(--pt) }
+            .pat-timeline a { display: flex; flex-direction: column; gap: 1px; color: inherit; text-decoration: none; font-size: 13px }
+            .pat-timeline a:hover { text-decoration: none; color: inherit }
+            .pat-timeline a:hover strong { color: var(--pt-deep) }
+            .pat-timeline strong { font-size: 13.5px }
+            .pat-timeline span { color: var(--ink-s) }
+            .pat-timeline small { color: #8FA9A3; font-size: 12px }
+
+            .pat-steps { list-style: none; margin: 0; padding: 8px 14px 12px }
+            .pat-steps a { display: flex; align-items: center; gap: 13px; padding: 12px; border-radius: 14px; color: inherit; text-decoration: none; transition: background .15s }
+            .pat-steps a:hover { background: #F0F7F6; text-decoration: none; color: inherit }
+            .pat-check { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--ln); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--pt); flex-shrink: 0 }
+            .pat-steps .is-done .pat-check { background: var(--pt); border-color: var(--pt); color: #fff }
+            .pat-steps strong { display: block; font-size: 13.5px }
+            .pat-steps small { display: block; color: var(--ink-s); font-size: 12px; margin-top: 2px }
+
+            /* ---------- pipeline + urgency ---------- */
+            .pat-bars { padding: 20px 26px 24px }
+            .pat-bar-row { margin-bottom: 16px }
+            .pat-bar-row:last-child { margin-bottom: 0 }
+            .pat-bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 7px; color: var(--ink-s) }
+            .pat-bar-label strong { color: var(--ink) }
+            .pat-bar { height: 10px; border-radius: 999px; background: var(--ln); overflow: hidden }
+            .pat-bar span { display: block; height: 100%; border-radius: 999px; transition: width .6s ease }
+            .b-blue { background: var(--bl) }
+            .b-orange { background: var(--or) }
+            .b-teal { background: var(--pt) }
+            .b-purple { background: var(--pr) }
+            .pat-stack { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--ln) }
+            .pat-stack span { flex-basis: 0; min-width: 0 }
+            .s-routine { background: var(--pt) }
+            .s-urgent { background: var(--or) }
+            .s-stat { background: var(--rd) }
+            .pat-note { margin: 14px 0 0; font-size: 12px; color: #8FA9A3 }
+
+            /* ---------- tips + help ---------- */
+            .pat-tip { background: var(--bg); border-radius: var(--r); box-shadow: var(--sh-sm); padding: 24px; border-top: 3px solid var(--pt) }
+            .pat-tip-icon { width: 46px; height: 46px; border-radius: 14px; background: var(--pt-dim); color: var(--pt); display: flex; align-items: center; justify-content: center; font-size: 19px; margin-bottom: 14px }
+            .pat-tip h5 { margin: 0 0 8px; font-weight: 700; font-size: 15px }
+            .pat-tip p { margin: 0; color: var(--ink-s); font-size: 13px; line-height: 1.65 }
+            .pat-help { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 18px; padding: 24px 30px; border-radius: var(--r); background: linear-gradient(125deg,#12A392,#0A4F48); color: #fff; box-shadow: 0 14px 30px rgba(10,90,80,.18) }
+            .pat-help h4 { margin: 0 0 4px; font: 700 18px 'Poppins',sans-serif; color: #fff }
+            .pat-help p { margin: 0; color: rgba(255,255,255,.85); font-size: 13.5px }
+            .pat-help-btn { display: inline-flex; align-items: center; gap: 8px; background: #fff; color: var(--pt-deep); font: 700 13.5px 'Inter',sans-serif; padding: 11px 20px; border-radius: 999px; text-decoration: none; transition: transform .2s }
+            .pat-help-btn:hover { transform: translateY(-2px); color: var(--pt-deep); text-decoration: none }
+
+            /* ---------- footer ---------- */
+            .pat-footer { margin-top: 50px; text-align: center }
+            .pat-footer hr { border: none; border-top: 1px solid var(--ln); margin-bottom: 22px }
+            .pat-footer-content { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; color: var(--ink-s); font-size: 13px }
+            .pat-footer-content i { color: var(--pt) }
+
+            /* ---------- keyboard focus ---------- */
+            .pat-stat:focus-visible, .pat-action:focus-visible, .pat-refresh:focus-visible, .pat-row:focus-visible, .pat-alert-link:focus-visible, .pat-panel-link:focus-visible,
+            .pat-bell:focus-visible, .pat-chip:focus-visible, .pat-btn:focus-visible, .pat-nitem:focus-visible, .pat-notif-markall:focus-visible, .pat-drawer-close:focus-visible,
+            .pat-backtop:focus-visible, .pat-steps a:focus-visible, .pat-help-btn:focus-visible, .pat-toast:focus-visible { outline: 3px solid rgba(14,140,127,.45); outline-offset: 2px }
+
+            /* ---------- responsive ---------- */
+            @@media (max-width: 1100px) {
+                .pat-grid-4, .pat-grid-3 { grid-template-columns: repeat(2,1fr) }
+                .pat-split, .pat-split-even { grid-template-columns: 1fr }
+                .pat-insights { grid-template-columns: 1fr 1fr }
             }
 
-            @@keyframes patFadeIn {
-                from {
-                    opacity: 0;
-                    transform: translateY(12px)
-                }
-
-                to {
-                    opacity: 1;
-                    transform: translateY(0)
-                }
+            @@media (max-width: 900px) {
+                .pat-banner { flex-direction: column; align-items: flex-start; gap: 24px }
+                .pat-clock { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.28); padding-top: 18px; padding-left: 0 }
+                .pat-banner-left { flex-direction: column }
+                .pat-facts { grid-template-columns: repeat(2,1fr) }
             }
 
-            @@keyframes patSpin {
-                to {
-                    transform: rotate(360deg)
-                }
+            @@media (max-width: 640px) {
+                .pat-wrap { padding: 20px 16px }
+                .pat-grid-4, .pat-grid-3, .pat-insights { grid-template-columns: 1fr }
+                .pat-alert-strip { flex-direction: column; align-items: flex-start }
+                .pat-chips { padding: 12px 16px }
+                .pat-table th, .pat-table td { padding-left: 16px; padding-right: 16px }
+                .pat-detail { padding: 18px 16px 20px }
+                .pat-tlabel { font-size: 10.5px }
+                .pat-toasts { right: 16px; top: 76px }
+                .pat-bell-wrap.is-float { right: 16px }
             }
 
-            .pat-banner {
-                position: relative;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 24px;
-                background: linear-gradient(125deg,#12A392,#0A4F48);
-                border-radius: var(--r);
-                padding: 32px 36px;
-                margin-bottom: 22px;
-                box-shadow: 0 18px 40px rgba(10,90,80,.2);
-                overflow: hidden
-            }
-
-            .pat-banner-pattern {
-                position: absolute;
-                inset: 0;
-                background: radial-gradient(circle at 85% 20%,rgba(255,255,255,.1) 0,transparent 45%)
-            }
-
-            .pat-banner-left {
-                display: flex;
-                align-items: center;
-                gap: 22px;
-                position: relative;
-                z-index: 1
-            }
-
-            .pat-banner-icon {
-                position: relative;
-                width: 76px;
-                height: 76px;
-                border-radius: 50%;
-                background: rgba(255,255,255,.16);
-                border: 2px solid rgba(255,255,255,.32);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #fff;
-                font-size: 30px
-            }
-
-            .pat-icon-ring {
-                position: absolute;
-                inset: -6px;
-                border-radius: 50%;
-                border: 1.5px solid rgba(255,255,255,.4);
-                animation: patRingPulse 2.4s ease-out infinite
-            }
-
-            @@keyframes patRingPulse {
-                0% {
-                    transform: scale(.9);
-                    opacity: .8
-                }
-
-                100% {
-                    transform: scale(1.35);
-                    opacity: 0
-                }
-            }
-
-            .pat-banner-text h1 {
-                font-family: 'Poppins',sans-serif;
-                font-weight: 700;
-                font-size: 26px;
-                margin: 0 0 4px;
-                color: #fff
-            }
-
-            .pat-banner-text p {
-                margin: 0 0 14px;
-                color: rgba(255,255,255,.85);
-                font-size: 14.5px
-            }
-
-            .pat-pills {
-                display: flex;
-                gap: 10px;
-                flex-wrap: wrap
-            }
-
-            .pat-pill {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 7px 15px;
-                border-radius: 999px;
-                background: rgba(255,255,255,.16);
-                color: #fff;
-                font-size: 12.5px
-            }
-
-            .pat-clock {
-                min-width: 230px;
-                border-left: 1px solid rgba(255,255,255,.28);
-                padding-left: 28px;
-                position: relative;
-                z-index: 1
-            }
-
-                .pat-clock small {
-                    text-transform: uppercase;
-                    color: #DFF9F8;
-                    font-size: 11px
-                }
-
-            #patCurrentDate {
-                margin-top: 6px;
-                font-size: 14px;
-                color: #fff
-            }
-
-            #patCurrentTime {
-                font-family: 'IBM Plex Mono',monospace;
-                font-size: 26px;
-                font-weight: 600;
-                color: #fff;
-                margin-top: 2px
-            }
-
-            /* alert strips */
-            .pat-alert-strip {
-                background: var(--bg);
-                border-radius: var(--r);
-                box-shadow: var(--sh-sm);
-                padding: 16px 24px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 28px;
-                border-left: 4px solid;
-                gap: 12px;
-                flex-wrap: wrap
-            }
-
-                .pat-alert-strip[hidden] {
-                    display: none
-                }
-
-                .pat-alert-strip.warning {
-                    border-left-color: var(--or);
-                    background: var(--or-dim)
-                }
-
-                .pat-alert-strip.ok {
-                    border-left-color: var(--gn);
-                    background: var(--gn-dim)
-                }
-
-            .pat-alert-dot {
-                width: 10px;
-                height: 10px;
-                border-radius: 50%
-            }
-
-            .pat-alert-strip.warning .pat-alert-dot {
-                background: var(--or);
-                box-shadow: 0 0 0 4px var(--or-dim)
-            }
-
-            .pat-alert-strip.ok .pat-alert-dot {
-                background: var(--gn);
-                box-shadow: 0 0 0 4px var(--gn-dim)
-            }
-
-            .pat-alert-link {
-                color: var(--pt-deep);
-                font-weight: 600;
-                font-size: 13.5px;
-                text-decoration: none
-            }
-
-                .pat-alert-link:hover {
-                    text-decoration: underline
-                }
-
-            /* section heads + refresh button */
-            .pat-section-head {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 12px;
-                flex-wrap: wrap;
-                margin-bottom: 18px
-            }
-
-                .pat-section-head h3 {
-                    font-family: 'Poppins',sans-serif;
-                    font-weight: 700;
-                    font-size: 20px;
-                    margin: 0
-                }
-
-                .pat-section-head p {
-                    margin: 0;
-                    color: var(--ink-s);
-                    font-size: 13.5px
-                }
-
-            .pat-mt-lg {
-                margin-top: 44px
-            }
-
-            .pat-refresh {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                border: 1px solid var(--ln);
-                background: var(--bg);
-                color: var(--pt-deep);
-                font: 600 13px 'Inter',sans-serif;
-                padding: 9px 16px;
-                border-radius: 999px;
-                cursor: pointer;
-                box-shadow: var(--sh-sm);
-                transition: background .2s,transform .2s
-            }
-
-                .pat-refresh:hover {
-                    background: var(--pt-dim)
-                }
-
-                .pat-refresh:active {
-                    transform: scale(.97)
-                }
-
-                .pat-refresh.is-loading i {
-                    animation: patSpin .8s linear infinite
-                }
-
-            .pat-grid {
-                display: grid;
-                gap: 18px
-            }
-
-            .pat-grid-4 {
-                grid-template-columns: repeat(4,1fr)
-            }
-
-            .pat-grid-3 {
-                grid-template-columns: repeat(3,1fr)
-            }
-
-            /* stat cards (now links) */
-            .pat-stat {
-                background: var(--bg);
-                border-radius: var(--r);
-                box-shadow: var(--sh-sm);
-                padding: 22px;
-                display: flex;
-                align-items: center;
-                gap: 16px;
-                border-top: 3px solid var(--pt);
-                transition: transform .2s,box-shadow .2s;
-                text-decoration: none;
-                color: inherit;
-                cursor: pointer
-            }
-
-                .pat-stat:hover {
-                    transform: translateY(-5px);
-                    box-shadow: var(--sh);
-                    text-decoration: none;
-                    color: inherit
-                }
-
-            .pat-stat-body {
-                flex: 1;
-                min-width: 0
-            }
-
-                .pat-stat-body h5 {
-                    margin: 0;
-                    font-weight: 700;
-                    font-size: 15px
-                }
-
-                .pat-stat-body small {
-                    color: var(--ink-s)
-                }
-
-            .pat-stat-go {
-                color: var(--pt);
-                opacity: .35;
-                transition: transform .2s,opacity .2s
-            }
-
-            .pat-stat:hover .pat-stat-go {
-                transform: translateX(4px);
-                opacity: 1
-            }
-
-            .pat-stat-icon {
-                width: 54px;
-                height: 54px;
-                border-radius: 15px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 21px;
-                flex-shrink: 0
-            }
-
-                .pat-stat-icon.c-teal {
-                    background: var(--pt-dim);
-                    color: var(--pt)
-                }
-
-                .pat-stat-icon.c-blue {
-                    background: var(--bl-dim);
-                    color: var(--bl)
-                }
-
-                .pat-stat-icon.c-purple {
-                    background: var(--pr-dim);
-                    color: var(--pr)
-                }
-
-                .pat-stat-icon.c-orange {
-                    background: var(--or-dim);
-                    color: var(--or)
-                }
-
-            .pat-stat .num {
-                font-family: 'Poppins',sans-serif;
-                font-size: 27px;
-                font-weight: 700
-            }
-
-            /* panels + table */
-            .pat-split {
-                display: grid;
-                grid-template-columns: 1.2fr 0.8fr;
-                gap: 18px
-            }
-
-            .pat-panel {
-                background: var(--bg);
-                border-radius: var(--r);
-                box-shadow: var(--sh);
-                overflow: hidden
-            }
-
-            .pat-panel-head {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 18px 26px;
-                border-bottom: 1px solid var(--ln)
-            }
-
-                .pat-panel-head span {
-                    font-family: 'Poppins',sans-serif;
-                    font-weight: 700;
-                    font-size: 15.5px;
-                    display: flex;
-                    align-items: center;
-                    gap: 10px
-                }
-
-                    .pat-panel-head span i {
-                        color: var(--pt)
-                    }
-
-            .pat-panel-link {
-                color: var(--pt-deep);
-                font-weight: 600;
-                font-size: 13px;
-                text-decoration: none
-            }
-
-                .pat-panel-link:hover {
-                    text-decoration: underline
-                }
-
-            .pat-table-wrap {
-                overflow-x: auto
-            }
-
-            .pat-table {
-                width: 100%;
-                border-collapse: collapse
-            }
-
-                .pat-table th {
-                    background: #F0F7F6;
-                    text-align: left;
-                    padding: 12px 26px;
-                    font-size: 12px;
-                    text-transform: uppercase;
-                    color: var(--ink-s);
-                    border-bottom: 1px solid var(--ln)
-                }
-
-                .pat-table td {
-                    padding: 14px 26px;
-                    border-bottom: 1px solid var(--ln);
-                    font-size: 14px
-                }
-
-            .pat-table-empty {
-                text-align: center;
-                color: var(--ink-s);
-                padding: 40px 26px !important
-            }
-
-            .pat-row-link {
-                cursor: pointer;
-                transition: background .15s
-            }
-
-                .pat-row-link:hover {
-                    background: #F0F7F6
-                }
-
-            .pat-urgency {
-                display: inline-block;
-                padding: 3px 10px;
-                border-radius: 999px;
-                font-size: 11.5px;
-                font-weight: 600
-            }
-
-                .pat-urgency.routine {
-                    background: var(--pt-dim);
-                    color: var(--pt-deep)
-                }
-
-                .pat-urgency.urgent {
-                    background: var(--or-dim);
-                    color: #924E18
-                }
-
-                .pat-urgency.stat {
-                    background: var(--rd-dim);
-                    color: #942F28
-                }
-
-            .pat-status {
-                display: inline-block;
-                padding: 3px 10px;
-                border-radius: 999px;
-                font-size: 11.5px;
-                font-weight: 600
-            }
-
-                .pat-status.submitted {
-                    background: #F0F4F8;
-                    color: #3C5770
-                }
-
-                .pat-status.inprogress {
-                    background: var(--or-dim);
-                    color: #924E18
-                }
-
-                .pat-status.completed {
-                    background: var(--gn-dim);
-                    color: var(--gn)
-                }
-
-                .pat-status.released {
-                    background: var(--pt-dim);
-                    color: var(--pt-deep)
-                }
-
-            .pat-profile-list {
-                padding: 10px 26px 18px
-            }
-
-            .pat-profile-row {
-                display: flex;
-                justify-content: space-between;
-                padding: 11px 0;
-                border-bottom: 1px solid var(--ln);
-                font-size: 13.5px
-            }
-
-            .pat-profile-label {
-                font-weight: 600;
-                color: var(--ink-s)
-            }
-
-            /* quick actions */
-            .pat-action {
-                display: flex;
-                flex-direction: column;
-                text-decoration: none;
-                color: inherit;
-                background: var(--bg);
-                border-radius: var(--r);
-                padding: 28px 24px;
-                box-shadow: var(--sh-sm);
-                position: relative;
-                overflow: hidden;
-                transition: transform .25s,box-shadow .25s
-            }
-
-                .pat-action::before {
-                    content: "";
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 4px;
-                    background: linear-gradient(90deg,var(--pt),var(--pt-deep))
-                }
-
-                .pat-action:hover {
-                    transform: translateY(-6px);
-                    box-shadow: var(--sh);
-                    text-decoration: none;
-                    color: inherit
-                }
-
-            .pat-action-icon {
-                width: 54px;
-                height: 54px;
-                margin-bottom: 16px;
-                border-radius: 16px;
-                background: var(--pt-dim);
-                color: var(--pt);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 23px
-            }
-
-            .pat-action h5 {
-                font-weight: 700;
-                margin: 0 0 8px;
-                font-size: 15px
-            }
-
-            .pat-action p {
-                margin: 0;
-                color: var(--ink-s);
-                font-size: 13px;
-                line-height: 1.6
-            }
-
-            .pat-action-foot {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 10px;
-                margin-top: auto;
-                padding-top: 16px;
-                min-height: 48px
-            }
-
-            .pat-badges {
-                display: flex;
-                gap: 6px;
-                flex-wrap: wrap
-            }
-
-            .pat-badge {
-                display: inline-block;
-                padding: 3px 10px;
-                border-radius: 999px;
-                font-size: 11.5px;
-                font-weight: 600;
-                background: #F0F4F8;
-                color: #3C5770
-            }
-
-                .pat-badge.info {
-                    background: var(--bl-dim);
-                    color: var(--bl)
-                }
-
-                .pat-badge.ok {
-                    background: var(--pt-dim);
-                    color: var(--pt-deep)
-                }
-
-                .pat-badge.warn {
-                    background: var(--or-dim);
-                    color: #924E18
-                }
-
-            .pat-action-go {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                background: var(--pt-dim);
-                color: var(--pt);
-                margin-left: auto;
-                transition: transform .2s,background .2s,color .2s
-            }
-
-            .pat-action:hover .pat-action-go {
-                transform: translateX(4px);
-                background: var(--pt);
-                color: #fff
-            }
-
-            /* keyboard focus */
-            .pat-stat:focus-visible, .pat-action:focus-visible, .pat-refresh:focus-visible, .pat-row-link:focus-visible, .pat-alert-link:focus-visible, .pat-panel-link:focus-visible {
-                outline: 3px solid rgba(14,140,127,.45);
-                outline-offset: 2px
-            }
-
-            .pat-footer {
-                margin-top: 50px;
-                text-align: center
-            }
-
-                .pat-footer hr {
-                    border: none;
-                    border-top: 1px solid var(--ln);
-                    margin-bottom: 22px
-                }
-
-            .pat-footer-content {
-                display: flex;
-                justify-content: center;
-                gap: 12px;
-                color: var(--ink-s);
-                font-size: 13px
-            }
-
-                .pat-footer-content i {
-                    color: var(--pt)
-                }
-
-            @@media(max-width:1100px) {
-                .pat-grid-4, .pat-grid-3 {
-                    grid-template-columns: repeat(2,1fr)
-                }
-
-                .pat-split {
-                    grid-template-columns: 1fr
-                }
-            }
-
-            @@media(max-width:900px) {
-                .pat-banner {
-                    flex-direction: column;
-                    gap: 24px
-                }
-
-                .pat-clock {
-                    width: 100%;
-                    border-left: none;
-                    border-top: 1px solid rgba(255,255,255,.28);
-                    padding-top: 18px;
-                    padding-left: 0
-                }
-
-                .pat-banner-left {
-                    flex-direction: column
-                }
-            }
-
-            @@media(max-width:640px) {
-                .pat-wrap {
-                    padding: 20px 16px
-                }
-
-                .pat-grid-4, .pat-grid-3 {
-                    grid-template-columns: 1fr
-                }
-
-                .pat-alert-strip {
-                    flex-direction: column
-                }
-            }
-
-            @@media(prefers-reduced-motion:reduce) {
-                .pat-wrap, .pat-icon-ring, .pat-refresh.is-loading i {
-                    animation: none
-                }
+            @@media (prefers-reduced-motion: reduce) {
+                .pat-wrap, .pat-icon-ring, .pat-refresh.is-loading i, .pat-bell.is-ringing i, .pat-toast { animation: none }
+                .pat-toast-bar { animation-duration: 8s }
+                .pat-drawer, .pat-overlay, .pat-backtop, .pat-bar span, .pat-progress, .pat-chev { transition: none }
             }
         </style>
+
+
 
 
     }

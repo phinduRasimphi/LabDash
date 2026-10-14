@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
-using LabDash.Services;
+
 
 namespace LabDash.Controllers
 {
@@ -24,15 +24,12 @@ namespace LabDash.Controllers
         private readonly IRazorEmailRenderer _emailRenderer;
 
         public DoctorController(
-            LabDbContext context,
-            UserManager<LabUser> userManager,
-            SignInManager<LabUser> signInManager,
-            IEmailSender emailSender, IAuditService audit)
-
-
-
-            IEmailSender emailSender,
-            IRazorEmailRenderer emailRenderer)
+       LabDbContext context,
+       UserManager<LabUser> userManager,
+       SignInManager<LabUser> signInManager,
+       IEmailSender emailSender,
+       IAuditService audit,
+       IRazorEmailRenderer emailRenderer)
         {
             _context = context;
             _userManager = userManager;

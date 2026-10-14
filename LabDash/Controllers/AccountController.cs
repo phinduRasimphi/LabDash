@@ -1009,7 +1009,8 @@ Here's to healthier days ahead,
                 Email = model.Email,
                 FirstName = model.Name,
                 LastName = model.Surname,
-                PhoneNumb = model.CellphoneNumber
+                PhoneNumb = model.CellphoneNumber,
+                SouthAfricanID = model.IDNumber
             };
 
             var result =
