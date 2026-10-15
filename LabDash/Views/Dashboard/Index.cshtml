@@ -35,6 +35,35 @@ if (User.IsInRole("Admin"))
                 "reactivated" => "is-restored",
                 _ => ""
             };
+        var dayCounts = Model.ActivityCounts ?? new List<int>();
+var todayCount = dayCounts.Count > 0 ? dayCounts[dayCounts.Count - 1] : 0;
+var weekCount = dayCounts.Skip(Math.Max(0, dayCounts.Count - 7)).Sum();
+var totalRefs = Model.ConditionCount + Model.AllergyCount + Model.MedicationCount;
+int SharePct(int v) => totalRefs == 0 ? 0 : (int)Math.Round(v * 100.0 / totalRefs);
+var healthScore = Math.Max(0, 100 - warnings.Count * 20);
+var yesterdayCount = dayCounts.Count > 1 ? dayCounts[dayCounts.Count - 2] : 0;
+var dayDelta = todayCount - yesterdayCount;
+string DeltaText(int d) => d == 0 ? "same as yesterday" : (d > 0 ? "▲ " : "▼ ") + Math.Abs(d) + " vs yesterday";
+var topTables = Model.RecentChanges == null
+    ? new List<KeyValuePair<string, int>>()
+    : Model.RecentChanges
+        .GroupBy(l => l.TableName ?? "Unknown")
+        .Select(g => new KeyValuePair<string, int>(g.Key, g.Count()))
+        .OrderByDescending(k => k.Value).Take(4).ToList();
+
+var topUsers = Model.RecentChanges == null
+    ? new List<KeyValuePair<string, int>>()
+    : Model.RecentChanges
+        .GroupBy(l => l.UserName ?? "Unknown")
+        .Select(g => new KeyValuePair<string, int>(g.Key, g.Count()))
+        .OrderByDescending(k => k.Value).Take(4).ToList();
+
+var maxTable = topTables.Count > 0 ? topTables.Max(k => k.Value) : 1;
+var maxUser = topUsers.Count > 0 ? topUsers.Max(k => k.Value) : 1;
+
+var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
+    ? Model.RecentChanges.Max(l => l.ActionDate).ToString("dd MMM, HH:mm")
+    : "None yet";
         }
 
         <!-- ==========================================
@@ -99,6 +128,33 @@ if (User.IsInRole("Admin"))
         </div>
 
         <!-- ==========================================
+    AT A GLANCE
+=========================================== -->
+<div class="adm-glance">
+    <div class="adm-glance-card">
+        <small>Changes today</small>
+        <strong>@todayCount</strong>
+        <em>@DeltaText(dayDelta)</em>
+    </div>
+    <div class="adm-glance-card">
+        <small>Last 7 days</small>
+        <strong>@weekCount</strong>
+        <em>total changes</em>
+    </div>
+    <div class="adm-glance-card">
+        <small>Last change</small>
+        <strong class="is-sm">@lastChange</strong>
+        <em>most recent audit entry</em>
+    </div>
+    <div class="adm-glance-card adm-health @(healthy ? "" : "is-warn")">
+        <div class="adm-health-ring" style="--pct:@healthScore"><span>@healthScore%</span></div>
+        <div>
+            <small>Data health</small>
+            <em>@(healthy ? "All checks passed" : warnings.Count + (warnings.Count == 1 ? " warning" : " warnings"))</em>
+        </div>
+    </div>
+</div>
+        <!-- ==========================================
             REFERENCE DATA OVERVIEW
         =========================================== -->
         <div class="adm-section-head">
@@ -147,18 +203,96 @@ if (User.IsInRole("Admin"))
             </div>
 
         </div>
+        <!-- ==========================================
+    REFERENCE DATA BREAKDOWN
+=========================================== -->
+<div class="adm-section-head adm-mt-lg">
+    <div>
+        <h3>Reference data breakdown</h3>
+        <p>How your records are split, and where the recent changes are happening.</p>
+    </div>
+</div>
 
+<div class="adm-grid adm-grid-3">
+
+    <div class="adm-panel">
+        <div class="adm-panel-head">
+            <span><i class="fa-solid fa-chart-pie"></i> Composition</span>
+        </div>
+        <div class="adm-bars-body">
+            <div class="adm-mix-bar">
+                <span class="adm-mix-seg is-created" style="flex-grow:@Model.ConditionCount"></span>
+                <span class="adm-mix-seg is-purple" style="flex-grow:@Model.AllergyCount"></span>
+                <span class="adm-mix-seg is-updated" style="flex-grow:@Model.MedicationCount"></span>
+            </div>
+            <div class="adm-mix-legend adm-legend-1">
+                <div><span class="adm-dot is-created"></span>Conditions <strong>@SharePct(Model.ConditionCount)%</strong></div>
+                <div><span class="adm-dot is-purple"></span>Allergies <strong>@SharePct(Model.AllergyCount)%</strong></div>
+                <div><span class="adm-dot is-updated"></span>Medications <strong>@SharePct(Model.MedicationCount)%</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="adm-panel">
+        <div class="adm-panel-head">
+            <span><i class="fa-solid fa-table-list"></i> Most changed tables</span>
+        </div>
+        <div class="adm-bars-body">
+            @if (topTables.Count == 0)
+            {
+                <p class="adm-noresult">No changes recorded yet.</p>
+            }
+            else
+            {
+                foreach (var t in topTables)
+                {
+                    <div class="adm-rank">
+                        <div class="adm-rank-label"><span>@t.Key</span><strong>@t.Value</strong></div>
+                        <div class="adm-rank-bar"><span style="width:@((int)Math.Round(t.Value * 100.0 / maxTable))%"></span></div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="adm-panel">
+        <div class="adm-panel-head">
+            <span><i class="fa-solid fa-user-clock"></i> Most active users</span>
+        </div>
+        <div class="adm-bars-body">
+            @if (topUsers.Count == 0)
+            {
+                <p class="adm-noresult">No changes recorded yet.</p>
+            }
+            else
+            {
+                foreach (var u in topUsers)
+                {
+                    <div class="adm-rank">
+                        <div class="adm-rank-label"><span>@u.Key</span><strong>@u.Value</strong></div>
+                        <div class="adm-rank-bar"><span class="is-blue" style="width:@((int)Math.Round(u.Value * 100.0 / maxUser))%"></span></div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+</div>
         <!-- ==========================================
             QUICK ACTIONS
         =========================================== -->
-        <div class="adm-section-head adm-mt-lg">
-            <div>
-                <h3>Quick actions</h3>
-                <p>Manage the reference data that powers the rest of the system.</p>
-            </div>
-        </div>
+       <div class="adm-section-head adm-mt-lg">
+    <div>
+        <h3>Quick actions</h3>
+        <p>Manage the reference data that powers the rest of the system.</p>
+    </div>
+    <div class="adm-search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="admActionSearch" type="search" placeholder="Search actions..." aria-label="Search quick actions" />
+    </div>
+</div>
 
-        <div class="adm-grid adm-grid-3">
+<div class="adm-grid adm-grid-3" id="admActions">
 
             <a href="@Url.Action("Conditions", "Admin")" class="adm-action">
                 <div class="adm-action-icon"><i class="fa-solid fa-heart-pulse"></i></div>
@@ -203,7 +337,7 @@ if (User.IsInRole("Admin"))
             </a>
 
         </div>
-
+        <p id="admActionEmpty" class="adm-noresult" hidden>No actions match your search.</p>
         <!-- ==========================================
             INSIGHTS: RECENT CHANGES + ACTIVITY
         =========================================== -->
@@ -225,10 +359,19 @@ if (User.IsInRole("Admin"))
 
                 @if (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 {
+
+                    <div class="adm-chips" role="group" aria-label="Filter changes">
+    <button type="button" class="adm-chip is-active" data-kind="all">All</button>
+    <button type="button" class="adm-chip" data-kind="is-created">Added</button>
+    <button type="button" class="adm-chip" data-kind="is-updated">Edited</button>
+    <button type="button" class="adm-chip" data-kind="is-removed">Removed</button>
+    <button type="button" class="adm-chip" data-kind="is-restored">Restored</button>
+    <button type="button" class="adm-chip adm-chip-export" id="admExport"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+</div>
                     <ul class="adm-feed">
                         @foreach (var log in Model.RecentChanges)
                         {
-                            <li class="adm-feed-item">
+                        <li class="adm-feed-item" data-kind="@BadgeClass(log.Action)">
                                 <span class="adm-feed-badge @BadgeClass(log.Action)">@log.Action</span>
                                 <div class="adm-feed-text">
                                     <strong>@log.TableName</strong>
@@ -296,7 +439,15 @@ if (User.IsInRole("Admin"))
                             </div>
                         }
                     </div>
-
+                    <div class="adm-heat-wrap">
+    <span class="adm-chart-cap">Activity heat strip</span>
+    <div id="adminHeat" class="adm-heat"></div>
+    <div class="adm-heat-legend">
+        <span>Less</span>
+        <i class="adm-heat-cell l0"></i><i class="adm-heat-cell l1"></i><i class="adm-heat-cell l2"></i><i class="adm-heat-cell l3"></i><i class="adm-heat-cell l4"></i>
+        <span>More</span>
+    </div>
+</div>
                     <div class="adm-mix">
                         <div class="adm-mix-head">
                             <span>What changed</span>
@@ -319,6 +470,120 @@ if (User.IsInRole("Admin"))
                     </div>
 
                 </div>
+            </div>
+
+        </div>
+                <!-- ==========================================
+            SETUP CHECKLIST
+        =========================================== -->
+        @{
+            var checklist = new[]
+            {
+                new { Text = "Resolve data quality warnings", Done = healthy,                  Url = Url.Action("DataQuality", "Admin") },
+                new { Text = "Add condition records",         Done = Model.ConditionCount > 0,  Url = Url.Action("Conditions", "Admin") },
+                new { Text = "Add allergy records",           Done = Model.AllergyCount > 0,    Url = Url.Action("Allergies", "Admin") },
+                new { Text = "Add medication records",        Done = Model.MedicationCount > 0, Url = Url.Action("Medications", "Admin") }
+            };
+            var doneCount = checklist.Count(c => c.Done);
+            var donePct = (int)Math.Round(doneCount * 100.0 / checklist.Length);
+        }
+
+        <div class="adm-section-head adm-mt-lg">
+            <div>
+                <h3>Setup checklist</h3>
+                <p>Make sure the reference data the rest of the system relies on is in place.</p>
+            </div>
+        </div>
+
+        <div class="adm-panel">
+            <div class="adm-check-head">
+                <span>@doneCount of @checklist.Length complete</span>
+                <div class="adm-rank-bar"><span style="width:@donePct%"></span></div>
+            </div>
+            <ul class="adm-check">
+                @foreach (var item in checklist)
+                {
+                    <li>
+                        <a href="@item.Url" class="@(item.Done ? "is-done" : "")">
+                            <span class="adm-check-mark"><i class="fa-solid @(item.Done ? "fa-check" : "fa-arrow-right")"></i></span>
+                            <span>@item.Text</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+
+                       <!-- ==========================================
+            REFERENCE TABLES + RECENTLY REMOVED
+        =========================================== -->
+        @{
+            var refTables = new[]
+            {
+                new { Name = "Conditions",  Count = Model.ConditionCount,  Page = "Conditions",  Icon = "fa-heart-pulse" },
+                new { Name = "Allergies",   Count = Model.AllergyCount,    Page = "Allergies",   Icon = "fa-allergies" },
+                new { Name = "Medications", Count = Model.MedicationCount, Page = "Medications", Icon = "fa-pills" }
+            };
+            var removedItems = Model.RecentChanges?.Where(l => BadgeClass(l.Action) == "is-removed").Take(5).ToList();
+        }
+
+        <div class="adm-section-head adm-mt-lg">
+            <div>
+                <h3>Reference tables</h3>
+                <p>See how big each table is, and what was removed recently.</p>
+            </div>
+        </div>
+
+        <div class="adm-split">
+
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <span><i class="fa-solid fa-table"></i> Reference tables</span>
+                </div>
+                <div class="adm-bars-body">
+                    @foreach (var t in refTables)
+                    {
+                        <div class="adm-rank">
+                            <div class="adm-rank-label">
+                                <span><i class="fa-solid @t.Icon"></i> @t.Name</span>
+                                <strong>@t.Count &middot; @SharePct(t.Count)%</strong>
+                            </div>
+                            <div class="adm-rank-bar"><span style="width:@SharePct(t.Count)%"></span></div>
+                            <a class="adm-mini-link" href="@Url.Action(t.Page, "Admin")">Manage @t.Name.ToLower() &rarr;</a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <span><i class="fa-solid fa-trash-can-arrow-up"></i> Recently removed records</span>
+                    <span class="adm-panel-tag">Last 5</span>
+                </div>
+                @if (removedItems != null && removedItems.Count > 0)
+                {
+                    <ul class="adm-feed">
+                        @foreach (var log in removedItems)
+                        {
+                            <li class="adm-feed-item">
+                                <span class="adm-feed-badge is-removed">@log.Action</span>
+                                <div class="adm-feed-text">
+                                    <strong>@log.TableName</strong>
+                                    <span>@log.Details</span>
+                                    <small>@log.UserName &middot; @log.ActionDate.ToString("dd MMM yyyy, HH:mm")</small>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                    <a class="adm-panel-foot" href="@Url.Action("AuditLog", "Admin")">View full audit log &rarr;</a>
+                }
+                else
+                {
+                    <div class="adm-empty-state">
+                        <div class="adm-empty-icon"><i class="fa-regular fa-circle-check"></i></div>
+                        <h5>Nothing removed recently</h5>
+                        <p>Deactivated or deleted records will show up here.</p>
+                    </div>
+                }
             </div>
 
         </div>
@@ -545,7 +810,19 @@ if (User.IsInRole("Admin"))
                     el.classList.add('is-down');
                 }
             }
-
+                    function renderHeat(labels, counts) {
+                     const el = document.getElementById('adminHeat');
+            if (!el) return;
+            const max = Math.max.apply(null, counts.concat([0]));
+            el.innerHTML = '';
+            counts.forEach(function (v, i) {
+                const cell = document.createElement('span');
+                const lvl = (v === 0 || max === 0) ? 0 : Math.min(4, Math.ceil((v / max) * 4));
+                cell.className = 'adm-heat-cell l' + lvl;
+                cell.title = labels[i] + ': ' + v + (v === 1 ? ' change' : ' changes');
+                el.appendChild(cell);
+            });
+    }
             // ---------- tiles + chart for the selected range ----------
             function render() {
                 const labels = allLabels.slice(-range);
@@ -561,7 +838,7 @@ if (User.IsInRole("Admin"))
                 setText('adminActBusiestSub', max > 0 ? max + (max === 1 ? ' change' : ' changes') : 'no activity yet');
 
                 // a drawing problem must never stop the toggle or the tiles from working
-                try {
+                try { renderHeat(labels, counts);
                     drawChart(labels, counts);
                 } catch (err) {
                     if (window.console) console.error('Activity chart failed to draw:', err);
@@ -589,7 +866,65 @@ if (User.IsInRole("Admin"))
         })();
     </script>
 
+    <script>
+(function () {
+    // ---------- quick action search ----------
+    var search = document.getElementById('admActionSearch');
+    var emptyMsg = document.getElementById('admActionEmpty');
+    if (search) {
+        search.addEventListener('input', function () {
+            var q = search.value.trim().toLowerCase(), shown = 0;
+            document.querySelectorAll('#admActions .adm-action').forEach(function (card) {
+                var hit = card.textContent.toLowerCase().indexOf(q) !== -1;
+                card.style.display = hit ? '' : 'none';
+                if (hit) shown++;
+            });
+            if (emptyMsg) emptyMsg.hidden = shown !== 0;
+        });
+    }
+
+    // ---------- feed filter chips ----------
+    document.querySelectorAll('.adm-chip[data-kind]').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            document.querySelectorAll('.adm-chip[data-kind]').forEach(function (c) { c.classList.remove('is-active'); });
+            chip.classList.add('is-active');
+            var kind = chip.getAttribute('data-kind');
+            document.querySelectorAll('.adm-feed-item').forEach(function (li) {
+                li.style.display = (kind === 'all' || li.getAttribute('data-kind') === kind) ? '' : 'none';
+            });
+        });
+    });
+
+    // ---------- CSV export: visible rows only, formula-safe ----------
+    var exp = document.getElementById('admExport');
+    if (exp) exp.addEventListener('click', function () {
+        var cell = function (t) {
+            t = String(t || '').replace(/\s+/g, ' ').trim();
+           if (/^[=+\-@@\t\r]/.test(t)) t = "'" + t;   // neutralise Excel formulas
+            return '"' + t.replace(/"/g, '""') + '"';
+        };
+        var rows = [['Action', 'Table', 'Details', 'User and time'].map(cell).join(',')];
+        document.querySelectorAll('.adm-feed-item').forEach(function (li) {
+            if (li.style.display === 'none') return;
+            rows.push([
+                li.querySelector('.adm-feed-badge'),
+                li.querySelector('strong'),
+                li.querySelector('.adm-feed-text span'),
+                li.querySelector('small')
+            ].map(function (el) { return cell(el ? el.textContent : ''); }).join(','));
+        });
+        var blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'recent-changes-' + new Date().toISOString().slice(0, 10) + '.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    });
+})();
+</script>
+
     <style>
+
         :root {
             --adm-paper: #F0F7F6;
             --adm-raised: #FFFFFF;
@@ -1263,7 +1598,83 @@ if (User.IsInRole("Admin"))
         .adm-dot.is-removed { background: var(--adm-red); }
         .adm-dot.is-restored { background: var(--adm-gold); }
 
-        /* ============ FOOTER ============ */
+
+        /* ============ AT A GLANCE ============ */
+.adm-glance { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 28px; }
+.adm-glance-card { background: var(--adm-raised); border-radius: var(--adm-radius); box-shadow: var(--adm-shadow-sm); padding: 18px 22px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.adm-glance-card small { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--adm-ink-faint); }
+.adm-glance-card strong { font-family: 'Poppins', sans-serif; font-size: 26px; line-height: 1.3; color: var(--adm-ink); }
+.adm-glance-card strong.is-sm { font-size: 17px; line-height: 2; }
+.adm-glance-card em { font-style: normal; font-size: 12px; color: var(--adm-ink-soft); }
+.adm-health { flex-direction: row; align-items: center; gap: 16px; }
+.adm-health-ring { --pct: 0; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--adm-teal) calc(var(--pct) * 1%), var(--adm-line) 0); }
+.adm-health-ring::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--adm-raised); }
+.adm-health-ring span { position: relative; font: 700 14px 'Poppins', sans-serif; color: var(--adm-teal-deep); }
+.adm-health.is-warn .adm-health-ring { background: conic-gradient(var(--adm-orange) calc(var(--pct) * 1%), var(--adm-line) 0); }
+.adm-health.is-warn .adm-health-ring span { color: var(--adm-orange); }
+
+/* ============ BREAKDOWN PANELS ============ */
+.adm-bars-body { padding: 20px 26px 24px; }
+.adm-legend-1 { grid-template-columns: 1fr; }
+.adm-mix-seg.is-purple { background: var(--adm-purple); }
+.adm-dot.is-purple { background: var(--adm-purple); }
+.adm-rank { margin-bottom: 16px; }
+.adm-rank:last-child { margin-bottom: 0; }
+.adm-rank-label { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 7px; color: var(--adm-ink-soft); }
+.adm-rank-label span { overflow-wrap: anywhere; }
+.adm-rank-label strong { color: var(--adm-ink); }
+.adm-rank-bar { height: 10px; border-radius: 999px; background: var(--adm-line); overflow: hidden; }
+.adm-rank-bar span { display: block; height: 100%; border-radius: 999px; background: var(--adm-teal); transition: width .6s ease; }
+.adm-rank-bar span.is-blue { background: var(--adm-blue); }
+.adm-noresult { margin: 0; text-align: center; color: var(--adm-ink-soft); font-size: 13px; padding: 10px 0; }
+
+/* ============ SEARCH ============ */
+.adm-search { position: relative; }
+.adm-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--adm-ink-faint); font-size: 13px; }
+.adm-search input { width: 240px; max-width: 100%; height: 40px; padding: 0 14px 0 36px; border-radius: 999px; border: 1px solid var(--adm-line-strong); background: var(--adm-raised); color: var(--adm-ink); font: 500 13px 'Inter', sans-serif; outline: none; }
+.adm-search input:focus { border-color: var(--adm-teal); box-shadow: 0 0 0 3px rgba(14, 140, 127, .12); }
+
+/* ============ FEED CHIPS ============ */
+.adm-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 26px; border-bottom: 1px solid var(--adm-line); }
+.adm-chip { border: 1px solid var(--adm-line); background: var(--adm-raised); color: var(--adm-ink-soft); font: 600 12px 'Inter', sans-serif; padding: 6px 13px; border-radius: 999px; cursor: pointer; transition: background .15s, color .15s; }
+.adm-chip:hover { background: var(--adm-teal-dim); }
+.adm-chip.is-active { background: var(--adm-teal); border-color: var(--adm-teal); color: #fff; }
+.adm-chip-export { margin-left: auto; color: var(--adm-teal-deep); }
+.adm-chip-export i { margin-right: 5px; }
+
+/* ============ HEAT STRIP ============ */
+.adm-heat-wrap { margin-top: 20px; }
+.adm-heat { display: flex; gap: 3px; margin-top: 8px; }
+.adm-heat-cell { flex: 1; min-width: 4px; height: 22px; border-radius: 4px; background: var(--adm-line); display: inline-block; }
+.adm-heat-cell.l1 { background: #BFE5DF; }
+.adm-heat-cell.l2 { background: #7FCBC1; }
+.adm-heat-cell.l3 { background: #3FAE9F; }
+.adm-heat-cell.l4 { background: var(--adm-teal-deep); }
+.adm-heat-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 8px; font-size: 11px; color: var(--adm-ink-faint); }
+.adm-heat-legend .adm-heat-cell { flex: none; width: 14px; height: 14px; border-radius: 3px; }
+
+/* ============ CHECKLIST ============ */
+.adm-check-head { padding: 18px 26px; border-bottom: 1px solid var(--adm-line); display: flex; flex-direction: column; gap: 10px; font-size: 13px; font-weight: 600; color: var(--adm-ink); }
+.adm-check { list-style: none; margin: 0; padding: 8px 14px 12px; }
+.adm-check a { display: flex; align-items: center; gap: 13px; padding: 12px; border-radius: 14px; color: var(--adm-ink); text-decoration: none; font-size: 13.5px; font-weight: 600; transition: background .15s; }
+.adm-check a:hover { background: var(--adm-paper); color: var(--adm-ink); text-decoration: none; }
+.adm-check-mark { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--adm-line); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--adm-teal); flex-shrink: 0; }
+.adm-check a.is-done .adm-check-mark { background: var(--adm-teal); border-color: var(--adm-teal); color: #fff; }
+.adm-check a.is-done span:last-child { color: var(--adm-ink-soft); text-decoration: line-through; }
+
+@@media (max-width: 1100px) {
+    .adm-glance { grid-template-columns: repeat(2, 1fr); }
+}
+@@media (max-width: 640px) {
+    .adm-glance { grid-template-columns: 1fr; }
+    .adm-search { width: 100%; }
+    .adm-search input { width: 100%; }
+    .adm-chips { padding: 12px 16px; }
+}
+           .adm-mini-link { display: inline-block; margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--adm-teal-deep); text-decoration: none; }
+    .adm-mini-link:hover { text-decoration: underline; }
+    .adm-rank-label i { color: var(--adm-teal); margin-right: 6px; }
+
         .adm-footer { margin-top: 50px; text-align: center; }
 
         .adm-footer hr {
@@ -2395,6 +2806,7 @@ if (User.IsInRole("Admin"))
                 window.addEventListener('load', renderChart);
             })();
         </script>
+       
 
         <style>
             :root {
@@ -6554,6 +6966,7 @@ if (User.IsInRole("Admin"))
 
                     <i class="fa-solid fa-boxes-stacked"></i>
 
+
                     <span>
                         Manage Consumables
                     </span>
@@ -6596,6 +7009,6 @@ if (User.IsInRole("Admin"))
     {
         <h1>No User Role</h1>
     }
-}
+
     
     

@@ -137,19 +137,10 @@ namespace LabDash.Controllers
 
                                 try
                                 {
-                                    // ------------------------------------------------
-                                    // TESTING EMAIL
-                                    //
-                                    // Change to user.Email when ready.
-                                    // ------------------------------------------------
-
-                                    string realAccount =
-                                        "labdashrsa@gmail.com";
-
                                     await _emailSender.SendEmailAsync(
-                                        realAccount,
-                                        $"Welcome to LabDash, {user.FirstName}!",
-                                        emailBody);
+                                      user.Email!,
+                                      $"Welcome to LabDash, {user.FirstName}!",
+                                       emailBody);
 
                                     // Only mark as sent AFTER successful email.
                                     user.WelcomeEmailSent = true;
@@ -1396,30 +1387,29 @@ Here's to healthier days ahead,
         // ============================================================
         // EMAIL VERIFIED
         // ============================================================
-
         [HttpGet]
         public async Task<IActionResult> EmailVerified(
             string userId,
             string code)
         {
-            var user =
-                await _userManager.FindByIdAsync(
-                    userId);
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(code))
+                return View("Error");
+
+            var user = await _userManager.FindByIdAsync(userId);
 
             if (user == null)
                 return NotFound();
 
-            var result =
-                await _userManager.ConfirmEmailAsync(
-                    user,
-                    Uri.UnescapeDataString(code));
+            // Link already used (opened twice): show success again.
+            if (await _userManager.IsEmailConfirmedAsync(user))
+                return View("EmailConfirmed");
+
+            var result = await _userManager.ConfirmEmailAsync(
+                user,
+                Uri.UnescapeDataString(code));
 
             if (result.Succeeded)
             {
-                // ----------------------------------------------------
-                // AUDIT: EMAIL CONFIRMED
-                // ----------------------------------------------------
-
                 _audit.LogAs(
                     user.Email ?? "Unknown",
                     "Email Confirmed",
