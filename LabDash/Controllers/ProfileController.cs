@@ -32,22 +32,10 @@ namespace LabDash.Controllers
                 return NotFound();
             }
 
-            var model = new ProfileViewModel
-            {
-                UserName = user.UserName,
+            var model = new ProfileViewModel();
 
-                FirstName = user.FirstName,
-
-                LastName = user.LastName,
-
-                Email = user.Email ?? "",
-
-                PhoneNumber = user.PhoneNumb,
-
-                Gender = user.Gender,
-
-                AccountCreated = user.Timestamp_AccountCreated
-            };
+            FillEditableFields(model, user);
+            FillLockedFields(model, user);
 
             return View(model);
         }
@@ -62,42 +50,31 @@ namespace LabDash.Controllers
         public async Task<IActionResult> UpdateProfile(
             ProfileViewModel model)
         {
-            // We do NOT validate password fields
+            // Password fields belong to the other form
             ModelState.Remove(nameof(model.CurrentPassword));
             ModelState.Remove(nameof(model.NewPassword));
             ModelState.Remove(nameof(model.ConfirmPassword));
 
-            if (!ModelState.IsValid)
-            {
-                // Reload values that are not editable
-                var currentUser =
-                    await _userManager.GetUserAsync(User);
-
-                if (currentUser == null)
-                {
-                    return NotFound();
-                }
-
-                model.UserName = currentUser.UserName;
-
-                model.AccountCreated =
-                    currentUser.Timestamp_AccountCreated;
-
-                return View("Index", model);
-            }
-
-
-            var user =
-                await _userManager.GetUserAsync(User);
+            var user = await _userManager.GetUserAsync(User);
 
             if (user == null)
             {
                 return NotFound();
             }
 
+            if (!ModelState.IsValid)
+            {
+                // Locked fields always come from the database, never the form
+                FillLockedFields(model, user);
+
+                return View("Index", model);
+            }
+
 
             // ========================================================
-            // UPDATE USER INFORMATION
+            // UPDATE EDITABLE INFORMATION ONLY
+            // Gender, EmployeeNumber, IDNumber and AccountCreated are
+            // locked and are intentionally NOT copied from the form.
             // ========================================================
 
             user.FirstName = model.FirstName.Trim();
@@ -105,8 +82,6 @@ namespace LabDash.Controllers
             user.LastName = model.LastName.Trim();
 
             user.PhoneNumb = model.PhoneNumber?.Trim();
-
-            user.Gender = model.Gender;
 
 
             // ========================================================
@@ -129,10 +104,7 @@ namespace LabDash.Controllers
                             error.Description);
                     }
 
-                    model.UserName = user.UserName;
-
-                    model.AccountCreated =
-                        user.Timestamp_AccountCreated;
+                    FillLockedFields(model, user);
 
                     return View("Index", model);
                 }
@@ -146,8 +118,7 @@ namespace LabDash.Controllers
             // SAVE CHANGES
             // ========================================================
 
-            var result =
-                await _userManager.UpdateAsync(user);
+            var result = await _userManager.UpdateAsync(user);
 
             if (!result.Succeeded)
             {
@@ -158,10 +129,7 @@ namespace LabDash.Controllers
                         error.Description);
                 }
 
-                model.UserName = user.UserName;
-
-                model.AccountCreated =
-                    user.Timestamp_AccountCreated;
+                FillLockedFields(model, user);
 
                 return View("Index", model);
             }
@@ -183,27 +151,27 @@ namespace LabDash.Controllers
         public async Task<IActionResult> ChangePassword(
             ProfileViewModel model)
         {
-            // Only validate password fields
+            // Profile fields belong to the other form
             ModelState.Remove(nameof(model.FirstName));
             ModelState.Remove(nameof(model.LastName));
             ModelState.Remove(nameof(model.Email));
             ModelState.Remove(nameof(model.PhoneNumber));
             ModelState.Remove(nameof(model.Gender));
+            ModelState.Remove(nameof(model.EmployeeNumber));
+            ModelState.Remove(nameof(model.IDNumber));
 
-            if (!ModelState.IsValid)
-            {
-                await ReloadProfileInformation(model);
-
-                return View("Index", model);
-            }
-
-
-            var user =
-                await _userManager.GetUserAsync(User);
+            var user = await _userManager.GetUserAsync(User);
 
             if (user == null)
             {
                 return NotFound();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                ReloadProfileInformation(model, user);
+
+                return View("Index", model);
             }
 
 
@@ -213,7 +181,7 @@ namespace LabDash.Controllers
                     "CurrentPassword",
                     "Please enter your current password.");
 
-                await ReloadProfileInformation(model);
+                ReloadProfileInformation(model, user);
 
                 return View("Index", model);
             }
@@ -225,7 +193,7 @@ namespace LabDash.Controllers
                     "NewPassword",
                     "Please enter a new password.");
 
-                await ReloadProfileInformation(model);
+                ReloadProfileInformation(model, user);
 
                 return View("Index", model);
             }
@@ -241,7 +209,6 @@ namespace LabDash.Controllers
                     model.CurrentPassword,
                     model.NewPassword);
 
-
             if (!result.Succeeded)
             {
                 foreach (var error in result.Errors)
@@ -251,7 +218,7 @@ namespace LabDash.Controllers
                         error.Description);
                 }
 
-                await ReloadProfileInformation(model);
+                ReloadProfileInformation(model, user);
 
                 return View("Index", model);
             }
@@ -269,22 +236,14 @@ namespace LabDash.Controllers
 
 
         // ============================================================
-        // RELOAD PROFILE INFORMATION
+        // HELPERS
         // ============================================================
 
-        private async Task ReloadProfileInformation(
-            ProfileViewModel model)
+        // Fields the technician is allowed to edit
+        private static void FillEditableFields(
+            ProfileViewModel model,
+            LabUser user)
         {
-            var user =
-                await _userManager.GetUserAsync(User);
-
-            if (user == null)
-            {
-                return;
-            }
-
-            model.UserName = user.UserName;
-
             model.FirstName = user.FirstName;
 
             model.LastName = user.LastName;
@@ -292,11 +251,32 @@ namespace LabDash.Controllers
             model.Email = user.Email ?? "";
 
             model.PhoneNumber = user.PhoneNumb;
+        }
+
+        // Fields that are locked and always come from the database
+        private static void FillLockedFields(
+            ProfileViewModel model,
+            LabUser user)
+        {
+            model.UserName = user.UserName;
 
             model.Gender = user.Gender;
 
-            model.AccountCreated =
-                user.Timestamp_AccountCreated;
+            model.EmployeeNumber = user.EmployeeNumber;
+
+            //model.IDNumber = user.IDNumber;
+
+            model.AccountCreated = user.Timestamp_AccountCreated;
+        }
+
+        // Used when the password form fails: reset the profile form
+        // to the saved values and keep the typed passwords out of it
+        private static void ReloadProfileInformation(
+            ProfileViewModel model,
+            LabUser user)
+        {
+            FillEditableFields(model, user);
+            FillLockedFields(model, user);
         }
     }
 }
