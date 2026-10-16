@@ -6,13 +6,30 @@
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <div class="rv-wrap">
 
+    <!-- HEADER -->
+
+    <div class="rv-hero">
+        <div class="rv-hero-icon"><i class="fa-solid fa-rotate-left"></i></div>
+
+        <div>
+            <h2>Tests Returned For Review</h2>
+            <p>Results awaiting your review and sign-off.</p>
+        </div>
+
+        <div class="rv-hero-stat">
+            <span>Waiting</span>
+            <strong>@Model.Count()</strong>
+        </div>
+    </div>
+
     @if (TempData["Success"] != null)
     {
-        <div class="rv-alert rv-alert-success">
+        <div class="rv-alert rv-alert-success" role="alert">
             <i class="fa-solid fa-circle-check"></i>
             <span>@TempData["Success"]</span>
         </div>
@@ -21,17 +38,14 @@
     <div class="rv-panel">
 
         <div class="rv-panel-head">
-            <div class="rv-panel-head-left">
-                <div class="rv-panel-icon"><i class="fa-solid fa-rotate-left"></i></div>
-                <div>
-                    <h3>Tests Returned For Review</h3>
-                    <p>Results awaiting your review and sign-off.</p>
-                </div>
-            </div>
-            @if (Model.Any())
-            {
-                <span class="rv-panel-count">@Model.Count() waiting</span>
-            }
+            <h4>
+                <i class="fa-solid fa-list-check"></i>
+                Returned Tests
+                @if (Model.Any())
+                {
+                    <span class="rv-panel-count">@Model.Count() waiting</span>
+                }
+            </h4>
         </div>
 
         <div class="rv-panel-body">
@@ -63,7 +77,7 @@
                             {
                                 <tr>
                                     <td><span class="rv-request-id">TR-@item.RequestId</span></td>
-                                    <td>@item.TestType.Name</td>
+                                    <td class="rv-strong">@item.TestType.Name</td>
                                     <td>
                                         <span class="rv-cat-pill">@item.TestType.Category</span>
                                     </td>
@@ -95,134 +109,198 @@
 
 <style>
     :root {
-        --rv-teal: #0E8C7F;
-        --rv-teal-deep: #0A5850;
-        --rv-teal-dim: #E3F4F1;
-        --rv-ink: #102C27;
-        --rv-ink-soft: #52716C;
-        --rv-ink-faint: #8FA9A3;
-        --rv-line: #E1EEEC;
-        --rv-amber: #B4862A;
-        --rv-amber-dim: #FBF1DA;
-        --rv-green: #2E8B57;
-        --rv-green-dim: #E4F5EB;
-        --rv-radius: 18px;
-        --rv-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
+        --rv-teal: #0f9488;
+        --rv-teal-dark: #0b6f66;
+        --rv-teal-deep: #0a5a52;
+        --rv-teal-dim: #e1f3f0;
+        --rv-teal-soft: #eef7f6;
+        --rv-teal-border: #cfe6e3;
+        --rv-ink: #0f2f2d;
+        --rv-ink-soft: #6b817f;
+        --rv-line: #e3ecec;
+        --rv-page-bg: #e9f0f1;
+        --rv-amber: #a87308;
+        --rv-amber-dim: #fff3d9;
+        --rv-green: #198754;
+        --rv-green-dim: #e2f5e9;
+        --rv-radius: 20px;
+        --rv-shadow: 0 10px 30px rgba(15, 80, 72, .08);
+        --rv-hero-gradient: linear-gradient(135deg, #12a193 0%, #0e857a 45%, #0a5f57 100%);
+        --rv-btn-gradient: linear-gradient(135deg, #10978a 0%, #0a5d55 100%);
+    }
+
+    .rv-wrap,
+    .rv-wrap * {
+        box-sizing: border-box;
     }
 
     .rv-wrap {
-        font-family: 'Inter', sans-serif;
-        color: var(--rv-ink);
-        max-width: 1100px;
+        width: 100%;
+        max-width: 1500px;
         margin: 0 auto;
-        animation: rvFadeIn .4s ease;
+        padding: 24px 26px 52px;
+        color: var(--rv-ink);
+        background: var(--rv-page-bg);
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
     }
 
-    @@keyframes rvFadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
+        .rv-wrap *:focus-visible {
+            outline: 3px solid rgba(15, 148, 136, .4);
+            outline-offset: 2px;
+            border-radius: 8px;
         }
 
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    /* ============ HERO HEADER ============ */
+
+    .rv-hero {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 24px 28px;
+        margin-bottom: 22px;
+        color: #fff;
+        background: var(--rv-hero-gradient);
+        border-radius: 24px;
+        box-shadow: 0 12px 30px rgba(10, 95, 87, .22);
     }
+
+    .rv-hero-icon {
+        width: 54px;
+        height: 54px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 15px;
+        color: #fff;
+        background: rgba(255, 255, 255, .16);
+        border: 1px solid rgba(255, 255, 255, .32);
+        font-size: 22px;
+    }
+
+    .rv-hero h2 {
+        margin: 0 0 4px;
+        color: #fff;
+        font-family: 'Inter', sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -.2px;
+    }
+
+    .rv-hero p {
+        margin: 0;
+        color: rgba(255, 255, 255, .86);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .rv-hero-stat {
+        min-width: 150px;
+        margin-left: auto;
+        padding: 4px 0 4px 22px;
+        border-left: 1px solid rgba(255, 255, 255, .28);
+    }
+
+        .rv-hero-stat span {
+            display: block;
+            margin-bottom: 4px;
+            color: rgba(255, 255, 255, .78);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
+
+        .rv-hero-stat strong {
+            color: #fff;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+    /* ============ ALERT ============ */
 
     .rv-alert {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         padding: 14px 18px;
-        border-radius: 12px;
-        margin-bottom: 18px;
-        font-size: 14px;
-        font-weight: 500;
+        margin-bottom: 22px;
+        border-radius: 16px;
+        box-shadow: var(--rv-shadow);
+        font-size: 13px;
+        font-weight: 600;
     }
 
     .rv-alert-success {
+        color: #187341;
         background: var(--rv-green-dim);
-        color: var(--rv-green);
+        border: 1px solid #ccebd8;
+        border-left: 4px solid var(--rv-green);
     }
 
     .rv-alert i {
         font-size: 16px;
     }
 
+    /* ============ TABLE CARD ============ */
+
     .rv-panel {
+        overflow: hidden;
         background: #fff;
+        border: 1px solid rgba(255, 255, 255, .8);
         border-radius: var(--rv-radius);
         box-shadow: var(--rv-shadow);
-        overflow: hidden;
     }
 
     .rv-panel-head {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 24px 28px;
-        background: linear-gradient(120deg, var(--rv-teal), var(--rv-teal-deep));
+        padding: 18px 26px;
+        border-bottom: 1px solid var(--rv-line);
     }
 
-    .rv-panel-head-left {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
+        .rv-panel-head h4 {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            margin: 0;
+            color: var(--rv-ink);
+            font-family: 'Inter', sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+        }
 
-    .rv-panel-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
-        background: rgba(255,255,255,.16);
-        border: 1px solid rgba(255,255,255,.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-size: 19px;
-        flex-shrink: 0;
-    }
-
-    .rv-panel-head h3 {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 700;
-        font-size: 18px;
-        color: #fff;
-        margin: 0 0 3px;
-    }
-
-    .rv-panel-head p {
-        margin: 0;
-        color: rgba(255,255,255,.85);
-        font-size: 13px;
-    }
+            .rv-panel-head h4 > i {
+                color: var(--rv-teal);
+                font-size: 16px;
+            }
 
     .rv-panel-count {
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        font-size: 12.5px;
-        background: rgba(255,255,255,.18);
-        color: #fff;
-        padding: 7px 15px;
+        padding: 4px 12px;
+        color: var(--rv-teal-dark);
+        background: var(--rv-teal-dim);
         border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
         white-space: nowrap;
     }
 
     .rv-panel-body {
-        padding: 8px 0 0;
+        padding: 0;
     }
 
     /* ============ EMPTY STATE ============ */
+
     .rv-empty {
         padding: 60px 24px;
         text-align: center;
     }
 
         .rv-empty i {
-            width: 84px;
-            height: 84px;
+            width: 72px;
+            height: 72px;
             margin: 0 auto 18px;
             border-radius: 50%;
             background: var(--rv-teal-dim);
@@ -230,61 +308,73 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 34px;
+            font-size: 30px;
         }
 
         .rv-empty h4 {
-            font-family: 'Poppins', sans-serif;
+            margin: 0 0 6px;
+            color: var(--rv-ink);
+            font-family: 'Inter', sans-serif;
+            font-size: 18px;
             font-weight: 700;
-            margin: 0 0 8px;
-            font-size: 17px;
         }
 
         .rv-empty p {
-            color: var(--rv-ink-soft);
             margin: 0;
-            font-size: 14px;
+            color: var(--rv-ink-soft);
+            font-size: 13px;
         }
 
     /* ============ TABLE ============ */
+
     .rv-table-wrap {
         overflow-x: auto;
     }
 
     .rv-table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
         font-size: 14px;
     }
 
         .rv-table thead th {
-            text-align: left;
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
-            font-size: 11.5px;
-            letter-spacing: .04em;
-            text-transform: uppercase;
-            color: var(--rv-ink-faint);
-            padding: 14px 28px;
+            padding: 15px 26px;
+            color: var(--rv-teal-dark);
             background: var(--rv-teal-dim);
+            border: 0;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .4px;
+            text-align: left;
+            text-transform: uppercase;
             white-space: nowrap;
         }
 
         .rv-table tbody td {
-            padding: 16px 28px;
+            padding: 18px 26px;
+            color: var(--rv-ink);
+            background: #fff;
             border-bottom: 1px solid var(--rv-line);
+            vertical-align: middle;
         }
 
         .rv-table tbody tr:last-child td {
-            border-bottom: none;
+            border-bottom: 0;
         }
 
-        .rv-table tbody tr:hover {
-            background: #FAFDFC;
+        .rv-table tbody tr:hover td {
+            background: var(--rv-teal-soft);
         }
 
-    .rv-text-center {
-        text-align: center;
+        .rv-table thead th.rv-text-center,
+        .rv-table tbody td.rv-text-center {
+            text-align: center;
+        }
+
+    .rv-strong {
+        font-weight: 600;
     }
 
     .rv-muted {
@@ -292,68 +382,90 @@
     }
 
     .rv-request-id {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-        font-size: 13.5px;
-        color: var(--rv-teal-deep);
+        color: var(--rv-ink);
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 700;
     }
 
     .rv-cat-pill {
         display: inline-block;
-        font-size: 12px;
-        font-weight: 500;
+        padding: 5px 12px;
+        color: var(--rv-teal-dark);
         background: var(--rv-teal-dim);
-        color: var(--rv-teal-deep);
-        padding: 4px 11px;
         border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
     }
 
     .rv-badge {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        font-size: 12px;
         padding: 6px 13px;
         border-radius: 999px;
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
     }
 
     .rv-badge-warning {
-        background: var(--rv-amber-dim);
         color: var(--rv-amber);
+        background: var(--rv-amber-dim);
     }
 
     .rv-btn-review {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        text-decoration: none;
-        background: var(--rv-teal);
+        padding: 10px 18px;
         color: #fff;
-        border-radius: 999px;
-        padding: 9px 18px;
+        background: var(--rv-btn-gradient);
+        border-radius: 12px;
+        box-shadow: 0 6px 14px rgba(10, 93, 85, .25);
         font-family: 'Inter', sans-serif;
-        font-weight: 600;
         font-size: 13px;
-        transition: background .15s, transform .15s;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: transform .15s, box-shadow .15s;
     }
 
         .rv-btn-review:hover {
-            background: var(--rv-teal-deep);
             color: #fff;
             transform: translateY(-1px);
+            box-shadow: 0 9px 20px rgba(10, 93, 85, .34);
         }
+
+    /* ============ RESPONSIVE ============ */
 
     @@media (max-width: 700px) {
-        .rv-panel-head {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 14px;
+        .rv-hero-stat {
+            display: none;
         }
 
-        .rv-table thead th, .rv-table tbody td {
+        .rv-table thead th,
+        .rv-table tbody td {
             padding: 12px 16px;
         }
+
+        .rv-panel-head {
+            padding: 14px 16px;
+        }
+    }
+
+    @@media (max-width: 500px) {
+        .rv-wrap {
+            padding: 12px 9px 28px;
+        }
+
+        .rv-hero {
+            padding: 18px;
+            border-radius: 20px;
+        }
+
+            .rv-hero h2 {
+                font-size: 19px;
+            }
     }
 </style>

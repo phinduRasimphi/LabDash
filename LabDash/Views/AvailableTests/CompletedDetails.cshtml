@@ -20,7 +20,45 @@
     var isCompleted = string.Equals(Model.Status, "Completed",
         StringComparison.OrdinalIgnoreCase);
 
-    var isAbnormal = result?.IsAbnormal == true;
+    // Optional: set ViewBag.ReturnCount in the controller to show the
+    // number of times this test was returned for review.
+    int? returnCount = ViewBag.ReturnCount as int?;
+
+    // Determine abnormality from the numeric result and configured reference limits.
+    // If the result cannot be evaluated numerically or the limits are unavailable,
+    // retain the saved IsAbnormal flag rather than inventing a classification.
+    bool? isAbnormal = result?.IsAbnormal;
+
+    if (result != null &&
+        !string.IsNullOrWhiteSpace(result.ResultValue))
+    {
+        decimal parsedValue;
+        var valueText = result.ResultValue.Trim();
+
+        var parsed =
+            decimal.TryParse(
+                valueText,
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out parsedValue)
+            ||
+            decimal.TryParse(
+                valueText,
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.GetCultureInfo("en-ZA"),
+                out parsedValue);
+
+        var lowerLimit = Model.TestType?.ReferenceRangeLow;
+        var upperLimit = Model.TestType?.ReferenceRangeHigh;
+
+        if (parsed && (lowerLimit.HasValue || upperLimit.HasValue))
+        {
+            isAbnormal =
+                (lowerLimit.HasValue && parsedValue < lowerLimit.Value)
+                ||
+                (upperLimit.HasValue && parsedValue > upperLimit.Value);
+        }
+    }
 
     var referenceRange = !string.IsNullOrWhiteSpace(result?.ReferenceRange)
         ? result.ReferenceRange
@@ -35,10 +73,57 @@
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
       rel="stylesheet">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 <div class="lab-details-page">
+
+    <!-- BANNER -->
+
+    <div class="banner">
+        <div class="banner-left">
+            <div class="banner-icon">
+                <i class="fa-solid fa-vial"></i>
+            </div>
+
+            <div>
+                <h1>@(Model.TestType?.Name ?? "Laboratory Test")</h1>
+                <p>
+                    Request TR-@Model.RequestId
+                    @(string.IsNullOrWhiteSpace(patientName) ? "" : $"for {patientName}")
+                </p>
+            </div>
+        </div>
+
+        <div class="banner-stats">
+            <div class="banner-stat">
+                <strong>#@Model.TestRequestItemId</strong>
+                <span>Test item</span>
+            </div>
+
+            @if (returnCount.HasValue)
+            {
+                <div class="banner-stat">
+                    <strong>@returnCount.Value</strong>
+                    <span>Returns</span>
+                </div>
+            }
+
+            <div class="banner-stat">
+                <strong>@Model.Status</strong>
+                <span>Status</span>
+            </div>
+
+            <a asp-action="Completed" class="banner-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+                Back
+            </a>
+        </div>
+    </div>
+
 
     <!-- PATIENT AND TEST INFORMATION -->
 
@@ -49,8 +134,7 @@
         <section class="information-card">
 
             <div class="card-header">
-                <i class="fa-solid fa-user"></i>
-                <span>Patient Information</span>
+                <h2><i class="fa-solid fa-user"></i> Patient information</h2>
             </div>
 
             <div class="card-body">
@@ -65,8 +149,7 @@
 
                         <div class="patient-profile-text">
                             <span class="eyebrow">Patient</span>
-
-                            <h2>@patientName</h2>
+                            <h3>@patientName</h3>
                         </div>
 
                     </div>
@@ -74,7 +157,7 @@
                     <div class="patient-detail-list">
 
                         <div class="patient-detail-row">
-                            <span>ID Number</span>
+                            <span>ID number</span>
                             <strong>
                                 @(string.IsNullOrWhiteSpace(patient.IDNumber)
                                     ? "Not provided"
@@ -101,7 +184,7 @@
                         </div>
 
                         <div class="patient-detail-row">
-                            <span>Date of Birth</span>
+                            <span>Date of birth</span>
                             <strong>@patient.DOB.ToString("dd MMM yyyy")</strong>
                         </div>
 
@@ -111,7 +194,7 @@
 
                     <div class="subsection-heading">
                         <i class="fa-solid fa-notes-medical"></i>
-                        Clinical Information
+                        Clinical information
                     </div>
 
                     <div class="clinical-list">
@@ -132,7 +215,7 @@
                         <div class="clinical-item condition">
                             <div class="clinical-item-heading">
                                 <i class="fa-solid fa-heart-pulse"></i>
-                                <strong>Medical Conditions</strong>
+                                <strong>Medical conditions</strong>
                             </div>
 
                             <p>
@@ -168,14 +251,14 @@
 
                 <div class="subsection-heading">
                     <i class="fa-solid fa-file-medical"></i>
-                    Doctor Clinical Notes
+                    Doctor clinical notes
                 </div>
 
                 <div class="doctor-notes">
 
                     <div class="notes-heading">
                         <i class="fa-solid fa-user-doctor"></i>
-                        Doctor's Notes
+                        Doctor's notes
                     </div>
 
                     <p>
@@ -196,8 +279,7 @@
         <section class="information-card">
 
             <div class="card-header">
-                <i class="fa-solid fa-vials"></i>
-                <span>Test Information</span>
+                <h2><i class="fa-solid fa-vials"></i> Test information</h2>
             </div>
 
             <div class="card-body">
@@ -210,11 +292,11 @@
 
                     <div class="test-main-content">
 
-                        <span class="eyebrow">Laboratory Test</span>
+                        <span class="eyebrow">Laboratory test</span>
 
-                        <h2>
+                        <h3>
                             @(Model.TestType?.Name ?? "Laboratory Test")
-                        </h2>
+                        </h3>
 
                         <span class="category-pill">
                             <i class="fa-solid fa-layer-group"></i>
@@ -233,7 +315,7 @@
                     <div class="sample-category-item">
                         <span>
                             <i class="fa-solid fa-droplet"></i>
-                            Sample Type
+                            Sample type
                         </span>
 
                         <strong>
@@ -244,7 +326,7 @@
                     <div class="sample-category-item">
                         <span>
                             <i class="fa-solid fa-flask"></i>
-                            Test Category
+                            Test category
                         </span>
 
                         <strong>
@@ -260,27 +342,27 @@
                 <div class="test-detail-grid">
 
                     <div class="test-detail-item">
-                        <span>Request Number</span>
+                        <span>Request number</span>
                         <strong>TR-@Model.RequestId</strong>
                     </div>
 
                     <div class="test-detail-item">
-                        <span>Test Item</span>
+                        <span>Test item</span>
                         <strong>#@Model.TestRequestItemId</strong>
                     </div>
 
                     <div class="test-detail-item">
-                        <span>Unit of Measurement</span>
+                        <span>Unit of measurement</span>
                         <strong>@unit</strong>
                     </div>
 
                     <div class="test-detail-item">
-                        <span>Reference Range</span>
+                        <span>Reference range</span>
                         <strong>@referenceRange</strong>
                     </div>
 
                     <div class="test-detail-item">
-                        <span>Turnaround Time</span>
+                        <span>Turnaround time</span>
                         <strong>
                             @(Model.TestType?.TurnaroundTimeMinutes != null
                                 ? $"{Model.TestType.TurnaroundTimeMinutes} minutes"
@@ -289,7 +371,7 @@
                     </div>
 
                     <div class="test-detail-item">
-                        <span>Current Status</span>
+                        <span>Current status</span>
 
                         <strong>
                             @if (isVerified)
@@ -320,25 +402,31 @@
 
 
                 <!-- RESULT CLASSIFICATION -->
-
                 @if (result != null)
                 {
-                    <div class="classification-panel @(isAbnormal ? "abnormal-panel" : "normal-panel")">
+                    <div class="classification-panel @(isAbnormal == true ? "abnormal-panel" : isAbnormal == false ? "normal-panel" : "unknown-panel")">
 
-                        <span>Result Classification</span>
+                        <span>Result classification</span>
 
-                        @if (isAbnormal)
+                        @if (isAbnormal == true)
                         {
                             <strong>
                                 <i class="fa-solid fa-triangle-exclamation"></i>
                                 Abnormal
                             </strong>
                         }
-                        else
+                        else if (isAbnormal == false)
                         {
                             <strong>
                                 <i class="fa-solid fa-circle-check"></i>
-                                Within Expected Range
+                                Within expected range
+                            </strong>
+                        }
+                        else
+                        {
+                            <strong>
+                                <i class="fa-solid fa-circle-question"></i>
+                                Classification not available
                             </strong>
                         }
 
@@ -348,22 +436,22 @@
 
                 <!-- TIMESTAMPS -->
 
-                <div class="subsection-heading timeline-heading">
+                <div class="subsection-heading">
                     <i class="fa-solid fa-clock"></i>
-                    Test Timeline
+                    Test timeline
                 </div>
 
                 <div class="timeline-grid">
 
                     <div>
-                        <span>Start Time</span>
+                        <span>Start time</span>
                         <strong>
                             @(Model.StartDateTime?.ToString("dd MMM yyyy HH:mm") ?? "Not recorded")
                         </strong>
                     </div>
 
                     <div>
-                        <span>Completion Time</span>
+                        <span>Completion time</span>
                         <strong>
                             @(Model.CompletionDateTime?.ToString("dd MMM yyyy HH:mm") ?? "Not recorded")
                         </strong>
@@ -383,8 +471,7 @@
     <section class="information-card result-section">
 
         <div class="card-header">
-            <i class="fa-solid fa-microscope"></i>
-            <span>Laboratory Result</span>
+            <h2><i class="fa-solid fa-microscope"></i> Laboratory result</h2>
         </div>
 
         <div class="card-body">
@@ -393,9 +480,9 @@
             {
                 <div class="result-grid">
 
-                    <div class="result-box result-value-box @(isAbnormal ? "abnormal-result" : "")">
+                    <div class="result-box result-value-box @(isAbnormal == true ? "abnormal-result" : "")">
 
-                        <span class="result-label">Result Value</span>
+                        <span class="result-label">Result value</span>
 
                         <strong class="result-value">
                             @(string.IsNullOrWhiteSpace(result.ResultValue)
@@ -403,7 +490,7 @@
                                 : result.ResultValue)
                         </strong>
 
-                        @if (isAbnormal)
+                        @if (isAbnormal == true)
                         {
                             <span class="abnormal-indicator">
                                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -424,7 +511,7 @@
                     </div>
 
                     <div class="result-box">
-                        <span class="result-label">Reference Range</span>
+                        <span class="result-label">Reference range</span>
 
                         <strong class="result-standard-value">
                             @(string.IsNullOrWhiteSpace(result.ReferenceRange)
@@ -438,7 +525,7 @@
                 <div class="comments-box">
                     <div class="notes-heading">
                         <i class="fa-solid fa-comment-medical"></i>
-                        Laboratory Comments
+                        Laboratory comments
                     </div>
 
                     <p>
@@ -451,7 +538,7 @@
                 <div class="capture-info">
 
                     <div>
-                        <span>Captured By</span>
+                        <span>Captured by</span>
                         <strong>
                             @(result.CapturedByTechnician?.FullName
                                 ?? result.CapturedByTechnician?.UserName
@@ -460,7 +547,7 @@
                     </div>
 
                     <div>
-                        <span>Date Captured</span>
+                        <span>Date captured</span>
                         <strong>
                             @result.DateCaptured.ToString("dd MMM yyyy HH:mm")
                         </strong>
@@ -483,14 +570,12 @@
 
 
     <!-- VERIFICATION INFORMATION -->
-
     @if (verification != null || result?.VerifiedByTechnician != null)
     {
         <section class="information-card verification-section">
 
             <div class="card-header">
-                <i class="fa-solid fa-shield-halved"></i>
-                <span>Verification Information</span>
+                <h2><i class="fa-solid fa-shield-halved"></i> Verification information</h2>
             </div>
 
             <div class="card-body">
@@ -505,7 +590,7 @@
                         </div>
 
                         <div class="verification-item">
-                            <span>Verified By</span>
+                            <span>Verified by</span>
                             <strong>
                                 @(verification.VerifiedByTechnician?.FullName
                                     ?? verification.VerifiedByTechnician?.UserName
@@ -514,7 +599,7 @@
                         </div>
 
                         <div class="verification-item">
-                            <span>Verification Date</span>
+                            <span>Verification date</span>
                             <strong>
                                 @verification.VerificationDate.ToString("dd MMM yyyy HH:mm")
                             </strong>
@@ -527,7 +612,7 @@
                         <div class="verification-note">
                             <strong>
                                 <i class="fa-solid fa-clipboard-check"></i>
-                                Verification Notes
+                                Verification notes
                             </strong>
 
                             <p>@verification.VerificationNotes</p>
@@ -539,7 +624,7 @@
                     <div class="verification-grid">
 
                         <div class="verification-item">
-                            <span>Verified By</span>
+                            <span>Verified by</span>
                             <strong>
                                 @(result.VerifiedByTechnician.FullName
                                     ?? result.VerifiedByTechnician.UserName
@@ -548,7 +633,7 @@
                         </div>
 
                         <div class="verification-item">
-                            <span>Verification Date</span>
+                            <span>Verification date</span>
                             <strong>
                                 @(result.VerificationDate?.ToString("dd MMM yyyy HH:mm")
                                     ?? "Not recorded")
@@ -570,7 +655,7 @@
 
         <a asp-action="Completed" class="action-btn secondary">
             <i class="fa-solid fa-arrow-left"></i>
-            Back to Completed Tests
+            Back to completed tests
         </a>
 
         <a asp-controller="CaptureResults"
@@ -578,7 +663,7 @@
            asp-route-id="@Model.TestRequestItemId"
            class="action-btn primary">
             <i class="fa-solid fa-file-medical"></i>
-            View Laboratory Result
+            View laboratory result
         </a>
 
     </div>
@@ -588,87 +673,186 @@
 
 <style>
     :root {
-        --teal: #008f83;
-        --teal-dark: #006f67;
-        --teal-deep: #005c55;
-        --teal-light: #e8f7f5;
-        --teal-soft: #f1faf8;
-        --teal-border: #ccebe7;
-        --teal-bright: #00a99a;
-
-        --text: #173a3a;
-        --muted: #718785;
-        --border: #dfedeb;
-        --page-bg: #f3faf9;
+        --teal: #0f9488;
+        --teal-dark: #0b7a70;
+        --teal-deep: #0a5f58;
+        --teal-light: #e1f3f0;
+        --teal-soft: #f2f8f7;
+        --teal-border: #dbe9e7;
+        --text: #12302f;
+        --muted: #6f8584;
+        --page-bg: #eaf1f1;
         --white: #ffffff;
-
-        --red: #b8323c;
-        --red-bg: #fdebec;
-        --red-border: #f5c9cd;
-
-        --gold: #91651a;
-        --gold-bg: #fff4dc;
-        --gold-border: #f2dfb0;
-
-        --green: #168653;
-        --green-bg: #e8f7ef;
-
-        --shadow: 0 5px 22px rgba(0, 79, 72, .06);
+        --red: #a32626;
+        --red-bg: #fde8e8;
+        --red-border: #f5c6c6;
+        --gold: #8f5a00;
+        --gold-bg: #fff3dc;
+        --gold-border: #f3d9a0;
+        --green: #17814a;
+        --green-bg: #e4f6ec;
+        --shadow: 0 10px 30px rgba(8, 70, 66, .07);
     }
 
     .lab-details-page {
         width: 100%;
         max-width: 1450px;
         margin: 0 auto;
-        padding: 18px 22px 42px;
+        padding: 28px 32px 48px;
         color: var(--text);
-        font-family: 'Inter', sans-serif;
+        font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+        background: var(--page-bg);
+        min-height: 100vh;
         box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
     }
 
-    .lab-details-page *,
-    .lab-details-page *::before,
-    .lab-details-page *::after {
-        box-sizing: border-box;
+        .lab-details-page *,
+        .lab-details-page *::before,
+        .lab-details-page *::after {
+            box-sizing: border-box;
+        }
+
+    /* BANNER */
+
+    .banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        flex-wrap: wrap;
+        padding: 24px 32px;
+        margin-bottom: 24px;
+        border-radius: 24px;
+        color: #fff;
+        background: linear-gradient(135deg, #129a8d 0%, #0b7068 100%);
+        box-shadow: 0 14px 34px rgba(10, 95, 88, .22);
     }
 
-    /* INFORMATION LAYOUT */
+    .banner-left {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        min-width: 0;
+    }
+
+    .banner-icon {
+        width: 58px;
+        height: 58px;
+        flex: 0 0 58px;
+        border-radius: 17px;
+        background: rgba(255, 255, 255, .16);
+        border: 1px solid rgba(255, 255, 255, .38);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+
+    .banner h1 {
+        margin: 0 0 4px;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -.01em;
+        color: #fff;
+        overflow-wrap: anywhere;
+    }
+
+    .banner p {
+        margin: 0;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, .86);
+    }
+
+    .banner-stats {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+        flex-wrap: wrap;
+    }
+
+    .banner-stat {
+        text-align: center;
+    }
+
+        .banner-stat strong {
+            display: block;
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .banner-stat span {
+            display: block;
+            margin-top: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, .78);
+        }
+
+    .banner-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 12px 22px;
+        border-radius: 14px;
+        background: #fff;
+        color: var(--teal-deep);
+        font-size: 13.5px;
+        font-weight: 800;
+        text-decoration: none;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, .12);
+        transition: transform .15s ease;
+    }
+
+        .banner-btn:hover {
+            color: var(--teal-deep);
+            transform: translateY(-1px);
+        }
+
+    /* LAYOUT */
 
     .information-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 20px;
+        gap: 24px;
         align-items: stretch;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
     }
 
     .information-card {
         min-width: 0;
         overflow: hidden;
         background: var(--white);
-        border: 1px solid var(--border);
-        border-radius: 17px;
+        border-radius: 24px;
         box-shadow: var(--shadow);
     }
 
     .card-header {
-        min-height: 47px;
-        padding: 14px 19px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: var(--teal);
-        color: white;
-        font-size: 13px;
-        font-weight: 800;
+        padding: 22px 32px;
+        border-bottom: 1px solid var(--teal-border);
     }
 
-    .card-header i {
-        font-size: 14px;
-    }
+        .card-header h2 {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 0;
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+            .card-header h2 i {
+                color: var(--teal);
+                font-size: 18px;
+            }
 
     .card-body {
-        padding: 18px;
+        padding: 26px 32px 30px;
     }
 
     /* PATIENT PROFILE */
@@ -676,24 +860,25 @@
     .patient-profile {
         display: flex;
         align-items: center;
-        gap: 13px;
-        padding: 14px;
-        margin-bottom: 17px;
-        background: linear-gradient(120deg, var(--teal-soft), #f8fcfb);
+        gap: 16px;
+        padding: 18px;
+        margin-bottom: 20px;
+        background: var(--teal-soft);
         border: 1px solid var(--teal-border);
-        border-radius: 13px;
+        border-radius: 18px;
     }
 
     .patient-avatar {
-        width: 48px;
-        height: 48px;
-        flex: 0 0 48px;
+        width: 54px;
+        height: 54px;
+        flex: 0 0 54px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 13px;
-        background: #d8f1ed;
-        color: var(--teal-dark);
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid #d9c27a;
+        color: var(--teal-deep);
         font-size: 16px;
         font-weight: 800;
     }
@@ -704,139 +889,145 @@
 
     .eyebrow {
         display: block;
-        margin-bottom: 3px;
+        margin-bottom: 4px;
         color: var(--muted);
-        font-size: 9px;
-        font-weight: 800;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .06em;
         text-transform: uppercase;
-        letter-spacing: .35px;
     }
 
-    .patient-profile h2,
-    .test-main h2 {
+    .patient-profile h3,
+    .test-main h3 {
         margin: 0;
         color: var(--teal-deep);
-        font-family: 'Poppins', sans-serif;
-        font-size: 16px;
-        line-height: 1.45;
+        font-size: 18px;
+        line-height: 1.35;
         font-weight: 800;
         overflow-wrap: anywhere;
     }
 
     .patient-detail-list {
         display: grid;
-        gap: 0;
     }
 
     .patient-detail-row {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 15px;
-        padding: 10px 2px;
-        border-bottom: 1px solid #e8f0ef;
+        gap: 18px;
+        padding: 15px 4px;
+        border-bottom: 1px solid #edf3f2;
     }
 
-    .patient-detail-row span {
-        color: #496663;
-        font-size: 11px;
-        flex-shrink: 0;
-    }
+        .patient-detail-row:last-child {
+            border-bottom: 0;
+        }
 
-    .patient-detail-row strong {
-        max-width: 65%;
-        color: var(--text);
-        font-size: 11px;
-        text-align: right;
-        overflow-wrap: anywhere;
-    }
+        .patient-detail-row span {
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
 
-    /* SECTION HEADINGS */
+        .patient-detail-row strong {
+            max-width: 65%;
+            color: var(--text);
+            font-size: 13.5px;
+            font-weight: 700;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+
+    /* SUB HEADINGS */
 
     .subsection-heading {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin: 19px 0 11px;
-        color: var(--teal-dark);
-        font-size: 11px;
+        gap: 10px;
+        margin: 28px 0 14px;
+        color: var(--teal-deep);
+        font-size: 13px;
         font-weight: 800;
-        text-transform: uppercase;
+        letter-spacing: .02em;
     }
 
-    .subsection-heading i {
-        color: var(--teal);
-    }
+        .subsection-heading i {
+            color: var(--teal);
+        }
 
-    /* CLINICAL INFORMATION */
+    /* CLINICAL */
 
     .clinical-list {
         display: grid;
-        gap: 9px;
+        gap: 12px;
     }
 
     .clinical-item {
-        padding: 11px 12px;
+        padding: 15px 17px;
         border: 1px solid transparent;
-        border-radius: 11px;
+        border-radius: 16px;
     }
 
-    .clinical-item.allergy {
-        color: #a62e39;
-        background: var(--red-bg);
-        border-color: var(--red-border);
-    }
+        .clinical-item.allergy {
+            color: var(--red);
+            background: var(--red-bg);
+            border-color: var(--red-border);
+        }
 
-    .clinical-item.condition {
-        color: #875d12;
-        background: var(--gold-bg);
-        border-color: var(--gold-border);
-    }
+        .clinical-item.condition {
+            color: var(--gold);
+            background: var(--gold-bg);
+            border-color: var(--gold-border);
+        }
 
-    .clinical-item.medication {
-        color: var(--teal-dark);
-        background: #e2f5f2;
-        border-color: #c5e9e4;
-    }
+        .clinical-item.medication {
+            color: var(--teal-dark);
+            background: var(--teal-light);
+            border-color: #c5e4df;
+        }
 
     .clinical-item-heading {
         display: flex;
         align-items: center;
-        gap: 7px;
-        font-size: 10px;
+        gap: 9px;
+        font-size: 12.5px;
+        font-weight: 800;
     }
 
     .clinical-item p {
-        margin: 5px 0 0;
-        font-size: 11px;
-        line-height: 1.55;
+        margin: 7px 0 0;
+        font-size: 13.5px;
+        font-weight: 500;
+        line-height: 1.6;
         overflow-wrap: anywhere;
     }
 
-    /* DOCTOR NOTES */
+    /* NOTES */
 
     .doctor-notes {
-        padding: 13px;
+        padding: 17px 19px;
         background: var(--teal-soft);
         border: 1px solid var(--teal-border);
         border-left: 4px solid var(--teal);
-        border-radius: 11px;
+        border-radius: 16px;
     }
 
     .notes-heading {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 9px;
         color: var(--teal-dark);
-        font-size: 10px;
+        font-size: 12.5px;
         font-weight: 800;
-        text-transform: uppercase;
     }
 
     .doctor-notes p,
     .comments-box p {
-        margin: 8px 0 0;
-        font-size: 11px;
+        margin: 9px 0 0;
+        font-size: 13.5px;
+        font-weight: 500;
         line-height: 1.7;
         overflow-wrap: anywhere;
     }
@@ -846,271 +1037,292 @@
     .test-main {
         display: flex;
         align-items: center;
-        gap: 13px;
-        padding: 15px;
-        margin-bottom: 12px;
-        background: linear-gradient(120deg, #edf9f7, #f8fcfb);
-        border: 2px solid #b6e2dc;
-        border-radius: 14px;
+        gap: 16px;
+        padding: 18px;
+        margin-bottom: 16px;
+        background: var(--teal-soft);
+        border: 1px solid var(--teal-border);
+        border-radius: 18px;
     }
 
     .test-icon {
-        width: 50px;
-        height: 50px;
-        flex: 0 0 50px;
+        width: 56px;
+        height: 56px;
+        flex: 0 0 56px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 13px;
-        background: #d5efeb;
-        color: var(--teal-dark);
-        font-size: 21px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #129a8d, #0a5f58);
+        color: #fff;
+        font-size: 22px;
+        box-shadow: 0 8px 18px rgba(10, 95, 88, .25);
     }
 
     .test-main-content {
         min-width: 0;
     }
 
-    .test-main h2 {
-        margin-bottom: 6px;
-        font-size: 15px;
+    .test-main h3 {
+        margin-bottom: 8px;
     }
 
     .category-pill {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
-        padding: 4px 9px;
-        border: 1px solid var(--teal-border);
-        border-radius: 20px;
-        background: white;
+        gap: 7px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: var(--teal-light);
         color: var(--teal-dark);
-        font-size: 9px;
+        font-size: 12px;
         font-weight: 700;
     }
 
-    /* SAMPLE AND CATEGORY */
+    /* SAMPLE + CATEGORY */
 
     .sample-category-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        margin-bottom: 12px;
+        gap: 14px;
+        margin-bottom: 14px;
     }
 
     .sample-category-item {
         min-width: 0;
-        padding: 11px 12px;
+        padding: 15px 17px;
         background: var(--teal-soft);
-        border: 1px solid #c6e7e2;
+        border: 1px solid var(--teal-border);
         border-left: 4px solid var(--teal);
-        border-radius: 11px;
+        border-radius: 16px;
     }
 
-    .sample-category-item span {
-        display: block;
-        margin-bottom: 5px;
-        color: #55716e;
-        font-size: 9px;
-        font-weight: 800;
-        text-transform: uppercase;
-    }
+        .sample-category-item span {
+            display: block;
+            margin-bottom: 7px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
 
-    .sample-category-item span i {
-        margin-right: 4px;
-    }
+            .sample-category-item span i {
+                margin-right: 5px;
+                color: var(--teal);
+            }
 
-    .sample-category-item strong {
-        display: block;
-        color: var(--teal-deep);
-        font-size: 11px;
-        overflow-wrap: anywhere;
-    }
+        .sample-category-item strong {
+            display: block;
+            color: var(--teal-deep);
+            font-size: 14px;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
 
-    /* TEST DETAILS */
+    /* DETAIL TILES */
 
     .test-detail-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 9px;
+        gap: 14px;
     }
 
     .test-detail-item {
         min-width: 0;
-        min-height: 57px;
-        padding: 10px;
-        background: #f7fbfa;
-        border: 1px solid var(--border);
-        border-radius: 11px;
+        padding: 15px 17px;
+        background: #fff;
+        border: 1px solid var(--teal-border);
+        border-radius: 16px;
     }
 
-    .test-detail-item > span {
-        display: block;
-        margin-bottom: 6px;
-        color: #65807c;
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
+        .test-detail-item > span {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
 
-    .test-detail-item > strong {
-        display: block;
-        color: var(--teal-deep);
-        font-size: 11px;
-        line-height: 1.5;
-        overflow-wrap: anywhere;
-    }
+        .test-detail-item > strong {
+            display: block;
+            color: var(--teal-deep);
+            font-size: 14px;
+            font-weight: 800;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
 
     /* STATUS PILLS */
 
     .status-pill {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
+        gap: 7px;
         width: fit-content;
-        padding: 4px 8px;
-        border-radius: 20px;
-        font-size: 9px;
-        font-weight: 800;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        box-shadow: 0 3px 10px rgba(8, 70, 66, .06);
     }
 
-    .status-pill.verified {
-        color: var(--green);
-        background: var(--green-bg);
-    }
+        .status-pill.verified {
+            color: var(--green);
+            background: var(--green-bg);
+        }
 
-    .status-pill.completed {
-        color: var(--teal-dark);
-        background: var(--teal-light);
-    }
+        .status-pill.completed {
+            color: var(--teal-dark);
+            background: var(--teal-light);
+        }
 
-    .status-pill.review {
-        color: var(--gold);
-        background: var(--gold-bg);
-    }
+        .status-pill.review {
+            color: var(--gold);
+            background: var(--gold-bg);
+        }
 
     /* CLASSIFICATION */
 
     .classification-panel {
         display: flex;
-        flex-direction: column;
-        gap: 7px;
-        margin-top: 12px;
-        padding: 13px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+        padding: 16px 18px;
         border: 1px solid var(--teal-border);
-        border-radius: 11px;
-        background: #edf8f6;
+        border-radius: 16px;
+        background: var(--teal-light);
     }
 
-    .classification-panel > span {
-        color: #52716d;
-        font-size: 9px;
-        font-weight: 800;
-        text-transform: uppercase;
-    }
+        .classification-panel > span {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
 
-    .classification-panel strong {
-        font-size: 12px;
-    }
+        .classification-panel strong {
+            font-size: 14px;
+            font-weight: 800;
+        }
 
-    .classification-panel.normal-panel strong {
-        color: var(--green);
-    }
+        .classification-panel.normal-panel {
+            background: var(--green-bg);
+            border-color: #bfe6cf;
+        }
 
-    .classification-panel.abnormal-panel {
-        background: var(--red-bg);
-        border-color: var(--red-border);
-    }
+            .classification-panel.normal-panel strong {
+                color: var(--green);
+            }
 
-    .classification-panel.abnormal-panel > span,
-    .classification-panel.abnormal-panel strong {
-        color: var(--red);
-    }
+        .classification-panel.abnormal-panel {
+            background: var(--red-bg);
+            border-color: var(--red-border);
+        }
+
+            .classification-panel.abnormal-panel > span,
+            .classification-panel.abnormal-panel strong {
+                color: var(--red);
+            }
+
+        .classification-panel.unknown-panel {
+            background: #f3f7f7;
+            border-color: #dce7e6;
+        }
+
+            .classification-panel.unknown-panel strong {
+                color: var(--muted);
+            }
 
     /* TIMELINE */
-
-    .timeline-heading {
-        margin-top: 20px;
-    }
 
     .timeline-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+        gap: 14px;
     }
 
-    .timeline-grid > div {
-        padding: 11px;
-        background: #f7fbfa;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-    }
+        .timeline-grid > div {
+            padding: 15px 17px;
+            background: var(--teal-soft);
+            border: 1px solid var(--teal-border);
+            border-radius: 16px;
+        }
 
-    .timeline-grid span,
-    .capture-info span {
-        display: block;
-        margin-bottom: 5px;
-        color: var(--muted);
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
+        .timeline-grid span,
+        .capture-info span {
+            display: block;
+            margin-bottom: 7px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
 
-    .timeline-grid strong,
-    .capture-info strong {
-        display: block;
-        color: var(--text);
-        font-size: 10px;
-        line-height: 1.6;
-        overflow-wrap: anywhere;
-    }
+        .timeline-grid strong,
+        .capture-info strong {
+            display: block;
+            color: var(--text);
+            font-size: 13.5px;
+            font-weight: 700;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
 
-    /* RESULT SECTION */
+    /* RESULT */
 
     .result-section,
     .verification-section {
-        margin-bottom: 20px;
+        margin-bottom: 24px;
     }
 
     .result-grid {
         display: grid;
         grid-template-columns: 1.4fr 1fr 1fr;
-        gap: 11px;
+        gap: 16px;
     }
 
     .result-box {
         min-width: 0;
-        padding: 15px;
-        background: #f6fbfa;
-        border: 1px solid var(--border);
-        border-radius: 12px;
+        padding: 20px;
+        background: var(--teal-soft);
+        border: 1px solid var(--teal-border);
+        border-radius: 18px;
     }
 
     .result-value-box {
-        background: #eaf7f4;
-        border-color: #c7e9e3;
+        background: var(--teal-light);
+        border-color: #c5e4df;
     }
 
-    .result-value-box.abnormal-result {
-        background: var(--red-bg);
-        border-color: var(--red-border);
-    }
+        .result-value-box.abnormal-result {
+            background: var(--red-bg);
+            border-color: var(--red-border);
+        }
 
     .result-label {
         display: block;
-        margin-bottom: 9px;
+        margin-bottom: 10px;
         color: var(--muted);
-        font-size: 9px;
-        font-weight: 800;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .06em;
         text-transform: uppercase;
     }
 
     .result-value {
         display: block;
         color: var(--teal-deep);
-        font-family: 'Poppins', sans-serif;
-        font-size: 23px;
+        font-size: 30px;
         font-weight: 800;
+        line-height: 1.15;
         overflow-wrap: anywhere;
     }
 
@@ -1121,37 +1333,36 @@
     .result-standard-value {
         display: block;
         color: var(--teal-deep);
-        font-size: 13px;
+        font-size: 17px;
+        font-weight: 800;
         overflow-wrap: anywhere;
     }
 
     .abnormal-indicator {
-        display: inline-block;
-        margin-top: 7px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 10px;
         color: var(--red);
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 800;
     }
 
     .comments-box {
-        margin-top: 13px;
-        padding: 14px;
+        margin-top: 18px;
+        padding: 17px 19px;
         background: var(--teal-soft);
-        border: 1px solid var(--border);
-        border-radius: 11px;
-    }
-
-    .comments-box p {
-        font-size: 12px;
+        border: 1px solid var(--teal-border);
+        border-radius: 16px;
     }
 
     .capture-info {
         display: flex;
         flex-wrap: wrap;
-        gap: 35px;
-        margin-top: 15px;
-        padding-top: 15px;
-        border-top: 1px solid var(--border);
+        gap: 48px;
+        margin-top: 22px;
+        padding-top: 20px;
+        border-top: 1px solid var(--teal-border);
     }
 
     /* VERIFICATION */
@@ -1159,87 +1370,94 @@
     .verification-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 11px;
+        gap: 16px;
     }
 
     .verification-item {
         min-width: 0;
-        padding: 14px;
+        padding: 17px 19px;
         background: var(--teal-soft);
-        border: 1px solid var(--border);
-        border-radius: 11px;
+        border: 1px solid var(--teal-border);
+        border-radius: 16px;
     }
 
-    .verification-item span {
-        display: block;
-        margin-bottom: 6px;
-        color: var(--muted);
-        font-size: 9px;
-        font-weight: 800;
-        text-transform: uppercase;
-    }
+        .verification-item span {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
 
-    .verification-item strong {
-        color: var(--teal-deep);
-        font-size: 11px;
-        overflow-wrap: anywhere;
-    }
+        .verification-item strong {
+            color: var(--teal-deep);
+            font-size: 14.5px;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
 
     .verification-note {
-        margin-top: 12px;
-        padding: 14px;
+        margin-top: 16px;
+        padding: 17px 19px;
         background: var(--gold-bg);
         border: 1px solid var(--gold-border);
-        border-radius: 11px;
+        border-radius: 16px;
     }
 
-    .verification-note strong {
-        color: var(--gold);
-        font-size: 11px;
-    }
+        .verification-note strong {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: var(--gold);
+            font-size: 12.5px;
+            font-weight: 800;
+        }
 
-    .verification-note p {
-        margin: 7px 0 0;
-        font-size: 12px;
-        line-height: 1.65;
-        overflow-wrap: anywhere;
-    }
+        .verification-note p {
+            margin: 9px 0 0;
+            font-size: 13.5px;
+            font-weight: 500;
+            line-height: 1.65;
+            overflow-wrap: anywhere;
+        }
 
-    /* EMPTY STATES */
+    /* EMPTY STATE */
 
     .empty-state {
-        padding: 25px 15px;
+        padding: 34px 16px;
         text-align: center;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 13.5px;
     }
 
-    .empty-state > i {
-        display: block;
-        margin-bottom: 10px;
-        color: var(--teal);
-        font-size: 26px;
-    }
+        .empty-state > i {
+            display: block;
+            margin-bottom: 14px;
+            color: #9ccdc6;
+            font-size: 36px;
+        }
 
-    .empty-state h3 {
-        margin: 0 0 6px;
-        color: var(--teal-deep);
-        font-family: 'Poppins', sans-serif;
-        font-size: 15px;
-    }
+        .empty-state h3 {
+            margin: 0 0 8px;
+            color: var(--teal-deep);
+            font-size: 17px;
+            font-weight: 800;
+        }
 
-    .empty-state p {
-        margin: 0;
-    }
+        .empty-state p {
+            margin: 0;
+        }
 
-    /* BOTTOM ACTIONS */
+    /* ACTIONS */
 
     .bottom-actions {
         display: flex;
         justify-content: flex-end;
         align-items: center;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 12px;
         margin-top: 4px;
     }
 
@@ -1247,38 +1465,44 @@
         display: inline-flex;
         justify-content: center;
         align-items: center;
-        gap: 8px;
-        padding: 11px 17px;
+        gap: 9px;
+        padding: 13px 22px;
         border: 1px solid transparent;
-        border-radius: 9px;
-        font-size: 11px;
+        border-radius: 14px;
+        font-size: 13.5px;
         font-weight: 700;
         text-decoration: none;
-        transition: background .2s ease, border-color .2s ease;
+        transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
     }
 
-    .action-btn.secondary {
-        color: var(--teal-dark);
-        background: white;
-        border-color: var(--teal-border);
-    }
+        .action-btn:focus-visible,
+        .banner-btn:focus-visible {
+            outline: 2px solid var(--teal-deep);
+            outline-offset: 3px;
+        }
 
-    .action-btn.secondary:hover {
-        color: var(--teal-deep);
-        background: var(--teal-light);
-    }
+        .action-btn.secondary {
+            color: var(--teal-dark);
+            background: #fff;
+            border-color: var(--teal-border);
+        }
 
-    .action-btn.primary {
-        color: white;
-        background: var(--teal);
-        border-color: var(--teal);
-    }
+            .action-btn.secondary:hover {
+                color: var(--teal-deep);
+                background: var(--teal-light);
+            }
 
-    .action-btn.primary:hover {
-        color: white;
-        background: var(--teal-dark);
-        border-color: var(--teal-dark);
-    }
+        .action-btn.primary {
+            color: #fff;
+            background: linear-gradient(135deg, #129a8d, #0a5f58);
+            box-shadow: 0 6px 16px rgba(10, 95, 88, .28);
+        }
+
+            .action-btn.primary:hover {
+                color: #fff;
+                transform: translateY(-1px);
+                box-shadow: 0 9px 20px rgba(10, 95, 88, .34);
+            }
 
     /* RESPONSIVE */
 
@@ -1286,22 +1510,35 @@
         .information-grid {
             grid-template-columns: minmax(0, 1fr);
         }
+
+        .result-grid,
+        .verification-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
     }
 
     @@media (max-width: 650px) {
         .lab-details-page {
-            padding: 13px 10px 30px;
+            padding: 16px 12px 32px;
         }
 
+        .banner {
+            padding: 20px;
+        }
+
+            .banner h1 {
+                font-size: 20px;
+            }
+
+        .card-header,
         .card-body {
-            padding: 13px;
+            padding-left: 20px;
+            padding-right: 20px;
         }
 
         .sample-category-grid,
         .test-detail-grid,
-        .timeline-grid,
-        .result-grid,
-        .verification-grid {
+        .timeline-grid {
             grid-template-columns: minmax(0, 1fr);
         }
 
@@ -1310,10 +1547,10 @@
             gap: 5px;
         }
 
-        .patient-detail-row strong {
-            max-width: 100%;
-            text-align: left;
-        }
+            .patient-detail-row strong {
+                max-width: 100%;
+                text-align: left;
+            }
 
         .bottom-actions {
             flex-direction: column;
@@ -1326,7 +1563,13 @@
 
         .capture-info {
             flex-direction: column;
-            gap: 14px;
+            gap: 16px;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .lab-details-page * {
+            transition: none !important;
         }
     }
 </style>

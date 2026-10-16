@@ -901,8 +901,22 @@ namespace LabDash.Controllers
                     ))
                 .OrderByDescending(x => x.CompletionDateTime)
                 .ToListAsync();
+            var testIds = tests
+    .Select(t => t.TestRequestItemId)
+    .ToList();
+
+            var returnCounts = await _context.TestVerifications
+                .Where(v =>
+                    testIds.Contains(v.TestRequestItemId) &&
+                    v.Status == "To Be Reviewed")
+                .GroupBy(v => v.TestRequestItemId)
+                .Select(g => new { Id = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Id, x => x.Count);
+
+            ViewBag.ReturnCounts = returnCounts;
 
             return View(tests);
+
         }
 
         // =========================================================

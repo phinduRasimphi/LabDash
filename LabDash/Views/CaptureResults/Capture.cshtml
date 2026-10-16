@@ -1,720 +1,42 @@
-﻿
-@model LabDash.Models.TestResult
-@using LabDash.Models
-
-@{
-    ViewData["Title"] = "Capture Laboratory Result";
-    Layout = "~/Views/Shared/_SystemLayout.cshtml";
-
-    var test = ViewBag.TestItem as TestRequestItem;
-    var patient = ViewBag.Patient as Patient;
-
-    var urgency = test?.TestRequest?.Urgency ?? "Routine";
-    var status = test?.Status ?? "In Progress";
-    var unit = test?.TestType?.UnitOfMeasurement ?? "";
-    var testName = test?.TestType?.Name ?? "Laboratory Test";
-    var category = test?.TestType?.Category ?? "Not specified";
-    var sampleType = test?.TestType?.RequiredSampleType ?? "Not specified";
-
-    var hasDefinedRange = !string.IsNullOrWhiteSpace(Model.ReferenceRange);
-
-    var urgencyClass = urgency == "STAT"
-        ? "urgency-stat"
-        : urgency == "Urgent"
-            ? "urgency-urgent"
-            : "urgency-routine";
-
-    var statusClass = status == "Completed"
-        ? "status-completed"
-        : status == "In Progress"
-            ? "status-progress"
-            : "status-routine";
-
-    var currentStep = status switch
-    {
-        "Submitted" => 1,
-        "Samples Received" => 2,
-        "In Progress" => 3,
-        "Completed" => 4,
-        "Verified" => 5,
-        _ => 3
-    };
-}
+﻿@* ============================================================
+   STEP 1 — Replace the Google Fonts <link> near the top of the view
+   (the screenshot uses Inter only; Poppins is no longer needed)
+   ============================================================ *@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap"
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet">
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-<div class="capture-page">
-
-    <!-- WORKFLOW HEADER -->
-
-    <div class="capture-heading">
-        <div class="capture-heading-icon">
-            <i class="fa-solid fa-flask-vial"></i>
-        </div>
-
-        <div>
-            <h1>Capture Laboratory Result</h1>
-            <p>Review patient information and enter laboratory findings.</p>
-        </div>
-
-        <div class="heading-test">
-            <span>Current Laboratory Test</span>
-            <strong>@testName</strong>
-        </div>
-    </div>
-
-    <!-- PROCESSING WORKFLOW -->
-
-    <section class="workflow-card">
-        <div class="section-title">
-            <i class="fa-solid fa-list-check"></i>
-            Test Processing Workflow
-        </div>
-
-        <div class="workflow">
-            @{
-                var workflowSteps = new[]
-                {
-                    "Submitted",
-                    "Sample Received",
-                    "In Progress",
-                    "Result Captured",
-                    "Verified"
-                };
-            }
-
-            @for (var i = 0; i < workflowSteps.Length; i++)
-            {
-                var stepNumber = i + 1;
-                var completed = stepNumber < currentStep;
-                var current = stepNumber == currentStep;
-
-                <div class="workflow-step @(completed ? "completed" : "") @(current ? "current" : "")">
-                    <div class="step-circle">
-                        @if (completed)
-                        {
-                            <i class="fa-solid fa-check"></i>
-                        }
-                        else
-                        {
-                            @stepNumber
-                        }
-                    </div>
-
-                    <span class="step-label">@workflowSteps[i]</span>
-                </div>
-
-                @if (i < workflowSteps.Length - 1)
-                {
-                    <div class="step-line @(completed ? "line-completed" : "")"></div>
-                }
-            }
-        </div>
-    </section>
-
-    <!-- RETURNED RESULT NOTICE -->
-
-    @if (ViewBag.IsResubmission == true)
-    {
-        <div class="review-alert">
-            <div class="alert-heading">
-                <i class="fa-solid fa-rotate-left"></i>
-                Result Returned for Review
-            </div>
-
-            <p>
-                This result was returned by a verifier and must be corrected
-                before it can be submitted again.
-
-                @if (!string.IsNullOrWhiteSpace(ViewBag.PreviousVerificationNote as string))
-                {
-                    <span>
-                        <strong>Verifier's note:</strong>
-                        @ViewBag.PreviousVerificationNote
-                    </span>
-                }
-            </p>
-        </div>
-    }
-
-    <!-- PATIENT LEFT / TEST RIGHT -->
-
-    <div class="information-grid">
-
-        <!-- PATIENT INFORMATION -->
-
-        <section class="information-card">
-
-            <div class="card-header">
-                <span>
-                    <i class="fa-solid fa-user"></i>
-                    Patient Information
-                </span>
-            </div>
-
-            <div class="card-body">
-
-                <div class="patient-profile">
-                    <div class="patient-avatar">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
-
-                    <div>
-                        <span class="eyebrow">PATIENT</span>
-                        <h2>@patient?.Name @patient?.Surname</h2>
-                    </div>
-                </div>
-
-                <div class="patient-details">
-
-                    <div class="patient-detail-row">
-                        <span>ID Number</span>
-                        <strong>@(patient?.IDNumber ?? "Not provided")</strong>
-                    </div>
-
-                    <div class="patient-detail-row">
-                        <span>Email</span>
-                        <strong>@(patient?.Email ?? "Not provided")</strong>
-                    </div>
-
-                    <div class="patient-detail-row">
-                        <span>Cellphone</span>
-                        <strong>@(patient?.CellphoneNumber ?? "Not provided")</strong>
-                    </div>
-
-                    <div class="patient-detail-row">
-                        <span>Date of Birth</span>
-                        <strong>
-                            @(patient != null
-                                ? patient.DOB.ToString("dd MMM yyyy")
-                                : "Not provided")
-                        </strong>
-                    </div>
-
-                </div>
-
-                <!-- CLINICAL INFORMATION -->
-
-                <div class="section-title">
-                    <i class="fa-solid fa-notes-medical"></i>
-                    Clinical Information
-                </div>
-
-                <div class="clinical-list">
-
-                    <div class="clinical-item allergy">
-                        <div class="clinical-item-heading">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                            Allergies
-                        </div>
-
-                        <p>
-                            @(string.IsNullOrWhiteSpace(patient?.Allergies)
-                                ? "None recorded"
-                                : patient.Allergies)
-                        </p>
-                    </div>
-
-                    <div class="clinical-item condition">
-                        <div class="clinical-item-heading">
-                            <i class="fa-solid fa-heart-pulse"></i>
-                            Medical Conditions
-                        </div>
-
-                        <p>
-                            @(string.IsNullOrWhiteSpace(patient?.MedicalConditions)
-                                ? "None recorded"
-                                : patient.MedicalConditions)
-                        </p>
-                    </div>
-
-                    <div class="clinical-item medication">
-                        <div class="clinical-item-heading">
-                            <i class="fa-solid fa-pills"></i>
-                            Medication
-                        </div>
-
-                        <p>
-                            @(string.IsNullOrWhiteSpace(patient?.Medication)
-                                ? "None recorded"
-                                : patient.Medication)
-                        </p>
-                    </div>
-
-                </div>
-
-                <!-- DOCTOR NOTES -->
-
-                <div class="section-title">
-                    <i class="fa-solid fa-file-medical"></i>
-                    Doctor Clinical Notes
-                </div>
-
-                <div class="doctor-notes">
-                    <div class="notes-heading">
-                        <i class="fa-solid fa-user-doctor"></i>
-                        Doctor's Notes
-                    </div>
-
-                    <p>
-                        @(string.IsNullOrWhiteSpace(test?.TestRequest?.ClinicalNotes)
-                            ? "No clinical notes were provided for this laboratory request."
-                            : test.TestRequest.ClinicalNotes)
-                    </p>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- TEST INFORMATION -->
-
-        <section class="information-card">
-
-            <div class="card-header">
-                <span>
-                    <i class="fa-solid fa-vials"></i>
-                    Test Information
-                </span>
-            </div>
-
-            <div class="card-body">
-
-                <!-- TEST PROFILE -->
-
-                <div class="test-profile">
-
-                    <div class="test-icon">
-                        <i class="fa-solid fa-vial"></i>
-                    </div>
-
-                    <div class="test-profile-details">
-                        <span class="eyebrow">LABORATORY TEST</span>
-                        <h2>@testName</h2>
-
-                        <span class="category-pill">
-                            <i class="fa-solid fa-layer-group"></i>
-                            @category
-                        </span>
-                    </div>
-
-                </div>
-
-                <!-- SAMPLE AND UNIT -->
-
-                <div class="sample-grid">
-
-                    <div class="sample-box">
-                        <span class="sample-label">
-                            <i class="fa-solid fa-droplet"></i>
-                            Sample Type
-                        </span>
-                        <strong>@sampleType</strong>
-                    </div>
-
-                    <div class="sample-box">
-                        <span class="sample-label">
-                            <i class="fa-solid fa-flask"></i>
-                            Test Category
-                        </span>
-                        <strong>@category</strong>
-                    </div>
-
-                </div>
-
-                <!-- TEST DETAILS -->
-
-                <div class="test-detail-grid">
-
-                    <div class="test-detail">
-                        <span>Request Number</span>
-                        <strong>TR-@test?.RequestId</strong>
-                    </div>
-
-                    <div class="test-detail">
-                        <span>Test Item</span>
-                        <strong>#@test?.TestRequestItemId</strong>
-                    </div>
-
-                    <div class="test-detail">
-                        <span>Unit of Measurement</span>
-                        <strong>@(string.IsNullOrWhiteSpace(unit) ? "Not specified" : unit)</strong>
-                    </div>
-
-                    <div class="test-detail">
-                        <span>Reference Range</span>
-                        <strong>@(hasDefinedRange ? Model.ReferenceRange : "Not specified")</strong>
-                    </div>
-
-                    <div class="test-detail">
-                        <span>Current Status</span>
-                        <strong>
-                            <span class="status-pill @statusClass">
-                                <i class="fa-solid fa-circle"></i>
-                                @status
-                            </span>
-                        </strong>
-                    </div>
-
-                    <div class="test-detail">
-                        <span>Urgency</span>
-                        <strong>
-                            <span class="status-pill @urgencyClass">
-                                @if (urgency == "STAT")
-                                {
-                                    <i class="fa-solid fa-bolt"></i>
-                                }
-                                else
-                                {
-                                    <i class="fa-solid fa-clock"></i>
-                                }
-                                @urgency
-                            </span>
-                        </strong>
-                    </div>
-
-                    <div class="test-detail">
-                        <span>Date Started</span>
-                        <strong>
-                            @(test?.StartDateTime.HasValue == true
-                                ? test.StartDateTime.Value.ToString("dd MMM yyyy HH:mm")
-                                : "Not available")
-                        </strong>
-                    </div>
-
-                    <div class="test-detail">
-                        <span>Turnaround Time</span>
-                        <strong>
-                            @(test?.TestType?.TurnaroundTimeMinutes != null
-                                ? $"{test.TestType.TurnaroundTimeMinutes} minutes"
-                                : "Not specified")
-                        </strong>
-                    </div>
-
-                </div>
-
-                <!-- CONFIGURED REFERENCE RANGE -->
-
-                <div class="configured-range">
-                    <span>Configured Reference Range</span>
-                    <strong>
-                        @(hasDefinedRange ? Model.ReferenceRange : "No range configured")
-                        @if (!string.IsNullOrWhiteSpace(unit))
-                        {
-                            <small>@unit</small>
-                        }
-                    </strong>
-                </div>
-
-            </div>
-        </section>
-
-    </div>
-
-    <!-- RESULT ENTRY -->
-
-    <section class="information-card result-card">
-
-        <div class="card-header">
-            <span>
-                <i class="fa-solid fa-clipboard-check"></i>
-                Laboratory Result Entry
-            </span>
-
-            <span class="capture-badge">
-                <i class="fa-solid fa-pen-to-square"></i>
-                Technician Capture
-            </span>
-        </div>
-
-        <div class="result-body">
-
-            <form asp-controller="CaptureResults"
-                  asp-action="Capture"
-                  method="post">
-
-                <input type="hidden"
-                       name="TestRequestItemId"
-                       value="@Model.TestRequestItemId" />
-
-                <div asp-validation-summary="ModelOnly"
-                     class="validation-summary"></div>
-
-                <div class="section-title">
-                    <i class="fa-solid fa-flask"></i>
-                    Enter Laboratory Findings
-                </div>
-
-                <div class="result-grid">
-
-                    <div class="form-field">
-                        <label asp-for="ResultValue">Result Value</label>
-
-                        <input asp-for="ResultValue"
-                               id="ResultValue"
-                               class="form-control result-value-input"
-                               placeholder="Enter numeric result"
-                               autocomplete="off"
-                               inputmode="decimal"
-                               type="text"
-                               maxlength="20" />
-
-                        <span asp-validation-for="ResultValue"
-                              class="field-validation-error"></span>
-
-                        <small class="input-helper">
-                            <i class="fa-solid fa-calculator"></i>
-                            Numbers and decimal values are allowed.
-                        </small>
-                    </div>
-
-                    <div class="form-field">
-                        <label asp-for="Units">Units</label>
-
-                        <input asp-for="Units"
-                               class="form-control"
-                               value="@unit"
-                               readonly />
-
-                        <small class="input-helper">
-                            <i class="fa-solid fa-lock"></i>
-                            Determined by the selected test.
-                        </small>
-                    </div>
-
-                    <div class="form-field">
-                        <label asp-for="ReferenceRange">Reference Range</label>
-
-                        <input asp-for="ReferenceRange"
-                               id="ReferenceRange"
-                               class="form-control"
-                               readonly />
-
-                        <small class="input-helper">
-                            <i class="fa-solid fa-shield-halved"></i>
-                            @if (hasDefinedRange)
-                            {
-                                <text>Results outside this range will be flagged.</text>
-                            }
-                            else
-                            {
-                                <text>No numeric reference range is defined.</text>
-                            }
-                        </small>
-                    </div>
-
-                    <div class="form-field">
-                        <label>Capture Date &amp; Time</label>
-
-                        <input class="form-control"
-                               readonly
-                               value="@DateTime.Now.ToString("dd MMM yyyy HH:mm")" />
-
-                        <small class="input-helper">
-                            <i class="fa-solid fa-clock"></i>
-                            Current system date and time.
-                        </small>
-                    </div>
-
-                    <div class="form-field full-width">
-                        <div id="abnormalAlert" role="alert">
-                            <strong>
-                                <i class="fa-solid fa-triangle-exclamation"></i>
-                                Abnormal Result Detected
-                            </strong>
-                            <p>
-                                The entered result appears to fall outside
-                                the configured reference range. Please verify the value.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="form-field full-width">
-                        <label asp-for="Comments">Laboratory Comments / Notes</label>
-
-                        <textarea asp-for="Comments"
-                                  class="form-control result-textarea"
-                                  rows="4"
-                                  placeholder="Enter observations, abnormalities, interpretation or additional laboratory notes..."></textarea>
-
-                        <span asp-validation-for="Comments"
-                              class="field-validation-error"></span>
-                    </div>
-
-                </div>
-
-                <!-- CAPTURE SUMMARY -->
-
-                <div class="capture-summary">
-
-                    <div class="summary-tile">
-                        <i class="fa-solid fa-user-doctor"></i>
-                        <strong>Captured By</strong>
-                        <span>Logged-in Technician</span>
-                    </div>
-
-                    <div class="summary-tile">
-                        <i class="fa-solid fa-vial-circle-check"></i>
-                        <strong>Next Step</strong>
-                        <span>Verification</span>
-                    </div>
-
-                    <div class="summary-tile">
-                        <i class="fa-solid fa-calendar-check"></i>
-                        <strong>Capture Date</strong>
-                        <span>@DateTime.Now.ToString("dd MMM yyyy")</span>
-                    </div>
-
-                    <div class="summary-tile">
-                        <i class="fa-solid fa-clock"></i>
-                        <strong>Capture Time</strong>
-                        <span>@DateTime.Now.ToString("HH:mm")</span>
-                    </div>
-
-                </div>
-
-                <div class="form-actions">
-
-                    <a asp-action="Index" class="cancel-button">
-                        <i class="fa-solid fa-arrow-left"></i>
-                        Back to Tests
-                    </a>
-
-                    <button type="submit" class="submit-button">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        Save Laboratory Result
-                    </button>
-
-                </div>
-
-            </form>
-        </div>
-    </section>
-
-</div>
-
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const resultInput = document.getElementById("ResultValue");
-            const rangeInput = document.getElementById("ReferenceRange");
-            const abnormalAlert = document.getElementById("abnormalAlert");
-
-            if (!resultInput || !rangeInput || !abnormalAlert) {
-                return;
-            }
-
-            function checkAbnormalResult() {
-                abnormalAlert.style.display = "none";
-
-                resultInput.classList.remove(
-                    "is-invalid-custom",
-                    "is-valid-custom"
-                );
-
-                const resultText = resultInput.value.trim();
-                const rangeTextOriginal = rangeInput.value.trim();
-
-                if (!resultText || !rangeTextOriginal) {
-                    return;
-                }
-
-                const result = parseFloat(resultText.replace(",", "."));
-
-                if (Number.isNaN(result)) {
-                    return;
-                }
-
-                const rangeText = rangeTextOriginal
-                    .replace(/[–—]/g, "-")
-                    .replace(/\s/g, "");
-
-                const match = rangeText.match(
-                    /^(-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)$/
-                );
-
-                if (!match) {
-                    return;
-                }
-
-                const minimum = parseFloat(match[1]);
-                const maximum = parseFloat(match[2]);
-
-                if (Number.isNaN(minimum) || Number.isNaN(maximum)) {
-                    return;
-                }
-
-                if (result < minimum || result > maximum) {
-                    abnormalAlert.style.display = "block";
-                    resultInput.classList.add("is-invalid-custom");
-                } else {
-                    resultInput.classList.add("is-valid-custom");
-                }
-            }
-
-            resultInput.addEventListener("input", function () {
-                let value = this.value.replace(/[^0-9.]/g, "");
-                const firstDot = value.indexOf(".");
-
-                if (firstDot !== -1) {
-                    value = value.substring(0, firstDot + 1)
-                        + value.substring(firstDot + 1).replace(/\./g, "");
-                }
-
-                this.value = value;
-                checkAbnormalResult();
-            });
-
-            resultInput.addEventListener("paste", function (event) {
-                event.preventDefault();
-
-                const pastedText = (event.clipboardData || window.clipboardData)
-                    .getData("text");
-
-                let cleaned = pastedText.replace(/[^0-9.]/g, "");
-                const firstDot = cleaned.indexOf(".");
-
-                if (firstDot !== -1) {
-                    cleaned = cleaned.substring(0, firstDot + 1)
-                        + cleaned.substring(firstDot + 1).replace(/\./g, "");
-                }
-
-                const start = this.selectionStart ?? this.value.length;
-                const end = this.selectionEnd ?? this.value.length;
-
-                this.setRangeText(cleaned, start, end, "end");
-                this.dispatchEvent(new Event("input", { bubbles: true }));
-            });
-
-            checkAbnormalResult();
-        });
-    </script>
-}
+@* ============================================================
+   STEP 2 — Replace your whole <style> ... </style> block with this
+   (markup does not need to change)
+   ============================================================ *@
 
 <style>
     :root {
-        --teal: #008f83;
-        --teal-dark: #006f67;
-        --teal-deep: #005c55;
-        --teal-light: #e8f7f5;
-        --teal-soft: #f1faf8;
-        --teal-border: #ccebe7;
-        --teal-bright: #00a99a;
-        --text: #173a3a;
-        --muted: #718785;
-        --border: #dcebea;
-        --danger: #dc3545;
-        --danger-soft: #fde9eb;
+        --teal: #0f9488;
+        --teal-dark: #0b6f66;
+        --teal-deep: #0a5a52;
+        --teal-light: #e1f3f0;
+        --teal-soft: #eef7f6;
+        --teal-border: #cfe6e3;
+        --text: #0f2f2d;
+        --muted: #6b817f;
+        --border: #e3ecec;
+        --page-bg: #e9f0f1;
+        --field-bg: #eff5f4;
+        --danger: #c0443f;
+        --danger-soft: #fde8e8;
+        --danger-border: #f3c4c4;
         --warning: #a87308;
         --warning-soft: #fff3d9;
         --success: #198754;
         --success-soft: #e2f5e9;
+        --card-radius: 20px;
+        --card-shadow: 0 10px 30px rgba(15, 80, 72, .08);
+        --hero-gradient: linear-gradient(135deg, #12a193 0%, #0e857a 45%, #0a5f57 100%);
+        --btn-gradient: linear-gradient(135deg, #10978a 0%, #0a5d55 100%);
     }
 
     .capture-page,
@@ -726,161 +48,181 @@
         width: 100%;
         max-width: 1500px;
         margin: 0 auto;
-        padding: 22px 24px 48px;
+        padding: 24px 26px 52px;
         color: var(--text);
-        background: #f3faf9;
+        background: var(--page-bg);
         font-family: "Inter", sans-serif;
+        font-size: 14px;
     }
 
-    /* HEADER */
+    /* ---------- HERO HEADER (gradient banner) ---------- */
 
     .capture-heading {
         display: flex;
         align-items: center;
-        gap: 15px;
-        padding: 0 0 22px;
+        gap: 16px;
+        padding: 24px 28px;
+        margin-bottom: 22px;
+        color: #fff;
+        background: var(--hero-gradient);
+        border-radius: 24px;
+        box-shadow: 0 12px 30px rgba(10, 95, 87, .22);
     }
 
     .capture-heading-icon {
-        width: 49px;
-        height: 49px;
+        width: 54px;
+        height: 54px;
         flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 13px;
-        color: var(--teal-dark);
-        background: #d8f1ed;
-        font-size: 21px;
+        border-radius: 15px;
+        color: #fff;
+        background: rgba(255, 255, 255, .16);
+        border: 1px solid rgba(255, 255, 255, .32);
+        font-size: 22px;
     }
 
     .capture-heading h1 {
         margin: 0 0 4px;
-        color: var(--teal-deep);
-        font-family: "Poppins", sans-serif;
-        font-size: 22px;
-        font-weight: 800;
+        color: #fff;
+        font-family: "Inter", sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -.2px;
     }
 
     .capture-heading p {
         margin: 0;
-        color: var(--muted);
-        font-size: 12px;
-        line-height: 1.6;
+        color: rgba(255, 255, 255, .86);
+        font-size: 13px;
+        line-height: 1.5;
     }
 
     .heading-test {
-        min-width: 200px;
+        min-width: 220px;
         margin-left: auto;
-        padding: 11px 14px;
-        background: white;
-        border: 1px solid var(--teal-border);
-        border-radius: 11px;
+        padding: 4px 0 4px 22px;
+        background: transparent;
+        border: 0;
+        border-left: 1px solid rgba(255, 255, 255, .28);
+        border-radius: 0;
+        text-align: left;
     }
 
-    .heading-test span {
-        display: block;
-        margin-bottom: 4px;
-        color: var(--muted);
-        font-size: 9px;
-        text-transform: uppercase;
-    }
+        .heading-test span {
+            display: block;
+            margin-bottom: 4px;
+            color: rgba(255, 255, 255, .78);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
 
-    .heading-test strong {
-        color: var(--teal-dark);
-        font-size: 12px;
-    }
+        .heading-test strong {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+        }
 
-    /* CARDS */
+    /* ---------- CARDS ---------- */
 
     .information-card,
     .workflow-card {
         min-width: 0;
         overflow: hidden;
         background: #fff;
-        border: 1px solid var(--border);
-        border-radius: 17px;
-        box-shadow: 0 5px 20px rgba(16, 79, 72, .055);
+        border: 1px solid rgba(255, 255, 255, .8);
+        border-radius: var(--card-radius);
+        box-shadow: var(--card-shadow);
     }
 
     .information-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         align-items: stretch;
-        gap: 20px;
-        margin-bottom: 20px;
+        gap: 22px;
+        margin-bottom: 22px;
     }
 
-    .information-grid > .information-card {
-        height: 100%;
-    }
+        .information-grid > .information-card {
+            height: 100%;
+        }
 
+    /* white card header with teal icon + bold title, divider underneath */
     .card-header {
-        min-height: 47px;
-        padding: 13px 19px;
+        min-height: 64px;
+        padding: 18px 26px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        background: var(--teal);
-        color: #fff;
-        font-family: "Poppins", sans-serif;
-        font-size: 13px;
+        background: #fff;
+        color: var(--text);
+        border-bottom: 1px solid var(--border);
+        font-family: "Inter", sans-serif;
+        font-size: 17px;
         font-weight: 700;
     }
 
-    .card-header > span {
-        display: inline-flex;
-        align-items: center;
-        gap: 9px;
-    }
+        .card-header > span {
+            display: inline-flex;
+            align-items: center;
+            gap: 11px;
+        }
+
+            .card-header > span > i {
+                color: var(--teal);
+                font-size: 16px;
+            }
 
     .card-body {
-        padding: 18px;
+        padding: 22px 26px 26px;
     }
 
-    /* SHARED SECTION HEADINGS */
+    /* ---------- SECTION TITLES ---------- */
 
     .section-title {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin: 17px 0 10px;
-        color: var(--teal-dark);
-        font-family: "Poppins", sans-serif;
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
+        gap: 9px;
+        margin: 22px 0 12px;
+        color: var(--teal-deep);
+        font-family: "Inter", sans-serif;
+        font-size: 13px;
+        font-weight: 700;
     }
 
-    .section-title i {
-        color: var(--teal);
-    }
+        .section-title i {
+            color: var(--teal);
+        }
 
-    /* PATIENT */
+    /* ---------- PATIENT ---------- */
 
     .patient-profile {
         display: flex;
         align-items: center;
-        gap: 13px;
-        padding: 13px;
-        margin-bottom: 12px;
-        background: linear-gradient(120deg, var(--teal-light), #f8fcfb);
+        gap: 14px;
+        padding: 15px;
+        margin-bottom: 14px;
+        background: var(--teal-soft);
         border: 1px solid var(--teal-border);
-        border-radius: 12px;
+        border-radius: 16px;
     }
 
     .patient-avatar,
     .test-icon {
-        width: 49px;
-        height: 49px;
-        flex: 0 0 49px;
+        width: 52px;
+        height: 52px;
+        flex: 0 0 52px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 13px;
-        background: #d4efeb;
+        border-radius: 50%;
+        background: #fff;
         color: var(--teal-dark);
+        border: 2px solid #d5c98a;
         font-size: 20px;
     }
 
@@ -888,131 +230,132 @@
         display: block;
         margin-bottom: 3px;
         color: var(--muted);
-        font-size: 9px;
-        font-weight: 700;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: .5px;
         text-transform: uppercase;
     }
 
     .patient-profile h2,
     .test-profile h2 {
         margin: 0;
-        color: var(--teal-deep);
-        font-family: "Poppins", sans-serif;
-        font-size: 16px;
-        font-weight: 800;
-        line-height: 1.45;
+        color: var(--text);
+        font-family: "Inter", sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.4;
         overflow-wrap: anywhere;
     }
 
     .patient-details {
-        margin-bottom: 16px;
+        margin-bottom: 18px;
     }
 
     .patient-detail-row {
         display: flex;
         justify-content: space-between;
         gap: 12px;
-        padding: 9px 2px;
-        border-bottom: 1px solid #e8f0ef;
-        font-size: 11px;
+        padding: 11px 2px;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
     }
 
-    .patient-detail-row > span {
-        color: var(--muted);
-        flex-shrink: 0;
-    }
+        .patient-detail-row > span {
+            color: var(--muted);
+            flex-shrink: 0;
+        }
 
-    .patient-detail-row strong {
-        max-width: 68%;
-        text-align: right;
-        overflow-wrap: anywhere;
-    }
+        .patient-detail-row strong {
+            max-width: 68%;
+            text-align: right;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
 
-    /* CLINICAL INFORMATION */
+    /* ---------- CLINICAL INFORMATION ---------- */
 
     .clinical-list {
         display: grid;
-        gap: 8px;
+        gap: 10px;
     }
 
     .clinical-item {
-        padding: 10px 12px;
+        padding: 12px 15px;
         border: 1px solid transparent;
-        border-radius: 10px;
+        border-radius: 14px;
     }
 
-    .clinical-item.allergy {
-        color: #a52b36;
-        background: #fde9eb;
-        border-color: #f8cdd1;
-    }
+        .clinical-item.allergy {
+            color: #a23a3a;
+            background: var(--danger-soft);
+            border-color: var(--danger-border);
+        }
 
-    .clinical-item.condition {
-        color: #8c6108;
-        background: #fff3d9;
-        border-color: #f5dfaa;
-    }
+        .clinical-item.condition {
+            color: #8c6108;
+            background: var(--warning-soft);
+            border-color: #f5dfaa;
+        }
 
-    .clinical-item.medication {
-        color: var(--teal-dark);
-        background: #e1f4f2;
-        border-color: #c4e9e5;
-    }
+        .clinical-item.medication {
+            color: var(--teal-dark);
+            background: var(--teal-light);
+            border-color: var(--teal-border);
+        }
 
     .clinical-item-heading {
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 8px;
         margin-bottom: 4px;
-        font-size: 10px;
-        font-weight: 800;
+        font-size: 12px;
+        font-weight: 700;
     }
 
     .clinical-item p {
         margin: 0;
-        font-size: 11px;
+        font-size: 13px;
         line-height: 1.6;
         overflow-wrap: anywhere;
     }
 
     .doctor-notes {
-        padding: 13px;
+        padding: 15px 16px;
         background: var(--teal-soft);
         border: 1px solid var(--teal-border);
         border-left: 4px solid var(--teal);
-        border-radius: 10px;
+        border-radius: 14px;
     }
 
     .notes-heading {
         display: flex;
-        gap: 7px;
+        gap: 8px;
         align-items: center;
-        margin-bottom: 7px;
+        margin-bottom: 8px;
         color: var(--teal-dark);
-        font-size: 10px;
-        font-weight: 800;
-        text-transform: uppercase;
+        font-size: 12px;
+        font-weight: 700;
     }
 
     .doctor-notes p {
         margin: 0;
-        color: #456764;
-        font-size: 11px;
-        line-height: 1.8;
+        color: #3f605d;
+        font-size: 13px;
+        line-height: 1.75;
         overflow-wrap: anywhere;
     }
 
-    /* TEST PROFILE */
+    /* ---------- TEST PROFILE ---------- */
 
     .test-profile {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 14px;
-        margin-bottom: 13px;
-        background: linear-gradient(120deg, var(--teal-light), #f8fcfb);
-        border: 2px solid #b9e3dd;
-        border-radius: 13px;
+        gap: 14px;
+        padding: 15px;
+        margin-bottom: 14px;
+        background: var(--teal-soft);
+        border: 1px solid var(--teal-border);
+        border-radius: 16px;
     }
 
     .test-profile-details {
@@ -1020,33 +363,35 @@
     }
 
     .test-icon {
-        background: #d4efeb;
+        border: 0;
+        border-radius: 14px;
+        background: var(--teal-light);
         font-size: 22px;
     }
 
     .test-profile h2 {
-        margin-bottom: 5px;
-        font-size: 16px;
+        margin-bottom: 6px;
     }
 
+    /* pill, same look as the "10 categories" badge */
     .category-pill {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px 9px;
+        padding: 4px 11px;
         color: var(--teal-dark);
-        background: white;
-        border: 1px solid var(--teal-border);
-        border-radius: 20px;
-        font-size: 9px;
-        font-weight: 700;
+        background: var(--teal-light);
+        border: 0;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
     }
 
     .sample-grid,
     .test-detail-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 9px;
+        gap: 11px;
     }
 
     .sample-grid {
@@ -1055,66 +400,66 @@
 
     .sample-box {
         min-width: 0;
-        padding: 12px;
-        background: #f0f9f7;
+        padding: 14px;
+        background: var(--field-bg);
         border: 1px solid var(--teal-border);
-        border-radius: 11px;
+        border-radius: 14px;
     }
 
     .sample-label {
         display: block;
         margin-bottom: 6px;
-        color: #68817e;
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
     }
 
-    .sample-label i {
-        margin-right: 4px;
-        color: var(--teal);
-    }
+        .sample-label i {
+            margin-right: 5px;
+            color: var(--teal);
+        }
 
     .sample-box strong {
         display: block;
         color: var(--teal-dark);
-        font-size: 12px;
+        font-size: 14px;
+        font-weight: 700;
         overflow-wrap: anywhere;
     }
 
     .test-detail {
         min-width: 0;
-        min-height: 58px;
-        padding: 10px;
-        background: #f7fbfa;
+        min-height: 64px;
+        padding: 12px 14px;
+        background: #fff;
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 14px;
     }
 
-    .test-detail > span:first-child {
-        display: block;
-        margin-bottom: 5px;
-        color: #68817e;
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
+        .test-detail > span:first-child {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 600;
+        }
 
-    .test-detail > strong {
-        color: var(--text);
-        font-size: 11px;
-        overflow-wrap: anywhere;
-    }
+        .test-detail > strong {
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
 
     .status-pill,
     .capture-badge {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
-        padding: 5px 8px;
-        border-radius: 20px;
-        font-size: 9px;
-        font-weight: 800;
+        gap: 6px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
     }
 
     .status-progress {
@@ -1148,87 +493,90 @@
     }
 
     .configured-range {
-        padding: 12px;
+        padding: 14px 16px;
         margin-top: 12px;
-        background: #edf8f6;
+        background: var(--teal-soft);
         border: 1px solid var(--teal-border);
-        border-radius: 10px;
+        border-radius: 14px;
     }
 
-    .configured-range > span {
-        display: block;
-        margin-bottom: 5px;
-        color: #68817e;
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
+        .configured-range > span {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 600;
+        }
 
-    .configured-range strong {
-        color: var(--teal-deep);
-        font-family: "Poppins", sans-serif;
-        font-size: 13px;
-    }
+        .configured-range strong {
+            color: var(--teal-deep);
+            font-family: "Inter", sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+        }
 
-    .configured-range small {
-        margin-left: 4px;
-        font-family: "Inter", sans-serif;
-        font-size: 10px;
-    }
+        .configured-range small {
+            margin-left: 5px;
+            color: var(--muted);
+            font-family: "Inter", sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+        }
 
-    /* WORKFLOW */
+    /* ---------- WORKFLOW ---------- */
 
     .workflow-card {
-        padding: 17px 20px;
-        margin-bottom: 18px;
+        padding: 20px 26px 22px;
+        margin-bottom: 22px;
     }
 
-    .workflow-card > .section-title {
-        margin-top: 0;
-        margin-bottom: 16px;
-    }
+        .workflow-card > .section-title {
+            margin-top: 0;
+            margin-bottom: 18px;
+            font-size: 15px;
+        }
 
     .workflow {
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 9px;
     }
 
     .workflow-step {
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 9px;
         min-width: 0;
     }
 
     .step-circle {
-        width: 30px;
-        height: 30px;
-        flex: 0 0 30px;
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: 50%;
         background: #edf2f1;
         color: #879795;
-        font-size: 10px;
-        font-weight: 800;
+        font-size: 12px;
+        font-weight: 700;
     }
 
     .workflow-step.completed .step-circle,
     .workflow-step.current .step-circle {
-        background: var(--teal);
-        color: white;
+        background: var(--btn-gradient);
+        color: #fff;
     }
 
     .workflow-step.current .step-circle {
-        box-shadow: 0 0 0 4px rgba(0,143,131,.12);
+        box-shadow: 0 0 0 5px rgba(15, 148, 136, .14);
     }
 
     .step-label {
-        color: #718785;
-        font-size: 9px;
-        font-weight: 700;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
         white-space: nowrap;
     }
 
@@ -1244,19 +592,20 @@
         background: #dce8e6;
     }
 
-    .step-line.line-completed {
-        background: var(--teal);
-    }
+        .step-line.line-completed {
+            background: var(--teal);
+        }
 
-    /* REVIEW NOTICE */
+    /* ---------- RETURNED NOTICE ---------- */
 
     .review-alert {
-        padding: 14px 17px;
-        margin-bottom: 18px;
+        padding: 16px 20px;
+        margin-bottom: 22px;
         background: var(--warning-soft);
         border: 1px solid #efdca2;
         border-left: 4px solid #c58a00;
-        border-radius: 11px;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
     }
 
     .alert-heading {
@@ -1265,48 +614,48 @@
         gap: 8px;
         margin-bottom: 5px;
         color: #765300;
-        font-size: 12px;
-        font-weight: 800;
+        font-size: 14px;
+        font-weight: 700;
     }
 
     .review-alert p {
         margin: 0;
         color: #6f5a2d;
-        font-size: 11px;
+        font-size: 13px;
         line-height: 1.7;
     }
 
-    /* RESULT FORM */
+    /* ---------- RESULT FORM ---------- */
 
     .result-card {
-        margin-top: 20px;
+        margin-top: 22px;
     }
 
     .capture-badge {
-        color: white;
-        background: rgba(255,255,255,.15);
+        color: var(--teal-dark);
+        background: var(--teal-light);
     }
 
     .result-body {
-        padding: 22px;
+        padding: 24px 26px 28px;
     }
 
-    .result-body > .section-title {
-        margin-top: 0;
-        margin-bottom: 17px;
-    }
+        .result-body > .section-title {
+            margin-top: 0;
+            margin-bottom: 18px;
+        }
 
     .result-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
+        gap: 20px;
     }
 
     .form-field {
         display: flex;
         flex-direction: column;
         min-width: 0;
-        gap: 7px;
+        gap: 8px;
     }
 
     .full-width {
@@ -1315,85 +664,93 @@
 
     .form-field label {
         color: var(--text);
-        font-size: 12px;
-        font-weight: 700;
+        font-size: 13px;
+        font-weight: 600;
     }
 
+    /* soft, tinted inputs like the search bar in the screenshot */
     .form-control {
         width: 100%;
         min-width: 0;
-        min-height: 43px;
-        padding: 11px 12px;
+        min-height: 46px;
+        padding: 12px 16px;
         color: var(--text);
-        background: white;
-        border: 1px solid #d6e6e3;
-        border-radius: 9px;
+        background: var(--field-bg);
+        border: 1px solid var(--teal-border);
+        border-radius: 12px;
         font-family: "Inter", sans-serif;
-        font-size: 12px;
+        font-size: 14px;
         outline: none;
+        transition: border-color .15s, box-shadow .15s, background .15s;
     }
 
-    .form-control:focus {
-        border-color: var(--teal);
-        box-shadow: 0 0 0 3px rgba(0,143,131,.1);
-    }
+        .form-control::placeholder {
+            color: #8aa09e;
+        }
 
-    .form-control[readonly] {
-        background: #f3f9f8;
-        color: #59716e;
-    }
+        .form-control:focus {
+            background: #fff;
+            border-color: var(--teal);
+            box-shadow: 0 0 0 4px rgba(15, 148, 136, .12);
+        }
+
+        .form-control[readonly] {
+            background: #f3f8f7;
+            color: #59716e;
+        }
 
     .result-value-input {
         color: var(--teal-dark);
-        font-size: 16px;
-        font-weight: 800;
+        font-size: 18px;
+        font-weight: 700;
     }
 
     .result-textarea {
-        min-height: 110px;
+        min-height: 120px;
         resize: vertical;
         line-height: 1.7;
     }
 
     .input-helper {
         color: var(--muted);
-        font-size: 10px;
+        font-size: 12px;
         line-height: 1.5;
     }
 
-    .input-helper i {
-        margin-right: 4px;
-        color: var(--teal);
-    }
+        .input-helper i {
+            margin-right: 5px;
+            color: var(--teal);
+        }
 
     .field-validation-error,
     .validation-summary {
         color: var(--danger);
-        font-size: 11px;
+        font-size: 12px;
     }
 
     #abnormalAlert {
         display: none;
-        padding: 13px 15px;
+        padding: 15px 18px;
         background: var(--danger-soft);
-        border: 1px solid #f1c7cc;
+        border: 1px solid var(--danger-border);
         border-left: 4px solid var(--danger);
-        border-radius: 10px;
+        border-radius: 14px;
     }
 
-    #abnormalAlert strong {
-        display: block;
-        margin-bottom: 5px;
-        color: var(--danger);
-        font-size: 12px;
-    }
+        #abnormalAlert strong {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--danger);
+            font-size: 14px;
+            font-weight: 700;
+        }
 
-    #abnormalAlert p {
-        margin: 0;
-        color: #7c343b;
-        font-size: 11px;
-        line-height: 1.6;
-    }
+        #abnormalAlert p {
+            margin: 0;
+            color: #7c343b;
+            font-size: 13px;
+            line-height: 1.6;
+        }
 
     .is-valid-custom {
         border: 2px solid var(--success) !important;
@@ -1405,14 +762,14 @@
         background: #fff7f7 !important;
     }
 
-    /* CAPTURE SUMMARY */
+    /* ---------- CAPTURE SUMMARY ---------- */
 
     .capture-summary {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
-        padding-top: 20px;
-        margin-top: 22px;
+        gap: 12px;
+        padding-top: 22px;
+        margin-top: 24px;
         border-top: 1px solid var(--border);
     }
 
@@ -1421,77 +778,89 @@
         flex-direction: column;
         align-items: center;
         gap: 6px;
-        padding: 14px 8px;
+        padding: 16px 10px;
         text-align: center;
         background: var(--teal-soft);
         border: 1px solid var(--teal-border);
-        border-radius: 11px;
+        border-radius: 14px;
     }
 
-    .summary-tile i {
-        color: var(--teal);
-        font-size: 17px;
-    }
+        .summary-tile i {
+            color: var(--teal);
+            font-size: 18px;
+        }
 
-    .summary-tile strong {
-        color: var(--text);
-        font-size: 10px;
-    }
+        .summary-tile strong {
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 700;
+        }
 
-    .summary-tile span {
-        color: var(--muted);
-        font-size: 9px;
-    }
+        .summary-tile span {
+            color: var(--muted);
+            font-size: 12px;
+        }
 
-    /* BUTTONS */
+    /* ---------- BUTTONS ---------- */
 
     .form-actions {
         display: flex;
         justify-content: flex-end;
-        gap: 11px;
-        padding-top: 19px;
-        margin-top: 21px;
+        gap: 12px;
+        padding-top: 20px;
+        margin-top: 22px;
         border-top: 1px solid var(--border);
     }
 
     .cancel-button,
     .submit-button {
-        min-height: 42px;
+        min-height: 46px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        padding: 11px 18px;
-        border-radius: 9px;
-        font-size: 12px;
-        font-weight: 700;
+        gap: 9px;
+        padding: 12px 22px;
+        border-radius: 12px;
+        font-family: "Inter", sans-serif;
+        font-size: 14px;
+        font-weight: 600;
         text-decoration: none;
         cursor: pointer;
+        transition: background .15s, box-shadow .15s, transform .1s;
     }
 
     .cancel-button {
-        color: #526b68;
-        background: white;
-        border: 1px solid #d6e6e3;
+        color: #3f605d;
+        background: #fff;
+        border: 1px solid var(--teal-border);
     }
 
-    .cancel-button:hover {
-        color: var(--teal-dark);
-        background: var(--teal-soft);
-    }
+        .cancel-button:hover {
+            color: var(--teal-dark);
+            background: var(--teal-soft);
+        }
 
+    /* gradient button with soft teal shadow, like "Add Category" */
     .submit-button {
-        color: white;
-        background: var(--teal);
-        border: 1px solid var(--teal);
+        color: #fff;
+        background: var(--btn-gradient);
+        border: 0;
+        box-shadow: 0 8px 18px rgba(10, 93, 85, .28);
     }
 
-    .submit-button:hover {
-        color: white;
-        background: var(--teal-dark);
-    }
+        .submit-button:hover {
+            color: #fff;
+            box-shadow: 0 10px 22px rgba(10, 93, 85, .36);
+            transform: translateY(-1px);
+        }
 
-    /* RESPONSIVE */
+        .cancel-button:focus-visible,
+        .submit-button:focus-visible {
+            outline: 3px solid rgba(15, 148, 136, .35);
+            outline-offset: 2px;
+        }
+
+    /* ---------- RESPONSIVE ---------- */
 
     @@media (max-width: 1000px) {
         .capture-page {
@@ -1499,11 +868,11 @@
         }
 
         .information-grid {
-            gap: 14px;
+            gap: 16px;
         }
 
         .card-body {
-            padding: 14px;
+            padding: 18px;
         }
 
         .workflow {
@@ -1517,9 +886,9 @@
             grid-template-columns: minmax(0, 1fr);
         }
 
-        .information-grid > .information-card {
-            height: auto;
-        }
+            .information-grid > .information-card {
+                height: auto;
+            }
 
         .heading-test {
             display: none;
@@ -1551,18 +920,23 @@
             padding: 12px 9px 28px;
         }
 
-        .capture-heading h1 {
-            font-size: 17px;
+        .capture-heading {
+            padding: 18px;
+            border-radius: 20px;
         }
 
+            .capture-heading h1 {
+                font-size: 19px;
+            }
+
         .card-header {
-            padding: 12px;
-            font-size: 11px;
+            padding: 14px 16px;
+            font-size: 15px;
         }
 
         .card-body,
         .result-body {
-            padding: 13px;
+            padding: 16px;
         }
 
         .test-detail-grid,
