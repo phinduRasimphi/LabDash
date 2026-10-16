@@ -89,8 +89,6 @@ namespace LabDash.Controllers
                     {
                         // ------------------------------------------------
                         // AUDIT: SUCCESSFUL LOGIN
-                        // (the user is not authenticated on this request
-                        //  yet, so the name is passed in explicitly)
                         // ------------------------------------------------
 
                         _audit.LogAs(
@@ -110,9 +108,7 @@ namespace LabDash.Controllers
 
                         if (await _userManager.IsInRoleAsync(user, "Admin"))
                         {
-                            return RedirectToAction(
-                                "Index",
-                                "Dashboard");
+                            return RedirectToAction("Index", "Dashboard");
                         }
 
                         // ====================================================
@@ -127,95 +123,65 @@ namespace LabDash.Controllers
 
                             if (!user.WelcomeEmailSent)
                             {
-                                string supportEmail =
-                                    "LabDashSupport@gmail.com";
+                                string supportEmail = "LabDashSupport@gmail.com";
 
-                                var emailBody =
-                                    BuildWelcomeEmail(
-                                        user.FirstName,
-                                        supportEmail);
+                                var emailBody = BuildWelcomeEmail(
+                                    user.FirstName,
+                                    supportEmail);
 
                                 try
                                 {
-                                    // ------------------------------------------------
-                                    // TESTING EMAIL
-                                    //
-                                    // Change to user.Email when ready.
-                                    // ------------------------------------------------
-
-                                    string realAccount =
-                                        "labdashrsa@gmail.com";
+                                    string realAccount = "labdashrsa@gmail.com";
 
                                     await _emailSender.SendEmailAsync(
                                         realAccount,
                                         $"Welcome to LabDash, {user.FirstName}!",
                                         emailBody);
 
-                                    // Only mark as sent AFTER successful email.
                                     user.WelcomeEmailSent = true;
-
                                     await _userManager.UpdateAsync(user);
                                 }
                                 catch
                                 {
                                     // Do not prevent login if email fails.
-                                    //
-                                    // WelcomeEmailSent stays false so that
-                                    // another attempt can happen later.
                                 }
                             }
 
-                            return RedirectToAction(
-                                "Index",
-                                "Dashboard");
+                            return RedirectToAction("Index", "Dashboard");
                         }
 
                         // ====================================================
                         // LAB TECHNICIAN
                         // ====================================================
 
-                        if (await _userManager.IsInRoleAsync(
-                            user,
-                            "Lab_Technician"))
+                        if (await _userManager.IsInRoleAsync(user, "Lab_Technician"))
                         {
-                            return RedirectToAction(
-                                "Index",
-                                "Dashboard");
+                            return RedirectToAction("Index", "Dashboard");
                         }
 
                         // ====================================================
                         // LAB MANAGER
                         // ====================================================
 
-                        if (await _userManager.IsInRoleAsync(
-                            user,
-                            "Lab_Manager"))
+                        if (await _userManager.IsInRoleAsync(user, "Lab_Manager"))
                         {
-                            return RedirectToAction(
-                                "Index",
-                                "Dashboard");
+                            return RedirectToAction("Index", "Dashboard");
                         }
 
                         // ====================================================
                         // DOCTOR
                         // ====================================================
 
-                        if (await _userManager.IsInRoleAsync(
-                            user,
-                            "Doctor"))
+                        if (await _userManager.IsInRoleAsync(user, "Doctor"))
                         {
-                            return RedirectToAction(
-                                "Index",
-                                "DoctorHome");
+                            return RedirectToAction("Index", "DoctorHome");
                         }
 
                         // ====================================================
                         // FALLBACK
                         // ====================================================
 
-                        return RedirectToAction(
-                            "Index",
-                            "Home");
+                        return RedirectToAction("Index", "Home");
                     }
 
                     // ------------------------------------------------
@@ -244,9 +210,7 @@ namespace LabDash.Controllers
                     }
                     else
                     {
-                        ModelState.AddModelError(
-                            "",
-                            "Invalid password.");
+                        ModelState.AddModelError("", "Invalid password.");
                     }
                 }
                 else
@@ -271,8 +235,7 @@ namespace LabDash.Controllers
             var name =
                 string.IsNullOrWhiteSpace(firstName)
                     ? "there"
-                    : HtmlEncoder.Default.Encode(
-                        firstName.Trim());
+                    : HtmlEncoder.Default.Encode(firstName.Trim());
 
             return $@"
 <!DOCTYPE html>
@@ -482,46 +445,34 @@ Here's to healthier days ahead,
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ForgotPassword(
-            ForgotPasswordModel model)
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordModel model)
         {
             if (!ModelState.IsValid)
                 return View(model);
 
-            var user =
-                await _userManager.FindByEmailAsync(model.Email);
+            var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user == null ||
                 string.IsNullOrEmpty(user.Email) ||
                 !(await _userManager.IsEmailConfirmedAsync(user)))
             {
-                return RedirectToAction(
-                    nameof(ForgotPasswordConfirmation));
+                return RedirectToAction(nameof(ForgotPasswordConfirmation));
             }
 
-            var token =
-                await _userManager.GeneratePasswordResetTokenAsync(
-                    user);
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 
-            var resetLink =
-                Url.Action(
-                    "ResetPassword",
-                    "Account",
-                    new
-                    {
-                        token = token,
-                        email = user.Email
-                    },
-                    Request.Scheme);
+            var resetLink = Url.Action(
+                "ResetPassword",
+                "Account",
+                new { token = token, email = user.Email },
+                Request.Scheme);
 
             if (string.IsNullOrEmpty(resetLink))
             {
-                return RedirectToAction(
-                    nameof(ForgotPasswordConfirmation));
+                return RedirectToAction(nameof(ForgotPasswordConfirmation));
             }
 
-            var encodedResetLink =
-                HtmlEncoder.Default.Encode(resetLink);
+            var encodedResetLink = HtmlEncoder.Default.Encode(resetLink);
 
             var emailBody =
                 $"<html><head><style>" +
@@ -550,9 +501,7 @@ Here's to healthier days ahead,
                 // Do not expose email service errors to users.
             }
 
-            return RedirectToAction(
-                "ForgotPasswordConfirmation",
-                "Account");
+            return RedirectToAction("ForgotPasswordConfirmation", "Account");
         }
 
         // ============================================================
@@ -570,9 +519,7 @@ Here's to healthier days ahead,
         // ============================================================
 
         [HttpGet]
-        public IActionResult ResetPassword(
-            string token,
-            string email)
+        public IActionResult ResetPassword(string token, string email)
         {
             if (token == null || email == null)
                 return BadRequest();
@@ -588,27 +535,22 @@ Here's to healthier days ahead,
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ResetPassword(
-            ResetPasswordModel model)
+        public async Task<IActionResult> ResetPassword(ResetPasswordModel model)
         {
             if (!ModelState.IsValid)
                 return View(model);
 
-            var user =
-                await _userManager.FindByEmailAsync(
-                    model.Email);
+            var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user == null)
             {
-                return RedirectToAction(
-                    nameof(ResetPasswordConfirmation));
+                return RedirectToAction(nameof(ResetPasswordConfirmation));
             }
 
-            var result =
-                await _userManager.ResetPasswordAsync(
-                    user,
-                    model.Token,
-                    model.Password);
+            var result = await _userManager.ResetPasswordAsync(
+                user,
+                model.Token,
+                model.Password);
 
             if (result.Succeeded)
             {
@@ -624,15 +566,12 @@ Here's to healthier days ahead,
 
                 await _context.SaveChangesAsync();
 
-                return RedirectToAction(
-                    nameof(ResetPasswordConfirmation));
+                return RedirectToAction(nameof(ResetPasswordConfirmation));
             }
 
             foreach (var error in result.Errors)
             {
-                ModelState.AddModelError(
-                    "",
-                    error.Description);
+                ModelState.AddModelError("", error.Description);
             }
 
             return View(model);
@@ -660,49 +599,48 @@ Here's to healthier days ahead,
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ChangePassword(
-            ChangePasswordModel model)
+        public async Task<IActionResult> ChangePassword(ChangePasswordModel model)
         {
             if (!ModelState.IsValid)
                 return View(model);
 
             // --------------------------------------------------------
             // GET THE CURRENT LOGGED-IN IDENTITY USER
-            //
-            // IMPORTANT:
-            // Do NOT look for a Patient here.
-            // Admins, Doctors, Technicians and Managers also
-            // have Identity accounts.
             // --------------------------------------------------------
 
-            var user =
-                await _userManager.GetUserAsync(User);
+            var user = await _userManager.GetUserAsync(User);
 
             if (user == null)
             {
-                return RedirectToAction(
-                    "Login",
-                    "Account");
+                return RedirectToAction("Login", "Account");
             }
 
             // --------------------------------------------------------
             // CHANGE PASSWORD
             // --------------------------------------------------------
 
-            var result =
-                await _userManager.ChangePasswordAsync(
-                    user,
-                    model.CurrentPassword,
-                    model.NewPassword);
+            var result = await _userManager.ChangePasswordAsync(
+                user,
+                model.CurrentPassword,
+                model.NewPassword);
 
             if (result.Succeeded)
             {
                 // Keep the user signed in after changing password.
                 await _signInManager.RefreshSignInAsync(user);
 
-                // ----------------------------------------------------
+                // ------------------------------------------------
+                // CLEAR THE MUST-CHANGE FLAG
+                // Without this, MustChangePasswordFilter would keep
+                // bouncing the user back to this page forever.
+                // ------------------------------------------------
+
+                user.MustChangePassword = false;
+                await _userManager.UpdateAsync(user);
+
+                // ------------------------------------------------
                 // AUDIT: PASSWORD CHANGED
-                // ----------------------------------------------------
+                // ------------------------------------------------
 
                 _audit.Log(
                     "Password Changed",
@@ -718,74 +656,52 @@ Here's to healthier days ahead,
                 // ADMIN
                 // ====================================================
 
-                if (await _userManager.IsInRoleAsync(
-                    user,
-                    "Admin"))
+                if (await _userManager.IsInRoleAsync(user, "Admin"))
                 {
-                    return RedirectToAction(
-                        "AdminProfile",
-                        "Admin");
+                    return RedirectToAction("AdminProfile", "Admin");
                 }
 
                 // ====================================================
                 // PATIENT
                 // ====================================================
 
-                if (await _userManager.IsInRoleAsync(
-                    user,
-                    "Patient"))
+                if (await _userManager.IsInRoleAsync(user, "Patient"))
                 {
-                    return RedirectToAction(
-                        "Profile",
-                        "Patient");
+                    return RedirectToAction("Profile", "Patient");
                 }
 
                 // ====================================================
                 // DOCTOR
                 // ====================================================
 
-                if (await _userManager.IsInRoleAsync(
-                    user,
-                    "Doctor"))
+                if (await _userManager.IsInRoleAsync(user, "Doctor"))
                 {
-                    return RedirectToAction(
-                        "Index",
-                        "DoctorHome");
+                    return RedirectToAction("Index", "DoctorHome");
                 }
 
                 // ====================================================
                 // LAB TECHNICIAN
                 // ====================================================
 
-                if (await _userManager.IsInRoleAsync(
-                    user,
-                    "Lab_Technician"))
+                if (await _userManager.IsInRoleAsync(user, "Lab_Technician"))
                 {
-                    return RedirectToAction(
-                        "Index",
-                        "Dashboard");
+                    return RedirectToAction("Index", "Dashboard");
                 }
 
                 // ====================================================
                 // LAB MANAGER
                 // ====================================================
 
-                if (await _userManager.IsInRoleAsync(
-                    user,
-                    "Lab_Manager"))
+                if (await _userManager.IsInRoleAsync(user, "Lab_Manager"))
                 {
-                    return RedirectToAction(
-                        "Index",
-                        "Dashboard");
+                    return RedirectToAction("Index", "Dashboard");
                 }
 
                 // ====================================================
                 // FALLBACK
                 // ====================================================
 
-                return RedirectToAction(
-                    "Index",
-                    "Home");
+                return RedirectToAction("Index", "Home");
             }
 
             // --------------------------------------------------------
@@ -794,9 +710,7 @@ Here's to healthier days ahead,
 
             foreach (var error in result.Errors)
             {
-                ModelState.AddModelError(
-                    "",
-                    error.Description);
+                ModelState.AddModelError("", error.Description);
             }
 
             return View(model);
@@ -810,7 +724,6 @@ Here's to healthier days ahead,
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
-            // Log BEFORE signing out, while the user name is still known.
             var who = User.Identity?.Name;
 
             if (!string.IsNullOrEmpty(who))
@@ -826,9 +739,7 @@ Here's to healthier days ahead,
 
             await _signInManager.SignOutAsync();
 
-            return RedirectToAction(
-                "Index",
-                "Home");
+            return RedirectToAction("Index", "Home");
         }
 
         // ============================================================
@@ -838,8 +749,7 @@ Here's to healthier days ahead,
         [HttpGet]
         public async Task<IActionResult> Register()
         {
-            var model =
-                new PatientRegisterViewModel();
+            var model = new PatientRegisterViewModel();
 
             await PopulateMedicalOptions(model);
 
@@ -852,32 +762,17 @@ Here's to healthier days ahead,
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register(
-            PatientRegisterViewModel model)
+        public async Task<IActionResult> Register(PatientRegisterViewModel model)
         {
             // --------------------------------------------------------
             // NORMALISE INPUT
             // --------------------------------------------------------
 
-            model.Email =
-                model.Email?.Trim().ToLowerInvariant()
-                ?? "";
-
-            model.IDNumber =
-                model.IDNumber?.Trim()
-                ?? "";
-
-            model.CellphoneNumber =
-                model.CellphoneNumber?.Trim()
-                ?? "";
-
-            model.Name =
-                model.Name?.Trim()
-                ?? "";
-
-            model.Surname =
-                model.Surname?.Trim()
-                ?? "";
+            model.Email = model.Email?.Trim().ToLowerInvariant() ?? "";
+            model.IDNumber = model.IDNumber?.Trim() ?? "";
+            model.CellphoneNumber = model.CellphoneNumber?.Trim() ?? "";
+            model.Name = model.Name?.Trim() ?? "";
+            model.Surname = model.Surname?.Trim() ?? "";
 
             // --------------------------------------------------------
             // GMAIL VALIDATION
@@ -899,9 +794,7 @@ Here's to healthier days ahead,
             // --------------------------------------------------------
 
             if (!string.IsNullOrWhiteSpace(model.IDNumber) &&
-                !Regex.IsMatch(
-                    model.IDNumber,
-                    @"^\d{13}$"))
+                !Regex.IsMatch(model.IDNumber, @"^\d{13}$"))
             {
                 ModelState.AddModelError(
                     nameof(model.IDNumber),
@@ -913,9 +806,7 @@ Here's to healthier days ahead,
             // --------------------------------------------------------
 
             if (!string.IsNullOrWhiteSpace(model.CellphoneNumber) &&
-                !Regex.IsMatch(
-                    model.CellphoneNumber,
-                    @"^0[6-8][0-9]{8}$"))
+                !Regex.IsMatch(model.CellphoneNumber, @"^0[6-8][0-9]{8}$"))
             {
                 ModelState.AddModelError(
                     nameof(model.CellphoneNumber),
@@ -927,9 +818,7 @@ Here's to healthier days ahead,
             // --------------------------------------------------------
 
             if (!string.IsNullOrWhiteSpace(model.PostalCode) &&
-                !Regex.IsMatch(
-                    model.PostalCode,
-                    @"^\d{4}$"))
+                !Regex.IsMatch(model.PostalCode, @"^\d{4}$"))
             {
                 ModelState.AddModelError(
                     nameof(model.PostalCode),
@@ -940,14 +829,9 @@ Here's to healthier days ahead,
             // INITIALISE MEDICAL LISTS
             // --------------------------------------------------------
 
-            model.SelectedMedicalConditionIds ??=
-                new List<int>();
-
-            model.SelectedAllergyIds ??=
-                new List<int>();
-
-            model.SelectedMedicationIds ??=
-                new List<int>();
+            model.SelectedMedicalConditionIds ??= new List<int>();
+            model.SelectedAllergyIds ??= new List<int>();
+            model.SelectedMedicationIds ??= new List<int>();
 
             // --------------------------------------------------------
             // VALIDATE MODEL
@@ -956,7 +840,6 @@ Here's to healthier days ahead,
             if (!ModelState.IsValid)
             {
                 await PopulateMedicalOptions(model);
-
                 return View(model);
             }
 
@@ -964,9 +847,7 @@ Here's to healthier days ahead,
             // CHECK DUPLICATE EMAIL
             // ========================================================
 
-            var existingUser =
-                await _userManager.FindByEmailAsync(
-                    model.Email);
+            var existingUser = await _userManager.FindByEmailAsync(model.Email);
 
             if (existingUser != null)
             {
@@ -975,7 +856,6 @@ Here's to healthier days ahead,
                     "An account with this Gmail address already exists.");
 
                 await PopulateMedicalOptions(model);
-
                 return View(model);
             }
 
@@ -983,10 +863,8 @@ Here's to healthier days ahead,
             // CHECK DUPLICATE ID NUMBER
             // ========================================================
 
-            var existingPatient =
-                await _context.Patients
-                    .FirstOrDefaultAsync(
-                        p => p.IDNumber == model.IDNumber);
+            var existingPatient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.IDNumber == model.IDNumber);
 
             if (existingPatient != null)
             {
@@ -995,7 +873,6 @@ Here's to healthier days ahead,
                     "A patient account with this ID number already exists.");
 
                 await PopulateMedicalOptions(model);
-
                 return View(model);
             }
 
@@ -1013,22 +890,16 @@ Here's to healthier days ahead,
                 SouthAfricanID = model.IDNumber
             };
 
-            var result =
-                await _userManager.CreateAsync(
-                    user,
-                    model.Password);
+            var result = await _userManager.CreateAsync(user, model.Password);
 
             if (!result.Succeeded)
             {
                 foreach (var error in result.Errors)
                 {
-                    ModelState.AddModelError(
-                        "",
-                        error.Description);
+                    ModelState.AddModelError("", error.Description);
                 }
 
                 await PopulateMedicalOptions(model);
-
                 return View(model);
             }
 
@@ -1036,22 +907,16 @@ Here's to healthier days ahead,
             // ASSIGN PATIENT ROLE
             // ========================================================
 
-            var roleResult =
-                await _userManager.AddToRoleAsync(
-                    user,
-                    "Patient");
+            var roleResult = await _userManager.AddToRoleAsync(user, "Patient");
 
             if (!roleResult.Succeeded)
             {
                 foreach (var error in roleResult.Errors)
                 {
-                    ModelState.AddModelError(
-                        "",
-                        error.Description);
+                    ModelState.AddModelError("", error.Description);
                 }
 
                 await PopulateMedicalOptions(model);
-
                 return View(model);
             }
 
@@ -1060,20 +925,17 @@ Here's to healthier days ahead,
             // ========================================================
 
             string customCondition =
-                string.IsNullOrWhiteSpace(
-                    model.OtherMedicalCondition)
+                string.IsNullOrWhiteSpace(model.OtherMedicalCondition)
                     ? "None"
                     : model.OtherMedicalCondition.Trim();
 
             string customAllergy =
-                string.IsNullOrWhiteSpace(
-                    model.OtherAllergy)
+                string.IsNullOrWhiteSpace(model.OtherAllergy)
                     ? "None"
                     : model.OtherAllergy.Trim();
 
             string customMedication =
-                string.IsNullOrWhiteSpace(
-                    model.OtherMedication)
+                string.IsNullOrWhiteSpace(model.OtherMedication)
                     ? "None"
                     : model.OtherMedication.Trim();
 
@@ -1084,7 +946,6 @@ Here's to healthier days ahead,
             var newPatient = new Patient
             {
                 UserId = user.Id,
-
                 Name = model.Name,
                 Surname = model.Surname,
                 IDNumber = model.IDNumber,
@@ -1092,79 +953,49 @@ Here's to healthier days ahead,
                 CellphoneNumber = model.CellphoneNumber,
                 Email = model.Email,
 
-                // ----------------------------------------------------
-                // ADDRESS
-                // ----------------------------------------------------
-
                 HomeAddress = model.AddressLine1,
 
-                AddressLine1 =
-                    model.AddressLine1.Trim(),
+                AddressLine1 = model.AddressLine1.Trim(),
 
                 AddressLine2 =
                     string.IsNullOrWhiteSpace(model.AddressLine2)
                         ? null
                         : model.AddressLine2.Trim(),
 
-                Suburb =
-                    model.Suburb.Trim(),
-
-                City =
-                    model.City.Trim(),
-
-                Province =
-                    model.Province.Trim(),
+                Suburb = model.Suburb.Trim(),
+                City = model.City.Trim(),
+                Province = model.Province.Trim(),
 
                 PostalCode =
                     string.IsNullOrWhiteSpace(model.PostalCode)
                         ? null
                         : model.PostalCode.Trim(),
 
-                // ----------------------------------------------------
-                // CUSTOM MEDICAL INFORMATION
-                // ----------------------------------------------------
-
-                MedicalConditions =
-                    customCondition,
-
-                Allergies =
-                    customAllergy,
-
-                Medication =
-                    customMedication
+                MedicalConditions = customCondition,
+                Allergies = customAllergy,
+                Medication = customMedication
             };
 
             _context.Patients.Add(newPatient);
-
             await _context.SaveChangesAsync();
 
             // ========================================================
             // EXISTING MEDICAL CONDITIONS
             // ========================================================
 
-            foreach (
-                var conditionId
-                in model.SelectedMedicalConditionIds.Distinct())
+            foreach (var conditionId in model.SelectedMedicalConditionIds.Distinct())
             {
-                var conditionExists =
-                    await _context.MedicalConditions
-                        .AnyAsync(x =>
-                            x.MedicalConditionId == conditionId &&
-                            x.IsActive);
+                var conditionExists = await _context.MedicalConditions
+                    .AnyAsync(x => x.MedicalConditionId == conditionId && x.IsActive);
 
                 if (conditionExists)
                 {
                     _context.PatientMedicalConditions.Add(
                         new PatientMedicalCondition
                         {
-                            PatientID =
-                                newPatient.PatientID,
-
-                            MedicalConditionId =
-                                conditionId,
-
-                            DiagnosisDate =
-                                DateTime.Now
+                            PatientID = newPatient.PatientID,
+                            MedicalConditionId = conditionId,
+                            DiagnosisDate = DateTime.Now
                         });
                 }
             }
@@ -1173,29 +1004,19 @@ Here's to healthier days ahead,
             // EXISTING ALLERGIES
             // ========================================================
 
-            foreach (
-                var allergyId
-                in model.SelectedAllergyIds.Distinct())
+            foreach (var allergyId in model.SelectedAllergyIds.Distinct())
             {
-                var allergyExists =
-                    await _context.Allergies
-                        .AnyAsync(x =>
-                            x.AllergyId == allergyId &&
-                            x.IsActive);
+                var allergyExists = await _context.Allergies
+                    .AnyAsync(x => x.AllergyId == allergyId && x.IsActive);
 
                 if (allergyExists)
                 {
                     _context.PatientAllergies.Add(
                         new PatientAllergy
                         {
-                            PatientID =
-                                newPatient.PatientID,
-
-                            AllergyId =
-                                allergyId,
-
-                            RecordedDate =
-                                DateTime.Now
+                            PatientID = newPatient.PatientID,
+                            AllergyId = allergyId,
+                            RecordedDate = DateTime.Now
                         });
                 }
             }
@@ -1204,36 +1025,25 @@ Here's to healthier days ahead,
             // EXISTING MEDICATIONS
             // ========================================================
 
-            foreach (
-                var medicationId
-                in model.SelectedMedicationIds.Distinct())
+            foreach (var medicationId in model.SelectedMedicationIds.Distinct())
             {
-                var medicationExists =
-                    await _context.Medications
-                        .AnyAsync(x =>
-                            x.MedicationId == medicationId &&
-                            x.IsActive);
+                var medicationExists = await _context.Medications
+                    .AnyAsync(x => x.MedicationId == medicationId && x.IsActive);
 
                 if (medicationExists)
                 {
                     _context.PatientMedications.Add(
                         new PatientMedication
                         {
-                            PatientID =
-                                newPatient.PatientID,
-
-                            MedicationId =
-                                medicationId,
-
-                            StartDate =
-                                DateTime.Now
+                            PatientID = newPatient.PatientID,
+                            MedicationId = medicationId,
+                            StartDate = DateTime.Now
                         });
                 }
             }
 
             // ========================================================
-            // AUDIT: NEW PATIENT SELF-REGISTERED
-            // (saved together with the medical rows below)
+            // AUDIT
             // ========================================================
 
             _audit.LogAs(
@@ -1250,45 +1060,24 @@ Here's to healthier days ahead,
 
             await _notifications.SendToRoleAsync(
                 roleName: "Doctor",
-
                 title: "New patient registered",
-
-                message:
-                    $"{newPatient.Name} {newPatient.Surname} has created a patient profile.",
-
+                message: $"{newPatient.Name} {newPatient.Surname} has created a patient profile.",
                 type: "NewPatient",
-
-                linkUrl:
-                    Url.Action(
-                        "SharedWithMe",
-                        "Doctor"),
-
-                relatedPatientId:
-                    newPatient.PatientID,
-
-                actorUserId:
-                    user.Id
-            );
+                linkUrl: Url.Action("SharedWithMe", "Doctor"),
+                relatedPatientId: newPatient.PatientID,
+                actorUserId: user.Id);
 
             // ========================================================
             // EMAIL CONFIRMATION
             // ========================================================
 
-            var code =
-                await _userManager
-                    .GenerateEmailConfirmationTokenAsync(
-                        user);
+            var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
-            var callbackUrl =
-                Url.Action(
-                    "EmailVerified",
-                    "Account",
-                    new
-                    {
-                        userId = user.Id,
-                        code = Uri.EscapeDataString(code)
-                    },
-                    Request.Scheme);
+            var callbackUrl = Url.Action(
+                "EmailVerified",
+                "Account",
+                new { userId = user.Id, code = Uri.EscapeDataString(code) },
+                Request.Scheme);
 
             try
             {
@@ -1302,85 +1091,50 @@ Here's to healthier days ahead,
             catch
             {
                 // Account has already been created.
-                // Email confirmation can be handled separately.
             }
 
-            return RedirectToAction(
-                "RegisterConfirmation");
+            return RedirectToAction("RegisterConfirmation");
         }
 
         // ============================================================
         // POPULATE MEDICAL OPTIONS
         // ============================================================
 
-        private async Task PopulateMedicalOptions(
-            PatientRegisterViewModel model)
+        private async Task PopulateMedicalOptions(PatientRegisterViewModel model)
         {
-            // --------------------------------------------------------
-            // MEDICAL CONDITIONS
-            // --------------------------------------------------------
+            model.MedicalConditionOptions = await _context.MedicalConditions
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.ConditionName)
+                .Select(x => new SelectListItem
+                {
+                    Value = x.MedicalConditionId.ToString(),
+                    Text = x.ConditionName,
+                    Selected = model.SelectedMedicalConditionIds
+                        .Contains(x.MedicalConditionId)
+                })
+                .ToListAsync();
 
-            model.MedicalConditionOptions =
-                await _context.MedicalConditions
-                    .Where(x => x.IsActive)
-                    .OrderBy(x => x.ConditionName)
-                    .Select(x => new SelectListItem
-                    {
-                        Value =
-                            x.MedicalConditionId.ToString(),
+            model.AllergyOptions = await _context.Allergies
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.AllergyName)
+                .Select(x => new SelectListItem
+                {
+                    Value = x.AllergyId.ToString(),
+                    Text = x.AllergyName,
+                    Selected = model.SelectedAllergyIds.Contains(x.AllergyId)
+                })
+                .ToListAsync();
 
-                        Text =
-                            x.ConditionName,
-
-                        Selected =
-                            model.SelectedMedicalConditionIds
-                                .Contains(x.MedicalConditionId)
-                    })
-                    .ToListAsync();
-
-            // --------------------------------------------------------
-            // ALLERGIES
-            // --------------------------------------------------------
-
-            model.AllergyOptions =
-                await _context.Allergies
-                    .Where(x => x.IsActive)
-                    .OrderBy(x => x.AllergyName)
-                    .Select(x => new SelectListItem
-                    {
-                        Value =
-                            x.AllergyId.ToString(),
-
-                        Text =
-                            x.AllergyName,
-
-                        Selected =
-                            model.SelectedAllergyIds
-                                .Contains(x.AllergyId)
-                    })
-                    .ToListAsync();
-
-            // --------------------------------------------------------
-            // MEDICATIONS
-            // --------------------------------------------------------
-
-            model.MedicationOptions =
-                await _context.Medications
-                    .Where(x => x.IsActive)
-                    .OrderBy(x => x.MedicationName)
-                    .Select(x => new SelectListItem
-                    {
-                        Value =
-                            x.MedicationId.ToString(),
-
-                        Text =
-                            x.MedicationName,
-
-                        Selected =
-                            model.SelectedMedicationIds
-                                .Contains(x.MedicationId)
-                    })
-                    .ToListAsync();
+            model.MedicationOptions = await _context.Medications
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.MedicationName)
+                .Select(x => new SelectListItem
+                {
+                    Value = x.MedicationId.ToString(),
+                    Text = x.MedicationName,
+                    Selected = model.SelectedMedicationIds.Contains(x.MedicationId)
+                })
+                .ToListAsync();
         }
 
         // ============================================================
@@ -1398,28 +1152,19 @@ Here's to healthier days ahead,
         // ============================================================
 
         [HttpGet]
-        public async Task<IActionResult> EmailVerified(
-            string userId,
-            string code)
+        public async Task<IActionResult> EmailVerified(string userId, string code)
         {
-            var user =
-                await _userManager.FindByIdAsync(
-                    userId);
+            var user = await _userManager.FindByIdAsync(userId);
 
             if (user == null)
                 return NotFound();
 
-            var result =
-                await _userManager.ConfirmEmailAsync(
-                    user,
-                    Uri.UnescapeDataString(code));
+            var result = await _userManager.ConfirmEmailAsync(
+                user,
+                Uri.UnescapeDataString(code));
 
             if (result.Succeeded)
             {
-                // ----------------------------------------------------
-                // AUDIT: EMAIL CONFIRMED
-                // ----------------------------------------------------
-
                 _audit.LogAs(
                     user.Email ?? "Unknown",
                     "Email Confirmed",

@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 
-
 namespace LabDash.Controllers
 {
     [Authorize(Roles = "Doctor")]
@@ -24,12 +23,12 @@ namespace LabDash.Controllers
         private readonly IRazorEmailRenderer _emailRenderer;
 
         public DoctorController(
-       LabDbContext context,
-       UserManager<LabUser> userManager,
-       SignInManager<LabUser> signInManager,
-       IEmailSender emailSender,
-       IAuditService audit,
-       IRazorEmailRenderer emailRenderer)
+            LabDbContext context,
+            UserManager<LabUser> userManager,
+            SignInManager<LabUser> signInManager,
+            IEmailSender emailSender,
+            IAuditService audit,
+            IRazorEmailRenderer emailRenderer)
         {
             _context = context;
             _userManager = userManager;
@@ -372,10 +371,7 @@ namespace LabDash.Controllers
             }
 
             // ---- Create Identity account ----
-            string internalPlaceholder =
-                Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-
-            string activationToken = GenerateActivationToken();
+            string generatedPassword = GeneratePatientPassword();
 
             var user = new LabUser
             {
@@ -387,17 +383,18 @@ namespace LabDash.Controllers
                 PhoneNumb = cellphone,
                 SouthAfricanID = idNumber,
                 HPCSANumber = null,
-                MustChangePassword = false,
+                MustChangePassword = true,
                 Timestamp_AccountCreated = DateTime.UtcNow,
-                ActivationTokenHash = HashActivationToken(activationToken),
-                ActivationTokenExpiresUtc = DateTime.UtcNow.AddHours(48)
+                ActivationTokenHash = null,
+                ActivationTokenExpiresUtc = null,
+                  EmailConfirmed = true
             };
 
             IdentityResult createResult;
 
             try
             {
-                createResult = await _userManager.CreateAsync(user, internalPlaceholder);
+                createResult = await _userManager.CreateAsync(user, generatedPassword);
             }
             catch (Exception ex)
             {
@@ -508,27 +505,27 @@ namespace LabDash.Controllers
                 return View(model);
             }
 
-            // ---- Send activation email ----
-            bool emailSent = await TrySendActivationEmailAsync(
-                user, name, activationToken);
+            // ---- Send login credentials by email ----
+            bool emailSent = await TrySendCredentialsEmailAsync(
+                user, name, generatedPassword);
 
             if (emailSent)
             {
                 TempData["Success"] =
-                    "Patient registered successfully. An activation link has been emailed to the patient.";
+                    "Patient registered successfully. Login details have been emailed to the patient.";
             }
             else
             {
                 TempData["Warning"] =
-                    "Patient registered, but the activation email could not be sent. " +
-                    "Use 'Resend activation' from the patient's record.";
+                    "Patient registered, but the login-details email could not be sent. " +
+                    "Use 'Resend credentials' from the patient's record.";
             }
 
             return RedirectToAction(nameof(ManagePatients));
         }
 
         // =========================================================
-        // RESEND ACTIVATION
+        // RESEND CREDENTIALS (regenerates password)
         // =========================================================
 
         [HttpPost]
@@ -544,17 +541,29 @@ namespace LabDash.Controllers
             var user = await _userManager.FindByIdAsync(patient.UserId);
             if (user == null) return NotFound();
 
-            string activationToken = GenerateActivationToken();
-            user.ActivationTokenHash = HashActivationToken(activationToken);
-            user.ActivationTokenExpiresUtc = DateTime.UtcNow.AddHours(48);
+            // Generate a fresh password and reset it.
+            string newPassword = GeneratePatientPassword();
+
+            string resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var resetResult = await _userManager.ResetPasswordAsync(user, resetToken, newPassword);
+
+            if (!resetResult.Succeeded)
+            {
+                TempData["Warning"] = "Could not reset the password. " +
+                    string.Join("; ", resetResult.Errors.Select(e => e.Description));
+
+                return RedirectToAction(nameof(ManagePatients),
+                    new { searchIDNumber = patient.IDNumber });
+            }
+
+            user.MustChangePassword = true;
             await _userManager.UpdateAsync(user);
 
-            bool sent = await TrySendActivationEmailAsync(
-                user, patient.Name, activationToken);
+            bool sent = await TrySendCredentialsEmailAsync(user, patient.Name, newPassword);
 
             TempData[sent ? "Success" : "Warning"] = sent
-                ? $"Activation email sent to {user.Email}."
-                : "Could not send the activation email.";
+                ? $"New login details emailed to {user.Email}."
+                : "Could not send the login-details email.";
 
             return RedirectToAction(nameof(ManagePatients),
                 new { searchIDNumber = patient.IDNumber });
@@ -850,68 +859,111 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // ACTIVATION TOKEN HELPERS
+        // PASSWORD GENERATOR
         // =========================================================
 
-        private static string GenerateActivationToken()
+        private static string GeneratePatientPassword()
         {
-            return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
-                .Replace("+", "-")
-                .Replace("/", "_")
-                .Replace("=", "");
+            const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I, O
+            const string lower = "abcdefghijkmnopqrstuvwxyz";  // no l
+            const string digits = "23456789";                  // no 0, 1
+            const string special = "!@#$%";
+
+            string all = upper + lower + digits + special;
+
+            var chars = new List<char>
+            {
+                PickRandom(upper),
+                PickRandom(lower),
+                PickRandom(digits),
+                PickRandom(special)
+            };
+
+            while (chars.Count < 12)
+                chars.Add(PickRandom(all));
+
+            // Fisher–Yates shuffle so the guaranteed characters
+            // aren't always in the first four positions.
+            for (int i = chars.Count - 1; i > 0; i--)
+            {
+                int j = RandomNumberGenerator.GetInt32(i + 1);
+                (chars[i], chars[j]) = (chars[j], chars[i]);
+            }
+
+            return new string(chars.ToArray());
         }
 
-        private static string HashActivationToken(string token)
+        private static char PickRandom(string source)
         {
-            using var sha = SHA256.Create();
-            var bytes = System.Text.Encoding.UTF8.GetBytes(token);
-            var hash = sha.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);
+            return source[RandomNumberGenerator.GetInt32(source.Length)];
         }
 
         // =========================================================
-        // SEND ACTIVATION EMAIL
+        // SEND CREDENTIALS EMAIL
         // =========================================================
 
-        private async Task<bool> TrySendActivationEmailAsync(
-            LabUser user, string firstName, string activationToken)
+        private async Task<bool> TrySendCredentialsEmailAsync(
+            LabUser user, string firstName, string plainPassword)
         {
             try
             {
-                string? activationUrl = Url.Action(
-                    "ActivateAccount",
+                string loginUrl = Url.Action(
+                    "Login",
                     "Account",
-                    new
-                    {
-                        area = "Identity",
-                        token = activationToken,
-                        email = user.Email
-                    },
-                    Request.Scheme);
+                    new { area = "Identity" },
+                    Request.Scheme) ?? "#";
 
-                var emailModel = new PatientActivationEmailViewModel
-                {
-                    FirstName = firstName,
-                    Email = user.Email ?? string.Empty,
-                    ActivationUrl = activationUrl ?? "#"
-                };
+                string safeName = System.Net.WebUtility.HtmlEncode(firstName);
+                string safeEmail = System.Net.WebUtility.HtmlEncode(user.Email ?? "");
+                string safePassword = System.Net.WebUtility.HtmlEncode(plainPassword);
+                string safeLoginUrl = System.Net.WebUtility.HtmlEncode(loginUrl);
 
-                string emailBody = await _emailRenderer.RenderAsync(
-                    "~/Views/Emails/PatientActivation.cshtml",
-                    emailModel,
-                    HttpContext);
+                string body = $@"
+                    <div style=""font-family:Segoe UI,Arial,sans-serif;color:#243b53;
+                                max-width:560px;margin:0 auto;padding:24px;"">
+                      <h2 style=""color:#0d6b63;margin-bottom:8px;"">
+                        Welcome to NMB LAB
+                      </h2>
+                      <p>Hi {safeName},</p>
+                      <p>
+                        Your patient account has been created. Use the details below
+                        to sign in to the patient portal.
+                      </p>
+                      <table style=""border-collapse:collapse;margin:20px 0;"">
+                        <tr>
+                          <td style=""padding:6px 12px 6px 0;font-weight:600;"">Username</td>
+                          <td style=""padding:6px 0;"">{safeEmail}</td>
+                        </tr>
+                        <tr>
+                          <td style=""padding:6px 12px 6px 0;font-weight:600;"">Password</td>
+                          <td style=""padding:6px 0;"">{safePassword}</td>
+                        </tr>
+                      </table>
+                      <p>
+                        <a href=""{safeLoginUrl}""
+                           style=""background:#0d6b63;color:#fff;padding:12px 22px;
+                                  border-radius:8px;text-decoration:none;font-weight:600;"">
+                          Sign in to the patient portal
+                        </a>
+                      </p>
+                      <p style=""font-size:13px;color:#687779;"">
+                        For your security, you will be asked to change this password
+                        the first time you sign in.
+                      </p>
+                      <p>Regards,<br/>NMB Haematology Laboratory</p>
+                    </div>";
 
                 await _emailSender.SendEmailAsync(
                     user.Email!,
-                    "Activate your NMB LAB patient account",
-                    emailBody);
+                    "Your NMB LAB patient account",
+                    body);
 
                 return true;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(
-                    $"EMAIL FAILED for {user.Email}: {ex.Message}");
+                    $"CREDENTIALS EMAIL FAILED for {user.Email}: {ex.Message}");
                 return false;
             }
         }
