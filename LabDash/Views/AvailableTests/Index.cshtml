@@ -6,6 +6,15 @@
 
     var tests = Model?.ToList() ?? new List<LabDash.Models.TestRequestItem>();
 
+    var urgentCount = tests.Count(x =>
+        x.TestRequest != null &&
+        (x.TestRequest.Urgency == "Urgent" ||
+         x.TestRequest.Urgency == "STAT"));
+
+    var todayCount = tests.Count(x =>
+        x.TestRequest != null &&
+        x.TestRequest.RequestDate.Date == DateTime.Today);
+
     Func<string, (string Cls, string Label)> GetTube = category =>
     {
         if (category == "Hematology")
@@ -24,294 +33,225 @@
     };
 }
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
 <div class="available-page">
 
-    <!-- HEADER -->
-    <div class="available-header">
+    <!-- BANNER -->
+    <div class="av-banner">
 
-        <div class="header-icon">
-            <i class="fa-solid fa-flask-vial"></i>
-        </div>
+        <div class="av-banner-left">
+            <div class="av-banner-icon">
+                <i class="fa-solid fa-flask-vial"></i>
+            </div>
 
-        <div>
-            <h1>Available Laboratory Tests</h1>
-            <p>Select a laboratory test to view the patient record and begin processing.</p>
-        </div>
-
-    </div>
-
-
-    <!-- SUMMARY CARDS -->
-    <div class="summary-grid">
-
-        <div class="summary-card">
             <div>
-                <span>Total Available</span>
+                <h1>Available Laboratory Tests</h1>
+                <p>Select a test to view the patient record and begin processing.</p>
+            </div>
+        </div>
+
+        <div class="av-banner-stats">
+            <div class="av-banner-stat">
                 <strong>@tests.Count</strong>
+                <span>Available</span>
             </div>
 
-            <div class="summary-icon teal">
-                <i class="fa-solid fa-vials"></i>
-            </div>
-        </div>
-
-
-        <div class="summary-card">
-            <div>
+            <div class="av-banner-stat">
+                <strong>@urgentCount</strong>
                 <span>Urgent</span>
-                <strong class="red">
-                    @tests.Count(x =>
-                        x.TestRequest != null &&
-                        (
-                            x.TestRequest.Urgency == "Urgent" ||
-                            x.TestRequest.Urgency == "STAT"
-                        ))
-                </strong>
             </div>
 
-            <div class="summary-icon red">
-                <i class="fa-solid fa-bell"></i>
+            <div class="av-banner-stat">
+                <strong>@todayCount</strong>
+                <span>Today</span>
             </div>
-        </div>
-
-
-        <div class="summary-card">
-            <div>
-                <span>Today's Requests</span>
-                <strong class="gold">
-                    @tests.Count(x =>
-                        x.TestRequest != null &&
-                        x.TestRequest.RequestDate.Date == DateTime.Today)
-                </strong>
-            </div>
-
-            <div class="summary-icon gold">
-                <i class="fa-solid fa-calendar-day"></i>
-            </div>
-        </div>
-
-
-        <div class="summary-card">
-            <div>
-                <span>Waiting to Start</span>
-                <strong class="teal">@tests.Count</strong>
-            </div>
-
-            <div class="summary-icon teal">
-                <i class="fa-solid fa-hourglass-start"></i>
-            </div>
-        </div>
-
-    </div>
-
-
-    <!-- SEARCH + FILTER -->
-    <div class="filter-bar">
-
-        <!-- SEARCH -->
-        <div class="search-box">
-
-            <i class="fa-solid fa-magnifying-glass"></i>
-
-            <input type="text"
-                   id="testSearch"
-                   placeholder="Search by patient, request number or test name..." />
-
-        </div>
-
-        <!-- URGENCY FILTER -->
-        <div class="urgency-filter">
-
-            <i class="fa-solid fa-filter"></i>
-
-            <select id="urgencyFilter">
-
-                <option value="all">All Urgencies</option>
-                <option value="STAT">STAT</option>
-                <option value="Urgent">Urgent</option>
-                <option value="High">High</option>
-                <option value="Priority">Priority</option>
-                <option value="Routine">Routine</option>
-
-            </select>
-
         </div>
 
     </div>
 
 
     <!-- MAIN CONTENT -->
-    <div class="content-grid">
+    <div class="av-grid">
 
         <!-- AVAILABLE TESTS -->
-        <div class="tests-card">
+        <section class="av-panel">
 
-            <div class="card-header">
-
-                <div>
+            <div class="av-panel-head">
+                <h2 class="av-panel-title">
                     <i class="fa-solid fa-list-check"></i>
-                    Available Tests
+                    Available tests
+                </h2>
+
+                <span class="av-count-pill" id="testCount">
+                    @tests.Count @(tests.Count == 1 ? "test" : "tests")
+                </span>
+            </div>
+
+            <div class="av-panel-body">
+
+                <!-- SEARCH + FILTER -->
+                <div class="av-filter-bar">
+
+                    <div class="av-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+
+                        <input type="text"
+                               id="testSearch"
+                               aria-label="Search available tests"
+                               placeholder="Search patient, request number or test..." />
+                    </div>
+
+                    <div class="av-select">
+                        <i class="fa-solid fa-filter"></i>
+
+                        <select id="urgencyFilter" aria-label="Filter by urgency">
+                            <option value="all">All urgencies</option>
+                            <option value="STAT">STAT</option>
+                            <option value="Urgent">Urgent</option>
+                            <option value="High">High</option>
+                            <option value="Priority">Priority</option>
+                            <option value="Routine">Routine</option>
+                        </select>
+                    </div>
+
                 </div>
 
-                <span id="testCount">@tests.Count tests</span>
 
-            </div>
+                <div id="testList">
 
-
-            <div id="testList">
-
-                @if (tests.Any())
-                {
-                    foreach (var item in tests)
+                    @if (tests.Any())
                     {
-                        var testName = item.TestType?.Name ?? "Unknown Test";
-                        var category = item.TestType?.Category ?? "Laboratory";
-                        var sample = item.TestType?.RequiredSampleType ?? "Not specified";
-                        var turnaround = item.TestType?.TurnaroundTimeMinutes ?? 0;
-
-                        var patientName = "Unknown Patient";
-
-                        if (item.TestRequest?.Patient != null)
+                        foreach (var item in tests)
                         {
-                            patientName =
-                                $"{item.TestRequest.Patient.Name} {item.TestRequest.Patient.Surname}";
+                            var testName = item.TestType?.Name ?? "Unknown Test";
+                            var category = item.TestType?.Category ?? "Laboratory";
+                            var sample = item.TestType?.RequiredSampleType ?? "Not specified";
+                            var turnaround = item.TestType?.TurnaroundTimeMinutes ?? 0;
+
+                            var patientName = "Unknown Patient";
+
+                            if (item.TestRequest?.Patient != null)
+                            {
+                                patientName =
+                                    $"{item.TestRequest.Patient.Name} {item.TestRequest.Patient.Surname}";
+                            }
+
+                            var urgency = item.TestRequest?.Urgency ?? "Routine";
+
+                            var urgencyClass =
+                                urgency == "Urgent" || urgency == "STAT"
+                                    ? "urgent"
+                                    : urgency == "High"
+                                        ? "high"
+                                        : "routine";
+
+                            var urgencyIcon =
+                                urgency == "Urgent" || urgency == "STAT"
+                                    ? "fa-bell"
+                                    : urgency == "High"
+                                        ? "fa-triangle-exclamation"
+                                        : "fa-circle-check";
+
+                            var tube = GetTube(category);
+
+                            <div class="test-row"
+                                 data-test-id="@item.TestRequestItemId"
+                                 data-urgency="@urgency"
+                                 data-search="@($"{patientName} {testName} {item.RequestId} {category}")">
+
+                                <!-- TUBE -->
+                                <div class="tube @tube.Cls">@tube.Label</div>
+
+                                <!-- TEST INFORMATION -->
+                                <div class="test-information">
+
+                                    <div class="test-title">
+                                        <strong>@testName</strong>
+
+                                        <span class="urgency @urgencyClass">
+                                            <i class="fa-solid @urgencyIcon"></i>
+                                            @urgency
+                                        </span>
+                                    </div>
+
+                                    <div class="patient-line">
+                                        <i class="fa-solid fa-user"></i>
+                                        @patientName
+                                        <span class="request-tag">Request #@item.RequestId</span>
+                                    </div>
+
+                                    <div class="test-details">
+                                        <span>
+                                            <i class="fa-solid fa-vial"></i>
+                                            @sample
+                                        </span>
+
+                                        <span>
+                                            <i class="fa-solid fa-layer-group"></i>
+                                            @category
+                                        </span>
+
+                                        <span>
+                                            <i class="fa-solid fa-clock"></i>
+                                            @turnaround minutes
+                                        </span>
+
+                                        <span>
+                                            <i class="fa-solid fa-circle"></i>
+                                            @item.Status
+                                        </span>
+                                    </div>
+
+                                </div>
+
+                                <!-- ACTION -->
+                                <button type="button"
+                                        class="view-patient-btn"
+                                        onclick="loadPatient(@item.TestRequestItemId)">
+                                    <i class="fa-solid fa-user-doctor"></i>
+                                    View patient
+                                </button>
+
+                            </div>
                         }
-
-                        var urgency = item.TestRequest?.Urgency ?? "Routine";
-
-                        var urgencyClass =
-                            urgency == "Urgent" || urgency == "STAT"
-                                ? "urgent"
-                                : urgency == "High"
-                                    ? "high"
-                                    : "routine";
-
-                        var urgencyIcon =
-                            urgency == "Urgent" || urgency == "STAT"
-                                ? "fa-bell"
-                                : urgency == "High"
-                                    ? "fa-triangle-exclamation"
-                                    : "fa-circle-check";
-
-                        var tube = GetTube(category);
-
-                        <div class="test-row"
-                             data-test-id="@item.TestRequestItemId"
-                             data-urgency="@urgency"
-                             data-search="@($"{patientName} {testName} {item.RequestId} {category}")">
-
-                            <!-- TUBE -->
-                            <div class="tube @tube.Cls">
-                                @tube.Label
-                            </div>
-
-
-                            <!-- TEST INFORMATION -->
-                            <div class="test-information">
-
-                                <div class="test-title">
-
-                                    <strong>
-                                        @testName
-                                    </strong>
-
-                                    <span class="urgency @urgencyClass">
-
-                                        <i class="fa-solid @urgencyIcon"></i>
-
-                                        @urgency
-
-                                    </span>
-
-                                </div>
-
-
-                                <div class="patient-line">
-
-                                    <i class="fa-solid fa-user"></i>
-
-                                    @patientName
-
-                                    <span>•</span>
-
-                                    Request #@item.RequestId
-
-                                </div>
-
-
-                                <div class="test-details">
-
-                                    <span>
-                                        <i class="fa-solid fa-vial"></i>
-                                        @sample
-                                    </span>
-
-                                    <span>
-                                        <i class="fa-solid fa-layer-group"></i>
-                                        @category
-                                    </span>
-
-                                    <span>
-                                        <i class="fa-solid fa-clock"></i>
-                                        @turnaround minutes
-                                    </span>
-
-                                    <span>
-                                        <i class="fa-solid fa-circle"></i>
-                                        @item.Status
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-
-                            <!-- ACTION -->
-                            <button type="button"
-                                    class="view-patient-btn"
-                                    onclick="loadPatient(@item.TestRequestItemId)">
-
-                                <i class="fa-solid fa-user-doctor"></i>
-
-                                View Patient
-
-                            </button>
-
+                    }
+                    else
+                    {
+                        <div class="av-empty">
+                            <i class="fa-solid fa-vials"></i>
+                            <h3>No available tests</h3>
+                            <p>There are currently no laboratory tests waiting to be processed.</p>
                         </div>
                     }
-                }
-                else
-                {
-                    <div class="empty-state">
 
-                        <i class="fa-solid fa-vials"></i>
-
-                        <h3>No Available Tests</h3>
-
-                        <p>
-                            There are currently no laboratory tests waiting to be processed.
-                        </p>
-
+                    <div class="av-empty" id="noMatches" style="display:none;">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <h3>No tests match your filters</h3>
+                        <p>Try a different search term or urgency.</p>
                     </div>
-                }
+
+                </div>
 
             </div>
 
-        </div>
+        </section>
 
 
         <!-- PATIENT DETAILS -->
-        <div class="patient-card">
+        <section class="av-panel av-sticky">
 
-            <div class="card-header">
-
-                <div>
+            <div class="av-panel-head">
+                <h2 class="av-panel-title">
                     <i class="fa-solid fa-file-medical"></i>
-                    Patient Requisition
-                </div>
-
+                    Patient requisition
+                </h2>
             </div>
-
 
             <div id="patientPanel">
 
@@ -324,15 +264,15 @@
                     <h3>Select a test</h3>
 
                     <p>
-                        Select "View Patient" on a laboratory test
-                        to view the patient and test information.
+                        Choose "View patient" on a laboratory test
+                        to see the patient and test information.
                     </p>
 
                 </div>
 
             </div>
 
-        </div>
+        </section>
 
     </div>
 
@@ -354,39 +294,36 @@
 
 </form>
 
-<!-- =========================================================
-     START PROCESSING CONFIRMATION POPUP
-     ========================================================= -->
-<div id="processingModal"
-     style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(0,0,0,0.55); align-items:center; justify-content:center; padding:20px;">
 
-    <div style="width:100%; max-width:430px; background:#ffffff; border-radius:18px; padding:30px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.30); border:1px solid #dcebea; font-family:'Segoe UI',Arial,sans-serif;">
+<!-- START PROCESSING CONFIRMATION -->
+<div id="processingModal" class="av-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
 
-        <div style="width:60px; height:60px; margin:0 auto 16px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#0d766e; color:#ffffff; font-size:24px;">
+    <div class="av-modal-box">
+
+        <div class="av-modal-icon">
             <i class="fa-solid fa-flask-vial"></i>
         </div>
 
-        <h3 style="margin:0 0 8px; color:#1f2937; font-size:20px; font-weight:700;">
-            Start Laboratory Test?
-        </h3>
+        <h3 id="modalTitle">Start laboratory test?</h3>
 
-        <p style="margin:0 0 25px; color:#6b7280; font-size:14px; line-height:1.6;">
-            Are you sure you want to start processing this laboratory test?
+        <p>
+            This test will be assigned to you and the required
+            consumables will be deducted from stock.
         </p>
 
-        <div style="display:flex; justify-content:center; gap:10px;">
+        <div class="av-modal-actions">
 
             <button type="button"
-                    onclick="closeProcessingModal()"
-                    style="border:1px solid #d1d5db; background:#f3f4f6; color:#374151; padding:11px 20px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer;">
+                    class="av-btn-secondary"
+                    onclick="closeProcessingModal()">
                 Cancel
             </button>
 
             <button type="button"
-                    onclick="confirmStartProcessing()"
-                    style="border:none; background:#0d766e; color:#ffffff; padding:11px 20px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer;">
+                    class="av-btn-primary"
+                    onclick="confirmStartProcessing()">
                 <i class="fa-solid fa-play"></i>
-                Start Processing
+                Start processing
             </button>
 
         </div>
@@ -399,496 +336,681 @@
 <style>
 
     :root {
-        --av-primary: #0d766e;
-        --av-primary-dark: #095a54;
-        --av-primary-light: #e7f5f3;
-        --av-text: #1f2937;
-        --av-muted: #6b7280;
-        --av-border: #e5e7eb;
-        --av-bg: #f5f7fa;
-        --av-card: #ffffff;
-        --av-red: #dc3545;
-        --av-red-light: #fbe9ea;
-        --av-gold: #b98900;
-        --av-gold-light: #fbf2dc;
+        --av-primary: #0f9488;
+        --av-primary-dark: #0b7a70;
+        --av-primary-deep: #0a5f58;
+        --av-primary-light: #e1f3f0;
+        --av-soft: #f2f8f7;
+        --av-border: #dbe9e7;
+        --av-text: #12302f;
+        --av-muted: #6f8584;
+        --av-bg: #eaf1f1;
+        --av-red: #a32626;
+        --av-red-light: #fde8e8;
+        --av-red-border: #f5c6c6;
+        --av-gold: #8f5a00;
+        --av-gold-light: #fff3dc;
+        --av-gold-border: #f3d9a0;
+        --av-green: #17814a;
+        --av-green-light: #e4f6ec;
     }
 
+
+    .available-page,
+    .av-modal {
+        font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+        color: var(--av-text);
+        -webkit-font-smoothing: antialiased;
+    }
 
     .available-page {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 25px 20px 60px;
-        font-family: "Segoe UI", Arial, sans-serif;
-        color: var(--av-text);
+        width: 100%;
+        padding: 28px 32px 48px;
+        background: var(--av-bg);
+        min-height: 100vh;
+        overflow-x: hidden;
     }
 
+        .available-page *,
+        .available-page *::before,
+        .available-page *::after,
+        .av-modal *,
+        .av-modal *::before,
+        .av-modal *::after {
+            box-sizing: border-box;
+        }
 
-    /* HEADER */
 
-    .available-header {
-        background: linear-gradient(135deg, #0d766e, #0a5d57);
-        color: white;
-        border-radius: 18px;
-        padding: 28px 32px;
+    /* BANNER */
+
+    .av-banner {
         display: flex;
         align-items: center;
-        gap: 20px;
-        margin-bottom: 22px;
-        box-shadow: 0 8px 25px rgba(0,0,0,.08);
-    }
-
-
-    .header-icon {
-        width: 62px;
-        height: 62px;
-        border-radius: 16px;
-        background: rgba(255,255,255,.16);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 28px;
-    }
-
-
-    .available-header h1 {
-        margin: 0 0 5px;
-        font-size: 27px;
-        font-weight: 700;
-    }
-
-
-    .available-header p {
-        margin: 0;
-        font-size: 14px;
-        opacity: .9;
-    }
-
-
-    /* SUMMARY */
-
-    .summary-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-        margin-bottom: 20px;
-    }
-
-
-    .summary-card {
-        background: white;
-        border: 1px solid var(--av-border);
-        border-radius: 16px;
-        padding: 20px;
-        display: flex;
         justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 4px 18px rgba(0,0,0,.04);
+        gap: 24px;
+        flex-wrap: wrap;
+        padding: 24px 32px;
+        margin-bottom: 24px;
+        border-radius: 24px;
+        color: #fff;
+        background: linear-gradient(135deg, #129a8d 0%, #0b7068 100%);
+        box-shadow: 0 14px 34px rgba(10, 95, 88, .22);
     }
 
+    .av-banner-left {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        min-width: 0;
+    }
 
-        .summary-card span {
-            display: block;
-            font-size: 12px;
-            color: var(--av-muted);
-            margin-bottom: 5px;
-        }
-
-
-        .summary-card strong {
-            font-size: 28px;
-            color: var(--av-primary);
-        }
-
-
-            .summary-card strong.red {
-                color: var(--av-red);
-            }
-
-
-            .summary-card strong.gold {
-                color: var(--av-gold);
-            }
-
-
-            .summary-card strong.teal {
-                color: var(--av-primary);
-            }
-
-
-    .summary-icon {
-        width: 45px;
-        height: 45px;
-        border-radius: 12px;
+    .av-banner-icon {
+        width: 58px;
+        height: 58px;
+        flex: 0 0 58px;
+        border-radius: 17px;
+        background: rgba(255, 255, 255, .16);
+        border: 1px solid rgba(255, 255, 255, .38);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 19px;
+        font-size: 24px;
     }
 
+    .av-banner h1 {
+        margin: 0 0 4px;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -.01em;
+        color: #fff;
+    }
 
-        .summary-icon.teal {
-            background: var(--av-primary-light);
-            color: var(--av-primary);
-        }
+    .av-banner p {
+        margin: 0;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, .86);
+    }
 
-
-        .summary-icon.red {
-            background: var(--av-red-light);
-            color: var(--av-red);
-        }
-
-
-        .summary-icon.gold {
-            background: var(--av-gold-light);
-            color: var(--av-gold);
-        }
-
-
-    /* SEARCH */
-
-    .search-box {
-        background: white;
-        border: 1px solid var(--av-border);
-        border-radius: 14px;
-        padding: 13px 18px;
+    .av-banner-stats {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 20px;
+        gap: 34px;
+        flex-wrap: wrap;
     }
 
-
-        .search-box > i {
-            color: var(--av-muted);
-        }
-
-
-        .search-box input {
-            border: none;
-            outline: none;
-            width: 100%;
-            font-size: 14px;
-            color: var(--av-text);
-        }
-    /* =========================================================
-       SEARCH + URGENCY FILTER
-       ========================================================= */
-
-    .filter-bar {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 20px;
-        align-items: stretch;
+    .av-banner-stat {
+        text-align: center;
     }
 
-        .filter-bar .search-box {
-            flex: 1;
-            margin-bottom: 0;
+        .av-banner-stat strong {
+            display: block;
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.1;
         }
 
-    .urgency-filter {
-        background: white;
-        border: 1px solid var(--av-border);
-        border-radius: 14px;
-        padding: 0 16px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 190px;
-    }
-
-        .urgency-filter i {
-            color: var(--av-primary);
-        }
-
-        .urgency-filter select {
-            border: none;
-            outline: none;
-            background: transparent;
-            color: var(--av-text);
-            font-size: 14px;
-            font-family: "Segoe UI", Arial, sans-serif;
-            cursor: pointer;
-            width: 100%;
-            padding: 13px 0;
+        .av-banner-stat span {
+            display: block;
+            margin-top: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, .78);
         }
 
 
-    /* GRID */
+    /* LAYOUT */
 
-    .content-grid {
+    .av-grid {
         display: grid;
-        grid-template-columns: 1.5fr 1fr;
-        gap: 20px;
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+        gap: 24px;
         align-items: start;
     }
 
-
-    .tests-card,
-    .patient-card {
-        background: white;
-        border-radius: 18px;
+    .av-panel {
+        min-width: 0;
+        background: #fff;
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(8, 70, 66, .07);
         overflow: hidden;
-        border: 1px solid var(--av-border);
-        box-shadow: 0 4px 20px rgba(0,0,0,.05);
     }
 
+    .av-sticky {
+        position: sticky;
+        top: 16px;
+    }
 
-    /* CARD HEADER */
-
-    .card-header {
-        background: linear-gradient(135deg, #0d766e, #0a5d57);
-        color: white;
-        padding: 17px 20px;
+    .av-panel-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        font-weight: 600;
-        font-size: 15px;
+        gap: 16px;
+        padding: 22px 32px;
+        border-bottom: 1px solid var(--av-border);
     }
 
-
-        .card-header i {
-            margin-right: 8px;
-        }
-
-
-        .card-header span {
-            background: rgba(255,255,255,.18);
-            padding: 5px 11px;
-            border-radius: 30px;
-            font-size: 12px;
-        }
-
-
-    /* TEST ROW */
-
-    .test-row {
-        padding: 18px 20px;
-        border-bottom: 1px solid #edf0f2;
+    .av-panel-title {
         display: flex;
         align-items: center;
-        gap: 15px;
-        transition: .15s;
+        gap: 14px;
+        margin: 0;
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--av-text);
+    }
+
+        .av-panel-title i {
+            color: var(--av-primary);
+            font-size: 18px;
+        }
+
+    .av-count-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: var(--av-primary-light);
+        color: var(--av-primary-dark);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .av-panel-body {
+        padding: 22px 32px 12px;
     }
 
 
-        .test-row:last-child {
-            border-bottom: none;
+    /* SEARCH + FILTER */
+
+    .av-filter-bar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+
+    .av-search {
+        position: relative;
+        flex: 1 1 260px;
+        min-width: 0;
+    }
+
+        .av-search i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--av-muted);
+            font-size: 14px;
         }
 
+        .av-search input {
+            width: 100%;
+            border: 1px solid var(--av-border);
+            border-radius: 14px;
+            padding: 13px 16px 13px 42px;
+            outline: none;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            background: var(--av-soft);
+            color: var(--av-text);
+            transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+        }
+
+            .av-search input::placeholder {
+                color: #8aa09f;
+            }
+
+            .av-search input:focus {
+                background: #fff;
+                border-color: var(--av-primary);
+                box-shadow: 0 0 0 4px rgba(15, 148, 136, .12);
+            }
+
+    .av-select {
+        position: relative;
+        flex: 0 0 190px;
+    }
+
+        .av-select i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--av-primary);
+            font-size: 13px;
+            pointer-events: none;
+        }
+
+        .av-select select {
+            width: 100%;
+            border: 1px solid var(--av-border);
+            border-radius: 14px;
+            padding: 13px 14px 13px 40px;
+            outline: none;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--av-soft);
+            color: var(--av-text);
+            cursor: pointer;
+        }
+
+            .av-select select:focus {
+                background: #fff;
+                border-color: var(--av-primary);
+                box-shadow: 0 0 0 4px rgba(15, 148, 136, .12);
+            }
+
+
+    /* TEST ROWS */
+
+    .test-row {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 20px 14px;
+        margin: 0 -14px;
+        border-bottom: 1px solid #edf3f2;
+        border-radius: 16px;
+        transition: background .15s ease;
+    }
+
+        .test-row:last-of-type {
+            border-bottom: 0;
+        }
 
         .test-row:hover {
-            background: #f1faf8;
+            background: var(--av-soft);
         }
 
+        .test-row.selected {
+            background: var(--av-primary-light);
+        }
 
     .tube {
-        width: 46px;
-        height: 46px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        font-size: 10px;
-        font-weight: 700;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .02em;
     }
 
-
-        .tube.violet {
-            background: #eeeafa;
-            color: #675b91;
-        }
-
-
-        .tube.gold {
-            background: #faf1d7;
-            color: #a47800;
-        }
-
-
-        .tube.blue {
-            background: #e8f0f6;
-            color: #3e6c8c;
-        }
-
-
-        .tube.green {
-            background: #e7f0eb;
-            color: #46745f;
-        }
-
+        .tube.violet { background: #eeeafa; color: #675b91; }
+        .tube.gold   { background: #faf1d7; color: #8f6a00; }
+        .tube.blue   { background: #e4eff7; color: #36668a; }
+        .tube.green  { background: #e3f1ea; color: #3d7058; }
 
     .test-information {
         flex: 1;
         min-width: 0;
     }
 
-
     .test-title {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
     }
-
 
         .test-title strong {
             font-size: 15px;
+            font-weight: 800;
+            overflow-wrap: anywhere;
         }
 
-
     .urgency {
-        padding: 4px 9px;
-        border-radius: 20px;
-        font-size: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 11px;
         font-weight: 700;
-        text-transform: uppercase;
         white-space: nowrap;
     }
-
 
         .urgency.urgent {
             color: var(--av-red);
             background: var(--av-red-light);
         }
 
-
         .urgency.high {
             color: var(--av-gold);
             background: var(--av-gold-light);
         }
-
 
         .urgency.routine {
             color: var(--av-primary-dark);
             background: var(--av-primary-light);
         }
 
-
     .patient-line {
-        margin-top: 5px;
-        color: var(--av-muted);
-        font-size: 13px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+        color: var(--av-text);
+        font-size: 13.5px;
+        font-weight: 600;
     }
 
-
-        .patient-line i {
+        .patient-line > i {
             color: var(--av-primary);
-            margin-right: 5px;
         }
 
+    .request-tag {
+        padding: 3px 10px;
+        border-radius: 8px;
+        background: var(--av-primary-light);
+        color: var(--av-primary-dark);
+        font-size: 12px;
+        font-weight: 700;
+    }
 
     .test-details {
         display: flex;
         flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 9px;
+        gap: 8px 18px;
+        margin-top: 10px;
         color: var(--av-muted);
-        font-size: 11.5px;
+        font-size: 12.5px;
+        font-weight: 500;
     }
-
 
         .test-details i {
             color: var(--av-primary);
-            margin-right: 4px;
+            margin-right: 6px;
+            font-size: 12px;
         }
 
-
-    /* BUTTON */
-
     .view-patient-btn {
-        border: 1px solid var(--av-primary);
-        color: var(--av-primary-dark);
-        background: white;
-        border-radius: 30px;
-        padding: 9px 13px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        flex-shrink: 0;
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #129a8d, #0a5f58);
+        color: #fff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
         white-space: nowrap;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(10, 95, 88, .28);
+        transition: transform .15s ease, box-shadow .15s ease;
     }
 
-
         .view-patient-btn:hover {
-            background: var(--av-primary);
-            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 9px 20px rgba(10, 95, 88, .34);
+        }
+
+        .view-patient-btn:focus-visible,
+        .start-button:focus-visible,
+        .av-btn-primary:focus-visible,
+        .av-btn-secondary:focus-visible {
+            outline: 2px solid var(--av-primary-deep);
+            outline-offset: 3px;
         }
 
 
     /* EMPTY */
 
-    .empty-state {
+    .av-empty {
         text-align: center;
-        padding: 60px 25px;
+        padding: 56px 20px;
         color: var(--av-muted);
     }
 
-
-        .empty-state i {
+        .av-empty i {
+            display: block;
             font-size: 38px;
-            color: var(--av-primary);
-            margin-bottom: 15px;
+            color: #9ccdc6;
+            margin-bottom: 16px;
         }
 
-
-        .empty-state h3 {
-            margin: 0 0 7px;
-            color: var(--av-text);
+        .av-empty h3 {
+            margin: 0 0 8px;
+            color: var(--av-primary-deep);
+            font-size: 17px;
+            font-weight: 800;
         }
 
-
-        .empty-state p {
+        .av-empty p {
             margin: 0;
-            font-size: 13px;
+            font-size: 13.5px;
         }
 
-    /* =========================================================
-           CONSUMABLE AVAILABILITY
-           ========================================================= */
 
-    .consumables-section {
-        border-top: 1px solid var(--av-border);
-        padding: 16px 0;
+    /* PATIENT PANEL */
+
+    .select-message {
+        padding: 70px 30px;
+        text-align: center;
+        color: var(--av-muted);
     }
 
-        .consumables-section h4 {
-            margin: 0 0 12px;
-            color: var(--av-primary-dark);
-            font-size: 12px;
+    .select-icon {
+        width: 68px;
+        height: 68px;
+        margin: 0 auto 18px;
+        border-radius: 50%;
+        background: var(--av-primary-light);
+        color: var(--av-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+    }
+
+    .select-message h3 {
+        color: var(--av-text);
+        margin: 0 0 8px;
+        font-size: 17px;
+        font-weight: 800;
+    }
+
+    .select-message p {
+        font-size: 13.5px;
+        line-height: 1.65;
+        margin: 0;
+    }
+
+    .patient-content {
+        padding: 24px 32px 30px;
+        max-height: calc(100vh - 150px);
+        overflow-y: auto;
+    }
+
+    .patient-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        padding: 18px;
+        margin-bottom: 8px;
+        background: var(--av-soft);
+        border: 1px solid var(--av-border);
+        border-radius: 18px;
+    }
+
+        .patient-header small {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--av-muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
             text-transform: uppercase;
         }
+
+        .patient-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--av-primary-deep);
+            overflow-wrap: anywhere;
+        }
+
+    .avatar {
+        width: 52px;
+        height: 52px;
+        flex: 0 0 52px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid #d9c27a;
+        color: var(--av-primary-deep);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 15px;
+    }
+
+    .detail-section,
+    .consumables-section {
+        padding: 20px 0 4px;
+    }
+
+        .detail-section h4,
+        .consumables-section h4 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 14px;
+            color: var(--av-primary-deep);
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+            .detail-section h4 i,
+            .consumables-section h4 i {
+                color: var(--av-primary);
+            }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .detail-item {
+        min-width: 0;
+        padding: 13px 15px;
+        background: #fff;
+        border: 1px solid var(--av-border);
+        border-radius: 14px;
+    }
+
+        .detail-item small {
+            display: block;
+            color: var(--av-muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .detail-item span {
+            display: block;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--av-primary-deep);
+            overflow-wrap: anywhere;
+        }
+
+    .clinical-item {
+        padding: 13px 15px;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        margin-bottom: 10px;
+        font-size: 13.5px;
+        font-weight: 500;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+    }
+
+        .clinical-item strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 12.5px;
+            font-weight: 800;
+        }
+
+        .clinical-item.allergy {
+            background: var(--av-red-light);
+            border-color: var(--av-red-border);
+            color: var(--av-red);
+        }
+
+        .clinical-item.condition {
+            background: var(--av-gold-light);
+            border-color: var(--av-gold-border);
+            color: var(--av-gold);
+        }
+
+        .clinical-item.medication {
+            background: var(--av-primary-light);
+            border-color: #c5e4df;
+            color: var(--av-primary-dark);
+        }
+
+    .doctor-note {
+        margin: 0;
+        padding: 15px 17px;
+        background: var(--av-soft);
+        border: 1px solid var(--av-border);
+        border-left: 4px solid var(--av-primary);
+        border-radius: 14px;
+        font-size: 13.5px;
+        font-weight: 500;
+        line-height: 1.7;
+        overflow-wrap: anywhere;
+    }
+
+
+    /* CONSUMABLES */
 
     .stock-summary {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 11px 13px;
-        border-radius: 10px;
+        gap: 11px;
+        padding: 13px 15px;
+        border-radius: 14px;
         margin-bottom: 12px;
-        font-size: 12px;
-        font-weight: 600;
+        font-size: 13px;
+        font-weight: 700;
     }
 
         .stock-summary.available {
-            background: #e7f5f3;
-            color: #095a54;
+            background: var(--av-green-light);
+            color: var(--av-green);
         }
 
         .stock-summary.unavailable {
-            background: #fbe9ea;
-            color: #9b2c35;
-        }
-
-        .stock-summary i {
-            font-size: 16px;
+            background: var(--av-red-light);
+            color: var(--av-red);
         }
 
     .consumable-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
     }
 
     .consumable-item {
@@ -896,23 +1018,23 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 11px 12px;
+        padding: 13px 15px;
         border: 1px solid var(--av-border);
-        border-radius: 10px;
+        border-radius: 14px;
         background: #fff;
     }
 
     .consumable-info {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         min-width: 0;
     }
 
     .consumable-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 9px;
+        width: 38px;
+        height: 38px;
+        border-radius: 11px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -922,241 +1044,230 @@
     }
 
     .consumable-name {
-        font-size: 12px;
-        font-weight: 600;
+        font-size: 13.5px;
+        font-weight: 700;
         color: var(--av-text);
     }
 
     .consumable-quantity {
         margin-top: 3px;
-        font-size: 10px;
+        font-size: 12px;
+        font-weight: 500;
         color: var(--av-muted);
     }
 
+        .consumable-quantity strong {
+            color: var(--av-text);
+        }
+
     .stock-status {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 5px;
-        padding: 5px 8px;
-        border-radius: 20px;
-        font-size: 10px;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 11.5px;
         font-weight: 700;
         white-space: nowrap;
     }
 
         .stock-status.available {
-            background: #e7f5f3;
-            color: #08766e;
+            background: var(--av-green-light);
+            color: var(--av-green);
         }
 
         .stock-status.unavailable {
-            background: #fbe9ea;
-            color: #c03945;
-        }
-
-        .stock-status i {
-            font-size: 10px;
-        }
-
-    .start-button:disabled {
-        background: #b8c1c0;
-        color: #ffffff;
-        cursor: not-allowed;
-        opacity: .75;
-    }
-
-        .start-button:disabled:hover {
-            background: #b8c1c0;
-        }
-
-    /* PATIENT PANEL */
-
-    .select-message {
-        padding: 70px 25px;
-        text-align: center;
-        color: var(--av-muted);
-    }
-
-
-    .select-icon {
-        width: 65px;
-        height: 65px;
-        margin: 0 auto 15px;
-        border-radius: 50%;
-        background: var(--av-primary-light);
-        color: var(--av-primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 25px;
-    }
-
-
-    .select-message h3 {
-        color: var(--av-text);
-        margin: 0 0 8px;
-    }
-
-
-    .select-message p {
-        font-size: 13px;
-        line-height: 1.6;
-        margin: 0;
-    }
-
-
-    .patient-content {
-        padding: 20px;
-    }
-
-
-    .patient-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-
-
-        .patient-header small {
-            display: block;
-            color: var(--av-muted);
-            font-size: 11px;
-            margin-bottom: 4px;
-        }
-
-
-        .patient-header h2 {
-            margin: 0;
-            font-size: 20px;
-        }
-
-
-    .avatar {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: var(--av-primary);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-    }
-
-
-    .detail-section {
-        border-top: 1px solid var(--av-border);
-        padding: 16px 0;
-    }
-
-
-        .detail-section h4 {
-            margin: 0 0 12px;
-            color: var(--av-primary-dark);
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-
-
-    .detail-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-    }
-
-
-    .detail-item small {
-        display: block;
-        color: var(--av-muted);
-        font-size: 10px;
-        text-transform: uppercase;
-        margin-bottom: 3px;
-    }
-
-
-    .detail-item span {
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-
-    .clinical-item {
-        padding: 10px;
-        border-radius: 9px;
-        margin-bottom: 7px;
-        font-size: 12px;
-        line-height: 1.5;
-    }
-
-
-        .clinical-item.allergy {
             background: var(--av-red-light);
-            color: #8b2e33;
+            color: var(--av-red);
         }
-
-
-        .clinical-item.condition {
-            background: var(--av-gold-light);
-            color: #76591c;
-        }
-
-
-        .clinical-item.medication {
-            background: var(--av-primary-light);
-            color: var(--av-primary-dark);
-        }
-
 
     .start-button {
         width: 100%;
-        border: none;
-        border-radius: 12px;
-        background: var(--av-primary);
-        color: white;
-        padding: 14px;
-        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 22px;
+        padding: 15px;
+        border: 0;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #129a8d, #0a5f58);
+        color: #fff;
+        font: inherit;
         font-size: 14px;
+        font-weight: 800;
         cursor: pointer;
-        margin-top: 10px;
+        box-shadow: 0 8px 20px rgba(10, 95, 88, .28);
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+        .start-button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 11px 24px rgba(10, 95, 88, .34);
+        }
+
+        .start-button:disabled {
+            background: #b8c6c5;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+
+    /* MODAL */
+
+    .av-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(7, 40, 38, .55);
+    }
+
+    .av-modal-box {
+        width: 100%;
+        max-width: 440px;
+        padding: 34px 32px 30px;
+        text-align: center;
+        background: #fff;
+        border-radius: 24px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+    }
+
+    .av-modal-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 18px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #129a8d, #0a5f58);
+        color: #fff;
+        font-size: 25px;
+        box-shadow: 0 8px 18px rgba(10, 95, 88, .28);
+    }
+
+    .av-modal-box h3 {
+        margin: 0 0 10px;
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--av-text);
+    }
+
+    .av-modal-box p {
+        margin: 0 0 26px;
+        font-size: 14px;
+        line-height: 1.65;
+        color: var(--av-muted);
+    }
+
+    .av-modal-actions {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+    }
+
+    .av-btn-secondary,
+    .av-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 12px 22px;
+        border-radius: 12px;
+        font: inherit;
+        font-size: 13.5px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .av-btn-secondary {
+        border: 1px solid var(--av-border);
+        background: #fff;
+        color: var(--av-text);
+    }
+
+        .av-btn-secondary:hover {
+            background: var(--av-soft);
+        }
+
+    .av-btn-primary {
+        border: 0;
+        background: linear-gradient(135deg, #129a8d, #0a5f58);
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(10, 95, 88, .28);
     }
 
 
-        .start-button:hover {
-            background: var(--av-primary-dark);
+    /* RESPONSIVE */
+
+    @@media (max-width: 1100px) {
+
+        .av-grid {
+            grid-template-columns: minmax(0, 1fr);
         }
 
-
-    @@media (max-width: 950px) {
-
-        .summary-grid {
-            grid-template-columns: 1fr 1fr;
+        .av-sticky {
+            position: static;
         }
 
-        .content-grid {
-            grid-template-columns: 1fr;
+        .patient-content {
+            max-height: none;
         }
     }
-
 
     @@media (max-width: 650px) {
 
-        .summary-grid {
-            grid-template-columns: 1fr;
+        .available-page {
+            padding: 16px 12px 32px;
+        }
+
+        .av-banner {
+            padding: 20px;
+        }
+
+        .av-banner h1 {
+            font-size: 20px;
+        }
+
+        .av-panel-head,
+        .av-panel-body,
+        .patient-content {
+            padding-left: 20px;
+            padding-right: 20px;
         }
 
         .test-row {
-            align-items: flex-start;
             flex-wrap: wrap;
+            align-items: flex-start;
         }
 
         .view-patient-btn {
             width: 100%;
+            justify-content: center;
         }
 
         .test-title {
-            align-items: flex-start;
             flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .av-select {
+            flex: 1 1 100%;
+        }
+
+        .detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+
+        .available-page *,
+        .av-modal * {
+            transition: none !important;
         }
     }
 
@@ -1170,12 +1281,29 @@
         let selectedTestId = 0;
 
 
+        // Escape values returned from the server before inserting into HTML.
+        function esc(value) {
+
+            if (value === null || value === undefined) {
+                return "";
+            }
+
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+
         // =========================================================
         // SEARCH + URGENCY FILTER
         // =========================================================
 
         const searchInput = document.getElementById("testSearch");
         const urgencyFilter = document.getElementById("urgencyFilter");
+        const noMatches = document.getElementById("noMatches");
 
         function filterTests() {
 
@@ -1198,41 +1326,33 @@
                 const rowUrgency =
                     (row.dataset.urgency || "Routine").toLowerCase();
 
-                // Search condition
                 const matchesSearch =
                     searchText.includes(search);
 
-                // Urgency condition
                 const matchesUrgency =
                     selectedUrgency === "all" ||
                     rowUrgency === selectedUrgency;
 
-                // Show only when BOTH conditions match
                 if (matchesSearch && matchesUrgency) {
-
                     row.style.display = "";
                     visible++;
-
                 }
                 else {
-
                     row.style.display = "none";
-
                 }
 
             });
 
-            // Update test count
             document.getElementById("testCount").innerText =
                 visible + (visible === 1 ? " test" : " tests");
+
+            if (noMatches) {
+                noMatches.style.display =
+                    (rows.length > 0 && visible === 0) ? "block" : "none";
+            }
         }
 
-
-        // Search when typing
         searchInput.addEventListener("input", filterTests);
-
-
-        // Filter when urgency changes
         urgencyFilter.addEventListener("change", filterTests);
 
 
@@ -1244,9 +1364,8 @@
 
             selectedTestId = id;
 
-            // Highlight selected row
             document.querySelectorAll(".test-row").forEach(row => {
-                row.style.background = "";
+                row.classList.remove("selected");
             });
 
             const selectedRow =
@@ -1255,7 +1374,7 @@
                 );
 
             if (selectedRow) {
-                selectedRow.style.background = "#e7f5f3";
+                selectedRow.classList.add("selected");
             }
 
             const panel =
@@ -1266,9 +1385,7 @@
                 <div class="select-message">
 
                     <div class="select-icon">
-
                         <i class="fa-solid fa-spinner fa-spin"></i>
-
                     </div>
 
                     <h3>Loading patient...</h3>
@@ -1285,11 +1402,9 @@
                 .then(response => {
 
                     if (!response.ok) {
-
                         throw new Error(
                             "Unable to retrieve patient information."
                         );
-
                     }
 
                     return response.json();
@@ -1297,31 +1412,19 @@
                 })
                 .then(data => {
 
-                    const patient =
-                        data.patient || {};
-
-                    const test =
-                        data.test || {};
-
-                    const consumables =
-                        data.consumables || [];
+                    const patient = data.patient || {};
+                    const test = data.test || {};
+                    const consumables = data.consumables || [];
 
                     const allConsumablesAvailable =
                         data.allConsumablesAvailable === true;
 
 
-                    // =====================================================
-                    // PATIENT NAME
-                    // =====================================================
+                    // PATIENT NAME + INITIALS
 
                     const fullName =
                         `${patient.name || ""} ${patient.surname || ""}`.trim()
                         || "Unknown Patient";
-
-
-                    // =====================================================
-                    // INITIALS
-                    // =====================================================
 
                     const initials =
                         fullName
@@ -1333,9 +1436,7 @@
                             .toUpperCase();
 
 
-                    // =====================================================
-                    // BUILD CONSUMABLE LIST
-                    // =====================================================
+                    // CONSUMABLE LIST
 
                     let consumableHtml = "";
 
@@ -1344,13 +1445,8 @@
                         consumableHtml = `
 
                             <div class="stock-summary available">
-
                                 <i class="fa-solid fa-circle-check"></i>
-
-                                <span>
-                                    No consumables are required for this test.
-                                </span>
-
+                                <span>No consumables are required for this test.</span>
                             </div>
 
                         `;
@@ -1360,8 +1456,7 @@
 
                         consumableHtml = consumables.map(c => {
 
-                            const available =
-                                c.isAvailable === true;
+                            const available = c.isAvailable === true;
 
                             return `
 
@@ -1370,48 +1465,26 @@
                                     <div class="consumable-info">
 
                                         <div class="consumable-icon">
-
                                             <i class="fa-solid fa-box"></i>
-
                                         </div>
 
                                         <div>
-
                                             <div class="consumable-name">
-
-                                                ${c.name || "Unknown Consumable"}
-
+                                                ${esc(c.name || "Unknown Consumable")}
                                             </div>
 
                                             <div class="consumable-quantity">
-
-                                                Required:
-                                                <strong>${c.required}</strong>
-
-                                                &nbsp; | &nbsp;
-
-                                                Stock:
-                                                <strong>${c.available}</strong>
-
+                                                Required: <strong>${esc(c.required)}</strong>
+                                                &nbsp;|&nbsp;
+                                                In stock: <strong>${esc(c.available)}</strong>
                                             </div>
-
                                         </div>
 
                                     </div>
 
-
-                                    <div class="stock-status ${available
-                                    ? "available"
-                                    : "unavailable"}">
-
-                                        <i class="fa-solid ${available
-                                    ? "fa-circle-check"
-                                    : "fa-circle-xmark"}"></i>
-
-                                        ${available
-                                    ? "Available"
-                                    : "Insufficient"}
-
+                                    <div class="stock-status ${available ? "available" : "unavailable"}">
+                                        <i class="fa-solid ${available ? "fa-circle-check" : "fa-circle-xmark"}"></i>
+                                        ${available ? "Available" : "Insufficient"}
                                     </div>
 
                                 </div>
@@ -1423,47 +1496,32 @@
                     }
 
 
-                    // =====================================================
                     // STOCK SUMMARY
-                    // =====================================================
 
                     let stockSummaryHtml = "";
 
-                    if (consumables.length === 0) {
-
-                        stockSummaryHtml = "";
-
-                    }
-                    else if (allConsumablesAvailable) {
+                    if (consumables.length > 0 && allConsumablesAvailable) {
 
                         stockSummaryHtml = `
 
                             <div class="stock-summary available">
-
                                 <i class="fa-solid fa-circle-check"></i>
-
-                                <span>
-                                    All required consumables are available.
-                                </span>
-
+                                <span>All required consumables are available.</span>
                             </div>
 
                         `;
 
                     }
-                    else {
+                    else if (consumables.length > 0) {
 
                         stockSummaryHtml = `
 
                             <div class="stock-summary unavailable">
-
                                 <i class="fa-solid fa-triangle-exclamation"></i>
-
                                 <span>
-                                    One or more required consumables are
-                                    insufficient. This test cannot be started.
+                                    One or more required consumables are insufficient.
+                                    This test cannot be started.
                                 </span>
-
                             </div>
 
                         `;
@@ -1471,316 +1529,180 @@
                     }
 
 
-                    // =====================================================
                     // START BUTTON
-                    // =====================================================
 
                     const startButtonHtml =
                         allConsumablesAvailable
 
                             ? `
-
-                                <button
-                                    type="button"
-                                    class="start-button"
-                                    onclick="startProcessing()">
-
+                                <button type="button"
+                                        class="start-button"
+                                        onclick="startProcessing()">
                                     <i class="fa-solid fa-play"></i>
-
-                                    Begin Processing
-
+                                    Begin processing
                                 </button>
-
                             `
 
                             : `
-
-                                <button
-                                    type="button"
-                                    class="start-button"
-                                    disabled>
-
+                                <button type="button"
+                                        class="start-button"
+                                        disabled>
                                     <i class="fa-solid fa-lock"></i>
-
-                                    Cannot Begin Processing
-
+                                    Cannot begin processing
                                 </button>
-
                             `;
 
 
-                    // =====================================================
                     // DISPLAY PATIENT PANEL
-                    // =====================================================
 
                     panel.innerHTML = `
 
                         <div class="patient-content">
 
-
-                            <!-- PATIENT HEADER -->
-
                             <div class="patient-header">
 
                                 <div>
-
-                                    <small>
-                                        REQUEST #${test.requestId ?? "-"}
-                                    </small>
-
-                                    <h2>
-                                        ${fullName}
-                                    </h2>
-
+                                    <small>Request #${esc(test.requestId ?? "-")}</small>
+                                    <h2>${esc(fullName)}</h2>
                                 </div>
 
-                                <div class="avatar">
-                                    ${initials}
-                                </div>
+                                <div class="avatar">${esc(initials)}</div>
 
                             </div>
 
 
-                            <!-- PATIENT INFORMATION -->
-
                             <div class="detail-section">
 
                                 <h4>
-
                                     <i class="fa-solid fa-user"></i>
-
-                                    Patient Information
-
+                                    Patient information
                                 </h4>
-
 
                                 <div class="detail-grid">
 
                                     <div class="detail-item">
-
-                                        <small>ID Number</small>
-
-                                        <span>
-                                            ${patient.idNumber || "-"}
-                                        </span>
-
+                                        <small>ID number</small>
+                                        <span>${esc(patient.idNumber || "-")}</span>
                                     </div>
 
-
                                     <div class="detail-item">
-
                                         <small>Cellphone</small>
-
-                                        <span>
-                                            ${patient.cellphone || "-"}
-                                        </span>
-
+                                        <span>${esc(patient.cellphone || "-")}</span>
                                     </div>
 
-
                                     <div class="detail-item">
-
                                         <small>Email</small>
-
-                                        <span>
-                                            ${patient.email || "-"}
-                                        </span>
-
+                                        <span>${esc(patient.email || "-")}</span>
                                     </div>
 
-
                                     <div class="detail-item">
-
                                         <small>Address</small>
-
-                                        <span>
-                                            ${patient.address || "-"}
-                                        </span>
-
+                                        <span>${esc(patient.address || "-")}</span>
                                     </div>
 
                                 </div>
 
                             </div>
 
-
-                            <!-- LABORATORY TEST -->
 
                             <div class="detail-section">
 
                                 <h4>
-
                                     <i class="fa-solid fa-flask-vial"></i>
-
-                                    Laboratory Test
-
+                                    Laboratory test
                                 </h4>
-
 
                                 <div class="detail-grid">
 
                                     <div class="detail-item">
-
                                         <small>Test</small>
-
-                                        <span>
-                                            ${test.name || "-"}
-                                        </span>
-
+                                        <span>${esc(test.name || "-")}</span>
                                     </div>
 
-
                                     <div class="detail-item">
-
                                         <small>Category</small>
-
-                                        <span>
-                                            ${test.category || "-"}
-                                        </span>
-
+                                        <span>${esc(test.category || "-")}</span>
                                     </div>
 
-
                                     <div class="detail-item">
-
                                         <small>Sample</small>
-
-                                        <span>
-                                            ${test.sample || "-"}
-                                        </span>
-
+                                        <span>${esc(test.sample || "-")}</span>
                                     </div>
 
-
                                     <div class="detail-item">
-
                                         <small>Turnaround</small>
-
-                                        <span>
-                                            ${test.turnaround ?? "-"} minutes
-                                        </span>
-
+                                        <span>${esc(test.turnaround ?? "-")} minutes</span>
                                     </div>
 
-
                                     <div class="detail-item">
-
                                         <small>Urgency</small>
-
-                                        <span>
-                                            ${test.urgency || "Routine"}
-                                        </span>
-
+                                        <span>${esc(test.urgency || "Routine")}</span>
                                     </div>
 
-
                                     <div class="detail-item">
-
                                         <small>Status</small>
-
-                                        <span>
-                                            ${test.status || "Submitted"}
-                                        </span>
-
+                                        <span>${esc(test.status || "Submitted")}</span>
                                     </div>
 
                                 </div>
 
                             </div>
 
-
-                            <!-- CONSUMABLE AVAILABILITY -->
 
                             <div class="consumables-section">
 
                                 <h4>
-
                                     <i class="fa-solid fa-boxes-stacked"></i>
-
-                                    Required Consumables
-
+                                    Required consumables
                                 </h4>
 
                                 ${stockSummaryHtml}
 
                                 <div class="consumable-list">
-
                                     ${consumableHtml}
-
                                 </div>
 
                             </div>
 
 
-                            <!-- CLINICAL INFORMATION -->
-
                             <div class="detail-section">
 
                                 <h4>
-
                                     <i class="fa-solid fa-notes-medical"></i>
-
-                                    Clinical Information
-
+                                    Clinical information
                                 </h4>
-
 
                                 <div class="clinical-item allergy">
-
-                                    <strong>Allergies</strong><br>
-
-                                    ${patient.allergies || "None recorded"}
-
+                                    <strong>Allergies</strong>
+                                    ${esc(patient.allergies || "None recorded")}
                                 </div>
-
 
                                 <div class="clinical-item condition">
-
-                                    <strong>Medical Conditions</strong><br>
-
-                                    ${patient.conditions || "None recorded"}
-
+                                    <strong>Medical conditions</strong>
+                                    ${esc(patient.conditions || "None recorded")}
                                 </div>
 
-
                                 <div class="clinical-item medication">
-
-                                    <strong>Medication</strong><br>
-
-                                    ${patient.medication || "None recorded"}
-
+                                    <strong>Medication</strong>
+                                    ${esc(patient.medication || "None recorded")}
                                 </div>
 
                             </div>
 
 
-                            <!-- DOCTOR NOTES -->
-
                             <div class="detail-section">
 
                                 <h4>
-
                                     <i class="fa-solid fa-file-lines"></i>
-
-                                    Doctor's Notes
-
+                                    Doctor's notes
                                 </h4>
 
-
-                                <p style="
-                                    font-size:13px;
-                                    line-height:1.6;
-                                    margin:0;
-                                ">
-
-                                    ${patient.notes || "No clinical notes recorded."}
-
+                                <p class="doctor-note">
+                                    ${esc(patient.notes || "No clinical notes recorded.")}
                                 </p>
 
                             </div>
 
-
-                            <!-- START PROCESSING -->
 
                             ${startButtonHtml}
 
@@ -1798,17 +1720,13 @@
                         <div class="select-message">
 
                             <div class="select-icon"
-                                 style="background:#fbe9ea;color:#dc3545;">
-
+                                 style="background:#fde8e8;color:#a32626;">
                                 <i class="fa-solid fa-triangle-exclamation"></i>
-
                             </div>
 
                             <h3>Unable to load patient</h3>
 
-                            <p>
-                                Please try selecting the test again.
-                            </p>
+                            <p>Please try selecting the test again.</p>
 
                         </div>
 
@@ -1826,37 +1744,36 @@
         function startProcessing() {
 
             if (!selectedTestId || selectedTestId === 0) {
-
                 alert("Please select a laboratory test first.");
-
                 return;
-
             }
 
             document.getElementById("processingModal").style.display = "flex";
         }
 
-
         function closeProcessingModal() {
-
             document.getElementById("processingModal").style.display = "none";
         }
-
 
         function confirmStartProcessing() {
 
             document.getElementById("processingModal").style.display = "none";
-
             document.getElementById("startTestId").value = selectedTestId;
-
             document.getElementById("startTestForm").submit();
         }
 
-
         // Close the popup when the dark background is clicked.
-        document.getElementById("processingModal").addEventListener("click", function(event) {
+        document.getElementById("processingModal").addEventListener("click", function (event) {
 
             if (event.target === this) {
+                closeProcessingModal();
+            }
+        });
+
+        // Close the popup with the Escape key.
+        document.addEventListener("keydown", function (event) {
+
+            if (event.key === "Escape") {
                 closeProcessingModal();
             }
         });

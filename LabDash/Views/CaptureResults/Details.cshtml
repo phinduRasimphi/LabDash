@@ -6,136 +6,395 @@
 
     var testItem = ViewBag.TestItem as LabDash.Models.TestRequestItem;
     var patient = ViewBag.Patient as LabDash.Models.Patient;
+
+    var statusClass = Model.Status == "Completed"
+        ? "status-completed"
+        : Model.Status == "To Be Reviewed"
+            ? "status-review"
+            : Model.Status == "Verified"
+                ? "status-verified"
+                : "status-completed";
 }
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet">
+
 <style>
-    .details-container {
-        padding: 30px;
+    :root {
+        --teal: #0f9488;
+        --teal-dark: #0b6f66;
+        --teal-deep: #0a5a52;
+        --teal-light: #e1f3f0;
+        --teal-soft: #eef7f6;
+        --teal-border: #cfe6e3;
+        --text: #0f2f2d;
+        --muted: #6b817f;
+        --border: #e3ecec;
+        --page-bg: #e9f0f1;
+        --danger: #c0443f;
+        --danger-soft: #fde8e8;
+        --danger-border: #f3c4c4;
+        --warning-soft: #fff3d9;
+        --success: #198754;
+        --success-soft: #e2f5e9;
+        --card-radius: 20px;
+        --card-shadow: 0 10px 30px rgba(15, 80, 72, .08);
+        --hero-gradient: linear-gradient(135deg, #12a193 0%, #0e857a 45%, #0a5f57 100%);
+        --btn-gradient: linear-gradient(135deg, #10978a 0%, #0a5d55 100%);
     }
+
+    .details-container,
+    .details-container * {
+        box-sizing: border-box;
+    }
+
+    .details-container {
+        width: 100%;
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 24px 26px 52px;
+        color: var(--text);
+        background: var(--page-bg);
+        font-family: "Inter", sans-serif;
+        font-size: 14px;
+    }
+
+    /* ---------- HERO HEADER ---------- */
 
     .details-header {
-        background: linear-gradient(135deg, #0e7a83, #09636b);
-        color: white;
-        padding: 25px;
-        border-radius: 15px;
-        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 24px 28px;
+        margin-bottom: 22px;
+        color: #fff;
+        background: var(--hero-gradient);
+        border-radius: 24px;
+        box-shadow: 0 12px 30px rgba(10, 95, 87, .22);
     }
 
-        .details-header h2 {
-            margin: 0;
+    .details-header-icon {
+        width: 54px;
+        height: 54px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 15px;
+        color: #fff;
+        background: rgba(255, 255, 255, .16);
+        border: 1px solid rgba(255, 255, 255, .32);
+        font-size: 22px;
+    }
+
+    .details-header h2 {
+        margin: 0 0 4px;
+        color: #fff;
+        font-family: "Inter", sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -.2px;
+    }
+
+    .details-header p {
+        margin: 0;
+        color: rgba(255, 255, 255, .86);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .header-stat {
+        min-width: 180px;
+        margin-left: auto;
+        padding: 4px 0 4px 22px;
+        border-left: 1px solid rgba(255, 255, 255, .28);
+    }
+
+        .header-stat span {
+            display: block;
+            margin-bottom: 4px;
+            color: rgba(255, 255, 255, .78);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
+
+        .header-stat strong {
+            color: #fff;
+            font-size: 18px;
             font-weight: 700;
         }
 
-    .card {
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 15px;
-        padding: 25px;
-        margin-bottom: 20px;
-        box-shadow: 0 5px 18px rgba(0,0,0,.05);
+    /* ---------- CARDS (scoped so Bootstrap's .card is not affected) ---------- */
+
+    .details-container .card {
+        margin-bottom: 22px;
+        padding: 0;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid rgba(255, 255, 255, .8);
+        border-radius: var(--card-radius);
+        box-shadow: var(--card-shadow);
     }
+
+    .card-heading {
+        min-height: 64px;
+        padding: 18px 26px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--border);
+    }
+
+        .card-heading h4 {
+            display: inline-flex;
+            align-items: center;
+            gap: 11px;
+            margin: 0;
+            color: var(--text);
+            font-family: "Inter", sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+            .card-heading h4 i {
+                color: var(--teal);
+                font-size: 16px;
+            }
+
+    .card-content {
+        padding: 22px 26px 26px;
+    }
+
+    /* ---------- INFO TILES ---------- */
 
     .info-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
+        gap: 14px;
     }
 
-    .label {
-        font-size: 12px;
-        text-transform: uppercase;
-        color: #6b7280;
-        font-weight: 700;
-        margin-bottom: 5px;
+    .info-tile {
+        min-width: 0;
+        padding: 14px 16px;
+        background: var(--teal-soft);
+        border: 1px solid var(--teal-border);
+        border-radius: 14px;
     }
 
-    .value {
-        font-size: 16px;
+    .details-container .label {
+        margin: 0 0 6px;
+        color: var(--muted);
+        font-size: 11px;
         font-weight: 600;
-        color: #374151;
+        letter-spacing: .4px;
+        text-transform: uppercase;
+    }
+
+    .details-container .value {
+        color: var(--text);
+        font-size: 15px;
+        font-weight: 700;
+        overflow-wrap: anywhere;
     }
 
     .result-value {
-        font-size: 32px;
+        color: var(--teal-dark);
+        font-size: 30px;
         font-weight: 800;
-        color: #0e7a83;
+        letter-spacing: -.5px;
+        line-height: 1.2;
     }
 
+        .result-value small {
+            margin-left: 4px;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0;
+        }
+
+    .comments-text {
+        margin: 0;
+        padding: 15px 16px;
+        color: #3f605d;
+        background: var(--teal-soft);
+        border: 1px solid var(--teal-border);
+        border-left: 4px solid var(--teal);
+        border-radius: 14px;
+        font-size: 13px;
+        line-height: 1.75;
+        overflow-wrap: anywhere;
+    }
+
+    /* ---------- STATUS PILLS ---------- */
+
     .status {
-        display: inline-block;
-        padding: 7px 14px;
-        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 11px;
         font-weight: 700;
-        font-size: 12px;
+        letter-spacing: .3px;
     }
 
     .status-completed {
-        background: #dbeafe;
-        color: #1d4ed8;
+        color: var(--teal-dark);
+        background: var(--teal-light);
     }
 
     .status-review {
-        background: #fef3c7;
         color: #92400e;
+        background: var(--warning-soft);
     }
 
     .status-verified {
-        background: #dcfce7;
-        color: #166534;
+        color: var(--success);
+        background: var(--success-soft);
     }
 
+    /* ---------- ABNORMAL ALERT ---------- */
+
     .abnormal {
-        background: #fee2e2;
-        color: #991b1b;
-        padding: 15px;
-        border-radius: 10px;
-        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 15px 18px;
+        margin-top: 16px;
+        color: #7c343b;
+        background: var(--danger-soft);
+        border: 1px solid var(--danger-border);
+        border-left: 4px solid var(--danger);
+        border-radius: 14px;
+        font-size: 13px;
         font-weight: 600;
     }
+
+        .abnormal i {
+            color: var(--danger);
+        }
+
+    /* ---------- BUTTONS ---------- */
 
     .buttons {
         display: flex;
-        gap: 10px;
-        margin-top: 20px;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 4px;
     }
 
     .btn-custom {
-        padding: 10px 18px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 600;
+        min-height: 46px;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        justify-content: center;
+        gap: 9px;
+        padding: 12px 22px;
+        border-radius: 12px;
+        font-family: "Inter", sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: box-shadow .15s, transform .1s, background .15s;
     }
 
     .btn-edit {
-        background: #0e7a83;
-        color: white;
+        color: #fff;
+        background: var(--btn-gradient);
+        box-shadow: 0 8px 18px rgba(10, 93, 85, .28);
     }
+
+        .btn-edit:hover {
+            color: #fff;
+            box-shadow: 0 10px 22px rgba(10, 93, 85, .36);
+            transform: translateY(-1px);
+        }
 
     .btn-back {
-        background: #f3f4f6;
-        color: #374151;
+        color: #3f605d;
+        background: #fff;
+        border: 1px solid var(--teal-border);
     }
 
-    .btn-custom:hover {
-        opacity: .9;
-        color: white;
+        .btn-back:hover {
+            color: var(--teal-dark);
+            background: var(--teal-soft);
+        }
+
+    .btn-custom:focus-visible {
+        outline: 3px solid rgba(15, 148, 136, .35);
+        outline-offset: 2px;
+    }
+
+    /* ---------- RESPONSIVE ---------- */
+
+    @@media (max-width: 760px) {
+        .header-stat {
+            display: none;
+        }
+    }
+
+    @@media (max-width: 500px) {
+        .details-container {
+            padding: 12px 9px 28px;
+        }
+
+        .details-header {
+            padding: 18px;
+            border-radius: 20px;
+        }
+
+            .details-header h2 {
+                font-size: 19px;
+            }
+
+        .card-heading {
+            padding: 14px 16px;
+        }
+
+            .card-heading h4 {
+                font-size: 15px;
+            }
+
+        .card-content {
+            padding: 16px;
+        }
+
+        .buttons {
+            flex-direction: column-reverse;
+        }
+
+        .btn-custom {
+            width: 100%;
+        }
     }
 </style>
 
 <div class="details-container">
 
-    <div class="details-header">
-        <h2>
-            <i class="fa-solid fa-flask"></i>
-            Laboratory Result Details
-        </h2>
+    <!-- HEADER -->
 
-        <p>
-            View the captured laboratory result and test information.
-        </p>
+    <div class="details-header">
+        <div class="details-header-icon">
+            <i class="fa-solid fa-flask"></i>
+        </div>
+
+        <div>
+            <h2>Laboratory Result Details</h2>
+            <p>View the captured laboratory result and test information.</p>
+        </div>
+
+        <div class="header-stat">
+            <span>Test</span>
+            <strong>@(testItem?.TestType?.Name ?? "Laboratory Test")</strong>
+        </div>
     </div>
 
 
@@ -143,39 +402,32 @@
 
     <div class="card">
 
-        <h4>
-            <i class="fa-solid fa-user"></i>
-            Patient Information
-        </h4>
+        <div class="card-heading">
+            <h4>
+                <i class="fa-solid fa-user"></i>
+                Patient Information
+            </h4>
+        </div>
 
-        <hr />
+        <div class="card-content">
+            <div class="info-grid">
 
-        <div class="info-grid">
-
-            <div>
-                <div class="label">Patient</div>
-
-                <div class="value">
-                    @patient?.Name
+                <div class="info-tile">
+                    <div class="label">Patient</div>
+                    <div class="value">@patient?.Name</div>
                 </div>
-            </div>
 
-            <div>
-                <div class="label">Request Number</div>
-
-                <div class="value">
-                    @testItem?.RequestId
+                <div class="info-tile">
+                    <div class="label">Request Number</div>
+                    <div class="value">@testItem?.RequestId</div>
                 </div>
-            </div>
 
-            <div>
-                <div class="label">Test Type</div>
-
-                <div class="value">
-                    @testItem?.TestType?.Name
+                <div class="info-tile">
+                    <div class="label">Test Type</div>
+                    <div class="value">@testItem?.TestType?.Name</div>
                 </div>
-            </div>
 
+            </div>
         </div>
 
     </div>
@@ -185,50 +437,46 @@
 
     <div class="card">
 
-        <h4>
-            <i class="fa-solid fa-vial"></i>
-            Laboratory Result
-        </h4>
-
-        <hr />
-
-        <div class="info-grid">
-
-            <div>
-                <div class="label">Result</div>
-
-                <div class="result-value">
-                    @Model.ResultValue
-                    @Model.Units
-                </div>
-            </div>
-
-            <div>
-                <div class="label">Reference Range</div>
-
-                <div class="value">
-                    @Model.ReferenceRange
-                </div>
-            </div>
-
-            <div>
-                <div class="label">Date Captured</div>
-
-                <div class="value">
-                    @Model.DateCaptured.ToString("dd MMMM yyyy HH:mm")
-                </div>
-            </div>
-
+        <div class="card-heading">
+            <h4>
+                <i class="fa-solid fa-vial"></i>
+                Laboratory Result
+            </h4>
         </div>
 
+        <div class="card-content">
+            <div class="info-grid">
 
-        @if (Model.IsAbnormal)
-        {
-            <div class="abnormal">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                This result is outside the expected reference range.
+                <div class="info-tile">
+                    <div class="label">Result</div>
+                    <div class="result-value">
+                        @Model.ResultValue
+                        <small>@Model.Units</small>
+                    </div>
+                </div>
+
+                <div class="info-tile">
+                    <div class="label">Reference Range</div>
+                    <div class="value">@Model.ReferenceRange</div>
+                </div>
+
+                <div class="info-tile">
+                    <div class="label">Date Captured</div>
+                    <div class="value">
+                        @Model.DateCaptured.ToString("dd MMMM yyyy HH:mm")
+                    </div>
+                </div>
+
             </div>
-        }
+
+            @if (Model.IsAbnormal)
+            {
+                <div class="abnormal" role="alert">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    This result is outside the expected reference range.
+                </div>
+            }
+        </div>
 
     </div>
 
@@ -238,16 +486,16 @@
     {
         <div class="card">
 
-            <h4>
-                <i class="fa-solid fa-comment"></i>
-                Laboratory Comments
-            </h4>
+            <div class="card-heading">
+                <h4>
+                    <i class="fa-solid fa-comment"></i>
+                    Laboratory Comments
+                </h4>
+            </div>
 
-            <hr />
-
-            <p>
-                @Model.Comments
-            </p>
+            <div class="card-content">
+                <p class="comments-text">@Model.Comments</p>
+            </div>
 
         </div>
     }
@@ -257,37 +505,18 @@
 
     <div class="card">
 
-        <h4>
-            <i class="fa-solid fa-circle-check"></i>
-            Result Status
-        </h4>
+        <div class="card-heading">
+            <h4>
+                <i class="fa-solid fa-circle-check"></i>
+                Result Status
+            </h4>
 
-        <hr />
-
-        @if (Model.Status == "Completed")
-        {
-            <span class="status status-completed">
-                COMPLETED
+            <span class="status @statusClass">
+                @(Model.Status == "Completed" || Model.Status == "To Be Reviewed" || Model.Status == "Verified"
+                    ? Model.Status.ToUpper()
+                    : Model.Status)
             </span>
-        }
-        else if (Model.Status == "To Be Reviewed")
-        {
-            <span class="status status-review">
-                TO BE REVIEWED
-            </span>
-        }
-        else if (Model.Status == "Verified")
-        {
-            <span class="status status-verified">
-                VERIFIED
-            </span>
-        }
-        else
-        {
-            <span class="status status-completed">
-                @Model.Status
-            </span>
-        }
+        </div>
 
     </div>
 
@@ -296,6 +525,13 @@
 
     <div class="buttons">
 
+        <a asp-controller="CaptureResults"
+           asp-action="Index"
+           class="btn-custom btn-back">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back
+        </a>
+
         @if (Model.Status == "Completed" ||
              Model.Status == "To Be Reviewed")
         {
@@ -303,23 +539,10 @@
                asp-action="Edit"
                asp-route-id="@Model.TestRequestItemId"
                class="btn-custom btn-edit">
-
                 <i class="fa-solid fa-pen"></i>
-
                 Edit Result
-
             </a>
         }
-
-        <a asp-controller="CaptureResults"
-           asp-action="Index"
-           class="btn-custom btn-back">
-
-            <i class="fa-solid fa-arrow-left"></i>
-
-            Back
-
-        </a>
 
     </div>
 

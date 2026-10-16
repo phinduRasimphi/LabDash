@@ -1,941 +1,1056 @@
 ﻿@model IEnumerable<LabDash.Models.TestRequestItem>
 
-@using System.Linq
-
 @{
-ViewData["Title"] = "Completed Laboratory Tests";
-Layout = "~/Views/Shared/_SystemLayout.cshtml";
+    ViewData["Title"] = "Completed Tests";
+    Layout = "~/Views/Shared/_SystemLayout.cshtml";
 
-var tests = Model?.ToList() ?? new List<LabDash.Models.TestRequestItem>();
+    var tests = Model?.ToList()
+        ?? new List<LabDash.Models.TestRequestItem>();
 
-var totalCompleted = tests.Count(x => x.Status == "Completed");
-var totalVerified = tests.Count(x => x.Status == "Verified");
-var totalReturned = tests.Count(x => x.ReviewHistory != null && x.ReviewHistory.Any());
+    // Return counts come from the controller (ViewBag.ReturnCounts),
+    // built from TestVerifications where Status == "To Be Reviewed".
+    var returnCounts = ViewBag.ReturnCounts as Dictionary<int, int>
+        ?? new Dictionary<int, int>();
 
-    var totalReturns = tests.Sum(x =>
-        x.ReviewHistory?.Count ?? 0);
+    int GetReturnCount(LabDash.Models.TestRequestItem t)
+    {
+        var fromHistory = returnCounts.TryGetValue(t.TestRequestItemId, out var rc) ? rc : 0;
+        return Math.Max(fromHistory, Math.Max(0, t.ReviewReturnCount));
+    }
 
+    var totalTests = tests.Count;
+    var verifiedTests = tests.Count(x => x.Status == "Verified");
+    var waitingVerification = tests.Count(x => x.Status == "Completed");
+    var returnedTests = tests.Count(x => x.Status == "To Be Reviewed");
+    var everReturned = tests.Count(x => GetReturnCount(x) > 0);
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-<div class="cp-wrap">
-
-<!-- PAGE HEADER -->
-<div class="cp-banner">
-    <div class="cp-banner-icon">
-        <i class="fa-solid fa-vial-circle-check"></i>
-    </div>
-
-    <div class="cp-banner-text">
-        <h1>Completed laboratory tests</h1>
-        <p>View completed tests, laboratory results and the full history of returns for review.</p>
-    </div>
-
-    <a asp-action="InProgress" class="cp-tab-link">
-        <i class="fa-solid fa-arrow-left"></i>
-        Back to in progress
-    </a>
-</div>
-
-<!-- ALERTS -->
-@if (TempData["Success"] != null)
-{
-    <div class="cp-alert cp-alert-success">
-        <i class="fa-solid fa-circle-check"></i>
-        <span>@TempData["Success"]</span>
-        <button type="button" class="cp-alert-close"
-                onclick="this.parentElement.remove()"
-                aria-label="Close notification">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
-    </div>
-}
-
-@if (TempData["Error"] != null)
-{
-    <div class="cp-alert cp-alert-error">
-        <i class="fa-solid fa-circle-exclamation"></i>
-        <span>@TempData["Error"]</span>
-        <button type="button" class="cp-alert-close"
-                onclick="this.parentElement.remove()"
-                aria-label="Close notification">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
-    </div>
-}
-
-<!-- SUMMARY CARDS -->
-<div class="cp-stats">
-
-    <div class="cp-stat">
-        <div class="cp-stat-icon c-teal">
-            <i class="fa-solid fa-vial-circle-check"></i>
-        </div>
-        <div>
-            <small>Completed tests</small>
-            <div class="num">@totalCompleted</div>
-        </div>
-    </div>
-
-    <div class="cp-stat">
-        <div class="cp-stat-icon c-teal-deep">
-            <i class="fa-solid fa-shield-halved"></i>
-        </div>
-        <div>
-            <small>Verified tests</small>
-            <div class="num">@totalVerified</div>
-        </div>
-    </div>
-
-    <div class="cp-stat">
-        <div class="cp-stat-icon c-gold">
-            <i class="fa-solid fa-rotate-left"></i>
-        </div>
-        <div>
-            <small>Tests returned for review</small>
-            <div class="num">@totalReturned</div>
-            <small class="cp-stat-sub">@totalReturns total recorded returns</small>
-        </div>
-    </div>
-
-</div>
-
-<!-- SEARCH -->
-<div class="cp-search-row">
-    <i class="fa-solid fa-magnifying-glass"></i>
-    <input type="text"
-           id="searchInput"
-           class="cp-search"
-           placeholder="Search patient, test, status or technician..."
-           aria-label="Search completed tests">
-</div>
-
-<!-- TABLE TITLE -->
-<div class="cp-panel-label">
-    <span>Laboratory test history</span>
-    <span class="cp-count" id="visibleCount">@tests.Count tests</span>
-</div>
-
-<!-- COMPLETED TESTS TABLE -->
-<div class="cp-table-wrap">
-    <table class="cp-table">
-        <thead>
-            <tr>
-                <th>Patient</th>
-                <th>Test name</th>
-                <th>Completed date</th>
-                <th>Status</th>
-                <th>Times returned for review</th>
-                <th>Technician</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-
-        <tbody id="completedTable">
-
-            @foreach (var item in tests)
-            {
-                var patient = item.TestRequest?.Patient;
-                var technicianName = item.AssignedTechnician?.FullName
-                    ?? item.AssignedTechnician?.UserName
-                    ?? "Not assigned";
-
-                var patientName = patient != null
-                    ? $"{patient.Name} {patient.Surname}".Trim()
-                    : "Unknown patient";
-
-                var initials = patient != null
-                    ? $"{patient.Name?.FirstOrDefault()}{patient.Surname?.FirstOrDefault()}"
-                    : "?";
-
-                var returnCount = item.ReviewHistory?.Count ?? 0;
-
-                var statusClass = item.Status == "Verified"
-                    ? "verified"
-                    : item.Status == "Completed"
-                        ? "completed"
-                        : "review";
-
-                var statusText = item.Status == "To Be Reviewed"
-                    ? "To be reviewed"
-                    : item.Status;
-
-                <tr class="cp-test-row">
-
-                    <!-- PATIENT -->
-                    <td>
-                        <div class="cp-patient">
-                            <div class="cp-avatar">@initials</div>
-                            <div>
-                                <strong>@patientName</strong>
-                                <small>@(patient?.IDNumber ?? "No ID recorded")</small>
-                            </div>
-                        </div>
-                    </td>
-
-                    <!-- TEST -->
-                    <td>
-                        <strong>@(item.TestType?.Name ?? "Unknown test")</strong>
-                        <small>@(item.TestType?.Category ?? "Uncategorised")</small>
-                    </td>
-
-                    <!-- COMPLETION DATE -->
-                    <td class="cp-mono">
-                        @if (item.CompletionDateTime.HasValue)
-                        {
-                            @item.CompletionDateTime.Value.ToString("dd MMM yyyy, HH:mm")
-                        }
-                        else
-                        {
-                            <span class="cp-muted">Not recorded</span>
-                        }
-                    </td>
-
-                    <!-- STATUS -->
-                    <td>
-                        <span class="cp-badge @statusClass">
-                            @if (item.Status == "Verified")
-                            {
-                                <i class="fa-solid fa-shield-halved"></i>
-                            }
-                            else if (item.Status == "Completed")
-                            {
-                                <i class="fa-solid fa-circle-check"></i>
-                            }
-                            else
-                            {
-                                <i class="fa-solid fa-rotate-left"></i>
-                            }
-
-                            @statusText
-                        </span>
-                    </td>
-
-                    <!-- RETURN COUNT -->
-                    <td>
-                        @if (returnCount == 0)
-                        {
-                            <span class="cp-review-count cp-review-none">
-                                <i class="fa-solid fa-check"></i>
-                                0
-                            </span>
-                            <small class="cp-review-caption">No returns recorded</small>
-                        }
-                        else
-                        {
-                            <span class="cp-review-count">
-                                <i class="fa-solid fa-rotate-left"></i>
-                                @returnCount @(returnCount == 1 ? "return" : "returns")
-                            </span>
-
-                            <small class="cp-review-caption">
-                                Select View for reasons
-                            </small>
-                        }
-                    </td>
-
-                    <!-- TECHNICIAN -->
-                    <td>
-                        <div class="cp-technician">
-                            <i class="fa-solid fa-user-doctor"></i>
-                            <span>@technicianName</span>
-                        </div>
-                    </td>
-
-                    <!-- ACTIONS -->
-                    <td>
-                        <div class="cp-actions">
-
-                            <a asp-action="CompletedDetails"
-                               asp-route-id="@item.TestRequestItemId"
-                               class="cp-btn cp-btn-outline">
-                                <i class="fa-solid fa-eye"></i>
-                                View details
-                            </a>
-
-                            <a asp-controller="CaptureResults"
-                               asp-action="Details"
-                               asp-route-id="@item.TestRequestItemId"
-                               class="cp-btn cp-btn-solid">
-                                <i class="fa-solid fa-file-medical"></i>
-                                Results
-                            </a>
-
-                        </div>
-                    </td>
-
-                </tr>
-            }
-
-            @if (!tests.Any())
-            {
-                <tr class="cp-empty-row">
-                    <td colspan="7">
-                        <div class="cp-empty">
-                            <i class="fa-solid fa-folder-open"></i>
-                            <h3>No completed tests</h3>
-                            <p>Completed, verified or returned tests assigned to you will appear here.</p>
-                            <a asp-action="InProgress" class="cp-btn cp-btn-solid">
-                                <i class="fa-solid fa-flask"></i>
-                                Return to in progress
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-            }
-
-            <tr id="noSearchResults" style="display:none;">
-                <td colspan="7">
-                    <div class="cp-empty cp-empty-small">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <h3>No matching tests</h3>
-                        <p>Try a different patient name, test name, status or technician.</p>
-                    </div>
-                </td>
-            </tr>
-
-        </tbody>
-    </table>
-</div>
-
-<div class="cp-footer-note">
-    <i class="fa-solid fa-circle-info"></i>
-    <span>
-        Return counts reflect the review-history records saved for each test.
-        Open <strong>View details</strong> to inspect the recorded review reasons.
-    </span>
-</div>
-
-</div>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 <style>
     :root {
-        --cp-paper: #F3F8F7;
-        --cp-raised: #FFFFFF;
-        --cp-ink: #14302C;
-        --cp-ink-soft: #55716C;
-        --cp-ink-faint: #90A9A4;
-        --cp-line: #E3EEEC;
-        --cp-line-strong: #CFE3DF;
+        --teal: #0f9488;
+        --teal-dark: #0b7a70;
+        --teal-deep: #0a5f58;
+        --teal-light: #e1f3f0;
+        --teal-soft: #f2f8f7;
+        --teal-border: #dbe9e7;
+        --text: #12302f;
+        --muted: #6f8584;
+        --page-bg: #eaf1f1;
+        --white: #ffffff;
 
-        --cp-teal: #0E8C7F;
-        --cp-teal-deep: #0A5850;
-        --cp-teal-dim: #E5F4F1;
-        --cp-teal-grad-start: #12988A;
-        --cp-teal-grad-end: #0A5850;
-
-        --cp-gold: #B4862A;
-        --cp-gold-dim: #FBF1DA;
-        --cp-red: #B0463F;
-        --cp-red-dim: #F7E8E7;
-
-        --cp-radius: 18px;
-        --cp-radius-sm: 12px;
-        --cp-shadow: 0 4px 18px rgba(10, 60, 55, 0.06);
-        --cp-shadow-sm: 0 2px 8px rgba(10, 60, 55, 0.05);
+        --green: #17814a;
+        --green-bg: #e4f6ec;
+        --green-line: #bfe6cf;
+        --blue: #22719a;
+        --blue-bg: #e4f2f9;
+        --blue-line: #bfdeee;
+        --amber: #8f5a00;
+        --amber-bg: #fff2d9;
+        --amber-line: #f3d9a0;
+        --orange: #b44d16;
+        --orange-bg: #ffeee4;
+        --red: #a32626;
+        --red-bg: #fde6e6;
     }
 
-    .cp-wrap {
-        max-width: 1500px;
-        margin: 0 auto;
-        padding: 24px 24px 60px;
-        color: var(--cp-ink);
-        font-family: 'Inter', sans-serif;
+    .completed-page {
+        font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+        color: var(--text);
+        padding: 28px 32px 40px;
+        background: var(--page-bg);
+        min-height: 100vh;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
     }
 
-    .cp-wrap * {
+    .completed-page *,
+    .completed-page *::before,
+    .completed-page *::after {
         box-sizing: border-box;
     }
 
-    /* HEADER */
-
-    .cp-banner {
+    /* ---------- Banner header ---------- */
+    .banner {
         display: flex;
         align-items: center;
-        gap: 20px;
-        background: linear-gradient(120deg, var(--cp-teal-grad-start), var(--cp-teal-grad-end));
-        border-radius: var(--cp-radius);
-        padding: 26px 30px;
-        margin-bottom: 26px;
-        box-shadow: var(--cp-shadow);
-    }
-
-    .cp-banner-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 16px;
-        background: rgba(255,255,255,.16);
-        border: 1px solid rgba(255,255,255,.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        justify-content: space-between;
+        gap: 24px;
+        flex-wrap: wrap;
+        padding: 24px 32px;
+        margin-bottom: 24px;
+        border-radius: 24px;
         color: #fff;
-        font-size: 23px;
-        flex-shrink: 0;
+        background: linear-gradient(135deg, #129a8d 0%, #0b7068 100%);
+        box-shadow: 0 14px 34px rgba(10, 95, 88, .22);
     }
 
-    .cp-banner-text {
-        flex: 1;
+    .banner-left {
+        display: flex;
+        align-items: center;
+        gap: 18px;
         min-width: 0;
     }
 
-    .cp-banner h1 {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 700;
-        font-size: 26px;
-        margin: 0 0 5px;
-        color: #fff;
-    }
-
-    .cp-banner p {
-        margin: 0;
-        color: rgba(255,255,255,.85);
-        font-size: 14px;
-        line-height: 1.6;
-    }
-
-    .cp-tab-link {
-        font-weight: 600;
-        font-size: 13px;
-        text-decoration: none;
-        color: #fff;
-        background: rgba(255,255,255,.14);
-        border: 1px solid rgba(255,255,255,.4);
-        border-radius: 999px;
-        padding: 11px 17px;
-        display: inline-flex;
+    .banner-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 17px;
+        background: rgba(255, 255, 255, .16);
+        border: 1px solid rgba(255, 255, 255, .38);
+        display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        transition: .15s;
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+
+    .banner h1 {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -.01em;
+        margin: 0 0 4px;
+        color: #fff;
+    }
+
+    .banner p {
+        margin: 0;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, .86);
+    }
+
+    .banner-stats {
+        display: flex;
+        align-items: center;
+        gap: 34px;
+        flex-wrap: wrap;
+    }
+
+    .banner-stat {
+        text-align: center;
+    }
+
+    .banner-stat strong {
+        display: block;
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+
+    .banner-stat span {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, .78);
+    }
+
+    /* ---------- Alerts ---------- */
+    .page-alert {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 18px;
+        border-radius: 14px;
+        font-size: 13.5px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        border: 1px solid;
+    }
+
+    .page-alert.success {
+        background: var(--green-bg);
+        color: var(--green);
+        border-color: var(--green-line);
+    }
+
+    .page-alert.error {
+        background: var(--red-bg);
+        color: var(--red);
+        border-color: #f5c6c6;
+    }
+
+    /* ---------- Card ---------- */
+    .panel {
+        background: var(--white);
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(8, 70, 66, .07);
+        overflow: hidden;
+    }
+
+    .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 22px 32px;
+        border-bottom: 1px solid var(--teal-border);
+    }
+
+    .panel-title {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: 0;
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--text);
+    }
+
+    .panel-title i {
+        color: var(--teal);
+        font-size: 18px;
+    }
+
+    .count-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: var(--teal-light);
+        color: var(--teal-dark);
+        font-size: 12px;
+        font-weight: 700;
         white-space: nowrap;
     }
 
-    .cp-tab-link:hover {
-        background: rgba(255,255,255,.26);
-        color: #fff;
+    .panel-body {
+        padding: 22px 32px 8px;
     }
 
-    /* ALERTS */
+    /* ---------- Tabs ---------- */
+    .tabs {
+        display: flex;
+        gap: 28px;
+        flex-wrap: wrap;
+        margin: 0 0 22px;
+        padding: 0 0 0 2px;
+    }
 
-    .cp-alert {
+    .tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 8px 2px 12px;
+        margin: 0;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: none;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--muted);
+        cursor: pointer;
+        transition: color .15s ease, border-color .15s ease;
+    }
+
+    .tab:hover {
+        color: var(--teal-dark);
+    }
+
+    .tab:focus-visible {
+        outline: 2px solid var(--teal);
+        outline-offset: 3px;
+        border-radius: 4px;
+    }
+
+    .tab .tab-count {
+        min-width: 24px;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: #e8efee;
+        color: var(--muted);
+        font-size: 11.5px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .tab.active {
+        color: var(--teal-deep);
+        border-bottom-color: var(--teal-deep);
+    }
+
+    .tab.active .tab-count {
+        background: var(--teal-light);
+        color: var(--teal-dark);
+    }
+
+    /* ---------- Search ---------- */
+    .search-field {
+        position: relative;
+        width: 100%;
+        margin-bottom: 22px;
+    }
+
+    .search-field i {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        font-size: 14px;
+    }
+
+    .search-field input {
+        width: 100%;
+        border: 1px solid var(--teal-border);
+        border-radius: 14px;
+        padding: 13px 16px 13px 42px;
+        outline: none;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        background: var(--teal-soft);
+        color: var(--text);
+        transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+
+    .search-field input::placeholder {
+        color: #8aa09f;
+    }
+
+    .search-field input:focus {
+        background: #fff;
+        border-color: var(--teal);
+        box-shadow: 0 0 0 4px rgba(15, 148, 136, .12);
+    }
+
+    /* ---------- Table ---------- */
+    .table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        margin: 0 -2px;
+        padding: 0 2px;
+    }
+
+    .completed-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: 1020px;
+    }
+
+    .completed-table th {
+        padding: 12px 18px;
+        text-align: left;
+        color: var(--muted);
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        font-weight: 700;
+        white-space: nowrap;
+        border-bottom: 1px solid var(--teal-border);
+    }
+
+    .completed-table td {
+        padding: 20px 18px;
+        border-bottom: 1px solid #edf3f2;
+        vertical-align: middle;
+        font-size: 13.5px;
+        font-weight: 500;
+    }
+
+    .completed-table tbody tr {
+        transition: background .15s ease;
+    }
+
+    .completed-table tbody tr:hover {
+        background: var(--teal-soft);
+    }
+
+    .completed-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .patient-cell {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 200px;
+    }
+
+    .patient-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--white);
+        color: var(--teal-deep);
+        border: 2px solid #d9c27a;
+        font-weight: 800;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+
+    .patient-name {
+        display: block;
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--text);
+    }
+
+    .patient-id,
+    .sub-text {
+        display: block;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted);
+        margin-top: 4px;
+    }
+
+    .test-name {
+        display: block;
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--text);
+    }
+
+    .category-tag {
+        display: inline-block;
+        margin-top: 7px;
+        padding: 4px 11px;
+        border-radius: 999px;
+        background: var(--teal-light);
+        color: var(--teal-dark);
+        font-size: 11.5px;
+        font-weight: 700;
+    }
+
+    .request-number {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 10px;
+        background: var(--teal-light);
+        color: var(--teal-dark);
+        font-weight: 800;
+        font-size: 13px;
+    }
+
+    .date-text {
+        display: block;
+        white-space: nowrap;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    /* ---------- Status pills ---------- */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        border: 1px solid;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        box-shadow: 0 3px 10px rgba(8, 70, 66, .06);
+    }
+
+    .status-verified  { background: var(--green-bg); color: var(--green); border-color: var(--green-line); }
+    .status-completed { background: var(--blue-bg);  color: var(--blue);  border-color: var(--blue-line); }
+    .status-review    { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-line); }
+
+    /* ---------- Review returns ---------- */
+    .return-cell {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 14px 18px;
-        font-size: 14px;
-        border-radius: var(--cp-radius-sm);
-        margin-bottom: 20px;
     }
 
-    .cp-alert span {
-        flex: 1;
-    }
-
-    .cp-alert-success {
-        background: var(--cp-teal-dim);
-        color: var(--cp-teal-deep);
-    }
-
-    .cp-alert-error {
-        background: var(--cp-red-dim);
-        color: var(--cp-red);
-    }
-
-    .cp-alert-close {
-        background: none;
-        border: none;
-        cursor: pointer;
-        color: inherit;
-        opacity: .7;
-        font-size: 14px;
-    }
-
-    /* SUMMARY CARDS */
-
-    .cp-stats {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 16px;
-        margin-bottom: 26px;
-    }
-
-    .cp-stat {
-        background: var(--cp-raised);
-        border: 1px solid var(--cp-line);
-        border-radius: var(--cp-radius);
-        box-shadow: var(--cp-shadow-sm);
-        padding: 20px 22px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        min-width: 0;
-    }
-
-    .cp-stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 19px;
-        flex-shrink: 0;
-    }
-
-    .cp-stat-icon.c-teal {
-        background: var(--cp-teal-dim);
-        color: var(--cp-teal);
-    }
-
-    .cp-stat-icon.c-teal-deep {
-        background: var(--cp-teal-dim);
-        color: var(--cp-teal-deep);
-    }
-
-    .cp-stat-icon.c-gold {
-        background: var(--cp-gold-dim);
-        color: var(--cp-gold);
-    }
-
-    .cp-stat small {
-        display: block;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: .04em;
-        text-transform: uppercase;
-        color: var(--cp-ink-faint);
-        margin-bottom: 5px;
-    }
-
-    .cp-stat .num {
-        font-family: 'Poppins', sans-serif;
-        font-size: 27px;
-        font-weight: 700;
-        color: var(--cp-ink);
-        line-height: 1.3;
-    }
-
-    .cp-stat .cp-stat-sub {
-        text-transform: none;
-        letter-spacing: 0;
-        font-weight: 500;
-        margin: 4px 0 0;
-    }
-
-    /* SEARCH */
-
-    .cp-search-row {
-        margin-bottom: 22px;
-        position: relative;
-    }
-
-    .cp-search-row > i {
-        position: absolute;
-        left: 18px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--cp-ink-faint);
-        font-size: 14px;
-    }
-
-    .cp-search {
-        width: 100%;
-        padding: 14px 18px 14px 46px;
-        border: 1px solid var(--cp-line-strong);
-        border-radius: 999px;
-        background: var(--cp-raised);
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-        color: var(--cp-ink);
-        outline: none;
-        transition: border-color .15s, box-shadow .15s;
-        box-shadow: var(--cp-shadow-sm);
-    }
-
-    .cp-search::placeholder {
-        color: var(--cp-ink-faint);
-    }
-
-    .cp-search:focus {
-        border-color: var(--cp-teal);
-        box-shadow: 0 0 0 4px var(--cp-teal-dim);
-    }
-
-    /* TABLE TITLE */
-
-    .cp-panel-label {
-        font-weight: 700;
-        font-size: 13px;
-        letter-spacing: .02em;
-        color: var(--cp-teal-deep);
-        margin: 0 0 14px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-
-    .cp-count {
-        font-weight: 700;
-        font-size: 11px;
-        color: var(--cp-teal-deep);
-        background: var(--cp-teal-dim);
-        padding: 5px 11px;
-        border-radius: 999px;
-    }
-
-    /* TABLE */
-
-    .cp-table-wrap {
-        background: var(--cp-raised);
-        border: 1px solid var(--cp-line);
-        border-radius: var(--cp-radius);
-        box-shadow: var(--cp-shadow);
-        overflow: auto;
-    }
-
-    .cp-table {
-        width: 100%;
-        min-width: 1120px;
-        border-collapse: separate;
-        border-spacing: 0;
-        font-size: 13px;
-    }
-
-    .cp-table thead th {
-        text-align: left;
-        font-weight: 700;
-        font-size: 10.5px;
-        letter-spacing: .045em;
-        text-transform: uppercase;
-        color: var(--cp-teal-deep);
-        padding: 16px;
-        background: var(--cp-teal-dim);
-        white-space: nowrap;
-        border-bottom: 1px solid var(--cp-line-strong);
-    }
-
-    .cp-table tbody td {
-        padding: 17px 16px;
-        border-bottom: 1px solid var(--cp-line);
-        vertical-align: middle;
-    }
-
-    .cp-table tbody tr {
-        transition: background .12s;
-    }
-
-    .cp-table tbody tr:hover {
-        background: #F5FBF9;
-    }
-
-    .cp-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    .cp-table strong {
-        display: block;
-        font-size: 13px;
-        color: var(--cp-ink);
-        font-weight: 700;
-        line-height: 1.5;
-    }
-
-    .cp-table td small {
-        display: block;
-        font-size: 11px;
-        color: var(--cp-ink-faint);
-        margin-top: 4px;
-        line-height: 1.5;
-    }
-
-    .cp-mono {
-        font-size: 12px;
-        color: var(--cp-ink-soft);
-        white-space: nowrap;
-    }
-
-    .cp-muted {
-        color: var(--cp-ink-faint);
-    }
-
-    /* PATIENT */
-
-    .cp-patient {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 180px;
-    }
-
-    .cp-avatar {
-        width: 39px;
-        height: 39px;
-        border-radius: 13px;
-        background: linear-gradient(135deg, var(--cp-teal), var(--cp-teal-deep));
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 700;
-        font-size: 12px;
-        flex-shrink: 0;
-        text-transform: uppercase;
-    }
-
-    /* STATUS */
-
-    .cp-badge {
-        font-weight: 700;
-        font-size: 10.5px;
-        padding: 7px 10px;
-        white-space: nowrap;
+    .return-count {
         display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border-radius: 999px;
-    }
-
-    .cp-badge.verified {
-        background: var(--cp-teal-dim);
-        color: var(--cp-teal-deep);
-    }
-
-    .cp-badge.completed {
-        background: #EDF1F0;
-        color: #526761;
-    }
-
-    .cp-badge.review {
-        background: var(--cp-gold-dim);
-        color: var(--cp-gold);
-    }
-
-    /* REVIEW COUNT */
-
-    .cp-review-count {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 7px;
-        padding: 7px 11px;
-        border-radius: 999px;
-        background: var(--cp-gold-dim);
-        color: var(--cp-gold);
-        font-size: 11px;
-        font-weight: 800;
-        white-space: nowrap;
-    }
-
-    .cp-review-none {
-        background: var(--cp-teal-dim);
-        color: var(--cp-teal-deep);
         min-width: 38px;
-    }
-
-    .cp-review-caption {
-        white-space: nowrap;
-    }
-
-    /* TECHNICIAN */
-
-    .cp-technician {
-        display: flex;
+        height: 36px;
         align-items: center;
-        gap: 8px;
-        color: var(--cp-ink-soft);
+        justify-content: center;
+        padding: 0 10px;
+        border-radius: 12px;
+        background: var(--teal-light);
+        color: var(--teal-deep);
+        font-size: 15px;
+        font-weight: 800;
+    }
+
+    .return-count.has-returns  { background: var(--orange-bg); color: var(--orange); }
+    .return-count.many-returns { background: var(--red-bg);    color: var(--red); }
+
+    .return-text {
         font-size: 12px;
-        min-width: 120px;
+        font-weight: 500;
+        color: var(--muted);
+        line-height: 1.4;
     }
 
-    .cp-technician i {
-        color: var(--cp-teal);
-    }
-
-    /* ACTIONS */
-
-    .cp-actions {
-        display: flex;
-        gap: 7px;
-        flex-wrap: wrap;
-        min-width: 190px;
-    }
-
-    .cp-btn {
-        font-family: 'Inter', sans-serif;
-        font-size: 11px;
+    .return-text strong {
+        display: block;
+        color: var(--text);
+        font-size: 13px;
         font-weight: 700;
-        padding: 9px 12px;
-        cursor: pointer;
+    }
+
+    /* ---------- Buttons ---------- */
+    .view-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 7px;
+        gap: 9px;
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #129a8d, #0a5f58);
+        color: #fff;
         text-decoration: none;
-        transition: .15s;
+        font-size: 13px;
+        font-weight: 700;
         white-space: nowrap;
-        border-radius: 999px;
+        box-shadow: 0 6px 16px rgba(10, 95, 88, .28);
+        transition: transform .15s ease, box-shadow .15s ease;
     }
 
-    .cp-btn-outline {
-        border: 1px solid var(--cp-teal);
-        background: transparent;
-        color: var(--cp-teal-deep);
-    }
-
-    .cp-btn-outline:hover {
-        background: var(--cp-teal-dim);
-        color: var(--cp-teal-deep);
-    }
-
-    .cp-btn-solid {
-        border: 1px solid var(--cp-teal);
-        background: var(--cp-teal);
+    .view-btn:hover {
         color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 9px 20px rgba(10, 95, 88, .34);
     }
 
-    .cp-btn-solid:hover {
-        background: var(--cp-teal-deep);
-        border-color: var(--cp-teal-deep);
-        color: #fff;
+    .view-btn:focus-visible {
+        outline: 2px solid var(--teal-deep);
+        outline-offset: 3px;
     }
 
-    /* EMPTY STATE */
+    /* ---------- Pagination ---------- */
+    .pager {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 20px 0 24px;
+    }
 
-    .cp-empty {
-        padding: 55px 24px;
+    .pager button {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        border: 1px solid var(--teal-border);
+        background: #fff;
+        color: var(--text);
+        font-size: 13px;
+        cursor: pointer;
+        transition: border-color .15s ease, color .15s ease;
+    }
+
+    .pager button:hover:not(:disabled) {
+        border-color: var(--teal);
+        color: var(--teal-dark);
+    }
+
+    .pager button:disabled {
+        color: #b7c6c5;
+        cursor: not-allowed;
+    }
+
+    .pager button:focus-visible {
+        outline: 2px solid var(--teal);
+        outline-offset: 2px;
+    }
+
+    .pager-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--muted);
+        min-width: 90px;
         text-align: center;
-        color: var(--cp-ink-faint);
     }
 
-    .cp-empty i {
-        font-size: 30px;
-        margin-bottom: 14px;
+    .table-footer {
+        padding: 14px 32px;
+        border-top: 1px solid var(--teal-border);
+        color: var(--muted);
+        font-size: 12.5px;
+        font-weight: 500;
+    }
+
+    .table-footer strong {
+        color: var(--text);
+    }
+
+    /* ---------- Empty states ---------- */
+    .empty-state {
+        text-align: center;
+        padding: 56px 20px;
+        color: var(--muted);
+    }
+
+    .empty-state i {
         display: block;
-        color: var(--cp-teal);
+        font-size: 38px;
+        color: #9ccdc6;
+        margin-bottom: 16px;
     }
 
-    .cp-empty h3 {
-        font-family: 'Poppins', sans-serif;
-        color: var(--cp-ink);
-        font-size: 18px;
+    .empty-state h3 {
+        color: var(--teal-deep);
+        font-size: 17px;
+        font-weight: 800;
         margin: 0 0 8px;
     }
 
-    .cp-empty p {
-        margin: 0 0 18px;
-        font-size: 13px;
-        line-height: 1.7;
+    .empty-state p {
+        font-size: 13.5px;
+        margin: 0;
     }
 
-    .cp-empty-small {
-        padding: 30px 20px;
+    #noMatches {
+        display: none;
     }
 
-    /* FOOTER NOTE */
-
-    .cp-footer-note {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        margin-top: 17px;
-        padding: 14px 16px;
-        border: 1px solid var(--cp-line);
-        border-radius: var(--cp-radius-sm);
-        background: var(--cp-raised);
-        color: var(--cp-ink-soft);
-        font-size: 12px;
-        line-height: 1.7;
-    }
-
-    .cp-footer-note > i {
-        color: var(--cp-teal);
-        margin-top: 3px;
-    }
-
+    /* ---------- Responsive ---------- */
     @@media (max-width: 900px) {
-        .cp-wrap {
-            padding: 18px 14px 40px;
+        .completed-page {
+            padding: 18px;
         }
 
-        .cp-banner {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 15px;
-            padding: 23px;
+        .banner {
+            padding: 20px;
         }
 
-        .cp-banner h1 {
-            font-size: 22px;
+        .banner-stats {
+            gap: 22px;
         }
 
-        .cp-stats {
-            grid-template-columns: 1fr;
+        .panel-head,
+        .panel-body,
+        .table-footer {
+            padding-left: 20px;
+            padding-right: 20px;
         }
     }
 
-    @@media (max-width: 480px) {
-        .cp-banner h1 {
-            font-size: 19px;
+    @@media (max-width: 560px) {
+        .banner h1 {
+            font-size: 20px;
         }
 
-        .cp-tab-link {
-            white-space: normal;
+        .tabs {
+            gap: 18px;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .completed-page * {
+            transition: none !important;
         }
     }
 </style>
 
-@section Scripts { <script>
-document.addEventListener("DOMContentLoaded", function () {
-const searchInput = document.getElementById("searchInput");
-const tableBody = document.getElementById("completedTable");
-const visibleCount = document.getElementById("visibleCount");
-const noResults = document.getElementById("noSearchResults");
+<div class="completed-page">
 
-        if (!searchInput || !tableBody) return;
+    <div class="banner">
+        <div class="banner-left">
+            <div class="banner-icon">
+                <i class="fa-solid fa-clipboard-check"></i>
+            </div>
 
-        const rows = Array.from(
-            tableBody.querySelectorAll("tr.cp-test-row")
-        );
+            <div>
+                <h1>Completed Tests</h1>
+                <p>View your completed laboratory tests and review history.</p>
+            </div>
+        </div>
 
-        function filterTests() {
-            const searchValue = searchInput.value
-                .trim()
-                .toLowerCase();
+        <div class="banner-stats">
+            <div class="banner-stat">
+                <strong>@totalTests</strong>
+                <span>Tests</span>
+            </div>
+            <div class="banner-stat">
+                <strong>@verifiedTests</strong>
+                <span>Verified</span>
+            </div>
+            <div class="banner-stat">
+                <strong>@waitingVerification</strong>
+                <span>Awaiting</span>
+            </div>
+            <div class="banner-stat">
+                <strong>@returnedTests</strong>
+                <span>Returned</span>
+            </div>
+        </div>
+    </div>
 
-            let visible = 0;
+    @if (TempData["Success"] != null)
+    {
+        <div class="page-alert success" role="status">
+            <i class="fa-solid fa-circle-check"></i>
+            @TempData["Success"]
+        </div>
+    }
 
-            rows.forEach(function (row) {
-                const matches = row.innerText
-                    .toLowerCase()
-                    .includes(searchValue);
+    @if (TempData["Error"] != null)
+    {
+        <div class="page-alert error" role="alert">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            @TempData["Error"]
+        </div>
+    }
 
-                row.style.display = matches ? "" : "none";
+    <div class="panel">
 
-                if (matches) visible++;
-            });
+        <div class="panel-head">
+            <h2 class="panel-title">
+                <i class="fa-solid fa-list-check"></i>
+                Test history
+            </h2>
+            <span class="count-pill">@totalTests @(totalTests == 1 ? "test" : "tests")</span>
+        </div>
 
-            if (noResults) {
-                noResults.style.display =
-                    visible === 0 && rows.length > 0
-                        ? ""
-                        : "none";
-            }
+        @if (tests.Any())
+        {
+            <div class="panel-body">
 
-            if (visibleCount) {
-                visibleCount.textContent =
-                    visible + (visible === 1 ? " test" : " tests");
-            }
+                <div class="tabs" role="tablist" aria-label="Filter by status">
+                    <button type="button" class="tab active" data-filter="all" role="tab">
+                        All <span class="tab-count">@totalTests</span>
+                    </button>
+                    <button type="button" class="tab" data-filter="Completed" role="tab">
+                        Awaiting verification <span class="tab-count">@waitingVerification</span>
+                    </button>
+                    <button type="button" class="tab" data-filter="To Be Reviewed" role="tab">
+                        To be reviewed <span class="tab-count">@returnedTests</span>
+                    </button>
+                    <button type="button" class="tab" data-filter="Verified" role="tab">
+                        Verified <span class="tab-count">@verifiedTests</span>
+                    </button>
+                    <button type="button" class="tab" data-filter="returned" role="tab">
+                        Ever returned <span class="tab-count">@everReturned</span>
+                    </button>
+                </div>
+
+                <div class="search-field">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text"
+                           id="completedSearch"
+                           aria-label="Search completed tests"
+                           placeholder="Search patient, test or request..." />
+                </div>
+
+                <div class="table-wrap">
+                    <table class="completed-table">
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>Request No.</th>
+                                <th>Laboratory test</th>
+                                <th>Completed</th>
+                                <th>Review returns</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="completedTable">
+                            @foreach (var item in tests)
+                            {
+                                var patient = item.TestRequest?.Patient;
+                                var patientName = patient == null
+                                    ? "Patient unavailable"
+                                    : $"{patient.Name} {patient.Surname}".Trim();
+
+                                var initials = "NA";
+
+                                if (patient != null)
+                                {
+                                    var firstInitial = !string.IsNullOrWhiteSpace(patient.Name)
+                                        ? patient.Name.Substring(0, 1)
+                                        : "";
+
+                                    var lastInitial = !string.IsNullOrWhiteSpace(patient.Surname)
+                                        ? patient.Surname.Substring(0, 1)
+                                        : "";
+
+                                    initials = (firstInitial + lastInitial).ToUpperInvariant();
+
+                                    if (string.IsNullOrWhiteSpace(initials))
+                                    {
+                                        initials = "NA";
+                                    }
+                                }
+
+                                var returnCount = GetReturnCount(item);
+
+                                var countClass = returnCount >= 3
+                                    ? "many-returns"
+                                    : returnCount > 0
+                                        ? "has-returns"
+                                        : "";
+
+                                <tr class="completed-row"
+                                    data-status="@item.Status"
+                                    data-returns="@returnCount">
+                                    <td>
+                                        <div class="patient-cell">
+                                            <div class="patient-avatar">@initials</div>
+                                            <div>
+                                                <span class="patient-name">@patientName</span>
+                                                <span class="patient-id">
+                                                    @(patient?.IDNumber ?? "ID unavailable")
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <span class="request-number">#@item.RequestId</span>
+                                    </td>
+
+                                    <td>
+                                        <span class="test-name">
+                                            @(item.TestType?.Name ?? "Test unavailable")
+                                        </span>
+                                        <span class="category-tag">
+                                            @(item.TestType?.Category ?? "Uncategorised")
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        @if (item.CompletionDateTime.HasValue)
+                                        {
+                                            <span class="date-text">
+                                                @item.CompletionDateTime.Value.ToString("dd MMM yyyy")
+                                            </span>
+                                            <span class="sub-text">
+                                                @item.CompletionDateTime.Value.ToString("HH:mm")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="sub-text">Not available</span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        <div class="return-cell"
+                                             title="@returnCount time(s) returned for review">
+                                            <span class="return-count @countClass">@returnCount</span>
+                                            <span class="return-text">
+                                                @if (returnCount == 0)
+                                                {
+                                                    <strong>No returns</strong>
+                                                    <span>Right first time</span>
+                                                }
+                                                else if (returnCount == 1)
+                                                {
+                                                    <strong>1 return</strong>
+                                                    <span>Sent back once</span>
+                                                }
+                                                else
+                                                {
+                                                    <strong>@returnCount returns</strong>
+                                                    <span>Sent back @returnCount times</span>
+                                                }
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        @if (item.Status == "Verified")
+                                        {
+                                            <span class="status-badge status-verified">
+                                                <i class="fa-solid fa-circle-check"></i>
+                                                Verified
+                                            </span>
+                                        }
+                                        else if (item.Status == "Completed")
+                                        {
+                                            <span class="status-badge status-completed">
+                                                <i class="fa-solid fa-hourglass-half"></i>
+                                                Awaiting verification
+                                            </span>
+                                        }
+                                        else if (item.Status == "To Be Reviewed")
+                                        {
+                                            <span class="status-badge status-review">
+                                                <i class="fa-solid fa-rotate-left"></i>
+                                                To be reviewed
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-badge status-completed">
+                                                @item.Status
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        <a asp-controller="AvailableTests"
+                                           asp-action="CompletedDetails"
+                                           asp-route-id="@item.TestRequestItemId"
+                                           class="view-btn">
+                                            <i class="fa-solid fa-eye"></i>
+                                            View details
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="empty-state" id="noMatches">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <h3>No tests match your filters</h3>
+                    <p>Try a different search term or choose another status.</p>
+                </div>
+
+                <div class="pager" id="pager">
+                    <button type="button" id="prevPage" aria-label="Previous page">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <span class="pager-label" id="pageLabel">Page 1 of 1</span>
+                    <button type="button" id="nextPage" aria-label="Next page">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-footer">
+                Showing <strong id="visibleCount">@tests.Count</strong>
+                of <strong>@totalTests</strong> tests
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="fa-solid fa-folder-open"></i>
+                <h3>No completed tests yet</h3>
+                <p>Tests assigned to you will appear here once you complete them.</p>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var searchInput = document.getElementById("completedSearch");
+        var tableBody = document.getElementById("completedTable");
+        var visibleCount = document.getElementById("visibleCount");
+        var noMatches = document.getElementById("noMatches");
+        var tabs = document.querySelectorAll(".tab");
+        var pager = document.getElementById("pager");
+        var prevBtn = document.getElementById("prevPage");
+        var nextBtn = document.getElementById("nextPage");
+        var pageLabel = document.getElementById("pageLabel");
+
+        if (!searchInput || !tableBody) {
+            return;
         }
 
-        searchInput.addEventListener("input", filterTests);
+        var PAGE_SIZE = 8;
+        var activeFilter = "all";
+        var currentPage = 1;
+        var matched = [];
+
+        function applyFilters(resetPage) {
+            var term = searchInput.value.toLowerCase().trim();
+            var rows = tableBody.querySelectorAll(".completed-row");
+
+            matched = [];
+
+            rows.forEach(function (row) {
+                var status = row.getAttribute("data-status");
+                var returns = parseInt(row.getAttribute("data-returns"), 10) || 0;
+
+                var matchesFilter =
+                    activeFilter === "all" ||
+                    (activeFilter === "returned" && returns > 0) ||
+                    status === activeFilter;
+
+                var matchesSearch = row.textContent.toLowerCase().indexOf(term) !== -1;
+
+                row.style.display = "none";
+
+                if (matchesFilter && matchesSearch) {
+                    matched.push(row);
+                }
+            });
+
+            if (resetPage) {
+                currentPage = 1;
+            }
+
+            render();
+        }
+
+        function render() {
+            var totalPages = Math.max(1, Math.ceil(matched.length / PAGE_SIZE));
+
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+
+            var start = (currentPage - 1) * PAGE_SIZE;
+            var end = start + PAGE_SIZE;
+
+            matched.forEach(function (row, index) {
+                row.style.display = (index >= start && index < end) ? "" : "none";
+            });
+
+            if (visibleCount) {
+                visibleCount.textContent = matched.length;
+            }
+
+            if (noMatches) {
+                noMatches.style.display = matched.length === 0 ? "block" : "none";
+            }
+
+            pageLabel.textContent = "Page " + currentPage + " of " + totalPages;
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+            pager.style.display = totalPages > 1 ? "flex" : "none";
+        }
+
+        searchInput.addEventListener("input", function () {
+            applyFilters(true);
+        });
+
+        tabs.forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                tabs.forEach(function (t) { t.classList.remove("active"); });
+                tab.classList.add("active");
+                activeFilter = tab.getAttribute("data-filter");
+                applyFilters(true);
+            });
+        });
+
+        prevBtn.addEventListener("click", function () {
+            if (currentPage > 1) {
+                currentPage--;
+                render();
+            }
+        });
+
+        nextBtn.addEventListener("click", function () {
+            currentPage++;
+            render();
+        });
+
+        applyFilters(true);
     });
 </script>
-
-}
-

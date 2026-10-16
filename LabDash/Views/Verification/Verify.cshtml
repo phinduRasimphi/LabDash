@@ -41,12 +41,7 @@
 
     // ============================================================
     // RESULT VALUE
-    //
-    // Parse using multiple formats so values such as:
-    // 5.5
-    // 5,5
-    // "5.5 "
-    // can all be correctly evaluated.
+    // Parses 5.5 / 5,5 / "5.5 " correctly.
     // ============================================================
 
     decimal numericResult = 0;
@@ -56,16 +51,13 @@
     {
         string rawResult = result.ResultValue.Trim();
 
-        // First try normal invariant decimal format
         validNumericResult = decimal.TryParse(
             rawResult,
-            NumberStyles.AllowDecimalPoint |
-            NumberStyles.AllowLeadingSign,
+            NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
             CultureInfo.InvariantCulture,
             out numericResult
         );
 
-        // Try current culture
         if (!validNumericResult)
         {
             validNumericResult = decimal.TryParse(
@@ -76,15 +68,13 @@
             );
         }
 
-        // Try South African/common comma decimal format
         if (!validNumericResult)
         {
             string normalizedResult = rawResult.Replace(',', '.');
 
             validNumericResult = decimal.TryParse(
                 normalizedResult,
-                NumberStyles.AllowDecimalPoint |
-                NumberStyles.AllowLeadingSign,
+                NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
                 CultureInfo.InvariantCulture,
                 out numericResult
             );
@@ -93,24 +83,27 @@
 
     // ============================================================
     // ABNORMAL RESULT CALCULATION
-    //
-    // If the test has a configured numeric reference range,
-    // calculate the result ourselves.
-    //
-    // Otherwise use the stored IsAbnormal value.
+    // Configured numeric range wins; otherwise use stored flag.
     // ============================================================
 
     bool isAbnormal = false;
 
     if (hasReferenceRange && validNumericResult)
     {
-        isAbnormal =
-            numericResult < referenceLow ||
-            numericResult > referenceHigh;
+        isAbnormal = numericResult < referenceLow || numericResult > referenceHigh;
     }
     else
     {
         isAbnormal = result?.IsAbnormal == true;
+    }
+
+    string abnormalClass = isAbnormal ? "abnormal" : "";
+
+    // Direction of the abnormality (Low / High) when it can be calculated
+    string abnormalDirection = "";
+    if (isAbnormal && hasReferenceRange && validNumericResult)
+    {
+        abnormalDirection = numericResult < referenceLow ? "Below" : "Above";
     }
 
     // ============================================================
@@ -161,44 +154,41 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700;800&display=swap"
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet" />
 
 
 <style>
 
     :root {
-        --teal-950: #003f3a;
-        --teal-900: #004d45;
-        --teal-800: #005c52;
-        --teal-700: #00695c;
-        --teal-600: #00796b;
-        --teal-500: #009688;
-        --teal-400: #26a69a;
-        --teal-soft: #eef8f7;
-        --teal-light: #e2f4f2;
-        --ink: #173f45;
+        --teal: #0f9488;
+        --teal-dark: #0b5f56;
+        --teal-deep: #084d46;
+        --ink: #0f2f2c;
         --ink-soft: #315f65;
-        --muted: #688287;
-        --line: #dcebea;
-        --danger: #dc3545;
-        --danger-dark: #a72d38;
-        --danger-soft: #fde9e9;
+        --muted: #6a8387;
+        --line: #e7efee;
+        --field: #f0f6f5;
+        --field-line: #cfe3e0;
+        --pill-bg: #e1f1ee;
+        --pill-text: #0e6b62;
+
+        --danger: #d62839;
+        --danger-dark: #a31d2b;
+        --danger-soft: #fdebed;
+        --danger-line: #f3c4c9;
+
         --warning: #c98500;
         --warning-dark: #805b13;
         --warning-soft: #fff3d9;
+
         --success: #198754;
         --success-soft: #eaf7ef;
+
         --info: #0d6efd;
         --info-soft: #edf4ff;
-        --white: #ffffff;
-        --radius-xl: 20px;
-        --radius-lg: 16px;
-        --radius-md: 12px;
-        --radius-sm: 9px;
-        --shadow-soft: 0 7px 24px rgba(0, 77, 69, .07);
-        --shadow-card: 0 10px 30px rgba(0, 77, 69, .10);
+
+        --shadow-soft: 0 8px 28px rgba(15, 70, 64, .07);
     }
 
 
@@ -208,8 +198,12 @@
 
 
     body {
-        background: #f3faf9;
+        background: #f1f5f5;
         color: var(--ink);
+        font-family: 'Inter', 'Segoe UI', sans-serif;
+    }
+
+    button, input, textarea {
         font-family: 'Inter', 'Segoe UI', sans-serif;
     }
 
@@ -222,24 +216,23 @@
 
 
     /* =========================================================
-           HEADER
-           ========================================================= */
+       PAGE HEADER
+       ========================================================= */
 
     .verify-header {
         position: relative;
         overflow: hidden;
         min-height: 120px;
-        padding: 27px 30px;
-        border-radius: var(--radius-xl);
+        padding: 27px 32px;
+        border-radius: 24px;
         color: white;
-        background: linear-gradient( 135deg, #009b91 0%, #007e76 48%, #00453f 100% );
+        background: linear-gradient(120deg, #13a094 0%, #0e8579 55%, #0b6a60 100%);
         display: flex;
         align-items: center;
         justify-content: space-between;
         margin-bottom: 22px;
-        box-shadow: 0 12px 30px rgba(0, 77, 69, .15);
+        box-shadow: 0 10px 28px rgba(11, 95, 86, .18);
     }
-
 
         .verify-header::before {
             content: "";
@@ -252,191 +245,177 @@
             background: rgba(255,255,255,.06);
         }
 
-
         .verify-header h2 {
             position: relative;
             z-index: 2;
             margin: 0;
-            font-family: 'Poppins', sans-serif;
-            font-size: 28px;
-            font-weight: 800;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -.01em;
             display: flex;
             align-items: center;
             gap: 11px;
         }
 
-
         .verify-header p {
             position: relative;
             z-index: 2;
             margin: 7px 0 0;
-            font-size: 13px;
-            opacity: .92;
+            font-size: 13.5px;
+            opacity: .95;
         }
-
 
     .header-icon {
         position: relative;
         z-index: 2;
-        width: 68px;
-        height: 68px;
-        border-radius: 17px;
-        background: rgba(255,255,255,.15);
-        border: 1px solid rgba(255,255,255,.20);
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        background: rgba(255,255,255,.14);
+        border: 1.5px solid rgba(255,255,255,.35);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 29px;
+        font-size: 27px;
     }
 
 
     /* =========================================================
-           ALERTS
-           ========================================================= */
+       BANNERS
+       ========================================================= */
 
     .abnormal-banner {
-        background: #fff1f3;
-        border: 1px solid #f2c8cd;
-        border-left: 6px solid var(--danger);
-        border-radius: 13px;
-        padding: 14px 17px;
+        background: var(--danger-soft);
+        border: 1px solid var(--danger-line);
+        border-left: 7px solid var(--danger);
+        border-radius: 16px;
+        padding: 16px 20px;
         margin-bottom: 20px;
         display: flex;
         align-items: center;
-        gap: 13px;
-        box-shadow: 0 5px 17px rgba(220,53,69,.06);
+        gap: 15px;
+        box-shadow: 0 6px 20px rgba(214, 40, 57, .12);
     }
 
-
     .abnormal-banner-icon {
-        width: 45px;
-        height: 45px;
-        min-width: 45px;
-        border-radius: 12px;
-        background: #fde0e3;
-        color: var(--danger);
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border-radius: 13px;
+        background: var(--danger);
+        color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 21px;
+        font-size: 22px;
     }
-
 
     .abnormal-banner-content {
         flex: 1;
     }
 
-
         .abnormal-banner-content strong {
             display: block;
             color: var(--danger-dark);
-            font-size: 14px;
-            font-weight: 800;
+            font-size: 15.5px;
+            font-weight: 700;
             margin-bottom: 2px;
         }
 
-
         .abnormal-banner-content span {
-            color: #70484d;
-            font-size: 11.5px;
+            color: #7a3a41;
+            font-size: 12.5px;
         }
-
 
     .abnormal-banner-value {
         background: white;
-        border: 1px solid #efd1d4;
-        border-radius: 10px;
-        padding: 7px 13px;
+        border: 1.5px solid var(--danger-line);
+        border-radius: 12px;
+        padding: 8px 16px;
         text-align: center;
-        min-width: 120px;
+        min-width: 130px;
     }
-
 
         .abnormal-banner-value small {
             display: block;
-            color: #9b6970;
-            font-size: 8.5px;
-            font-weight: 800;
+            color: #a8606a;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .06em;
             text-transform: uppercase;
         }
-
 
         .abnormal-banner-value strong {
             display: block;
             color: var(--danger);
-            font-size: 16px;
+            font-size: 18px;
+            font-weight: 700;
             margin-top: 2px;
         }
-
 
     .normal-banner {
         background: #edf9f1;
         border: 1px solid #cce8d5;
-        border-left: 6px solid var(--success);
-        border-radius: 13px;
-        padding: 14px 17px;
+        border-left: 7px solid var(--success);
+        border-radius: 16px;
+        padding: 16px 20px;
         margin-bottom: 20px;
         display: flex;
         align-items: center;
-        gap: 13px;
+        gap: 15px;
     }
 
-
     .normal-banner-icon {
-        width: 45px;
-        height: 45px;
-        min-width: 45px;
-        border-radius: 12px;
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border-radius: 13px;
         background: #dff3e5;
         color: var(--success);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 21px;
+        font-size: 22px;
     }
-
 
     .normal-banner-content strong {
         display: block;
         color: #16733f;
-        font-size: 14px;
-        font-weight: 800;
+        font-size: 15px;
+        font-weight: 700;
     }
-
 
     .normal-banner-content span {
         color: #527363;
-        font-size: 11.5px;
+        font-size: 12.5px;
     }
-
 
     .review-banner {
         background: var(--warning-soft);
         border: 1px solid #f0dfb7;
-        border-left: 5px solid var(--warning);
-        border-radius: 11px;
-        padding: 11px 14px;
+        border-left: 6px solid var(--warning);
+        border-radius: 14px;
+        padding: 13px 17px;
         margin-bottom: 20px;
     }
-
 
         .review-banner strong {
             display: block;
             color: var(--warning-dark);
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: 700;
             margin-bottom: 2px;
         }
 
-
         .review-banner span {
             color: #6e5b35;
-            font-size: 11px;
+            font-size: 12px;
         }
 
 
     /* =========================================================
-           MAIN INFORMATION LAYOUT
-           ========================================================= */
+       LAYOUT + CARDS (white header, teal icon, bold dark title)
+       ========================================================= */
 
     .main-info-grid {
         display: grid;
@@ -446,159 +425,151 @@
         margin-bottom: 20px;
     }
 
-
     .dashboard-card {
-        background: white;
-        border: 1px solid #e1eceb;
-        border-radius: var(--radius-lg);
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 22px;
         overflow: hidden;
         box-shadow: var(--shadow-soft);
     }
-
 
     .main-info-grid .dashboard-card {
         height: 100%;
     }
 
-
     .card-header-teal {
-        min-height: 47px;
-        padding: 12px 18px;
-        background: linear-gradient( 90deg, #008f88, #007b73 );
-        color: white;
+        min-height: 62px;
+        padding: 18px 26px;
+        background: #fff;
+        color: var(--ink);
+        border-bottom: 1px solid var(--line);
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        font-weight: 800;
+        gap: 11px;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -.005em;
     }
 
-
         .card-header-teal i {
-            font-size: 13px;
+            color: var(--teal);
+            font-size: 16px;
         }
 
-
     .card-body-custom {
-        padding: 18px;
+        padding: 24px 26px;
     }
 
 
     /* =========================================================
-           PATIENT INFORMATION
-           ========================================================= */
+       PATIENT INFORMATION
+       ========================================================= */
 
     .patient-name-highlight {
         display: flex;
         align-items: center;
-        gap: 13px;
-        padding: 14px;
-        margin-bottom: 15px;
-        background: linear-gradient( 135deg, #edf9f7, #f7fcfb );
-        border: 1px solid #d5ebe8;
-        border-radius: 13px;
+        gap: 14px;
+        padding: 15px;
+        margin-bottom: 16px;
+        background: var(--field);
+        border: 1px solid var(--line);
+        border-radius: 14px;
     }
 
-
     .patient-avatar {
-        width: 48px;
-        height: 48px;
-        min-width: 48px;
-        border-radius: 13px;
-        background: #d7efec;
-        color: var(--teal-700);
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+        border-radius: 14px;
+        background: var(--pill-bg);
+        color: var(--teal-dark);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 20px;
     }
 
-
-    .patient-name-label {
-        color: #668084;
-        font-size: 8.5px;
-        font-weight: 800;
+    .patient-name-label,
+    .test-highlight-label,
+    .test-detail-box-label,
+    .sample-box-label,
+    .reference-title,
+    .result-main-label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: .06em;
         text-transform: uppercase;
-        letter-spacing: .05em;
     }
-
 
     .patient-name {
-        color: var(--teal-900);
-        font-size: 17px;
-        font-weight: 800;
+        color: var(--ink);
+        font-size: 18px;
+        font-weight: 700;
         margin-top: 2px;
     }
-
 
     .info-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 20px;
-        padding: 9px 2px;
-        border-bottom: 1px solid #edf3f2;
+        padding: 11px 2px;
+        border-bottom: 1px solid var(--line);
     }
-
 
         .info-row:last-child {
             border-bottom: none;
         }
 
-
     .info-label {
         color: #5b7b80;
-        font-size: 11.5px;
+        font-size: 13px;
         font-weight: 500;
     }
 
-
     .info-value {
-        color: #143f47;
-        font-size: 12px;
-        font-weight: 700;
+        color: var(--ink);
+        font-size: 13.5px;
+        font-weight: 600;
         text-align: right;
     }
 
 
     /* =========================================================
-           CLINICAL INFORMATION
-           ========================================================= */
+       CLINICAL INFORMATION
+       ========================================================= */
 
     .clinical-information {
-        margin-top: 18px;
+        margin-top: 20px;
     }
-
 
     .clinical-title {
         display: flex;
         align-items: center;
         gap: 7px;
-        color: #006f72;
-        font-size: 11.5px;
-        font-weight: 800;
+        color: var(--pill-text);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .04em;
         text-transform: uppercase;
-        margin-bottom: 9px;
+        margin-bottom: 10px;
     }
-
 
         .clinical-title i {
             font-size: 12px;
         }
 
-
     .clinical-item {
-        border-radius: 10px;
-        padding: 10px 11px;
-        margin-bottom: 8px;
-        min-height: 55px;
+        border-radius: 12px;
+        padding: 11px 13px;
+        margin-bottom: 9px;
+        min-height: 58px;
     }
-
 
         .clinical-item:last-child {
             margin-bottom: 0;
         }
-
 
     .clinical-allergies {
         background: #fde9e9;
@@ -606,13 +577,11 @@
         color: #a72d38;
     }
 
-
     .clinical-conditions {
         background: #fff3d9;
         border: 1px solid #f3e2b8;
         color: #805b13;
     }
-
 
     .clinical-medication {
         background: #e2f4f3;
@@ -620,300 +589,248 @@
         color: #006b70;
     }
 
-
     .clinical-item-title {
         display: flex;
         align-items: center;
         gap: 7px;
-        font-size: 11px;
-        font-weight: 800;
+        font-size: 12.5px;
+        font-weight: 700;
         margin-bottom: 3px;
     }
 
-
         .clinical-item-title i {
-            font-size: 10px;
+            font-size: 11px;
         }
 
-
     .clinical-item-content {
-        font-size: 11px;
+        font-size: 12.5px;
         line-height: 1.45;
         opacity: .92;
     }
 
 
     /* =========================================================
-           DOCTOR NOTES
-           ========================================================= */
+       DOCTOR NOTES
+       ========================================================= */
 
     .doctor-notes {
-        background: linear-gradient( 135deg, #e7f6f4, #f3fbfa );
+        background: #eaf6f4;
         border: 1px solid #cbe8e5;
-        border-left: 4px solid #008f88;
-        border-radius: 11px;
-        padding: 13px 14px;
+        border-left: 4px solid var(--teal);
+        border-radius: 12px;
+        padding: 14px 15px;
         color: #075f67;
-        font-size: 11.5px;
+        font-size: 13px;
         line-height: 1.55;
     }
-
 
     .doctor-notes-heading {
         display: flex;
         align-items: center;
         gap: 7px;
-        color: #006f69;
-        font-size: 10px;
-        font-weight: 800;
+        color: var(--pill-text);
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: .06em;
         text-transform: uppercase;
         margin-bottom: 6px;
     }
 
 
     /* =========================================================
-           TEST HIGHLIGHT
-           ========================================================= */
+       TEST INFORMATION
+       ========================================================= */
 
     .test-highlight {
-        padding: 15px;
-        background: linear-gradient( 135deg, #e4f5f2, #f4fbfa );
-        border: 2px solid #b9dfda;
-        border-radius: 14px;
-        margin-bottom: 15px;
+        padding: 16px;
+        background: var(--field);
+        border: 1px solid var(--field-line);
+        border-radius: 16px;
+        margin-bottom: 16px;
     }
-
 
     .test-highlight-top {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 13px;
     }
 
-
     .test-highlight-icon {
-        width: 50px;
-        height: 50px;
-        min-width: 50px;
-        border-radius: 13px;
-        background: #cdebe7;
-        color: var(--teal-700);
+        width: 52px;
+        height: 52px;
+        min-width: 52px;
+        border-radius: 14px;
+        background: var(--pill-bg);
+        color: var(--teal-dark);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 21px;
     }
 
-
-    .test-highlight-label {
-        font-size: 8.5px;
-        color: #638083;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .05em;
-    }
-
-
     .test-highlight-name {
-        color: var(--teal-900);
-        font-size: 17px;
-        font-weight: 800;
+        color: var(--ink);
+        font-size: 18px;
+        font-weight: 700;
         margin-top: 1px;
     }
-
 
     .test-category {
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        background: white;
-        color: var(--teal-700);
-        border: 1px solid #cde5e2;
-        border-radius: 20px;
-        padding: 4px 9px;
-        font-size: 9px;
-        font-weight: 700;
-        margin-top: 5px;
+        background: var(--pill-bg);
+        color: var(--pill-text);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-top: 6px;
     }
 
-
-    /* =========================================================
-           SAMPLE TYPE HIGHLIGHT
-           ========================================================= */
-
     .sample-highlight {
-        margin-top: 13px;
+        margin-top: 14px;
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 10px;
     }
 
-
     .sample-box {
         background: white;
-        border: 1px solid #c9e4e1;
-        border-radius: 11px;
-        padding: 11px 12px;
+        border: 1px solid var(--field-line);
+        border-radius: 14px;
+        padding: 12px 13px;
     }
 
-
         .sample-box.sample-type {
-            background: #f0faf8;
-            border-left: 4px solid #008f88;
+            border-left: 4px solid var(--teal);
         }
-
-
-        .sample-box.category-box {
-            background: #f7fbfb;
-        }
-
 
     .sample-box-label {
         display: block;
-        color: #698488;
-        font-size: 8px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .04em;
         margin-bottom: 4px;
     }
 
-
     .sample-box-value {
         color: #075f67;
-        font-size: 12.5px;
-        font-weight: 800;
+        font-size: 13.5px;
+        font-weight: 700;
     }
-
-
-    /* =========================================================
-           TEST DETAIL GRID
-           ========================================================= */
 
     .test-detail-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 9px;
-        margin-top: 15px;
+        gap: 10px;
+        margin-top: 16px;
     }
-
 
     .test-detail-box {
-        background: #f7fbfb;
-        border: 1px solid #e2eceb;
-        border-radius: 10px;
-        padding: 10px;
+        background: var(--field);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 11px 12px;
     }
 
+        .test-detail-box.abnormal {
+            background: var(--danger-soft);
+            border-color: var(--danger-line);
+        }
 
     .test-detail-box-label {
         display: block;
-        color: #6b8589;
-        font-size: 8.5px;
-        font-weight: 800;
-        text-transform: uppercase;
-        margin-bottom: 4px;
+        margin-bottom: 5px;
     }
-
 
     .test-detail-box strong {
         color: #174952;
-        font-size: 11.5px;
-        font-weight: 800;
+        font-size: 13px;
+        font-weight: 700;
     }
-
-
-    /* =========================================================
-           REFERENCE RANGE
-           ========================================================= */
 
     .reference-box {
         margin-top: 14px;
-        background: #eef8f7;
-        border: 1px solid #cfe8e4;
-        border-radius: 11px;
-        padding: 12px 14px;
+        background: var(--field);
+        border: 1px solid var(--field-line);
+        border-radius: 14px;
+        padding: 13px 15px;
     }
 
-
     .reference-title {
-        color: #5c7a7e;
-        font-size: 8.5px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .05em;
         margin-bottom: 4px;
     }
 
-
     .reference-value {
         color: #07545c;
-        font-size: 15px;
-        font-weight: 800;
+        font-size: 16px;
+        font-weight: 700;
     }
 
-
     .reference-unit {
-        font-size: 11px;
-        font-weight: 700;
+        font-size: 12px;
+        font-weight: 600;
         margin-left: 4px;
         color: #567579;
     }
 
 
     /* =========================================================
-           RESULT SECTION
-           ========================================================= */
+       CAPTURED RESULT
+       ========================================================= */
 
     .result-card {
         margin-bottom: 20px;
     }
 
+        /* Whole card turns red when the result is abnormal */
+        .result-card.abnormal {
+            border: 2px solid var(--danger);
+            box-shadow: 0 10px 30px rgba(214, 40, 57, .16);
+        }
+
+            .result-card.abnormal .card-header-teal {
+                background: var(--danger-soft);
+                color: var(--danger-dark);
+                border-bottom-color: var(--danger-line);
+            }
+
+                .result-card.abnormal .card-header-teal i {
+                    color: var(--danger);
+                }
 
     .result-summary {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
         gap: 12px;
-        margin-bottom: 15px;
+        margin-bottom: 16px;
     }
-
 
     .result-main {
         grid-column: span 2;
-        border-radius: 13px;
-        padding: 15px 17px;
-        background: #f3faf9;
-        border: 1px solid #d6eae7;
+        border-radius: 16px;
+        padding: 16px 19px;
+        background: var(--field);
+        border: 1px solid var(--line);
     }
-
 
         .result-main.abnormal {
-            background: #fff1f3;
-            border-color: #f1c8cd;
+            background: var(--danger-soft);
+            border: 2px solid var(--danger);
         }
 
-
-    .result-main-label {
-        color: #6a8387;
-        font-size: 8.5px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .05em;
-    }
-
+            .result-main.abnormal .result-main-label {
+                color: var(--danger-dark);
+            }
 
     .result-main-value {
         margin-top: 4px;
-        font-size: 25px;
-        font-weight: 800;
-        color: var(--teal-800);
+        font-size: 30px;
+        font-weight: 700;
+        color: var(--teal-dark);
     }
-
 
         .result-main-value.abnormal {
             color: var(--danger);
         }
-
 
     .result-status {
         display: flex;
@@ -921,49 +838,46 @@
         justify-content: center;
         align-items: center;
         text-align: center;
-        border-radius: 13px;
+        border-radius: 16px;
         padding: 12px;
         background: var(--success-soft);
         border: 1px solid #cde8d6;
     }
 
-
         .result-status.abnormal {
-            background: #fff1f3;
-            border-color: #f1c8cd;
+            background: var(--danger);
+            border-color: var(--danger);
         }
 
+            .result-status.abnormal i,
+            .result-status.abnormal strong,
+            .result-status.abnormal small {
+                color: white !important;
+            }
 
         .result-status i {
-            font-size: 22px;
+            font-size: 24px;
             margin-bottom: 5px;
         }
 
-
         .result-status strong {
-            font-size: 11px;
-            font-weight: 800;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .04em;
             text-transform: uppercase;
         }
 
-
         .result-status small {
             margin-top: 2px;
-            font-size: 8.5px;
-            color: #6b8185;
+            font-size: 10.5px;
+            color: var(--muted);
         }
-
-
-    /* =========================================================
-           RESULT TABLE
-           ========================================================= */
 
     .result-table-wrapper {
         border: 1px solid var(--line);
-        border-radius: 11px;
+        border-radius: 14px;
         overflow: hidden;
     }
-
 
     .result-table {
         width: 100%;
@@ -971,316 +885,326 @@
         margin: 0;
     }
 
-
         .result-table th {
             width: 210px;
-            background: #f1f9f8;
-            color: #315f65;
-            padding: 10px 13px;
-            font-size: 11px;
-            font-weight: 800;
+            background: var(--field);
+            color: var(--ink-soft);
+            padding: 12px 15px;
+            font-size: 12.5px;
+            font-weight: 600;
             text-align: left;
             border-bottom: 1px solid var(--line);
         }
 
-
         .result-table td {
             background: white;
             color: #193f47;
-            padding: 10px 13px;
-            font-size: 11.5px;
+            padding: 12px 15px;
+            font-size: 13px;
             border-bottom: 1px solid var(--line);
         }
-
 
         .result-table tr:last-child th,
         .result-table tr:last-child td {
             border-bottom: none;
         }
 
+        /* Result row turns red when abnormal */
+        .result-table tr.row-abnormal th {
+            background: #fbd9dd;
+            color: var(--danger-dark);
+        }
+
+        .result-table tr.row-abnormal td {
+            background: var(--danger-soft);
+        }
 
     .result-value {
-        font-size: 18px;
-        font-weight: 800;
-        color: var(--teal-800);
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--teal-dark);
     }
-
 
         .result-value.abnormal {
             color: var(--danger);
         }
 
+    .unit-abnormal {
+        color: var(--danger);
+        font-weight: 700;
+    }
+
 
     /* =========================================================
-           BADGES
-           ========================================================= */
+       BADGES
+       ========================================================= */
 
     .status-badge {
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        padding: 4px 9px;
-        border-radius: 20px;
-        font-size: 9.5px;
-        font-weight: 800;
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
     }
-
 
     .status-completed {
-        background: var(--success-soft);
-        color: var(--success);
+        background: var(--pill-bg);
+        color: var(--pill-text);
     }
-
 
     .status-review {
         background: var(--warning-soft);
         color: var(--warning);
     }
 
-
     .status-verified {
         background: var(--info-soft);
         color: var(--info);
     }
-
 
     .status-default {
         background: #edf1f2;
         color: #66767a;
     }
 
+    .status-abnormal {
+        background: var(--danger);
+        color: white;
+    }
+
+    .status-within {
+        background: var(--success-soft);
+        color: var(--success);
+    }
 
     .abnormal-badge {
         display: inline-flex;
         align-items: center;
         gap: 5px;
         margin-left: 8px;
-        padding: 4px 8px;
-        border-radius: 20px;
-        background: #fde5e7;
-        border: 1px solid #f1c7cb;
-        color: var(--danger);
-        font-size: 9px;
-        font-weight: 800;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: var(--danger);
+        color: white;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: .04em;
         text-transform: uppercase;
     }
-
 
     .normal-badge {
         display: inline-flex;
         align-items: center;
         gap: 5px;
         margin-left: 8px;
-        padding: 4px 8px;
-        border-radius: 20px;
+        padding: 5px 12px;
+        border-radius: 999px;
         background: var(--success-soft);
         color: var(--success);
-        font-size: 9px;
-        font-weight: 800;
+        font-size: 10.5px;
+        font-weight: 700;
     }
 
 
     /* =========================================================
-           REMINDER
-           ========================================================= */
+       REMINDER
+       ========================================================= */
 
     .reminder-box {
-        margin-top: 14px;
-        padding: 11px 13px;
+        margin-top: 16px;
+        padding: 13px 15px;
         background: var(--info-soft);
         border-left: 4px solid var(--info);
-        border-radius: 9px;
+        border-radius: 12px;
         color: #31576f;
-        font-size: 10.5px;
+        font-size: 12.5px;
         line-height: 1.5;
     }
 
+        .reminder-box.abnormal {
+            background: var(--danger-soft);
+            border-left-color: var(--danger);
+            color: #6e3038;
+        }
 
     .reminder-title {
         display: flex;
         align-items: center;
         gap: 6px;
         color: #075ca8;
-        font-size: 11px;
-        font-weight: 800;
-        margin-bottom: 2px;
+        font-size: 12.5px;
+        font-weight: 700;
+        margin-bottom: 3px;
+    }
+
+    .reminder-box.abnormal .reminder-title {
+        color: var(--danger-dark);
+    }
+
+    .abnormal-text {
+        color: var(--danger-dark);
     }
 
 
     /* =========================================================
-           VERIFICATION
-           ========================================================= */
+       VERIFICATION
+       ========================================================= */
 
     .verification-label {
-        color: #315f65;
-        font-size: 11.5px;
-        font-weight: 800;
-        margin-bottom: 5px;
+        color: var(--ink-soft);
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 6px;
         display: block;
     }
 
-
     .verification-textarea {
         width: 100%;
-        min-height: 105px;
-        padding: 10px 12px;
-        border: 1px solid #d9e8e6;
-        border-radius: 10px;
-        font-family: 'Inter', sans-serif;
-        font-size: 11.5px;
+        min-height: 110px;
+        padding: 14px 16px;
+        background: var(--field);
+        border: 1px solid var(--field-line);
+        border-radius: 14px;
+        font-size: 13.5px;
         color: var(--ink);
         resize: vertical;
     }
 
+        .verification-textarea::placeholder {
+            color: #7b9093;
+        }
 
         .verification-textarea:focus {
             outline: none;
-            border-color: var(--teal-500);
-            box-shadow: 0 0 0 3px rgba(0,150,136,.10);
+            background: #fff;
+            border-color: var(--teal);
+            box-shadow: 0 0 0 4px rgba(15, 148, 136, .12);
         }
 
-
-    /* =========================================================
-           RULES
-           ========================================================= */
-
     .rules-box {
-        margin-top: 14px;
+        margin-top: 16px;
         background: var(--warning-soft);
         border: 1px solid #f0dfb8;
         border-left: 4px solid var(--warning);
-        border-radius: 10px;
-        padding: 11px 13px;
+        border-radius: 12px;
+        padding: 13px 15px;
     }
-
 
         .rules-box h5 {
             margin: 0 0 6px;
             color: #755a21;
-            font-size: 11.5px;
-            font-weight: 800;
+            font-size: 13px;
+            font-weight: 700;
             display: flex;
             align-items: center;
             gap: 6px;
         }
 
-
         .rules-box ul {
             margin: 0;
-            padding-left: 17px;
+            padding-left: 18px;
             color: #5e593f;
-            font-size: 10.5px;
-            line-height: 1.45;
+            font-size: 12.5px;
+            line-height: 1.5;
         }
-
 
         .rules-box li {
             margin-bottom: 3px;
         }
 
-
-    /* =========================================================
-           SUMMARY
-           ========================================================= */
-
     .summary-tile {
-        background: #eef8f7;
-        border: 1px solid #dcece9;
-        border-radius: 10px;
-        padding: 11px 8px;
+        background: var(--field);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 13px 8px;
         text-align: center;
         height: 100%;
     }
 
-
         .summary-tile i {
             display: block;
             margin-bottom: 5px;
-            font-size: 17px;
+            font-size: 18px;
         }
-
 
         .summary-tile h6 {
             margin: 0 0 2px;
-            color: #315f65;
-            font-size: 8.5px;
-            font-weight: 800;
+            color: var(--ink-soft);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .06em;
             text-transform: uppercase;
-            letter-spacing: .04em;
         }
-
 
         .summary-tile small {
             color: #6c8588;
-            font-size: 9px;
+            font-size: 11px;
         }
 
 
     /* =========================================================
-           BUTTONS
-           ========================================================= */
+       BUTTONS
+       ========================================================= */
 
     .action-buttons {
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        gap: 9px;
+        gap: 10px;
         flex-wrap: wrap;
-        margin-top: 15px;
+        margin-top: 18px;
     }
 
+    .btn-back,
+    .btn-return,
+    .btn-verify {
+        border-radius: 12px;
+        padding: 11px 22px;
+        font-size: 13.5px;
+        font-weight: 600;
+        transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
 
     .btn-back {
-        background: white;
-        color: #5d7478;
-        border: 1px solid #d7e5e3;
-        border-radius: 9px;
-        padding: 8px 15px;
-        font-size: 11px;
-        font-weight: 600;
+        background: #fff;
+        color: var(--teal-dark);
+        border: 1px solid var(--field-line);
     }
 
+        .btn-back:hover {
+            background: #f2f9f8;
+            color: var(--teal-dark);
+            border-color: var(--teal);
+        }
 
     .btn-return {
         background: #f3a623;
         color: white;
         border: none;
-        border-radius: 9px;
-        padding: 8px 15px;
-        font-size: 11px;
-        font-weight: 700;
+        box-shadow: 0 6px 16px rgba(243, 166, 35, .25);
     }
 
+        .btn-return:hover {
+            background: #d88b0a;
+            color: white;
+            transform: translateY(-1px);
+        }
 
     .btn-verify {
-        background: #008f88;
+        background: linear-gradient(135deg, var(--teal), var(--teal-dark));
         color: white;
         border: none;
-        border-radius: 9px;
-        padding: 8px 15px;
-        font-size: 11px;
-        font-weight: 700;
+        box-shadow: 0 6px 16px rgba(11, 95, 86, .28);
     }
 
-
-    .btn-back:hover {
-        background: #f2f9f8;
-        color: var(--teal-700);
-        border-color: var(--teal-400);
-    }
-
-
-    .btn-return:hover {
-        background: #d88b0a;
-        color: white;
-    }
-
-
-    .btn-verify:hover {
-        background: #006f69;
-        color: white;
-    }
-
+        .btn-verify:hover {
+            background: linear-gradient(135deg, #0c8479, var(--teal-deep));
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(11, 95, 86, .35);
+        }
 
     .empty-text {
         color: #7b9093;
@@ -1289,8 +1213,8 @@
 
 
     /* =========================================================
-           RESPONSIVE
-           ========================================================= */
+       RESPONSIVE
+       ========================================================= */
 
     @@media (max-width: 1000px) {
 
@@ -1299,14 +1223,12 @@
         }
     }
 
-
     @@media (max-width: 700px) {
 
         .verify-page {
             padding: 0 10px;
             margin-top: 18px;
         }
-
 
         .verify-header {
             padding: 22px 18px;
@@ -1315,42 +1237,32 @@
             gap: 15px;
         }
 
-
             .verify-header h2 {
-                font-size: 22px;
+                font-size: 21px;
                 justify-content: center;
             }
 
-
-        .sample-highlight {
-            grid-template-columns: 1fr;
+        .card-body-custom {
+            padding: 18px;
         }
 
-
-        .test-detail-grid {
-            grid-template-columns: 1fr;
-        }
-
-
+        .sample-highlight,
+        .test-detail-grid,
         .result-summary {
             grid-template-columns: 1fr;
         }
-
 
         .result-main {
             grid-column: span 1;
         }
 
-
         .abnormal-banner {
             align-items: flex-start;
         }
 
-
         .abnormal-banner-value {
             display: none;
         }
-
 
         .info-row {
             flex-direction: column;
@@ -1358,21 +1270,17 @@
             gap: 2px;
         }
 
-
         .info-value {
             text-align: left;
         }
-
 
         .result-table th {
             width: 40%;
         }
 
-
         .action-buttons {
             justify-content: stretch;
         }
-
 
             .action-buttons .btn {
                 flex: 1;
@@ -1394,11 +1302,8 @@
         <div>
 
             <h2>
-
                 <i class="fa-solid fa-check-double"></i>
-
                 Verify Laboratory Result
-
             </h2>
 
             <p>
@@ -1408,29 +1313,23 @@
 
         </div>
 
-
         <div class="header-icon">
-
             <i class="fa-solid fa-microscope"></i>
-
         </div>
 
     </div>
 
 
     <!-- =========================================================
-         ABNORMAL RESULT BANNER
+         ABNORMAL / NORMAL BANNER
          ========================================================= -->
     @if (isAbnormal)
     {
         <div class="abnormal-banner">
 
             <div class="abnormal-banner-icon">
-
                 <i class="fa-solid fa-triangle-exclamation"></i>
-
             </div>
-
 
             <div class="abnormal-banner-content">
 
@@ -1439,21 +1338,24 @@
                 </strong>
 
                 <span>
-                    The captured value is outside the configured
-                    reference range for this laboratory test.
+                    @if (!string.IsNullOrEmpty(abnormalDirection))
+                    {
+                        @:The captured value is @abnormalDirection.ToLower() the configured reference range (@configuredReferenceRange @configuredUnit) for this laboratory test.
+                    }
+                    else
+                    {
+                        @:This result has been flagged as abnormal for this laboratory test.
+                    }
                 </span>
 
             </div>
 
-
             <div class="abnormal-banner-value">
 
-                <small>
-                    Current Result
-                </small>
+                <small>Current Result</small>
 
                 <strong>
-                    @resultDisplay
+                    @resultDisplay @configuredUnit
                 </strong>
 
             </div>
@@ -1465,9 +1367,7 @@
         <div class="normal-banner">
 
             <div class="normal-banner-icon">
-
                 <i class="fa-solid fa-circle-check"></i>
-
             </div>
 
             <div class="normal-banner-content">
@@ -1498,18 +1398,13 @@
         <div class="review-banner">
 
             <strong>
-
                 <i class="fa-solid fa-rotate-left"></i>
-
                 Result Returned For Review
-
             </strong>
 
             <span>
-
                 This result was previously returned for correction.
                 The value displayed below is the latest captured result.
-
             </span>
 
         </div>
@@ -1523,107 +1418,59 @@
     <div class="main-info-grid">
 
 
-        <!-- =====================================================
-             LEFT: PATIENT INFORMATION
-             ===================================================== -->
+        <!-- LEFT: PATIENT INFORMATION -->
 
         <div class="dashboard-card">
 
             <div class="card-header-teal">
-
                 <i class="fa-solid fa-user"></i>
-
                 Patient Information
-
             </div>
 
-
             <div class="card-body-custom">
-
-
-                <!-- PATIENT NAME -->
 
                 <div class="patient-name-highlight">
 
                     <div class="patient-avatar">
-
                         <i class="fa-solid fa-user"></i>
-
                     </div>
-
 
                     <div>
-
-                        <div class="patient-name-label">
-                            Patient
-                        </div>
-
-                        <div class="patient-name">
-                            @patientName
-                        </div>
-
+                        <div class="patient-name-label">Patient</div>
+                        <div class="patient-name">@patientName</div>
                     </div>
 
                 </div>
 
 
-                <!-- PATIENT DETAILS -->
+                <div class="info-row">
+                    <span class="info-label">ID Number</span>
+                    <span class="info-value">@(patient?.IDNumber ?? "Not available")</span>
+                </div>
 
                 <div class="info-row">
-
-                    <span class="info-label">
-                        ID Number
-                    </span>
-
-                    <span class="info-value">
-                        @(patient?.IDNumber ?? "Not available")
-                    </span>
-
+                    <span class="info-label">Email</span>
+                    <span class="info-value">@(patient?.Email ?? "Not available")</span>
                 </div>
 
 
-                <div class="info-row">
-
-                    <span class="info-label">
-                        Email
-                    </span>
-
-                    <span class="info-value">
-                        @(patient?.Email ?? "Not available")
-                    </span>
-
-                </div>
-
-
-                <!-- =================================================
-                     CLINICAL INFORMATION
-                     ================================================= -->
+                <!-- CLINICAL INFORMATION -->
 
                 <div class="clinical-information">
 
                     <div class="clinical-title">
-
                         <i class="fa-solid fa-notes-medical"></i>
-
                         Clinical Information
-
                     </div>
-
-
-                    <!-- ALLERGIES -->
 
                     <div class="clinical-item clinical-allergies">
 
                         <div class="clinical-item-title">
-
                             <i class="fa-solid fa-triangle-exclamation"></i>
-
                             Allergies
-
                         </div>
 
                         <div class="clinical-item-content">
-
                             @if (!string.IsNullOrWhiteSpace(patient?.Allergies))
                             {
                                 @patient.Allergies
@@ -1632,26 +1479,18 @@
                             {
                                 @:None recorded
                             }
-
                         </div>
 
                     </div>
 
-
-                    <!-- MEDICAL CONDITIONS -->
-
                     <div class="clinical-item clinical-conditions">
 
                         <div class="clinical-item-title">
-
                             <i class="fa-solid fa-heart-pulse"></i>
-
                             Medical Conditions
-
                         </div>
 
                         <div class="clinical-item-content">
-
                             @if (!string.IsNullOrWhiteSpace(patient?.MedicalConditions))
                             {
                                 @patient.MedicalConditions
@@ -1660,26 +1499,18 @@
                             {
                                 @:None recorded
                             }
-
                         </div>
 
                     </div>
 
-
-                    <!-- MEDICATION -->
-
                     <div class="clinical-item clinical-medication">
 
                         <div class="clinical-item-title">
-
                             <i class="fa-solid fa-pills"></i>
-
                             Medication
-
                         </div>
 
                         <div class="clinical-item-content">
-
                             @if (!string.IsNullOrWhiteSpace(patient?.Medication))
                             {
                                 @patient.Medication
@@ -1688,37 +1519,26 @@
                             {
                                 @:None recorded
                             }
-
                         </div>
 
                     </div>
 
 
-                    <!-- =================================================
-                         DOCTOR CLINICAL NOTES
-                         ================================================= -->
+                    <!-- DOCTOR CLINICAL NOTES -->
 
                     <div class="clinical-information">
 
                         <div class="clinical-title">
-
                             <i class="fa-solid fa-file-medical"></i>
-
                             Doctor Clinical Notes
-
                         </div>
-
 
                         <div class="doctor-notes">
 
                             <div class="doctor-notes-heading">
-
                                 <i class="fa-solid fa-user-doctor"></i>
-
                                 Doctor's Notes
-
                             </div>
-
 
                             @if (!string.IsNullOrWhiteSpace(clinicalNotes))
                             {
@@ -1742,109 +1562,61 @@
         </div>
 
 
-        <!-- =====================================================
-             RIGHT: TEST INFORMATION
-             ===================================================== -->
+        <!-- RIGHT: TEST INFORMATION -->
 
         <div class="dashboard-card">
 
             <div class="card-header-teal">
-
                 <i class="fa-solid fa-vials"></i>
-
                 Test Information
-
             </div>
 
-
             <div class="card-body-custom">
-
-
-                <!-- =================================================
-                     TEST TYPE HIGHLIGHT
-                     ================================================= -->
 
                 <div class="test-highlight">
 
                     <div class="test-highlight-top">
 
                         <div class="test-highlight-icon">
-
                             <i class="fa-solid fa-vial"></i>
-
                         </div>
-
 
                         <div>
 
-                            <div class="test-highlight-label">
+                            <div class="test-highlight-label">Laboratory Test</div>
 
-                                Laboratory Test
-
-                            </div>
-
-
-                            <div class="test-highlight-name">
-
-                                @testName
-
-                            </div>
-
+                            <div class="test-highlight-name">@testName</div>
 
                             <span class="test-category">
-
                                 <i class="fa-solid fa-layer-group"></i>
-
                                 @category
-
                             </span>
 
                         </div>
 
                     </div>
 
-
-                    <!-- SAMPLE TYPE -->
-
                     <div class="sample-highlight">
-
 
                         <div class="sample-box sample-type">
 
                             <span class="sample-box-label">
-
                                 <i class="fa-solid fa-droplet me-1"></i>
-
                                 Sample Type
-
                             </span>
 
-
-                            <div class="sample-box-value">
-
-                                @sampleType
-
-                            </div>
+                            <div class="sample-box-value">@sampleType</div>
 
                         </div>
 
-
-                        <div class="sample-box category-box">
+                        <div class="sample-box">
 
                             <span class="sample-box-label">
-
                                 <i class="fa-solid fa-flask me-1"></i>
-
                                 Test Category
-
                             </span>
 
-
-                            <div class="sample-box-value">
-
-                                @category
-
-                            </div>
+                            <div class="sample-box-value">@category</div>
 
                         </div>
 
@@ -1853,147 +1625,83 @@
                 </div>
 
 
-                <!-- =================================================
-                     TEST DETAILS
-                     ================================================= -->
+                <!-- TEST DETAILS -->
 
                 <div class="test-detail-grid">
 
-
                     <div class="test-detail-box">
-
-                        <span class="test-detail-box-label">
-                            Request Number
-                        </span>
-
-                        <strong>
-                            TR-@(test?.RequestId.ToString() ?? "N/A")
-                        </strong>
-
+                        <span class="test-detail-box-label">Request Number</span>
+                        <strong>TR-@(test?.RequestId.ToString() ?? "N/A")</strong>
                     </div>
 
-
                     <div class="test-detail-box">
-
-                        <span class="test-detail-box-label">
-                            Test Item
-                        </span>
-
-                        <strong>
-                            #@(test?.TestRequestItemId.ToString() ?? "N/A")
-                        </strong>
-
+                        <span class="test-detail-box-label">Test Item</span>
+                        <strong>#@(test?.TestRequestItemId.ToString() ?? "N/A")</strong>
                     </div>
 
-
                     <div class="test-detail-box">
-
-                        <span class="test-detail-box-label">
-                            Unit of Measurement
-                        </span>
-
+                        <span class="test-detail-box-label">Unit of Measurement</span>
                         <strong>
-
-                            @(string.IsNullOrWhiteSpace(configuredUnit)
-                                ? "Not specified"
-                                : configuredUnit)
-
+                            @(string.IsNullOrWhiteSpace(configuredUnit) ? "Not specified" : configuredUnit)
                         </strong>
-
                     </div>
 
-
                     <div class="test-detail-box">
-
-                        <span class="test-detail-box-label">
-                            Reference Range
-                        </span>
-
-                        <strong>
-                            @configuredReferenceRange
-                        </strong>
-
+                        <span class="test-detail-box-label">Reference Range</span>
+                        <strong>@configuredReferenceRange</strong>
                     </div>
 
-
                     <div class="test-detail-box">
 
-                        <span class="test-detail-box-label">
-                            Current Status
-                        </span>
-
+                        <span class="test-detail-box-label">Current Status</span>
 
                         @if (currentStatus == "Completed")
                         {
                             <span class="status-badge status-completed">
-
                                 <i class="fa-solid fa-circle-check"></i>
-
                                 Completed
-
                             </span>
                         }
                         else if (currentStatus == "To Be Reviewed")
                         {
                             <span class="status-badge status-review">
-
                                 <i class="fa-solid fa-rotate-left"></i>
-
                                 To Be Reviewed
-
                             </span>
                         }
                         else if (currentStatus == "Verified")
                         {
                             <span class="status-badge status-verified">
-
                                 <i class="fa-solid fa-shield-halved"></i>
-
                                 Verified
-
                             </span>
                         }
                         else
                         {
                             <span class="status-badge status-default">
-
                                 <i class="fa-solid fa-circle-info"></i>
-
                                 @currentStatus
-
                             </span>
                         }
 
                     </div>
 
+                    <div class="test-detail-box @abnormalClass">
 
-                    <div class="test-detail-box">
-
-                        <span class="test-detail-box-label">
-                            Result Classification
-                        </span>
-
+                        <span class="test-detail-box-label">Result Classification</span>
 
                         @if (isAbnormal)
                         {
-                            <span class="status-badge"
-                                  style="background:#fde5e7;color:#dc3545;">
-
+                            <span class="status-badge status-abnormal">
                                 <i class="fa-solid fa-triangle-exclamation"></i>
-
                                 Abnormal
-
                             </span>
                         }
                         else
                         {
-                            <span class="status-badge"
-                                  style="background:#eaf7ef;color:#198754;">
-
+                            <span class="status-badge status-within">
                                 <i class="fa-solid fa-circle-check"></i>
-
                                 Within Range
-
                             </span>
                         }
 
@@ -2002,17 +1710,11 @@
                 </div>
 
 
-                <!-- REFERENCE RANGE -->
                 @if (hasReferenceRange)
                 {
                     <div class="reference-box">
 
-                        <div class="reference-title">
-
-                            Configured Reference Range
-
-                        </div>
-
+                        <div class="reference-title">Configured Reference Range</div>
 
                         <div class="reference-value">
 
@@ -2020,11 +1722,7 @@
 
                             @if (!string.IsNullOrWhiteSpace(configuredUnit))
                             {
-                                <span class="reference-unit">
-
-                                    @configuredUnit
-
-                                </span>
+                                <span class="reference-unit">@configuredUnit</span>
                             }
 
                         </div>
@@ -2043,16 +1741,12 @@
          CAPTURED LABORATORY RESULT
          ========================================================= -->
 
-    <div class="dashboard-card result-card">
+    <div class="dashboard-card result-card @abnormalClass">
 
         <div class="card-header-teal">
-
             <i class="fa-solid fa-flask"></i>
-
             Captured Laboratory Result
-
         </div>
-
 
         <div class="card-body-custom">
 
@@ -2061,23 +1755,17 @@
 
             <div class="result-summary">
 
+                <div class="result-main @abnormalClass">
 
-                <div class="result-main @(isAbnormal ? "abnormal" : "")">
+                    <div class="result-main-label">Captured Result</div>
 
-                    <div class="result-main-label">
-
-                        Captured Result
-
-                    </div>
-
-
-                    <div class="result-main-value @(isAbnormal ? "abnormal" : "")">
+                    <div class="result-main-value @abnormalClass">
 
                         @resultDisplay
 
                         @if (!string.IsNullOrWhiteSpace(configuredUnit))
                         {
-                            <span style="font-size:12px;font-weight:700;margin-left:4px;">
+                            <span style="font-size:13px;font-weight:600;margin-left:4px;">
                                 @configuredUnit
                             </span>
                         }
@@ -2086,34 +1774,27 @@
 
                 </div>
 
-
-                <div class="result-status @(isAbnormal ? "abnormal" : "")">
+                <div class="result-status @abnormalClass">
 
                     @if (isAbnormal)
                     {
-                        <i class="fa-solid fa-triangle-exclamation"
-                           style="color:#dc3545;"></i>
+                        <i class="fa-solid fa-triangle-exclamation"></i>
 
-                        <strong style="color:#dc3545;">
-                            Abnormal
-                        </strong>
+                        <strong>Abnormal</strong>
 
                         <small>
-                            Outside reference range
+                            @(string.IsNullOrEmpty(abnormalDirection)
+                                ? "Flagged as abnormal"
+                                : $"{abnormalDirection} reference range")
                         </small>
                     }
                     else
                     {
-                        <i class="fa-solid fa-circle-check"
-                           style="color:#198754;"></i>
+                        <i class="fa-solid fa-circle-check" style="color:#198754;"></i>
 
-                        <strong style="color:#198754;">
-                            Within Range
-                        </strong>
+                        <strong style="color:#198754;">Within Range</strong>
 
-                        <small>
-                            Within reference range
-                        </small>
+                        <small>Within reference range</small>
                     }
 
                 </div>
@@ -2129,42 +1810,28 @@
 
                     <tbody>
 
+                        <tr class="@(isAbnormal ? "row-abnormal" : "")">
 
-                        <!-- RESULT VALUE -->
-
-                        <tr>
-
-                            <th>
-                                Result Value
-                            </th>
+                            <th>Result Value</th>
 
                             <td>
 
-                                <span class="result-value @(isAbnormal ? "abnormal" : "")">
-
+                                <span class="result-value @abnormalClass">
                                     @resultDisplay
-
                                 </span>
-
 
                                 @if (isAbnormal)
                                 {
                                     <span class="abnormal-badge">
-
                                         <i class="fa-solid fa-triangle-exclamation"></i>
-
                                         Abnormal
-
                                     </span>
                                 }
                                 else
                                 {
                                     <span class="normal-badge">
-
                                         <i class="fa-solid fa-circle-check"></i>
-
                                         Within Range
-
                                     </span>
                                 }
 
@@ -2172,62 +1839,38 @@
 
                         </tr>
 
-
-                        <!-- UNIT -->
-
                         <tr>
 
-                            <th>
-                                Units
-                            </th>
+                            <th>Units</th>
 
                             <td>
-
-                                @(string.IsNullOrWhiteSpace(configuredUnit)
-                                    ? "N/A"
-                                    : configuredUnit)
-
+                                @(string.IsNullOrWhiteSpace(configuredUnit) ? "N/A" : configuredUnit)
                             </td>
 
                         </tr>
 
-
-                        <!-- REFERENCE RANGE -->
-
                         <tr>
 
-                            <th>
-                                Reference Range
-                            </th>
+                            <th>Reference Range</th>
 
                             <td>
 
-                                <strong>
-                                    @configuredReferenceRange
-                                </strong>
+                                <strong>@configuredReferenceRange</strong>
 
                                 @if (!string.IsNullOrWhiteSpace(configuredUnit))
                                 {
-                                    <span>
-                                        @configuredUnit
-                                    </span>
+                                    <span>@configuredUnit</span>
                                 }
 
                             </td>
 
                         </tr>
 
-
-                        <!-- LAB COMMENTS -->
-
                         <tr>
 
-                            <th>
-                                Laboratory Comments
-                            </th>
+                            <th>Laboratory Comments</th>
 
                             <td>
-
                                 @if (!string.IsNullOrWhiteSpace(result?.Comments))
                                 {
                                     @result.Comments
@@ -2238,97 +1881,64 @@
                                         No laboratory comments captured.
                                     </span>
                                 }
-
                             </td>
 
                         </tr>
 
-
-                        <!-- CAPTURED BY -->
-
                         <tr>
 
-                            <th>
-                                Captured By
-                            </th>
+                            <th>Captured By</th>
 
                             <td>
-
-                                @(result?.CapturedByTechnician?.FullName
-                                    ?? "Not available")
-
+                                @(result?.CapturedByTechnician?.FullName ?? "Not available")
                             </td>
 
                         </tr>
 
-
-                        <!-- DATE -->
-
                         <tr>
 
-                            <th>
-                                Date Captured
-                            </th>
+                            <th>Date Captured</th>
 
                             <td>
-
                                 @(result != null
                                     ? result.DateCaptured.ToString("dd MMM yyyy HH:mm")
                                     : "N/A")
-
                             </td>
 
                         </tr>
 
-
-                        <!-- STATUS -->
-
                         <tr>
 
-                            <th>
-                                Current Status
-                            </th>
+                            <th>Current Status</th>
 
                             <td>
 
                                 @if (currentStatus == "Completed")
                                 {
                                     <span class="status-badge status-completed">
-
                                         <i class="fa-solid fa-circle-check"></i>
-
                                         Completed
-
                                     </span>
                                 }
                                 else if (currentStatus == "To Be Reviewed")
                                 {
                                     <span class="status-badge status-review">
-
                                         <i class="fa-solid fa-rotate-left"></i>
-
                                         To Be Reviewed
-
                                     </span>
                                 }
                                 else if (currentStatus == "Verified")
                                 {
                                     <span class="status-badge status-verified">
-
                                         <i class="fa-solid fa-shield-halved"></i>
-
                                         Verified
-
                                     </span>
                                 }
                                 else
                                 {
                                     <span class="status-badge status-default">
-
                                         <i class="fa-solid fa-circle-info"></i>
-
                                         @currentStatus
-
                                     </span>
                                 }
 
@@ -2343,35 +1953,26 @@
             </div>
 
 
-            <!-- =================================================
-                 REMINDER
-                 ================================================= -->
+            <!-- REMINDER -->
 
-            <div class="reminder-box">
+            <div class="reminder-box @abnormalClass">
 
                 <div class="reminder-title">
-
                     <i class="fa-solid fa-circle-info"></i>
-
                     Verification Reminder
-
                 </div>
-
 
                 Carefully review the laboratory result together with
                 the patient's medical conditions, allergies, medication
                 and doctor's clinical notes before approving the result.
 
-
                 @if (isAbnormal)
                 {
                     <br />
 
-                    <strong style="color:#c52f3c;">
-
+                    <strong class="abnormal-text">
                         This result is outside the configured reference
                         range and has been detected as abnormal.
-
                     </strong>
                 }
 
@@ -2389,48 +1990,29 @@
     <div class="dashboard-card">
 
         <div class="card-header-teal">
-
             <i class="fa-solid fa-shield-halved"></i>
-
             Verification Decision
-
         </div>
-
 
         <div class="card-body-custom">
 
-
             <form asp-action="Verify" method="post">
 
-                <input asp-for="TestRequestItemId"
-                       type="hidden" />
+                <input asp-for="TestRequestItemId" type="hidden" />
 
-
-                <div asp-validation-summary="ModelOnly"
-                     class="alert alert-danger">
-                </div>
-
-
-                <!-- VERIFICATION NOTES -->
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
                 <div>
 
-                    <label asp-for="VerificationNotes"
-                           class="verification-label">
-
+                    <label asp-for="VerificationNotes" class="verification-label">
                         Verification Notes
-
                     </label>
-
 
                     <textarea asp-for="VerificationNotes"
                               class="verification-textarea"
                               placeholder="Provide comments if approving or explain why the result is being returned for review..."></textarea>
 
-
-                    <span asp-validation-for="VerificationNotes"
-                          class="text-danger">
-                    </span>
+                    <span asp-validation-for="VerificationNotes" class="text-danger"></span>
 
                 </div>
 
@@ -2440,13 +2022,9 @@
                 <div class="rules-box">
 
                     <h5>
-
                         <i class="fa-solid fa-triangle-exclamation"></i>
-
                         Verification Rules
-
                     </h5>
-
 
                     <ul>
 
@@ -2472,24 +2050,17 @@
 
                         <li>
                             A laboratory technician may
-                            <strong>
-                                not verify a result that they personally captured.
-                            </strong>
+                            <strong>not verify a result that they personally captured.</strong>
                         </li>
-
 
                         @if (isAbnormal)
                         {
                             <li>
-
-                                <strong style="color:#c52f3c;">
-
+                                <strong class="abnormal-text">
                                     This result is abnormal.
                                     Confirm the value against the configured
                                     reference range before verification.
-
                                 </strong>
-
                             </li>
                         }
 
@@ -2502,67 +2073,28 @@
 
                 <div class="row g-3 mt-3">
 
-
                     <div class="col-md-4">
-
                         <div class="summary-tile">
-
-                            <i class="fa-solid fa-user-check"
-                               style="color:#008f88;">
-                            </i>
-
-                            <h6>
-                                Verifier
-                            </h6>
-
-                            <small>
-                                Logged-in Laboratory Technician
-                            </small>
-
+                            <i class="fa-solid fa-user-check" style="color:#0f9488;"></i>
+                            <h6>Verifier</h6>
+                            <small>Logged-in Laboratory Technician</small>
                         </div>
-
                     </div>
 
-
                     <div class="col-md-4">
-
                         <div class="summary-tile">
-
-                            <i class="fa-solid fa-calendar-check"
-                               style="color:#0d6efd;">
-                            </i>
-
-                            <h6>
-                                Date
-                            </h6>
-
-                            <small>
-                                @DateTime.Now.ToString("dd MMM yyyy")
-                            </small>
-
+                            <i class="fa-solid fa-calendar-check" style="color:#0d6efd;"></i>
+                            <h6>Date</h6>
+                            <small>@DateTime.Now.ToString("dd MMM yyyy")</small>
                         </div>
-
                     </div>
 
-
                     <div class="col-md-4">
-
                         <div class="summary-tile">
-
-                            <i class="fa-solid fa-clock"
-                               style="color:#009688;">
-                            </i>
-
-                            <h6>
-                                Time
-                            </h6>
-
-                            <small>
-                                @DateTime.Now.ToString("HH:mm")
-                            </small>
-
+                            <i class="fa-solid fa-clock" style="color:#0f9488;"></i>
+                            <h6>Time</h6>
+                            <small>@DateTime.Now.ToString("HH:mm")</small>
                         </div>
-
                     </div>
 
                 </div>
@@ -2572,38 +2104,25 @@
 
                 <div class="action-buttons">
 
-
-                    <a asp-action="Index"
-                       class="btn btn-back">
-
+                    <a asp-action="Index" class="btn btn-back">
                         <i class="fa-solid fa-arrow-left me-1"></i>
-
                         Back
-
                     </a>
-
 
                     <button type="submit"
                             name="Status"
                             value="To Be Reviewed"
                             class="btn btn-return">
-
                         <i class="fa-solid fa-rotate-left me-1"></i>
-
                         Return For Review
-
                     </button>
-
 
                     <button type="submit"
                             name="Status"
                             value="Verified"
                             class="btn btn-verify">
-
                         <i class="fa-solid fa-check-double me-1"></i>
-
                         Verify Result
-
                     </button>
 
                 </div>
@@ -2623,10 +2142,9 @@
 
     <script>
 
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
 
-            const notes =
-                document.getElementById("VerificationNotes");
+            const notes = document.getElementById("VerificationNotes");
 
             if (notes) {
                 notes.focus();
@@ -2635,4 +2153,4 @@
         });
 
     </script>
-}
+} 

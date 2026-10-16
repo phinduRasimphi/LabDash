@@ -181,25 +181,25 @@ namespace LabDash.Controllers
             }
 
             // -----------------------------------------------------
-            // UPDATE RESULT
+            // UPDATE THE CORRECTED RESULT
             // -----------------------------------------------------
             result.ResultValue = model.ResultValue;
             result.Units = model.Units;
             result.ReferenceRange = model.ReferenceRange;
             result.Comments = model.Comments;
-
             result.DateCaptured = DateTime.Now;
 
             // -----------------------------------------------------
-            // RESULT GOES BACK TO VERIFICATION
+            // SEND THE CORRECTED RESULT BACK TO VERIFICATION
             // -----------------------------------------------------
             result.Status = "Completed";
 
-            // The original technician is still the
-            // AssignedTechnicianId.
-
             item.Status = "Completed";
             item.CompletionDateTime = DateTime.Now;
+
+            // Do not increment ReviewReturnCount here.
+            // This action corrects a result that was already returned.
+            // The counter must increase when a verifier returns it again.
 
             await _context.SaveChangesAsync();
 

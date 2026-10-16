@@ -498,38 +498,32 @@ namespace LabDash.Controllers
 
 
 
+
             // ========================================================
             // RESULT RETURNED FOR REVIEW
             // ========================================================
 
             else
             {
-                result.Status =
-                    "To Be Reviewed";
-
+                result.Status = "To Be Reviewed";
 
                 // This technician did not verify it.
+                result.VerifiedByTechnicianId = null;
+                result.VerificationDate = null;
+                result.VerificationNote = verification.VerificationNotes;
 
-                result.VerifiedByTechnicianId =
-                    null;
+                // Update the test item status.
+                item.Status = "To Be Reviewed";
 
-                result.VerificationDate =
-                    null;
+                // Increment the counter every time the verifier
+                // returns this test for review.
+                item.ReviewReturnCount++;
 
-                result.VerificationNote =
-                    verification.VerificationNotes;
-
-
-                item.Status =
-                    "To Be Reviewed";
-
-
-                // Return the test to the technician
-                // who originally captured the result.
-
-                item.AssignedTechnicianId =
-                    result.CapturedByTechnicianId;
+                // Return the test to the technician who
+                // originally captured the result.
+                item.AssignedTechnicianId = result.CapturedByTechnicianId;
             }
+
 
 
 

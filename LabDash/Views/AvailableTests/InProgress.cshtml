@@ -22,43 +22,55 @@
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 <div class="progress-page">
 
     <!-- =========================================================
-         PAGE HEADER
+         BANNER
          ========================================================= -->
 
-    <div class="progress-header">
+    <div class="banner">
 
-        <div class="header-left">
+        <div class="banner-left">
 
-            <div class="header-icon">
-                <i class="fa-solid fa-flask-vial"></i>
+            <div class="banner-icon">
+                <i class="fa-solid fa-hourglass-half"></i>
             </div>
 
-            <div class="header-content">
-
-                <div class="header-eyebrow">
-                    <i class="fa-solid fa-circle"></i>
-                    LABORATORY WORK QUEUE
-                </div>
-
+            <div>
                 <h1>Tests in Progress</h1>
-
-                <p>
-                    Monitor and continue laboratory tests currently assigned to you.
-                </p>
-
+                <p>Monitor and continue laboratory tests currently assigned to you.</p>
             </div>
 
         </div>
 
-        <a asp-action="Index" class="available-tests-button">
-            <i class="fa-solid fa-arrow-left"></i>
-            <span>Available Tests</span>
-        </a>
+        <div class="banner-stats">
+
+            <div class="banner-stat">
+                <strong>@totalTests</strong>
+                <span>Active</span>
+            </div>
+
+            <div class="banner-stat">
+                <strong>@overdueTests</strong>
+                <span>Overdue</span>
+            </div>
+
+            <div class="banner-stat">
+                <strong>@onScheduleTests</strong>
+                <span>On schedule</span>
+            </div>
+
+            <a asp-action="Index" class="banner-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+                Available tests
+            </a>
+
+        </div>
 
     </div>
 
@@ -68,7 +80,7 @@
          ========================================================= -->
     @if (TempData["Success"] != null)
     {
-        <div class="progress-alert success-alert">
+        <div class="progress-alert success-alert" role="status">
 
             <div class="alert-icon">
                 <i class="fa-solid fa-circle-check"></i>
@@ -81,6 +93,7 @@
 
             <button type="button"
                     class="alert-close"
+                    aria-label="Dismiss"
                     onclick="this.parentElement.remove()">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -90,7 +103,7 @@
 
     @if (TempData["Error"] != null)
     {
-        <div class="progress-alert error-alert">
+        <div class="progress-alert error-alert" role="alert">
 
             <div class="alert-icon">
                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -103,110 +116,13 @@
 
             <button type="button"
                     class="alert-close"
+                    aria-label="Dismiss"
                     onclick="this.parentElement.remove()">
                 <i class="fa-solid fa-xmark"></i>
             </button>
 
         </div>
     }
-
-
-    <!-- =========================================================
-         SUMMARY STATISTICS
-         ========================================================= -->
-
-    <div class="statistics-grid">
-
-        <!-- ACTIVE -->
-        <div class="stat-card">
-
-            <div class="stat-icon teal-icon">
-                <i class="fa-solid fa-vials"></i>
-            </div>
-
-            <div class="stat-information">
-
-                <span class="stat-label">
-                    Active Tests
-                </span>
-
-                <strong class="stat-number">
-                    @totalTests
-                </strong>
-
-                <span class="stat-description">
-                    Currently assigned
-                </span>
-
-            </div>
-
-            <div class="stat-decoration">
-                <i class="fa-solid fa-flask"></i>
-            </div>
-
-        </div>
-
-
-        <!-- OVERDUE -->
-        <div class="stat-card">
-
-            <div class="stat-icon red-icon">
-                <i class="fa-solid fa-clock"></i>
-            </div>
-
-            <div class="stat-information">
-
-                <span class="stat-label">
-                    Overdue
-                </span>
-
-                <strong class="stat-number">
-                    @overdueTests
-                </strong>
-
-                <span class="stat-description">
-                    Require attention
-                </span>
-
-            </div>
-
-            <div class="stat-decoration">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-            </div>
-
-        </div>
-
-
-        <!-- ON SCHEDULE -->
-        <div class="stat-card">
-
-            <div class="stat-icon green-icon">
-                <i class="fa-solid fa-circle-check"></i>
-            </div>
-
-            <div class="stat-information">
-
-                <span class="stat-label">
-                    On Schedule
-                </span>
-
-                <strong class="stat-number">
-                    @onScheduleTests
-                </strong>
-
-                <span class="stat-description">
-                    Within turnaround time
-                </span>
-
-            </div>
-
-            <div class="stat-decoration">
-                <i class="fa-solid fa-chart-line"></i>
-            </div>
-
-        </div>
-
-    </div>
 
 
     <!-- =========================================================
@@ -228,1099 +144,758 @@
             currentPatientName = "Patient";
         }
 
-        <div class="current-test-wrapper">
+        <section class="panel current-panel">
 
-            <div class="current-test-card">
+            <div class="panel-head">
 
-                <!-- CURRENT HEADER -->
+                <div class="current-title">
 
-                <div class="current-header">
-
-                    <div class="current-header-left">
-
-                        <div class="current-flask">
-
-                            <div class="flask-pulse"></div>
-
-                            <i class="fa-solid fa-flask"></i>
-
-                        </div>
-
-                        <div>
-
-                            <div class="processing-label">
-                                <span class="live-dot"></span>
-                                CURRENT TEST BEING PROCESSED
-                            </div>
-
-                            <h2>
-                                @(currentTestType?.Name ?? "Laboratory Test")
-                            </h2>
-
-                            <p>
-                                @(currentTestType?.Category ?? "Laboratory")
-                            </p>
-
-                        </div>
-
+                    <div class="current-flask">
+                        <span class="flask-pulse"></span>
+                        <i class="fa-solid fa-flask"></i>
                     </div>
 
+                    <div>
+                        <span class="eyebrow">
+                            <span class="live-dot"></span>
+                            Current test being processed
+                        </span>
 
-                    <div class="current-status">
-
-                        <span class="status-dot"></span>
-
-                        <span>IN PROGRESS</span>
-
+                        <h2>@(currentTestType?.Name ?? "Laboratory Test")</h2>
                     </div>
 
                 </div>
 
+                <span class="status-badge progress-badge">
+                    <span class="mini-live-dot"></span>
+                    In progress
+                </span>
 
-                <!-- CURRENT TEST DETAILS -->
+            </div>
 
-                <div class="current-details">
+            <div class="current-details">
 
-                    <!-- TEST -->
-
-                    <div class="current-detail">
-
-                        <div class="detail-icon">
-                            <i class="fa-solid fa-flask"></i>
-                        </div>
-
-                        <div class="detail-content">
-
-                            <span>TEST TYPE</span>
-
-                            <strong>
-                                @(currentTestType?.Name ?? "Not specified")
-                            </strong>
-
-                        </div>
-
+                <div class="current-detail">
+                    <div class="detail-icon"><i class="fa-solid fa-layer-group"></i></div>
+                    <div class="detail-content">
+                        <span>Category</span>
+                        <strong>@(currentTestType?.Category ?? "Laboratory")</strong>
                     </div>
-
-
-                    <!-- SAMPLE -->
-
-                    <div class="current-detail">
-
-                        <div class="detail-icon">
-                            <i class="fa-solid fa-vial"></i>
-                        </div>
-
-                        <div class="detail-content">
-
-                            <span>SAMPLE</span>
-
-                            <strong>
-                                @(currentTestType?.RequiredSampleType ?? "Not specified")
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-
-                    <!-- PATIENT -->
-
-                    <div class="current-detail">
-
-                        <div class="detail-icon">
-                            <i class="fa-solid fa-user"></i>
-                        </div>
-
-                        <div class="detail-content">
-
-                            <span>PATIENT</span>
-
-                            <strong>
-                                @currentPatientName
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-
-                    <!-- STARTED -->
-
-                    <div class="current-detail">
-
-                        <div class="detail-icon">
-                            <i class="fa-solid fa-play"></i>
-                        </div>
-
-                        <div class="detail-content">
-
-                            <span>STARTED</span>
-
-                            <strong>
-                                @(currentTest.StartDateTime?.ToString("dd MMM yyyy HH:mm") ?? "Not started")
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-
-                    <!-- COUNTDOWN -->
-
-                    <div class="current-detail countdown-detail">
-
-                        <div class="detail-icon countdown-icon">
-                            <i class="fa-solid fa-stopwatch"></i>
-                        </div>
-
-                        <div class="detail-content">
-
-                            <span>TIME REMAINING</span>
-
-                            @if (currentTest.StartDateTime.HasValue &&
-                                 currentTestType != null)
-                            {
-                                <strong id="currentCountdown"
-                                        class="countdown-display"
-                                        data-start="@currentTest.StartDateTime.Value.ToString("yyyy-MM-ddTHH:mm:ss")"
-                                        data-turnaround="@currentTestType.TurnaroundTimeMinutes">
-
-                                    Calculating...
-
-                                </strong>
-                            }
-                            else
-                            {
-                                <strong class="countdown-display">
-                                    Not started
-                                </strong>
-                            }
-
-                        </div>
-
-                    </div>
-
                 </div>
 
-
-                <!-- CURRENT FOOTER -->
-
-                <div class="current-footer">
-
-                    <div class="current-message">
-
-                        <div class="message-icon">
-                            <i class="fa-solid fa-info"></i>
-                        </div>
-
-                        <div>
-
-                            <strong>Test currently assigned to you</strong>
-
-                            <span>
-                                Continue processing this laboratory test or capture its results when ready.
-                            </span>
-
-                        </div>
-
+                <div class="current-detail">
+                    <div class="detail-icon"><i class="fa-solid fa-vial"></i></div>
+                    <div class="detail-content">
+                        <span>Sample</span>
+                        <strong>@(currentTestType?.RequiredSampleType ?? "Not specified")</strong>
                     </div>
+                </div>
 
-                    <a asp-action="ProcessTest"
-                       asp-route-id="@currentTest.TestRequestItemId"
-                       class="continue-current-button">
+                <div class="current-detail">
+                    <div class="detail-icon"><i class="fa-solid fa-user"></i></div>
+                    <div class="detail-content">
+                        <span>Patient</span>
+                        <strong>@currentPatientName</strong>
+                    </div>
+                </div>
 
-                        <span>Continue Test</span>
+                <div class="current-detail">
+                    <div class="detail-icon"><i class="fa-solid fa-play"></i></div>
+                    <div class="detail-content">
+                        <span>Started</span>
+                        <strong>
+                            @(currentTest.StartDateTime?.ToString("dd MMM yyyy HH:mm") ?? "Not started")
+                        </strong>
+                    </div>
+                </div>
 
-                        <i class="fa-solid fa-arrow-right"></i>
+                <div class="current-detail countdown-detail">
+                    <div class="detail-icon"><i class="fa-solid fa-stopwatch"></i></div>
+                    <div class="detail-content">
+                        <span>Time remaining</span>
 
-                    </a>
-
+                        @if (currentTest.StartDateTime.HasValue &&
+                             currentTestType != null)
+                        {
+                            <strong id="currentCountdown"
+                                    class="countdown-display"
+                                    data-start="@currentTest.StartDateTime.Value.ToString("yyyy-MM-ddTHH:mm:ss")"
+                                    data-turnaround="@currentTestType.TurnaroundTimeMinutes">
+                                Calculating...
+                            </strong>
+                        }
+                        else
+                        {
+                            <strong class="countdown-display">Not started</strong>
+                        }
+                    </div>
                 </div>
 
             </div>
 
-        </div>
+            <div class="current-footer">
+
+                <div class="current-message">
+
+                    <div class="message-icon">
+                        <i class="fa-solid fa-info"></i>
+                    </div>
+
+                    <div>
+                        <strong>Test currently assigned to you</strong>
+                        <span>Continue processing this test or capture its results when ready.</span>
+                    </div>
+
+                </div>
+
+                <a asp-action="ProcessTest"
+                   asp-route-id="@currentTest.TestRequestItemId"
+                   class="primary-btn">
+                    Continue test
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+
+            </div>
+
+        </section>
     }
 
 
     <!-- =========================================================
-         SEARCH / TOOLBAR
+         ACTIVE TESTS TABLE
          ========================================================= -->
 
-    <div class="queue-toolbar">
+    <section class="panel">
 
-        <div class="queue-heading">
+        <div class="panel-head">
 
-            <div class="queue-heading-icon">
+            <h2 class="panel-title">
                 <i class="fa-solid fa-list-check"></i>
-            </div>
+                Active laboratory tests
+            </h2>
 
-            <div>
-
-                <h2>Active Laboratory Tests</h2>
-
-                <p>
-                    Tests currently assigned to your work queue
-                </p>
-
-            </div>
-
-            <span class="queue-count">
-                @totalTests
+            <span class="count-pill">
+                @totalTests @(totalTests == 1 ? "test" : "tests")
             </span>
 
         </div>
 
+        <div class="panel-body">
 
-        <div class="search-container">
+            <div class="search-field">
 
-            <i class="fa-solid fa-magnifying-glass"></i>
+                <i class="fa-solid fa-magnifying-glass"></i>
 
-            <input type="text"
-                   id="searchInput"
-                   class="search-input"
-                   placeholder="Search patient, ID or laboratory test..."
-                   autocomplete="off" />
+                <input type="text"
+                       id="searchInput"
+                       aria-label="Search active tests"
+                       placeholder="Search patient, ID or laboratory test..."
+                       autocomplete="off" />
 
-            <button type="button"
-                    id="clearSearch"
-                    class="clear-search"
-                    title="Clear search">
+                <button type="button"
+                        id="clearSearch"
+                        class="clear-search"
+                        aria-label="Clear search">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
 
-                <i class="fa-solid fa-xmark"></i>
+            </div>
 
-            </button>
+            <div class="table-wrap">
 
-        </div>
+                <table class="progress-table">
 
-    </div>
+                    <thead>
+                        <tr>
+                            <th>Patient</th>
+                            <th>Laboratory test</th>
+                            <th>Started</th>
+                            <th>Turnaround</th>
+                            <th>Status</th>
+                            <th class="actions-heading">Actions</th>
+                        </tr>
+                    </thead>
 
+                    <tbody id="progressTable">
 
-    <!-- =========================================================
-         TABLE
-         ========================================================= -->
-
-    <div class="table-card">
-
-        <div class="table-responsive">
-
-            <table class="progress-table">
-
-                <thead>
-
-                    <tr>
-
-                        <th>Patient</th>
-
-                        <th>Laboratory Test</th>
-
-                        <th>Started</th>
-
-                        <th>Turnaround</th>
-
-                        <th>Status</th>
-
-                        <th class="actions-heading">
-                            Actions
-                        </th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody id="progressTable">
-
-                    @foreach (var item in tests)
-                    {
-                        var testType = item.TestType;
-
-                        var patient = item.TestRequest?.Patient;
-
-                        var patientName =
-                            $"{patient?.Name} {patient?.Surname}".Trim();
-
-                        if (string.IsNullOrWhiteSpace(patientName))
+                        @foreach (var item in tests)
                         {
-                            patientName = "Unknown Patient";
+                            var testType = item.TestType;
+
+                            var patient = item.TestRequest?.Patient;
+
+                            var patientName =
+                                $"{patient?.Name} {patient?.Surname}".Trim();
+
+                            if (string.IsNullOrWhiteSpace(patientName))
+                            {
+                                patientName = "Unknown Patient";
+                            }
+
+                            var turnaround =
+                                testType?.TurnaroundTimeMinutes ?? 0;
+
+                            var expectedCompletion =
+                                item.StartDateTime.HasValue
+                                    ? item.StartDateTime.Value.AddMinutes(turnaround)
+                                    : DateTime.Now;
+
+                            var isOverdue =
+                                item.StartDateTime.HasValue &&
+                                DateTime.Now > expectedCompletion;
+
+                            var isCurrent =
+                                currentTest != null &&
+                                item.TestRequestItemId ==
+                                currentTest.TestRequestItemId;
+
+                            var firstInitial =
+                                patient?.Name?.FirstOrDefault() ?? 'P';
+
+                            var secondInitial =
+                                patient?.Surname?.FirstOrDefault() ?? 'A';
+
+                            var initials =
+                                $"{firstInitial}{secondInitial}".ToUpper();
+
+                            var rowClass =
+                                (isOverdue ? "overdue-row " : "") +
+                                (isCurrent ? "current-row" : "");
+
+                            var searchText =
+                                $"{patientName} {patient?.IDNumber} {testType?.Name} {testType?.Category} {item.Status}";
+
+                            <tr class="@rowClass.Trim()" data-search="@searchText">
+
+                                <!-- PATIENT -->
+
+                                <td>
+                                    <div class="patient-cell">
+
+                                        <div class="patient-avatar">@initials</div>
+
+                                        <div class="patient-information">
+
+                                            <strong>@patientName</strong>
+
+                                            @if (!string.IsNullOrWhiteSpace(patient?.IDNumber))
+                                            {
+                                                <small>
+                                                    <i class="fa-regular fa-id-card"></i>
+                                                    @patient.IDNumber
+                                                </small>
+                                            }
+                                            else
+                                            {
+                                                <small>Patient information</small>
+                                            }
+
+                                        </div>
+
+                                    </div>
+                                </td>
+
+
+                                <!-- TEST -->
+
+                                <td>
+                                    <strong class="test-name">
+                                        @(testType?.Name ?? "Unknown Test")
+                                    </strong>
+
+                                    <span class="category-tag">
+                                        @(testType?.Category ?? "Laboratory")
+                                    </span>
+                                </td>
+
+
+                                <!-- STARTED -->
+
+                                <td>
+                                    @if (item.StartDateTime.HasValue)
+                                    {
+                                        <span class="date-text">
+                                            @item.StartDateTime.Value.ToString("dd MMM yyyy")
+                                        </span>
+
+                                        <small class="sub-text">
+                                            @item.StartDateTime.Value.ToString("HH:mm")
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <span class="date-text">Not started</span>
+                                    }
+                                </td>
+
+
+                                <!-- TURNAROUND -->
+
+                                <td>
+                                    @if (isOverdue)
+                                    {
+                                        <span class="status-badge overdue-badge">
+                                            <i class="fa-solid fa-clock"></i>
+                                            Overdue
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-badge turnaround-badge">
+                                            <i class="fa-solid fa-stopwatch"></i>
+                                            @turnaround min
+                                        </span>
+                                    }
+
+                                    <small class="due-time @(isOverdue ? "due-overdue" : "")">
+                                        Due @expectedCompletion.ToString("dd MMM HH:mm")
+                                    </small>
+                                </td>
+
+
+                                <!-- STATUS -->
+
+                                <td>
+                                    @if (isCurrent)
+                                    {
+                                        <span class="status-badge progress-badge">
+                                            <span class="mini-live-dot"></span>
+                                            In progress
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-badge standard-status">
+                                            <i class="fa-solid fa-circle"></i>
+                                            @item.Status
+                                        </span>
+                                    }
+                                </td>
+
+
+                                <!-- ACTIONS -->
+
+                                <td>
+                                    <div class="action-buttons">
+
+                                        <a asp-action="ProcessTest"
+                                           asp-route-id="@item.TestRequestItemId"
+                                           class="action-button continue-button">
+                                            <i class="fa-solid fa-arrow-right"></i>
+                                            Continue
+                                        </a>
+
+                                        <a asp-controller="CaptureResults"
+                                           asp-action="Capture"
+                                           asp-route-id="@item.TestRequestItemId"
+                                           class="action-button results-button">
+                                            <i class="fa-solid fa-vial-circle-check"></i>
+                                            Results
+                                        </a>
+
+                                    </div>
+                                </td>
+
+                            </tr>
                         }
 
-                        var turnaround =
-                            testType?.TurnaroundTimeMinutes ?? 0;
 
-                        var expectedCompletion =
-                            item.StartDateTime.HasValue
-                                ? item.StartDateTime.Value.AddMinutes(turnaround)
-                                : DateTime.Now;
+                        @if (!tests.Any())
+                        {
+                            <tr class="empty-row">
+                                <td colspan="6">
 
-                        var isOverdue =
-                            item.StartDateTime.HasValue &&
-                            DateTime.Now > expectedCompletion;
-
-                        var isCurrent =
-                            currentTest != null &&
-                            item.TestRequestItemId ==
-                            currentTest.TestRequestItemId;
-
-                        var firstInitial =
-                            patient?.Name?.FirstOrDefault() ?? 'P';
-
-                        var secondInitial =
-                            patient?.Surname?.FirstOrDefault() ?? 'A';
-
-                        var initials =
-                            $"{firstInitial}{secondInitial}".ToUpper();
-
-                        <tr class="
-                            @(isOverdue ? "overdue-row" : "")
-                            @(isCurrent ? "current-row" : "")
-                            "
-                            data-search="
-                            @patientName
-                            @(patient?.IDNumber ?? "")
-                            @(testType?.Name ?? "")
-                            @(testType?.Category ?? "")
-                            @item.Status
-                            ">
-
-                            <!-- PATIENT -->
-
-                            <td>
-
-                                <div class="patient-cell">
-
-                                    <div class="patient-avatar">
-                                        @initials
-                                    </div>
-
-                                    <div class="patient-information">
-
-                                        <strong>
-                                            @patientName
-                                        </strong>
-
-                                        @if (!string.IsNullOrWhiteSpace(patient?.IDNumber))
-                                        {
-                                            <small>
-                                                <i class="fa-regular fa-id-card"></i>
-                                                @patient.IDNumber
-                                            </small>
-                                        }
-                                        else
-                                        {
-                                            <small>
-                                                Patient information
-                                            </small>
-                                        }
-
-                                    </div>
-
-                                </div>
-
-                            </td>
-
-
-                            <!-- TEST -->
-
-                            <td>
-
-                                <div class="test-cell">
-
-                                    <div class="test-icon">
-                                        <i class="fa-solid fa-flask-vial"></i>
-                                    </div>
-
-                                    <div>
-
-                                        <strong>
-                                            @(testType?.Name ?? "Unknown Test")
-                                        </strong>
-
-                                        <small>
-                                            @(testType?.Category ?? "Laboratory")
-                                        </small>
-
-                                    </div>
-
-                                </div>
-
-                            </td>
-
-
-                            <!-- STARTED -->
-
-                            <td>
-
-                                <div class="started-cell">
-
-                                    <i class="fa-regular fa-calendar"></i>
-
-                                    <div>
-
-                                        @if (item.StartDateTime.HasValue)
-                                        {
-                                            <strong>
-                                                @item.StartDateTime.Value.ToString("dd MMM yyyy")
-                                            </strong>
-
-                                            <small>
-                                                @item.StartDateTime.Value.ToString("HH:mm")
-                                            </small>
-                                        }
-                                        else
-                                        {
-                                            <strong>
-                                                Not started
-                                            </strong>
-                                        }
-
-                                    </div>
-
-                                </div>
-
-                            </td>
-
-
-                            <!-- TURNAROUND -->
-
-                            <td>
-
-                                @if (isOverdue)
-                                {
-                                    <span class="status-badge overdue-badge">
-
-                                        <i class="fa-solid fa-clock"></i>
-
-                                        Overdue
-
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="status-badge turnaround-badge">
-
-                                        <i class="fa-solid fa-stopwatch"></i>
-
-                                        @turnaround min
-
-                                    </span>
-                                }
-
-                                <small class="due-time @(isOverdue ? "due-overdue" : "")">
-
-                                    <i class="fa-regular fa-clock"></i>
-
-                                    Due @expectedCompletion.ToString("dd MMM HH:mm")
-
-                                </small>
-
-                            </td>
-
-
-                            <!-- STATUS -->
-
-                            <td>
-
-                                @if (isCurrent)
-                                {
-                                    <span class="status-badge progress-badge">
-
-                                        <span class="mini-live-dot"></span>
-
-                                        In Progress
-
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="status-badge standard-status">
-
-                                        <i class="fa-solid fa-circle"></i>
-
-                                        @item.Status
-
-                                    </span>
-                                }
-
-                            </td>
-
-
-                            <!-- ACTIONS -->
-
-                            <td>
-
-                                <div class="action-buttons">
-
-                                    <a asp-action="ProcessTest"
-                                       asp-route-id="@item.TestRequestItemId"
-                                       class="action-button continue-button">
-
-                                        <i class="fa-solid fa-arrow-right"></i>
-
-                                        <span>Continue</span>
-
-                                    </a>
-
-                                    <a asp-controller="CaptureResults"
-                                       asp-action="Capture"
-                                       asp-route-id="@item.TestRequestItemId"
-                                       class="action-button results-button">
-
-                                        <i class="fa-solid fa-vial-circle-check"></i>
-
-                                        <span>Results</span>
-
-                                    </a>
-
-                                </div>
-
-                            </td>
-
-                        </tr>
-                    }
-
-
-                    <!-- =====================================================
-                         EMPTY STATE
-                         ===================================================== -->
-                    @if (!tests.Any())
-                    {
-                        <tr class="empty-row">
-
-                            <td colspan="6">
-
-                                <div class="empty-state">
-
-                                    <div class="empty-icon">
+                                    <div class="empty-state">
 
                                         <i class="fa-solid fa-circle-check"></i>
 
+                                        <h3>No active tests</h3>
+
+                                        <p>You currently have no laboratory tests in progress.</p>
+
+                                        <a asp-action="Index" class="primary-btn">
+                                            <i class="fa-solid fa-flask-vial"></i>
+                                            View available tests
+                                        </a>
+
                                     </div>
 
-                                    <h3>No Active Tests</h3>
+                                </td>
+                            </tr>
+                        }
 
-                                    <p>
-                                        You currently have no laboratory tests in progress.
-                                    </p>
+                    </tbody>
 
-                                    <a asp-action="Index"
-                                       class="empty-button">
+                </table>
 
-                                        <i class="fa-solid fa-flask-vial"></i>
-
-                                        View Available Tests
-
-                                    </a>
-
-                                </div>
-
-                            </td>
-
-                        </tr>
-                    }
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-
-        <!-- NO SEARCH RESULTS -->
-
-        <div id="noSearchResults"
-             class="search-empty"
-             style="display:none;">
-
-            <div class="search-empty-icon">
-                <i class="fa-solid fa-magnifying-glass"></i>
             </div>
 
-            <h3>No matching tests</h3>
+            <!-- NO SEARCH RESULTS -->
 
-            <p>
-                No active laboratory tests match your search.
-            </p>
+            <div id="noSearchResults"
+                 class="empty-state"
+                 style="display:none;">
 
-            <button type="button"
-                    id="resetSearch"
-                    class="reset-search-button">
+                <i class="fa-solid fa-magnifying-glass"></i>
 
-                Clear Search
+                <h3>No matching tests</h3>
 
-            </button>
+                <p>No active laboratory tests match your search.</p>
+
+                <button type="button"
+                        id="resetSearch"
+                        class="primary-btn">
+                    Clear search
+                </button>
+
+            </div>
 
         </div>
 
-    </div>
+    </section>
 
 </div>
 
 
 <style>
 
-    /* =========================================================
-           COLOUR SYSTEM
-           ========================================================= */
-
     :root {
-        --lab-teal: #0E8C7F;
-        --lab-teal-dark: #0A5850;
-        --lab-teal-deep: #064B45;
-        --lab-teal-light: #E5F4F1;
-        --lab-teal-soft: #F1FAF8;
-        --lab-paper: #F3F8F7;
-        --lab-white: #FFFFFF;
-        --lab-text: #14302C;
-        --lab-text-soft: #55716C;
-        --lab-text-muted: #8CA5A0;
-        --lab-border: #DCEAE7;
-        --lab-border-dark: #C9DDD9;
-        --lab-red: #B0463F;
-        --lab-red-light: #F8E9E8;
-        --lab-gold: #B4862A;
-        --lab-gold-light: #FBF1DA;
-        --lab-green: #16856F;
-        --lab-green-light: #E4F4EF;
-        --radius-lg: 20px;
-        --radius-md: 14px;
-        --radius-sm: 10px;
-        --shadow: 0 8px 30px rgba(10, 88, 80, 0.07);
-        --shadow-small: 0 3px 12px rgba(10, 88, 80, 0.06);
+        --teal: #0f9488;
+        --teal-dark: #0b7a70;
+        --teal-deep: #0a5f58;
+        --teal-light: #e1f3f0;
+        --teal-soft: #f2f8f7;
+        --teal-border: #dbe9e7;
+        --text: #12302f;
+        --muted: #6f8584;
+        --page-bg: #eaf1f1;
+        --red: #a32626;
+        --red-bg: #fde8e8;
+        --red-border: #f5c6c6;
+        --gold: #8f5a00;
+        --gold-bg: #fff3dc;
+        --gold-border: #f3d9a0;
+        --green: #17814a;
+        --green-bg: #e4f6ec;
+        --blue: #22719a;
+        --blue-bg: #e4f2f9;
     }
-
-
-    /* =========================================================
-           PAGE
-           ========================================================= */
 
     .progress-page {
-        max-width: 1240px;
-        margin: 0 auto;
-        padding: 26px 0 70px;
-        color: var(--lab-text);
-        font-family: 'Inter', sans-serif;
+        width: 100%;
+        padding: 28px 32px 48px;
+        background: var(--page-bg);
+        min-height: 100vh;
+        overflow-x: hidden;
+        color: var(--text);
+        font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+        -webkit-font-smoothing: antialiased;
     }
 
+        .progress-page *,
+        .progress-page *::before,
+        .progress-page *::after {
+            box-sizing: border-box;
+        }
 
-    /* =========================================================
-           HEADER
-           ========================================================= */
 
-    .progress-header {
+    /* BANNER */
+
+    .banner {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 24px;
-        padding: 26px 30px;
-        margin-bottom: 22px;
-        border-radius: var(--radius-lg);
-        background: linear-gradient( 125deg, var(--lab-teal), var(--lab-teal-dark) );
-        box-shadow: var(--shadow);
-        position: relative;
-        overflow: hidden;
+        flex-wrap: wrap;
+        padding: 24px 32px;
+        margin-bottom: 24px;
+        border-radius: 24px;
+        color: #fff;
+        background: linear-gradient(135deg, #129a8d 0%, #0b7068 100%);
+        box-shadow: 0 14px 34px rgba(10, 95, 88, .22);
     }
 
-
-        .progress-header::after {
-            content: "";
-            position: absolute;
-            width: 240px;
-            height: 240px;
-            right: -100px;
-            top: -130px;
-            border-radius: 50%;
-            background: rgba(255,255,255,.07);
-        }
-
-
-    .header-left {
+    .banner-left {
         display: flex;
         align-items: center;
         gap: 18px;
-        position: relative;
-        z-index: 1;
+        min-width: 0;
     }
 
-
-    .header-icon {
+    .banner-icon {
         width: 58px;
         height: 58px;
-        flex-shrink: 0;
+        flex: 0 0 58px;
         border-radius: 17px;
+        background: rgba(255, 255, 255, .16);
+        border: 1px solid rgba(255, 255, 255, .38);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #fff;
-        font-size: 23px;
-        background: rgba(255,255,255,.15);
-        border: 1px solid rgba(255,255,255,.32);
+        font-size: 24px;
     }
 
-
-    .header-content h1 {
-        margin: 3px 0 4px;
-        color: #fff;
-        font-family: 'Poppins', sans-serif;
-        font-size: 27px;
+    .banner h1 {
+        margin: 0 0 4px;
+        font-size: 24px;
         font-weight: 800;
-        letter-spacing: -.02em;
+        letter-spacing: -.01em;
+        color: #fff;
     }
 
-
-    .header-content p {
+    .banner p {
         margin: 0;
-        color: rgba(255,255,255,.82);
-        font-size: 14px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, .86);
     }
 
-
-    .header-eyebrow {
+    .banner-stats {
         display: flex;
         align-items: center;
-        gap: 7px;
-        color: rgba(255,255,255,.72);
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: .12em;
+        gap: 32px;
+        flex-wrap: wrap;
     }
 
+    .banner-stat {
+        text-align: center;
+    }
 
-        .header-eyebrow i {
-            color: #A7F1E6;
-            font-size: 6px;
+        .banner-stat strong {
+            display: block;
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.1;
         }
 
+        .banner-stat span {
+            display: block;
+            margin-top: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, .78);
+        }
 
-    .available-tests-button {
+    .banner-btn {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        padding: 11px 18px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,.4);
-        background: rgba(255,255,255,.12);
-        color: #fff;
+        gap: 9px;
+        padding: 12px 22px;
+        border-radius: 14px;
+        background: #fff;
+        color: var(--teal-deep);
+        font-size: 13.5px;
+        font-weight: 800;
         text-decoration: none;
-        font-size: 13px;
-        font-weight: 600;
-        transition: .2s;
         white-space: nowrap;
-        position: relative;
-        z-index: 2;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, .12);
+        transition: transform .15s ease;
     }
 
-
-        .available-tests-button:hover {
-            background: rgba(255,255,255,.23);
-            color: #fff;
+        .banner-btn:hover {
+            color: var(--teal-deep);
             transform: translateY(-1px);
         }
 
 
-    /* =========================================================
-           ALERTS
-           ========================================================= */
+    /* ALERTS */
 
     .progress-alert {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 14px 17px;
-        margin-bottom: 20px;
-        border-radius: var(--radius-md);
+        gap: 14px;
+        padding: 14px 18px;
+        margin-bottom: 22px;
+        border-radius: 16px;
         border: 1px solid transparent;
     }
 
-
     .success-alert {
-        background: var(--lab-teal-light);
-        color: var(--lab-teal-deep);
-        border-color: #C8E5E0;
+        background: var(--green-bg);
+        color: var(--green);
+        border-color: #bfe6cf;
     }
-
 
     .error-alert {
-        background: var(--lab-red-light);
-        color: #7A312C;
-        border-color: #EBCBC8;
+        background: var(--red-bg);
+        color: var(--red);
+        border-color: var(--red-border);
     }
 
-
     .alert-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        background: rgba(255, 255, 255, .65);
     }
-
-
-    .success-alert .alert-icon {
-        background: #D2EEE9;
-    }
-
-
-    .error-alert .alert-icon {
-        background: #F2D9D7;
-    }
-
 
     .alert-content {
         flex: 1;
         display: flex;
         flex-direction: column;
         gap: 2px;
-        font-size: 13px;
+        font-size: 13.5px;
+        font-weight: 500;
     }
 
-
         .alert-content strong {
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: 800;
         }
-
-
-        .alert-content span {
-            opacity: .85;
-        }
-
 
     .alert-close {
-        border: none;
+        border: 0;
         background: transparent;
         color: inherit;
         cursor: pointer;
-        opacity: .55;
+        opacity: .6;
+        padding: 6px;
     }
-
 
         .alert-close:hover {
             opacity: 1;
         }
 
 
-    /* =========================================================
-           STATISTICS
-           ========================================================= */
+    /* PANELS */
 
-    .statistics-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+    .panel {
+        min-width: 0;
         margin-bottom: 24px;
-    }
-
-
-    .stat-card {
-        background: var(--lab-white);
-        border: 1px solid var(--lab-border);
-        border-radius: var(--radius-lg);
-        padding: 20px;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        position: relative;
+        background: #fff;
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(8, 70, 66, .07);
         overflow: hidden;
-        box-shadow: var(--shadow-small);
-        transition: transform .18s, box-shadow .18s;
     }
 
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow);
-        }
-
-
-    .stat-icon {
-        width: 51px;
-        height: 51px;
-        border-radius: 15px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        flex-shrink: 0;
-    }
-
-
-    .teal-icon {
-        background: var(--lab-teal-light);
-        color: var(--lab-teal);
-    }
-
-
-    .red-icon {
-        background: var(--lab-red-light);
-        color: var(--lab-red);
-    }
-
-
-    .green-icon {
-        background: var(--lab-green-light);
-        color: var(--lab-green);
-    }
-
-
-    .stat-information {
-        position: relative;
-        z-index: 2;
-    }
-
-
-    .stat-label {
-        display: block;
-        color: var(--lab-text-muted);
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-        margin-bottom: 2px;
-    }
-
-
-    .stat-number {
-        display: block;
-        color: var(--lab-text);
-        font-family: 'Poppins', sans-serif;
-        font-size: 27px;
-        line-height: 1.15;
-        font-weight: 800;
-    }
-
-
-    .stat-description {
-        display: block;
-        color: var(--lab-text-muted);
-        font-size: 11px;
-        margin-top: 3px;
-    }
-
-
-    .stat-decoration {
-        position: absolute;
-        right: -10px;
-        bottom: -16px;
-        font-size: 75px;
-        opacity: .035;
-        color: var(--lab-teal);
-    }
-
-
-    /* =========================================================
-           CURRENT TEST
-           ========================================================= */
-
-    .current-test-wrapper {
-        margin-bottom: 28px;
-    }
-
-
-    .current-test-card {
-        overflow: hidden;
-        background: var(--lab-white);
-        border: 2px solid var(--lab-teal);
-        border-radius: var(--radius-lg);
-        box-shadow: 0 10px 35px rgba(10,88,80,.12);
-        position: relative;
-    }
-
-
-        .current-test-card::before {
-            content: "";
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 5px;
-            background: var(--lab-teal);
-            z-index: 5;
-        }
-
-
-    .current-header {
+    .panel-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 20px;
-        padding: 22px 26px;
-        background: linear-gradient( 120deg, var(--lab-teal), var(--lab-teal-dark) );
-        color: #fff;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 22px 32px;
+        border-bottom: 1px solid var(--teal-border);
+    }
+
+    .panel-title {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: 0;
+        font-size: 17px;
+        font-weight: 800;
+        color: var(--text);
+    }
+
+        .panel-title i {
+            color: var(--teal);
+            font-size: 18px;
+        }
+
+    .count-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: var(--teal-light);
+        color: var(--teal-dark);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .panel-body {
+        padding: 22px 32px 12px;
     }
 
 
-    .current-header-left {
+    /* CURRENT TEST */
+
+    .current-panel {
+        border-left: 5px solid var(--teal);
+    }
+
+    .current-title {
         display: flex;
         align-items: center;
         gap: 16px;
+        min-width: 0;
     }
 
+        .current-title h2 {
+            margin: 4px 0 0;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--teal-deep);
+            overflow-wrap: anywhere;
+        }
 
     .current-flask {
-        width: 55px;
-        height: 55px;
-        border-radius: 50%;
+        position: relative;
+        width: 54px;
+        height: 54px;
+        flex: 0 0 54px;
+        border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
-        position: relative;
-        background: rgba(255,255,255,.15);
-        border: 2px solid rgba(255,255,255,.35);
+        background: linear-gradient(135deg, #129a8d, #0a5f58);
+        color: #fff;
         font-size: 21px;
-        flex-shrink: 0;
+        box-shadow: 0 8px 18px rgba(10, 95, 88, .25);
     }
-
 
     .flask-pulse {
         position: absolute;
         inset: -5px;
-        border-radius: 50%;
-        border: 2px solid rgba(167,241,230,.35);
-        animation: flaskPulse 2s infinite;
+        border-radius: 20px;
+        border: 2px solid rgba(15, 148, 136, .35);
+        animation: flaskPulse 2.2s infinite;
     }
-
 
     @@keyframes flaskPulse {
 
         0% {
-            transform: scale(.9);
+            transform: scale(.94);
             opacity: .8;
         }
 
-        70% {
-            transform: scale(1.18);
-            opacity: 0;
-        }
-
-        100% {
-            transform: scale(1.18);
+        70%, 100% {
+            transform: scale(1.14);
             opacity: 0;
         }
     }
 
-
-    .processing-label {
+    .eyebrow {
         display: flex;
         align-items: center;
-        gap: 7px;
-        margin-bottom: 3px;
-        font-size: 10px;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 11px;
         font-weight: 700;
-        letter-spacing: .12em;
-        color: rgba(255,255,255,.75);
+        letter-spacing: .06em;
+        text-transform: uppercase;
     }
 
-
-    .live-dot {
+    .live-dot,
+    .mini-live-dot {
         width: 7px;
         height: 7px;
         border-radius: 50%;
-        background: #9FF3E8;
-        box-shadow: 0 0 0 4px rgba(159,243,232,.13);
-        animation: livePulse 1.5s infinite;
+        background: var(--teal);
+        box-shadow: 0 0 0 4px rgba(15, 148, 136, .14);
     }
 
+    .live-dot {
+        animation: livePulse 1.6s infinite;
+    }
 
     @@keyframes livePulse {
 
@@ -1333,981 +908,559 @@
         }
     }
 
-
-    .current-header h2 {
-        margin: 0;
-        color: #fff;
-        font-family: 'Poppins', sans-serif;
-        font-size: 24px;
-        font-weight: 800;
-    }
-
-
-    .current-header p {
-        margin: 2px 0 0;
-        color: rgba(255,255,255,.8);
-        font-size: 12px;
-    }
-
-
-    .current-status {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 9px 15px;
-        border-radius: 999px;
-        background: rgba(255,255,255,.13);
-        border: 1px solid rgba(255,255,255,.34);
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: .04em;
-        white-space: nowrap;
-    }
-
-
-    .status-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: #A7F1E6;
-        box-shadow: 0 0 0 4px rgba(167,241,230,.15);
-    }
-
-
-    /* =========================================================
-           CURRENT DETAILS
-           ========================================================= */
-
     .current-details {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        padding: 6px 12px;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 14px;
+        padding: 24px 32px 8px;
     }
-
 
     .current-detail {
         display: flex;
         align-items: center;
-        gap: 11px;
+        gap: 12px;
         min-width: 0;
-        padding: 18px 13px;
-        border-right: 1px solid var(--lab-border);
+        padding: 15px 16px;
+        background: #fff;
+        border: 1px solid var(--teal-border);
+        border-radius: 16px;
     }
 
-
-        .current-detail:last-child {
-            border-right: none;
-        }
-
-
     .detail-icon {
-        width: 37px;
-        height: 37px;
-        border-radius: 10px;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
-        color: var(--lab-teal);
-        background: var(--lab-teal-light);
-        font-size: 14px;
+        color: var(--teal);
+        background: var(--teal-light);
+        font-size: 15px;
     }
-
-
-    .countdown-icon {
-        background: #E0F3EF;
-    }
-
 
     .detail-content {
         min-width: 0;
     }
 
-
         .detail-content span {
             display: block;
-            margin-bottom: 4px;
-            color: var(--lab-text-muted);
-            font-size: 9px;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 11px;
             font-weight: 700;
-            letter-spacing: .08em;
+            letter-spacing: .06em;
+            text-transform: uppercase;
         }
-
 
         .detail-content strong {
             display: block;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            color: var(--lab-text);
-            font-size: 12.5px;
+            color: var(--text);
+            font-size: 13.5px;
             font-weight: 700;
         }
 
-
     .countdown-detail {
-        background: var(--lab-teal-soft);
+        background: var(--teal-light);
+        border-color: #c5e4df;
     }
 
+        .countdown-detail .detail-icon {
+            background: #fff;
+        }
 
     .countdown-display {
-        color: var(--lab-teal) !important;
-        font-family: 'Poppins', sans-serif;
+        color: var(--teal-dark) !important;
         font-size: 15px !important;
         font-weight: 800 !important;
     }
 
-
         .countdown-display.warning {
-            color: var(--lab-gold) !important;
+            color: var(--gold) !important;
         }
 
-
-        .countdown-display.danger {
-            color: var(--lab-red) !important;
-        }
-
-
+        .countdown-display.danger,
         .countdown-display.overdue {
-            color: var(--lab-red) !important;
+            color: var(--red) !important;
         }
-
-
-    /* =========================================================
-           CURRENT FOOTER
-           ========================================================= */
 
     .current-footer {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 20px;
-        padding: 13px 20px;
-        background: var(--lab-teal-light);
-        border-top: 1px solid #D4EAE6;
+        flex-wrap: wrap;
+        padding: 20px 32px 26px;
     }
-
 
     .current-message {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 14px;
         min-width: 0;
     }
 
-
     .message-icon {
-        width: 30px;
-        height: 30px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        color: var(--lab-teal-deep);
-        background: #D2EEE9;
-        font-size: 12px;
+        color: var(--teal-dark);
+        background: var(--teal-light);
+        font-size: 13px;
     }
-
 
     .current-message strong {
         display: block;
-        color: var(--lab-teal-deep);
-        font-size: 12px;
-    }
-
-
-    .current-message span {
-        display: block;
-        color: var(--lab-text-soft);
-        font-size: 11px;
-        margin-top: 2px;
-    }
-
-
-    .continue-current-button {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 17px;
-        border-radius: 999px;
-        color: #fff;
-        background: var(--lab-teal);
-        text-decoration: none;
-        font-size: 12px;
-        font-weight: 700;
-        white-space: nowrap;
-        transition: .18s;
-    }
-
-
-        .continue-current-button:hover {
-            background: var(--lab-teal-dark);
-            color: #fff;
-            transform: translateX(2px);
-        }
-
-
-    /* =========================================================
-           QUEUE TOOLBAR
-           ========================================================= */
-
-    .queue-toolbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 20px;
-        margin-bottom: 14px;
-    }
-
-
-    .queue-heading {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-    }
-
-
-    .queue-heading-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 11px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--lab-teal);
-        background: var(--lab-teal-light);
-    }
-
-
-    .queue-heading h2 {
-        margin: 0;
-        font-family: 'Poppins', sans-serif;
-        color: var(--lab-text);
-        font-size: 16px;
-        font-weight: 700;
-    }
-
-
-    .queue-heading p {
-        margin: 2px 0 0;
-        color: var(--lab-text-muted);
-        font-size: 11px;
-    }
-
-
-    .queue-count {
-        min-width: 27px;
-        height: 27px;
-        padding: 0 9px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        background: var(--lab-teal-light);
-        color: var(--lab-teal-deep);
-        font-size: 11px;
+        color: var(--teal-deep);
+        font-size: 13.5px;
         font-weight: 800;
     }
 
-
-    /* =========================================================
-           SEARCH
-           ========================================================= */
-
-    .search-container {
-        position: relative;
-        width: 340px;
-        flex-shrink: 0;
+    .current-message span {
+        display: block;
+        color: var(--muted);
+        font-size: 12.5px;
+        font-weight: 500;
+        margin-top: 3px;
     }
 
 
-        .search-container > i {
+    /* BUTTONS */
+
+    .primary-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 12px 22px;
+        border: 0;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #129a8d, #0a5f58);
+        color: #fff;
+        font: inherit;
+        font-size: 13.5px;
+        font-weight: 700;
+        text-decoration: none;
+        white-space: nowrap;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(10, 95, 88, .28);
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+        .primary-btn:hover {
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 9px 20px rgba(10, 95, 88, .34);
+        }
+
+        .primary-btn:focus-visible,
+        .action-button:focus-visible,
+        .banner-btn:focus-visible {
+            outline: 2px solid var(--teal-deep);
+            outline-offset: 3px;
+        }
+
+
+    /* SEARCH */
+
+    .search-field {
+        position: relative;
+        width: 100%;
+        margin-bottom: 22px;
+    }
+
+        .search-field > i {
             position: absolute;
-            left: 15px;
+            left: 16px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--lab-text-muted);
-            font-size: 13px;
+            color: var(--muted);
+            font-size: 14px;
             pointer-events: none;
         }
 
-
-    .search-input {
-        width: 100%;
-        height: 43px;
-        padding: 0 38px 0 40px;
-        border: 1px solid var(--lab-border-dark);
-        border-radius: 999px;
-        background: #fff;
-        color: var(--lab-text);
-        font-family: 'Inter', sans-serif;
-        font-size: 12.5px;
-        outline: none;
-        box-shadow: var(--shadow-small);
-        transition: .18s;
-    }
-
-
-        .search-input:focus {
-            border-color: var(--lab-teal);
-            box-shadow: 0 0 0 4px var(--lab-teal-light);
+        .search-field input {
+            width: 100%;
+            border: 1px solid var(--teal-border);
+            border-radius: 14px;
+            padding: 13px 44px 13px 42px;
+            outline: none;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            background: var(--teal-soft);
+            color: var(--text);
+            transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
         }
 
+            .search-field input::placeholder {
+                color: #8aa09f;
+            }
 
-        .search-input::placeholder {
-            color: var(--lab-text-muted);
-        }
-
+            .search-field input:focus {
+                background: #fff;
+                border-color: var(--teal);
+                box-shadow: 0 0 0 4px rgba(15, 148, 136, .12);
+            }
 
     .clear-search {
         position: absolute;
-        right: 8px;
+        right: 10px;
         top: 50%;
         transform: translateY(-50%);
-        width: 28px;
-        height: 28px;
-        border: none;
+        width: 30px;
+        height: 30px;
+        border: 0;
         border-radius: 50%;
         background: transparent;
-        color: var(--lab-text-muted);
+        color: var(--muted);
         cursor: pointer;
         display: none;
     }
 
-
         .clear-search:hover {
-            background: var(--lab-teal-light);
-            color: var(--lab-teal);
+            background: var(--teal-light);
+            color: var(--teal-dark);
         }
 
 
-    /* =========================================================
-           TABLE
-           ========================================================= */
+    /* TABLE */
 
-    .table-card {
-        background: var(--lab-white);
-        border: 1px solid var(--lab-border);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow);
-        overflow: hidden;
-    }
-
-
-    .table-responsive {
+    .table-wrap {
+        width: 100%;
         overflow-x: auto;
     }
 
-
     .progress-table {
         width: 100%;
-        min-width: 1050px;
-        border-collapse: collapse;
-        font-size: 13px;
+        min-width: 1000px;
+        border-collapse: separate;
+        border-spacing: 0;
     }
 
-
-        .progress-table thead th {
-            padding: 15px 18px;
+        .progress-table th {
+            padding: 12px 18px;
             text-align: left;
-            background: var(--lab-teal-light);
-            color: var(--lab-teal-deep);
-            border-bottom: 1px solid var(--lab-border-dark);
-            font-size: 10px;
-            font-weight: 800;
+            color: var(--muted);
+            font-size: 11.5px;
+            font-weight: 700;
             letter-spacing: .06em;
             text-transform: uppercase;
             white-space: nowrap;
+            border-bottom: 1px solid var(--teal-border);
         }
 
+        .progress-table td {
+            padding: 20px 18px;
+            border-bottom: 1px solid #edf3f2;
+            vertical-align: middle;
+            font-size: 13.5px;
+            font-weight: 500;
+        }
 
-            .progress-table thead th:first-child {
-                padding-left: 22px;
+        .progress-table tbody tr {
+            transition: background .15s ease;
+        }
+
+            .progress-table tbody tr:hover {
+                background: var(--teal-soft);
             }
 
+            .progress-table tbody tr:last-child td {
+                border-bottom: 0;
+            }
+
+            .progress-table tbody tr.current-row {
+                background: #eef9f7;
+            }
+
+                .progress-table tbody tr.current-row td:first-child {
+                    box-shadow: inset 4px 0 0 var(--teal);
+                }
+
+            .progress-table tbody tr.overdue-row {
+                background: #fff7f6;
+            }
+
+                .progress-table tbody tr.overdue-row:hover {
+                    background: #fff0ee;
+                }
 
     .actions-heading {
         text-align: right !important;
-        padding-right: 22px !important;
     }
-
-
-    .progress-table tbody td {
-        padding: 15px 18px;
-        border-bottom: 1px solid var(--lab-border);
-        vertical-align: middle;
-    }
-
-
-    .progress-table tbody tr {
-        transition: background .15s, box-shadow .15s;
-    }
-
-
-        .progress-table tbody tr:hover {
-            background: #F4FAF9;
-        }
-
-
-        .progress-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-
-        /* =========================================================
-           CURRENT ROW
-           ========================================================= */
-
-        .progress-table tbody tr.current-row {
-            background: #EDF9F7;
-            box-shadow: inset 4px 0 0 var(--lab-teal);
-        }
-
-
-            .progress-table tbody tr.current-row:hover {
-                background: #E7F6F3;
-            }
-
-
-        .progress-table tbody tr.overdue-row {
-            background: #FFF8F7;
-        }
-
-
-            .progress-table tbody tr.overdue-row:hover {
-                background: #FFF2F1;
-            }
-
-
-    /* =========================================================
-           PATIENT
-           ========================================================= */
 
     .patient-cell {
         display: flex;
         align-items: center;
-        gap: 11px;
-        min-width: 200px;
+        gap: 14px;
+        min-width: 210px;
     }
 
-
     .patient-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        color: #fff;
-        background: linear-gradient( 135deg, var(--lab-teal), var(--lab-teal-dark) );
-        font-family: 'Poppins', sans-serif;
-        font-size: 12px;
+        background: #fff;
+        color: var(--teal-deep);
+        border: 2px solid #d9c27a;
+        font-size: 13px;
         font-weight: 800;
     }
 
-
     .patient-information strong {
         display: block;
-        color: var(--lab-text);
-        font-size: 12.5px;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .patient-information small,
+    .sub-text {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .patient-information small i {
+        margin-right: 5px;
+    }
+
+    .test-name {
+        display: block;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .category-tag {
+        display: inline-block;
+        margin-top: 7px;
+        padding: 4px 11px;
+        border-radius: 999px;
+        background: var(--teal-light);
+        color: var(--teal-dark);
+        font-size: 11.5px;
+        font-weight: 700;
+    }
+
+    .date-text {
+        display: block;
+        white-space: nowrap;
+        color: var(--text);
+        font-size: 13px;
         font-weight: 700;
     }
 
 
-    .patient-information small {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        color: var(--lab-text-muted);
-        font-size: 10.5px;
-        margin-top: 3px;
-    }
-
-
-    /* =========================================================
-           TEST
-           ========================================================= */
-
-    .test-cell {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 180px;
-    }
-
-
-    .test-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        color: var(--lab-teal);
-        background: var(--lab-teal-light);
-    }
-
-
-    .test-cell strong {
-        display: block;
-        color: var(--lab-text);
-        font-size: 12.5px;
-        font-weight: 700;
-    }
-
-
-    .test-cell small {
-        display: block;
-        color: var(--lab-text-muted);
-        font-size: 10.5px;
-        margin-top: 3px;
-    }
-
-
-    /* =========================================================
-           STARTED
-           ========================================================= */
-
-    .started-cell {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--lab-text-soft);
-    }
-
-
-        .started-cell > i {
-            color: var(--lab-teal);
-            font-size: 14px;
-        }
-
-
-        .started-cell strong {
-            display: block;
-            color: var(--lab-text);
-            font-size: 11.5px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-
-        .started-cell small {
-            display: block;
-            color: var(--lab-text-muted);
-            font-size: 10px;
-            margin-top: 2px;
-        }
-
-
-    /* =========================================================
-           BADGES
-           ========================================================= */
+    /* BADGES */
 
     .status-badge {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 10px;
+        gap: 8px;
         border-radius: 999px;
-        font-size: 10.5px;
+        border: 1px solid;
+        padding: 8px 14px;
+        font-size: 12px;
         font-weight: 700;
         white-space: nowrap;
+        box-shadow: 0 3px 10px rgba(8, 70, 66, .06);
     }
-
 
     .turnaround-badge {
-        color: var(--lab-teal-deep);
-        background: var(--lab-teal-light);
+        color: var(--blue);
+        background: var(--blue-bg);
+        border-color: #bfdeee;
     }
-
 
     .overdue-badge {
-        color: var(--lab-red);
-        background: var(--lab-red-light);
+        color: var(--red);
+        background: var(--red-bg);
+        border-color: var(--red-border);
     }
-
 
     .progress-badge {
-        color: var(--lab-teal-deep);
-        background: #DDF3EF;
-        border: 1px solid #BFE4DD;
+        color: var(--teal-deep);
+        background: var(--teal-light);
+        border-color: #bfe0da;
     }
-
 
     .standard-status {
-        color: var(--lab-gold);
-        background: var(--lab-gold-light);
+        color: var(--gold);
+        background: var(--gold-bg);
+        border-color: var(--gold-border);
     }
-
 
         .standard-status i {
             font-size: 6px;
         }
 
-
-    .mini-live-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--lab-teal);
-        box-shadow: 0 0 0 3px rgba(14,140,127,.12);
-    }
-
-
     .due-time {
         display: block;
-        margin-top: 6px;
-        color: var(--lab-text-muted);
-        font-size: 10px;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
         white-space: nowrap;
     }
 
-
-        .due-time i {
-            margin-right: 3px;
-        }
-
-
     .due-overdue {
-        color: var(--lab-red);
+        color: var(--red);
         font-weight: 700;
     }
 
 
-    /* =========================================================
-           ACTIONS
-           ========================================================= */
+    /* ROW ACTIONS */
 
     .action-buttons {
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        gap: 7px;
+        gap: 10px;
         white-space: nowrap;
     }
-
 
     .action-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
-        min-height: 34px;
-        padding: 8px 12px;
-        border-radius: 999px;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 12px;
         text-decoration: none;
-        font-size: 10.5px;
+        font-size: 13px;
         font-weight: 700;
-        transition: .18s;
+        transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
     }
-
 
     .continue-button {
-        color: var(--lab-teal-deep);
-        background: transparent;
-        border: 1px solid var(--lab-teal);
+        color: var(--teal-dark);
+        background: #fff;
+        border: 1px solid var(--teal);
     }
 
-
         .continue-button:hover {
-            color: var(--lab-teal-deep);
-            background: var(--lab-teal-light);
-            transform: translateY(-1px);
+            color: var(--teal-deep);
+            background: var(--teal-light);
         }
-
 
     .results-button {
         color: #fff;
-        background: var(--lab-teal);
-        border: 1px solid var(--lab-teal);
+        background: linear-gradient(135deg, #129a8d, #0a5f58);
+        border: 1px solid transparent;
+        box-shadow: 0 6px 16px rgba(10, 95, 88, .28);
     }
-
 
         .results-button:hover {
             color: #fff;
-            background: var(--lab-teal-dark);
-            border-color: var(--lab-teal-dark);
             transform: translateY(-1px);
+            box-shadow: 0 9px 20px rgba(10, 95, 88, .34);
         }
 
 
-    /* =========================================================
-           EMPTY STATE
-           ========================================================= */
+    /* EMPTY */
 
     .empty-row td {
-        border-bottom: none !important;
+        border-bottom: 0 !important;
     }
-
 
     .empty-state {
-        padding: 65px 25px;
+        padding: 56px 20px;
         text-align: center;
+        color: var(--muted);
     }
 
+        .empty-state > i {
+            display: block;
+            margin-bottom: 16px;
+            font-size: 38px;
+            color: #9ccdc6;
+        }
 
-    .empty-icon {
-        width: 66px;
-        height: 66px;
-        margin: 0 auto 15px;
-        border-radius: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--lab-teal);
-        background: var(--lab-teal-light);
-        font-size: 26px;
-    }
+        .empty-state h3 {
+            margin: 0 0 8px;
+            color: var(--teal-deep);
+            font-size: 17px;
+            font-weight: 800;
+        }
 
-
-    .empty-state h3 {
-        margin: 0 0 5px;
-        color: var(--lab-text);
-        font-family: 'Poppins', sans-serif;
-        font-size: 18px;
-        font-weight: 700;
-    }
-
-
-    .empty-state p {
-        margin: 0 0 20px;
-        color: var(--lab-text-muted);
-        font-size: 12px;
-    }
-
-
-    .empty-button {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        padding: 10px 16px;
-        border-radius: 999px;
-        color: #fff;
-        background: var(--lab-teal);
-        text-decoration: none;
-        font-size: 11px;
-        font-weight: 700;
-    }
-
-
-        .empty-button:hover {
-            background: var(--lab-teal-dark);
-            color: #fff;
+        .empty-state p {
+            margin: 0 0 22px;
+            font-size: 13.5px;
         }
 
 
-    /* =========================================================
-           SEARCH EMPTY
-           ========================================================= */
+    /* RESPONSIVE */
 
-    .search-empty {
-        padding: 55px 20px;
-        text-align: center;
-        border-top: 1px solid var(--lab-border);
-    }
-
-
-    .search-empty-icon {
-        width: 58px;
-        height: 58px;
-        margin: 0 auto 12px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--lab-teal);
-        background: var(--lab-teal-light);
-    }
-
-
-    .search-empty h3 {
-        margin: 0 0 5px;
-        color: var(--lab-text);
-        font-family: 'Poppins', sans-serif;
-        font-size: 16px;
-    }
-
-
-    .search-empty p {
-        margin: 0 0 16px;
-        color: var(--lab-text-muted);
-        font-size: 12px;
-    }
-
-
-    .reset-search-button {
-        padding: 9px 15px;
-        border: none;
-        border-radius: 999px;
-        color: #fff;
-        background: var(--lab-teal);
-        cursor: pointer;
-        font-size: 11px;
-        font-weight: 700;
-    }
-
-
-        .reset-search-button:hover {
-            background: var(--lab-teal-dark);
-        }
-
-
-    /* =========================================================
-           RESPONSIVE
-           ========================================================= */
-
-    @@media (max-width: 1050px) {
-
-        .progress-page {
-            padding-left: 18px;
-            padding-right: 18px;
-        }
+    @@media (max-width: 1250px) {
 
         .current-details {
-            grid-template-columns: repeat(3, 1fr);
-        }
-
-        .current-detail:nth-child(3) {
-            border-right: none;
-        }
-
-        .current-detail:nth-child(4),
-        .current-detail:nth-child(5) {
-            border-top: 1px solid var(--lab-border);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
     }
 
-
-    @@media (max-width: 850px) {
-
-        .progress-header {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-
-        .available-tests-button {
-            align-self: flex-start;
-        }
-
-        .statistics-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .queue-toolbar {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-
-        .search-container {
-            width: 100%;
-        }
-    }
-
-
-    @@media (max-width: 700px) {
+    @@media (max-width: 800px) {
 
         .progress-page {
-            padding-top: 16px;
+            padding: 18px;
         }
 
-        .progress-header {
-            padding: 22px;
+        .banner {
+            padding: 20px;
         }
 
-        .header-content h1 {
-            font-size: 22px;
+        .banner-stats {
+            gap: 22px;
         }
 
-        .header-content p {
-            font-size: 12px;
-        }
-
-        .current-header {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-
-        .current-status {
-            align-self: flex-start;
-        }
-
-        .current-details {
-            grid-template-columns: 1fr 1fr;
-        }
-
-        .current-detail:nth-child(2) {
-            border-right: none;
-        }
-
-        .current-detail:nth-child(3) {
-            border-right: 1px solid var(--lab-border);
-            border-top: 1px solid var(--lab-border);
-        }
-
-        .current-detail:nth-child(4) {
-            border-right: none;
-        }
-
+        .panel-head,
+        .panel-body,
+        .current-details,
         .current-footer {
-            align-items: flex-start;
-            flex-direction: column;
+            padding-left: 20px;
+            padding-right: 20px;
         }
 
-        .continue-current-button {
-            width: 100%;
-            justify-content: center;
+        .current-details {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 
+    @@media (max-width: 520px) {
 
-    @@media (max-width: 480px) {
-
-        .progress-page {
-            padding-left: 10px;
-            padding-right: 10px;
-        }
-
-        .header-left {
-            align-items: flex-start;
-        }
-
-        .header-icon {
-            width: 48px;
-            height: 48px;
-            font-size: 18px;
-        }
-
-        .header-content h1 {
+        .banner h1 {
             font-size: 20px;
         }
 
-        .current-header {
-            padding: 19px;
-        }
-
-            .current-header h2 {
-                font-size: 20px;
-            }
-
         .current-details {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
         }
 
-        .current-detail,
-        .current-detail:nth-child(3) {
-            border-right: none;
-            border-bottom: 1px solid var(--lab-border);
+        .primary-btn {
+            width: 100%;
         }
+    }
 
-            .current-detail:last-child {
-                border-bottom: none;
-            }
+    @@media (prefers-reduced-motion: reduce) {
 
-        .stat-card {
-            padding: 17px;
+        .progress-page *,
+        .progress-page *::before {
+            animation: none !important;
+            transition: none !important;
         }
     }
 
@@ -2318,7 +1471,7 @@
 
     <script>
 
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
 
             /* =====================================================
                SEARCH
@@ -2358,8 +1511,7 @@
 
                 let visibleRows = 0;
 
-
-                rows.forEach(function(row) {
+                rows.forEach(function (row) {
 
                     const searchText =
                         (
@@ -2380,72 +1532,40 @@
 
                 });
 
-
                 if (clearSearch) {
-
                     clearSearch.style.display =
-                        searchValue.length > 0
-                            ? "block"
-                            : "none";
-
+                        searchValue.length > 0 ? "block" : "none";
                 }
-
 
                 if (noSearchResults) {
-
                     noSearchResults.style.display =
-                        searchValue.length > 0 &&
-                            visibleRows === 0
+                        searchValue.length > 0 && visibleRows === 0
                             ? "block"
                             : "none";
-
                 }
 
             }
 
-
             if (searchInput) {
-
-                searchInput.addEventListener(
-                    "input",
-                    performSearch
-                );
-
+                searchInput.addEventListener("input", performSearch);
             }
-
 
             function clearSearchBox() {
 
                 if (searchInput) {
-
                     searchInput.value = "";
-
                     performSearch();
-
                     searchInput.focus();
-
                 }
 
             }
 
-
             if (clearSearch) {
-
-                clearSearch.addEventListener(
-                    "click",
-                    clearSearchBox
-                );
-
+                clearSearch.addEventListener("click", clearSearchBox);
             }
 
-
             if (resetSearch) {
-
-                resetSearch.addEventListener(
-                    "click",
-                    clearSearchBox
-                );
-
+                resetSearch.addEventListener("click", clearSearchBox);
             }
 
 
@@ -2454,10 +1574,7 @@
                ===================================================== */
 
             const countdown =
-                document.getElementById(
-                    "currentCountdown"
-                );
-
+                document.getElementById("currentCountdown");
 
             if (countdown) {
 
@@ -2465,128 +1582,57 @@
                     countdown.dataset.start;
 
                 const turnaroundMinutes =
-                    parseInt(
-                        countdown.dataset.turnaround,
-                        10
-                    );
+                    parseInt(countdown.dataset.turnaround, 10);
 
+                if (startValue && !isNaN(turnaroundMinutes)) {
 
-                if (
-                    startValue &&
-                    !isNaN(turnaroundMinutes)
-                ) {
-
-                    /*
-                     * The server sends the time that the test
-                     * started. We calculate the expected completion
-                     * time from the turnaround period.
-                     */
-
+                    // The server sends the start time. The expected
+                    // completion time is start + turnaround period.
                     const startTime =
                         new Date(startValue);
-
 
                     const completionTime =
                         new Date(
                             startTime.getTime() +
-                            (
-                                turnaroundMinutes *
-                                60 *
-                                1000
-                            )
+                            (turnaroundMinutes * 60 * 1000)
                         );
-
 
                     function updateCountdown() {
 
-                        const now =
-                            new Date();
-
-
                         const remaining =
-                            completionTime.getTime() -
-                            now.getTime();
+                            completionTime.getTime() - Date.now();
 
-
-                        /* =========================================
-                           OVERDUE
-                           ========================================= */
-
+                        // OVERDUE
                         if (remaining <= 0) {
 
-                            countdown.textContent =
-                                "OVERDUE";
+                            countdown.textContent = "OVERDUE";
 
-                            countdown.classList.remove(
-                                "warning",
-                                "danger"
-                            );
-
-                            countdown.classList.add(
-                                "overdue"
-                            );
+                            countdown.classList.remove("warning", "danger");
+                            countdown.classList.add("overdue");
 
                             return;
-
                         }
 
-
-                        /* =========================================
-                           TIME CALCULATION
-                           ========================================= */
-
                         const totalSeconds =
-                            Math.floor(
-                                remaining / 1000
-                            );
-
+                            Math.floor(remaining / 1000);
 
                         const days =
-                            Math.floor(
-                                totalSeconds / 86400
-                            );
-
+                            Math.floor(totalSeconds / 86400);
 
                         const hours =
-                            Math.floor(
-                                (totalSeconds % 86400) /
-                                3600
-                            );
-
+                            Math.floor((totalSeconds % 86400) / 3600);
 
                         const minutes =
-                            Math.floor(
-                                (totalSeconds % 3600) /
-                                60
-                            );
-
+                            Math.floor((totalSeconds % 3600) / 60);
 
                         const seconds =
                             totalSeconds % 60;
 
-
                         countdown.textContent =
-
-                            String(days)
-                                .padStart(2, "0")
-                            + "d " +
-
-                            String(hours)
-                                .padStart(2, "0")
-                            + "h " +
-
-                            String(minutes)
-                                .padStart(2, "0")
-                            + "m " +
-
-                            String(seconds)
-                                .padStart(2, "0")
-                            + "s";
-
-
-                        /* =========================================
-                           WARNING COLOURS
-                           ========================================= */
+                            String(days).padStart(2, "0") + "d " +
+                            String(hours).padStart(2, "0") + "h " +
+                            String(minutes).padStart(2, "0") + "m " +
+                            String(seconds).padStart(2, "0") + "s";
 
                         countdown.classList.remove(
                             "warning",
@@ -2594,36 +1640,20 @@
                             "overdue"
                         );
 
-
-                        const totalMinutes =
-                            remaining / 60000;
-
+                        const totalMinutes = remaining / 60000;
 
                         if (totalMinutes <= 10) {
-
-                            countdown.classList.add(
-                                "danger"
-                            );
-
+                            countdown.classList.add("danger");
                         }
                         else if (totalMinutes <= 30) {
-
-                            countdown.classList.add(
-                                "warning"
-                            );
-
+                            countdown.classList.add("warning");
                         }
 
                     }
 
-
                     updateCountdown();
 
-
-                    setInterval(
-                        updateCountdown,
-                        1000
-                    );
+                    setInterval(updateCountdown, 1000);
 
                 }
 

@@ -26,6 +26,11 @@ namespace LabDash.Models.ViewModels
         public string? PhoneNumber { get; set; }
 
         public string? Gender { get; set; }
+        [Display(Name = "Employee Number")]
+        public string? EmployeeNumber { get; set; }
+
+        [Display(Name = "ID Number")]
+        public string? IDNumber { get; set; }
 
         public string FullName =>
             $"{FirstName} {LastName}".Trim();
