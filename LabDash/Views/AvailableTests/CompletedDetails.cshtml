@@ -20,9 +20,17 @@
     var isCompleted = string.Equals(Model.Status, "Completed",
         StringComparison.OrdinalIgnoreCase);
 
-    // Optional: set ViewBag.ReturnCount in the controller to show the
-    // number of times this test was returned for review.
-    int? returnCount = ViewBag.ReturnCount as int?;
+    // Full verification / review history (set in the controller).
+    var verificationHistory = (ViewBag.VerificationHistory as IEnumerable<TestVerification>
+        ?? Enumerable.Empty<TestVerification>()).ToList();
+
+    // Every time the test was sent back for review, oldest first.
+    var returnedEntries = verificationHistory
+        .Where(v => string.Equals(v.Status, "To Be Reviewed", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(v => v.VerificationDate)
+        .ToList();
+
+    int? returnCount = verificationHistory.Any() ? returnedEntries.Count : (int?)null;
 
     // Determine abnormality from the numeric result and configured reference limits.
     // If the result cannot be evaluated numerically or the limits are unavailable,
@@ -504,9 +512,7 @@
                         <span class="result-label">Units</span>
 
                         <strong class="result-standard-value">
-                            @(string.IsNullOrWhiteSpace(result.Units)
-                                ? "Not specified"
-                                : result.Units)
+                            @unit
                         </strong>
                     </div>
 
@@ -514,9 +520,7 @@
                         <span class="result-label">Reference range</span>
 
                         <strong class="result-standard-value">
-                            @(string.IsNullOrWhiteSpace(result.ReferenceRange)
-                                ? "Not specified"
-                                : result.ReferenceRange)
+                            @referenceRange
                         </strong>
                     </div>
 
@@ -567,6 +571,59 @@
         </div>
 
     </section>
+
+
+    <!-- RETURN HISTORY -->
+    @if (returnedEntries.Any())
+    {
+        <section class="information-card return-history-section">
+
+            <div class="card-header">
+                <h2>
+                    <i class="fa-solid fa-rotate-left"></i>
+                    Return history
+                    <span class="history-count">@returnedEntries.Count</span>
+                </h2>
+            </div>
+
+            <div class="card-body">
+
+                <div class="return-list">
+
+                    @for (var i = 0; i < returnedEntries.Count; i++)
+                    {
+                        var entry = returnedEntries[i];
+
+                        <div class="return-item">
+
+                            <div class="return-item-head">
+                                <strong>Return #@(i + 1)</strong>
+                                <span>@entry.VerificationDate.ToString("dd MMM yyyy HH:mm")</span>
+                            </div>
+
+                            <p>
+                                @(string.IsNullOrWhiteSpace(entry.VerificationNotes)
+                                    ? "No reason was provided."
+                                    : entry.VerificationNotes)
+                            </p>
+
+                            <div class="return-item-by">
+                                <i class="fa-solid fa-user-check"></i>
+                                Returned by
+                                @(entry.VerifiedByTechnician?.FullName
+                                    ?? entry.VerifiedByTechnician?.UserName
+                                    ?? "Unknown")
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+
+            </div>
+
+        </section>
+    }
 
 
     <!-- VERIFICATION INFORMATION -->
@@ -1279,7 +1336,8 @@
     /* RESULT */
 
     .result-section,
-    .verification-section {
+    .verification-section,
+    .return-history-section {
         margin-bottom: 24px;
     }
 
@@ -1363,6 +1421,63 @@
         margin-top: 22px;
         padding-top: 20px;
         border-top: 1px solid var(--teal-border);
+    }
+
+    /* RETURN HISTORY */
+
+    .history-count {
+        margin-left: 4px;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: var(--gold-bg);
+        color: var(--gold);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .return-list {
+        display: grid;
+        gap: 14px;
+    }
+
+    .return-item {
+        padding: 17px 19px;
+        background: var(--gold-bg);
+        border: 1px solid var(--gold-border);
+        border-left: 4px solid var(--gold);
+        border-radius: 16px;
+    }
+
+    .return-item-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        color: var(--gold);
+        font-size: 12.5px;
+        font-weight: 800;
+    }
+
+        .return-item-head span {
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+    .return-item p {
+        margin: 9px 0 10px;
+        font-size: 13.5px;
+        font-weight: 500;
+        line-height: 1.65;
+        overflow-wrap: anywhere;
+    }
+
+    .return-item-by {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
     }
 
     /* VERIFICATION */

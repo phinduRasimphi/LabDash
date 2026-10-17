@@ -2771,21 +2771,78 @@ if (User.IsInRole("Admin"))
 
 
     }
-  
-                
-     else if (User.IsInRole("Lab_Technician"))
+  else if (User.IsInRole("Lab_Technician"))
 {
-   @*  ViewData["Title"] = "Laboratory Technician Dashboard"; *@
+    @* ViewData["Title"] = "Laboratory Technician Dashboard"; *@
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
 
-    <div class="db-wrap">
+    <div class="db-wrap" id="techWrap">
 
         <!-- =========================================================
-             HEADER
+             TOP BAR: BREADCRUMB + NOTIFICATION BELL
              ========================================================= -->
+        <div class="db-topbar">
 
+            <nav class="db-crumb" aria-label="Breadcrumb">
+                <span>Technician Portal</span>
+                <i class="fa-solid fa-chevron-right"></i>
+                <strong aria-current="page">Dashboard</strong>
+            </nav>
+
+            <div class="db-bell-wrap" id="techBellWrap">
+
+                <button type="button" class="db-bell" id="techBell"
+                        aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+                    <i class="fa-solid fa-bell"></i>
+                    <span class="db-bell-badge" id="techBellBadge" hidden>0</span>
+                </button>
+
+                <div class="db-n-panel" id="techNotifPanel" role="dialog" aria-label="Notifications" hidden>
+
+                    <div class="db-n-head">
+                        <div class="db-n-head-title">
+                            <i class="fa-solid fa-bell"></i>
+                            <span>Notifications</span>
+                            <em id="techNotifUnread">0 new</em>
+                        </div>
+                        <button type="button" class="db-n-markall" id="techMarkAll">Mark all as read</button>
+                    </div>
+
+                    <div class="db-n-status ok" id="techNotifStatus">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Checking your workload...</span>
+                    </div>
+
+                    <div class="db-n-tabs" role="tablist">
+                        <button type="button" class="db-n-tab active" data-tab="all" role="tab">All <b id="tabAll">0</b></button>
+                        <button type="button" class="db-n-tab" data-tab="urgent" role="tab">Urgent <b id="tabUrgent">0</b></button>
+                        <button type="button" class="db-n-tab" data-tab="flow" role="tab">Workflow <b id="tabFlow">0</b></button>
+                    </div>
+
+                    <div class="db-n-list" id="techNotifList"></div>
+
+                    <div class="db-n-foot">
+                        <span id="techNotifChecked">Checking...</span>
+                        <span class="db-n-foot-btns">
+                            <button type="button" id="techNotifRestore" hidden>Restore dismissed</button>
+                            <button type="button" id="techNotifRefresh"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                        </span>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <div class="db-toasts" id="techToasts" aria-live="polite"></div>
+
+
+        <!-- =========================================================
+             WELCOME BANNER
+             ========================================================= -->
         <div class="db-banner">
 
             <div class="db-banner-pattern"></div>
@@ -2799,38 +2856,28 @@ if (User.IsInRole("Admin"))
 
                 <div class="db-banner-text">
 
-                    <h1>
-                        Welcome,
-                        <span>@User.Identity?.Name</span>
-                    </h1>
+                    <h1><span id="techGreeting" style="color:#fff">Welcome</span>, <span>@User.Identity?.Name</span></h1>
 
                     <p>Laboratory Technician Dashboard</p>
 
                     <div class="db-pills">
-
-                        <span class="db-pill">
-                            <i class="fa-solid fa-calendar-days"></i>
-                            Daily work queue
-                        </span>
-
-                        <span class="db-pill">
-                            <i class="fa-solid fa-vials"></i>
-                            Laboratory information system
-                        </span>
-
+                        <span class="db-pill"><i class="fa-solid fa-user-doctor"></i> Lab Technician</span>
+                        <span class="db-pill"><i class="fa-solid fa-calendar-check"></i> Updated @DateTime.Now.ToString("d MMM yyyy")</span>
+                        <span class="db-pill"><i class="fa-solid fa-vials"></i> Daily work queue</span>
                     </div>
 
                 </div>
 
             </div>
 
-            <div class="db-clock">
+            <div class="db-banner-right">
 
-                <small>Today's date</small>
-
-                <div id="currentDate"></div>
-
-                <div id="currentTime"></div>
+                <!-- CLOCK -->
+                <div class="db-clock">
+                    <small>Today's date</small>
+                    <div id="currentDate"></div>
+                    <div id="currentTime"></div>
+                </div>
 
             </div>
 
@@ -2838,9 +2885,25 @@ if (User.IsInRole("Admin"))
 
 
         <!-- =========================================================
-             WORKFLOW
+             WORKLOAD HEALTH STRIP
              ========================================================= -->
+        <div class="db-health ok" id="techHealth" data-act="all">
 
+            <div class="db-health-msg">
+                <span class="db-health-dot"></span>
+                <span id="techHealthText"><strong>Checking your workload</strong> &middot; one moment</span>
+            </div>
+
+            <button type="button" class="db-health-cta" id="techHealthCta">
+                Review queue <i class="fa-solid fa-arrow-right"></i>
+            </button>
+
+        </div>
+
+
+        <!-- =========================================================
+             WORKFLOW PIPELINE
+             ========================================================= -->
         <div class="db-pulse">
 
             <div class="db-pulse-label">
@@ -2848,140 +2911,55 @@ if (User.IsInRole("Admin"))
                 Technician workload pipeline
             </div>
 
-
             <div class="db-flow">
 
-                <!-- SELECTED -->
+                <div class="db-flow-node">
+                    <div class="db-flow-circle n-teal"><i class="fa-solid fa-vials"></i></div>
+                    <div class="db-flow-count" id="flowInProgress">0</div>
+                    <div class="db-flow-label">Selected / In Progress</div>
+                </div>
+
+                <div class="db-flow-line"><span class="db-flow-line-fill"></span></div>
 
                 <div class="db-flow-node">
-
-                    <div class="db-flow-circle n-teal">
-                        <i class="fa-solid fa-vials"></i>
-                    </div>
-
-                    <div class="db-flow-count"
-                         id="flowInProgress">
-                        0
-                    </div>
-
-                    <div class="db-flow-label">
-                        Selected / In Progress
-                    </div>
-
+                    <div class="db-flow-circle n-blue"><i class="fa-solid fa-hourglass-half"></i></div>
+                    <div class="db-flow-count" id="flowAvailable">0</div>
+                    <div class="db-flow-label">Waiting Selection</div>
                 </div>
 
-
-                <div class="db-flow-line">
-                    <span class="db-flow-line-fill"></span>
-                </div>
-
-
-                <!-- WAITING -->
+                <div class="db-flow-line"><span class="db-flow-line-fill"></span></div>
 
                 <div class="db-flow-node">
-
-                    <div class="db-flow-circle n-blue">
-                        <i class="fa-solid fa-hourglass-half"></i>
-                    </div>
-
-                    <div class="db-flow-count"
-                         id="flowAvailable">
-                        0
-                    </div>
-
-                    <div class="db-flow-label">
-                        Waiting Selection
-                    </div>
-
+                    <div class="db-flow-circle n-green"><i class="fa-solid fa-circle-check"></i></div>
+                    <div class="db-flow-count" id="flowVerified">0</div>
+                    <div class="db-flow-label">Waiting Verification</div>
                 </div>
 
-
-                <div class="db-flow-line">
-                    <span class="db-flow-line-fill"></span>
-                </div>
-
-
-                <!-- VERIFICATION -->
+                <div class="db-flow-line"><span class="db-flow-line-fill"></span></div>
 
                 <div class="db-flow-node">
-
-                    <div class="db-flow-circle n-green">
-                        <i class="fa-solid fa-circle-check"></i>
-                    </div>
-
-                    <div class="db-flow-count"
-                         id="flowVerified">
-                        0
-                    </div>
-
-                    <div class="db-flow-label">
-                        Waiting Verification
-                    </div>
-
-                </div>
-
-
-                <div class="db-flow-line">
-                    <span class="db-flow-line-fill"></span>
-                </div>
-
-
-                <!-- REVIEW -->
-
-                <div class="db-flow-node">
-
-                    <div class="db-flow-circle n-purple">
-                        <i class="fa-solid fa-file-medical"></i>
-                    </div>
-
-                    <div class="db-flow-count"
-                         id="flowReview">
-                        0
-                    </div>
-
-                    <div class="db-flow-label">
-                        Waiting Review
-                    </div>
-
+                    <div class="db-flow-circle n-purple"><i class="fa-solid fa-file-medical"></i></div>
+                    <div class="db-flow-count" id="flowReview">0</div>
+                    <div class="db-flow-label">Waiting Review</div>
                 </div>
 
             </div>
 
-
-            <!-- ALERT CHIPS -->
-
             <div class="db-pulse-chips">
 
                 <span class="db-chip chip-stat">
-
                     <i class="fa-solid fa-bolt"></i>
-
-                    <span id="urgentChip">
-                        0 STAT tests
-                    </span>
-
+                    <span id="urgentChip">0 STAT tests</span>
                 </span>
-
 
                 <span class="db-chip chip-overdue">
-
                     <i class="fa-solid fa-triangle-exclamation"></i>
-
-                    <span id="overdueChip">
-                        0 overdue tests
-                    </span>
-
+                    <span id="overdueChip">0 overdue tests</span>
                 </span>
 
-
                 <span class="db-chip">
-
                     <i class="fa-solid fa-stopwatch"></i>
-
-                    <span id="nearDeadlineChip">
-                        0 near deadline
-                    </span>
-
+                    <span id="nearDeadlineChip">0 near deadline</span>
                 </span>
 
             </div>
@@ -2992,239 +2970,89 @@ if (User.IsInRole("Admin"))
         <!-- =========================================================
              WORKLOAD
              ========================================================= -->
-
         <div class="db-section-head">
-
             <div>
-
                 <h3>Technician workload</h3>
-
-                <p>
-                    Overview of laboratory tests requiring your attention.
-                </p>
-
+                <p>Overview of laboratory tests requiring your attention.</p>
             </div>
-
         </div>
-
-
-        <!-- FIRST ROW -->
 
         <div class="db-grid db-grid-4">
 
-
-            <!-- SELECTED -->
-
             <div class="db-stat">
-
-                <div class="db-stat-icon c-teal">
-                    <i class="fa-solid fa-vials"></i>
-                </div>
-
+                <div class="db-stat-icon c-teal"><i class="fa-solid fa-vials"></i></div>
                 <div class="db-stat-body">
-
-                    <div class="num counter"
-                         id="inProgressCount">
-                        0
-                    </div>
-
+                    <div class="num counter" id="inProgressCount">0</div>
                     <h5>Selected tests</h5>
-
-                    <small>
-                        Currently assigned to you
-                    </small>
-
+                    <small>Currently assigned to you</small>
                 </div>
-
             </div>
 
-
-            <!-- WAITING -->
-
             <div class="db-stat">
-
-                <div class="db-stat-icon c-blue">
-                    <i class="fa-solid fa-hourglass-half"></i>
-                </div>
-
+                <div class="db-stat-icon c-blue"><i class="fa-solid fa-hourglass-half"></i></div>
                 <div class="db-stat-body">
-
-                    <div class="num counter"
-                         id="availableCount">
-                        0
-                    </div>
-
+                    <div class="num counter" id="availableCount">0</div>
                     <h5>Waiting selection</h5>
-
-                    <small>
-                        Samples received and awaiting technician
-                    </small>
-
+                    <small>Samples received and awaiting technician</small>
                 </div>
-
             </div>
 
-
-            <!-- VERIFICATION -->
-
             <div class="db-stat">
-
-                <div class="db-stat-icon c-green">
-                    <i class="fa-solid fa-circle-check"></i>
-                </div>
-
+                <div class="db-stat-icon c-green"><i class="fa-solid fa-circle-check"></i></div>
                 <div class="db-stat-body">
-
-                    <div class="num counter"
-                         id="verifiedCount">
-                        0
-                    </div>
-
+                    <div class="num counter" id="verifiedCount">0</div>
                     <h5>Waiting verification</h5>
-
-                    <small>
-                        Results waiting for validation
-                    </small>
-
+                    <small>Results waiting for validation</small>
                 </div>
-
             </div>
 
-
-            <!-- REVIEW -->
-
             <div class="db-stat">
-
-                <div class="db-stat-icon c-purple">
-                    <i class="fa-solid fa-file-medical"></i>
-                </div>
-
+                <div class="db-stat-icon c-purple"><i class="fa-solid fa-file-medical"></i></div>
                 <div class="db-stat-body">
-
-                    <div class="num counter"
-                         id="reviewCount">
-                        0
-                    </div>
-
+                    <div class="num counter" id="reviewCount">0</div>
                     <h5>Waiting review</h5>
-
-                    <small>
-                        Returned after verification
-                    </small>
-
+                    <small>Returned after verification</small>
                 </div>
-
             </div>
 
         </div>
 
-
-        <!-- SECOND ROW -->
-
         <div class="db-grid db-grid-4 db-grid-mt">
 
-
-            <!-- STAT -->
-
-            <div class="db-stat db-stat-urgent">
-
-                <div class="db-stat-icon c-red">
-                    <i class="fa-solid fa-bolt"></i>
-                </div>
-
+            <div class="db-stat db-stat-urgent db-stat-crit">
+                <div class="db-stat-icon c-red"><i class="fa-solid fa-bolt"></i></div>
                 <div class="db-stat-body">
-
-                    <div class="num counter"
-                         id="urgentCount">
-                        0
-                    </div>
-
+                    <div class="num counter" id="urgentCount">0</div>
                     <h5>STAT tests</h5>
-
-                    <small>
-                        Immediate attention required
-                    </small>
-
+                    <small>Immediate attention required</small>
                 </div>
-
             </div>
-
-
-            <!-- OVERDUE -->
 
             <div class="db-stat db-stat-urgent">
-
-                <div class="db-stat-icon c-orange">
-                    <i class="fa-solid fa-hourglass-end"></i>
-                </div>
-
+                <div class="db-stat-icon c-orange"><i class="fa-solid fa-hourglass-end"></i></div>
                 <div class="db-stat-body">
-
-                    <div class="num counter"
-                         id="overdueCount">
-                        0
-                    </div>
-
+                    <div class="num counter" id="overdueCount">0</div>
                     <h5>Overdue tests</h5>
-
-                    <small>
-                        Past turnaround time
-                    </small>
-
+                    <small>Past turnaround time</small>
                 </div>
-
             </div>
 
-
-            <!-- NEAR DEADLINE -->
-
             <div class="db-stat">
-
-                <div class="db-stat-icon c-gold">
-                    <i class="fa-solid fa-stopwatch"></i>
-                </div>
-
+                <div class="db-stat-icon c-gold"><i class="fa-solid fa-stopwatch"></i></div>
                 <div class="db-stat-body">
-
-                    <div class="num counter"
-                         id="nearDeadlineCount">
-                        0
-                    </div>
-
+                    <div class="num counter" id="nearDeadlineCount">0</div>
                     <h5>Near turnaround limit</h5>
-
-                    <small>
-                        Due within 30 minutes
-                    </small>
-
+                    <small>Due within 30 minutes</small>
                 </div>
-
             </div>
 
-
-            <!-- VERIFIED -->
-
             <div class="db-stat">
-
-                <div class="db-stat-icon c-teal-deep">
-                    <i class="fa-solid fa-award"></i>
-                </div>
-
+                <div class="db-stat-icon c-teal-deep"><i class="fa-solid fa-award"></i></div>
                 <div class="db-stat-body">
-
-                    <div class="num counter"
-                         id="completedCount">
-                        0
-                    </div>
-
+                    <div class="num counter" id="completedCount">0</div>
                     <h5>Verified tests</h5>
-
-                    <small>
-                        Laboratory results verified
-                    </small>
-
+                    <small>Laboratory results verified</small>
                 </div>
-
             </div>
 
         </div>
@@ -3233,106 +3061,41 @@ if (User.IsInRole("Admin"))
         <!-- =========================================================
              QUICK ACTIONS
              ========================================================= -->
-
         <div class="db-section-head db-mt-lg">
-
             <div>
-
                 <h3>Quick actions</h3>
-
-                <p>
-                    Access your laboratory functions.
-                </p>
-
+                <p>Access your laboratory functions.</p>
             </div>
-
         </div>
-
 
         <div class="db-grid db-grid-4">
 
-
-            <a asp-controller="AvailableTests"
-               asp-action="Index"
-               class="db-action">
-
-                <div class="db-action-icon">
-                    <i class="fa-solid fa-vials"></i>
-                </div>
-
+            <a asp-controller="AvailableTests" asp-action="Index" class="db-action">
+                <div class="db-action-icon"><i class="fa-solid fa-vials"></i></div>
                 <h5>Available tests</h5>
-
-                <p>
-                    View tests waiting to be selected.
-                </p>
-
-                <span class="db-action-go">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </span>
-
+                <p>View tests waiting to be selected.</p>
+                <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
 
-
-            <a asp-controller="AvailableTests"
-               asp-action="InProgress"
-               class="db-action">
-
-                <div class="db-action-icon">
-                    <i class="fa-solid fa-flask"></i>
-                </div>
-
+            <a asp-controller="AvailableTests" asp-action="InProgress" class="db-action">
+                <div class="db-action-icon"><i class="fa-solid fa-flask"></i></div>
                 <h5>Tests in progress</h5>
-
-                <p>
-                    Continue working on your assigned tests.
-                </p>
-
-                <span class="db-action-go">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </span>
-
+                <p>Continue working on your assigned tests.</p>
+                <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
 
-
-            <a asp-controller="CaptureResults"
-               asp-action="Index"
-               class="db-action">
-
-                <div class="db-action-icon">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                </div>
-
+            <a asp-controller="CaptureResults" asp-action="Index" class="db-action">
+                <div class="db-action-icon"><i class="fa-solid fa-pen-to-square"></i></div>
                 <h5>Capture results</h5>
-
-                <p>
-                    Record laboratory findings and observations.
-                </p>
-
-                <span class="db-action-go">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </span>
-
+                <p>Record laboratory findings and observations.</p>
+                <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
 
-
-            <a asp-controller="Verification"
-               asp-action="Index"
-               class="db-action">
-
-                <div class="db-action-icon">
-                    <i class="fa-solid fa-circle-check"></i>
-                </div>
-
+            <a asp-controller="Verification" asp-action="Index" class="db-action">
+                <div class="db-action-icon"><i class="fa-solid fa-circle-check"></i></div>
                 <h5>Verification</h5>
-
-                <p>
-                    Verify captured laboratory results.
-                </p>
-
-                <span class="db-action-go">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </span>
-
+                <p>Verify captured laboratory results.</p>
+                <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
 
         </div>
@@ -3341,179 +3104,67 @@ if (User.IsInRole("Admin"))
         <!-- =========================================================
              FILTER
              ========================================================= -->
-
         <div class="db-section-head db-mt-lg">
-
             <div>
-
                 <h3>Work queue</h3>
-
-                <p>
-                    Search and filter laboratory workload.
-                </p>
-
+                <p>Search and filter laboratory workload.</p>
             </div>
-
         </div>
-
 
         <div class="db-panel db-mb-lg">
 
             <div class="db-panel-head">
-
-                <span>
-                    <i class="fa-solid fa-filter"></i>
-                    Filter work queue
-                </span>
-
-                <span class="db-panel-tag">
-                    Technician workload
-                </span>
-
+                <span><i class="fa-solid fa-filter"></i> Filter work queue</span>
+                <span class="db-panel-tag">Technician workload</span>
             </div>
 
-
             <div class="db-panel-body">
-
                 <div class="db-filter-grid">
 
-
-                    <!-- URGENCY -->
-
                     <div class="db-field">
-
-                        <label for="filterUrgency">
-                            Urgency
-                        </label>
-
-                        <select id="filterUrgency"
-                                class="db-select">
-
-                            <option value="">
-                                All urgency levels
-                            </option>
-
-                            <option value="STAT">
-                                STAT
-                            </option>
-
-                            <option value="Urgent">
-                                Urgent
-                            </option>
-
-                            <option value="Priority">
-                                Priority
-                            </option>
-
-                            <option value="Routine">
-                                Routine
-                            </option>
-
+                        <label for="filterUrgency">Urgency</label>
+                        <select id="filterUrgency" class="db-select">
+                            <option value="">All urgency levels</option>
+                            <option value="STAT">STAT</option>
+                            <option value="Urgent">Urgent</option>
+                            <option value="Priority">Priority</option>
+                            <option value="Routine">Routine</option>
                         </select>
-
                     </div>
 
-
-                    <!-- CATEGORY -->
-
                     <div class="db-field">
-
-                        <label for="filterCategory">
-                            Category
-                        </label>
-
-                        <select id="filterCategory"
-                                class="db-select">
-
-                            <option value="">
-                                All categories
-                            </option>
-
+                        <label for="filterCategory">Category</label>
+                        <select id="filterCategory" class="db-select">
+                            <option value="">All categories</option>
                         </select>
-
                     </div>
 
-
-                    <!-- DUE -->
-
                     <div class="db-field">
-
-                        <label for="filterDue">
-                            Due time
-                        </label>
-
-                        <select id="filterDue"
-                                class="db-select">
-
-                            <option value="">
-                                All due times
-                            </option>
-
-                            <option value="overdue">
-                                Overdue
-                            </option>
-
-                            <option value="near">
-                                Near turnaround limit
-                            </option>
-
-                            <option value="ontime">
-                                On time
-                            </option>
-
-                            <option value="today">
-                                Due today
-                            </option>
-
+                        <label for="filterDue">Due time</label>
+                        <select id="filterDue" class="db-select">
+                            <option value="">All due times</option>
+                            <option value="overdue">Overdue</option>
+                            <option value="near">Near turnaround limit</option>
+                            <option value="ontime">On time</option>
+                            <option value="today">Due today</option>
                         </select>
-
                     </div>
-
-
-                    <!-- REQUEST -->
 
                     <div class="db-field">
-
-                        <label for="filterRequest">
-                            Request number
-                        </label>
-
-                        <input type="text"
-                               id="filterRequest"
-                               class="db-input"
-                               placeholder="Enter request number" />
-
+                        <label for="filterRequest">Request number</label>
+                        <input type="text" id="filterRequest" class="db-input" placeholder="Enter request number" />
                     </div>
-
-
-                    <!-- BUTTONS -->
 
                     <div class="db-field db-field-btn">
-
-                        <button type="button"
-                                id="applyFilter"
-                                class="db-btn-apply">
-
-                            <i class="fa-solid fa-magnifying-glass"></i>
-
-                            Apply
-
+                        <button type="button" id="applyFilter" class="db-btn-apply">
+                            <i class="fa-solid fa-magnifying-glass"></i> Apply
                         </button>
-
-                        <button type="button"
-                                id="resetFilter"
-                                class="db-btn-reset">
-
-                            <i class="fa-solid fa-rotate-left"></i>
-
-                            Reset
-
+                        <button type="button" id="resetFilter" class="db-btn-reset">
+                            <i class="fa-solid fa-rotate-left"></i> Reset
                         </button>
-
                     </div>
 
                 </div>
-
             </div>
 
         </div>
@@ -3522,87 +3173,46 @@ if (User.IsInRole("Admin"))
         <!-- =========================================================
              QUEUE
              ========================================================= -->
-
-        <div class="db-panel">
+        <div class="db-panel" id="queuePanel">
 
             <div class="db-panel-head">
 
                 <div>
-
-                    <span>
-                        <i class="fa-solid fa-list-check"></i>
-                        Technician test queue
-                    </span>
-
-                    <small>
-                        Tests requiring attention.
-                    </small>
-
+                    <span><i class="fa-solid fa-list-check"></i> Technician test queue</span>
+                    <small>Tests requiring attention.</small>
                 </div>
 
-                <span class="db-panel-count"
-                      id="queueCount">
-
-                    0 tests
-
-                </span>
+                <span class="db-panel-count" id="queueCount">0 tests</span>
 
             </div>
-
 
             <div class="db-table-wrap">
 
                 <table class="db-table">
 
                     <thead>
-
                         <tr>
-
                             <th>Request #</th>
-
                             <th>Patient</th>
-
                             <th>Test</th>
-
                             <th>Category</th>
-
                             <th>Urgency</th>
-
                             <th>Status</th>
-
                             <th>Due time</th>
-
                             <th>Action</th>
-
                         </tr>
-
                     </thead>
 
                     <tbody id="queueBody">
-
                         <tr>
-
                             <td colspan="8">
-
                                 <div class="db-empty">
-
                                     <i class="fa-solid fa-microscope"></i>
-
-                                    <h3>
-                                        Loading laboratory workload...
-                                    </h3>
-
-                                    <p>
-                                        Please wait while the technician
-                                        queue is loaded.
-                                    </p>
-
+                                    <h3>Loading laboratory workload...</h3>
+                                    <p>Please wait while the technician queue is loaded.</p>
                                 </div>
-
                             </td>
-
                         </tr>
-
                     </tbody>
 
                 </table>
@@ -3615,107 +3225,638 @@ if (User.IsInRole("Admin"))
         <!-- =========================================================
              FOOTER
              ========================================================= -->
-
         <div class="db-footer">
-
             <hr />
-
             <div class="db-footer-content">
-
                 <i class="fa-solid fa-flask-vial"></i>
-
-                <span>
-                    Laboratory Information Management System
-                </span>
-
+                <span>Laboratory Information Management System</span>
                 <span class="db-footer-divider">|</span>
-
-                <span>
-                    Technician Dashboard
-                </span>
-
+                <span>Technician Dashboard</span>
                 <span class="db-footer-divider">|</span>
-
-                <span>
-                    @DateTime.Now.Year
-                </span>
-
+                <span>@DateTime.Now.Year</span>
             </div>
-
         </div>
 
     </div>
 
-
-    <!-- =============================================================
-         JAVASCRIPT
-         ============================================================= -->
 
     @section Scripts {
 
         <script>
 
             // =========================================================
-            // CLOCK
+            // CONSTANTS
+            // =========================================================
+
+            const ROUTES = {
+                available:    '@Url.Action("Index", "AvailableTests")',
+                inProgress:   '@Url.Action("InProgress", "AvailableTests")',
+                verification: '@Url.Action("Index", "Verification")',
+                process:      '@Url.Action("ProcessTest", "AvailableTests")'
+            };
+
+            const API = {
+                summary:    '@Url.Action("DashboardSummary", "AvailableTests")',
+                categories: '@Url.Action("DashboardCategories", "AvailableTests")',
+                queue:      '@Url.Action("DashboardQueue", "AvailableTests")'
+            };
+
+            const USER_KEY = @Json.Serialize(User.Identity?.Name ?? "tech");
+
+
+            // =========================================================
+            // LOCAL STORAGE (per technician)
+            // =========================================================
+
+            const LS = {
+                key: k => "labdash.tech." + USER_KEY + "." + k,
+                get(k, fallback) {
+                    try {
+                        const v = localStorage.getItem(LS.key(k));
+                        return v ? JSON.parse(v) : fallback;
+                    } catch (e) { return fallback; }
+                },
+                set(k, v) {
+                    try { localStorage.setItem(LS.key(k), JSON.stringify(v)); } catch (e) { }
+                }
+            };
+
+
+            // =========================================================
+            // CLOCK + GREETING
             // =========================================================
 
             function updateClock() {
 
                 const now = new Date();
-
-                const dateElement =
-                    document.getElementById("currentDate");
-
-                const timeElement =
-                    document.getElementById("currentTime");
+                const dateElement = document.getElementById("currentDate");
+                const timeElement = document.getElementById("currentTime");
 
                 if (dateElement) {
-
-                    dateElement.textContent =
-                        now.toLocaleDateString("en-ZA", {
-                            weekday: "long",
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric"
-                        });
-
+                    dateElement.textContent = now.toLocaleDateString("en-ZA", {
+                        weekday: "long", day: "numeric", month: "long", year: "numeric"
+                    });
                 }
 
                 if (timeElement) {
-
-                    timeElement.textContent =
-                        now.toLocaleTimeString("en-ZA", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit"
-                        });
-
+                    timeElement.textContent = now.toLocaleTimeString("en-ZA", {
+                        hour: "2-digit", minute: "2-digit", second: "2-digit"
+                    });
                 }
-
             }
 
+            function updateGreeting() {
+                const h = new Date().getHours();
+                const g = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+                const el = document.getElementById("techGreeting");
+                if (el) el.textContent = g;
+            }
 
             updateClock();
-
+            updateGreeting();
             setInterval(updateClock, 1000);
+            setInterval(updateGreeting, 600000);
 
 
             // =========================================================
-            // SET VALUE
+            // HELPERS
             // =========================================================
 
             function setValue(id, value) {
-
-                const element =
-                    document.getElementById(id);
-
-                if (!element)
-                    return;
-
-                element.textContent =
-                    value ?? 0;
+                const element = document.getElementById(id);
+                if (!element) return;
+                element.textContent = value ?? 0;
             }
 
+            function escapeHtml(value) {
+                const div = document.createElement("div");
+                div.textContent = value ?? "";
+                return div.innerHTML;
+            }
+
+
+            // =========================================================
+            // NOTIFICATION CENTRE
+            // =========================================================
+
+            const TN = {
+                summary: null,
+                queue: [],
+                read: new Set(LS.get("read", [])),
+                dismissed: new Set(LS.get("dismissed", [])),
+                seen: LS.get("seen", {}),
+                events: LS.get("events", []),
+                announced: new Set(),
+                view: [],
+                tab: "all",
+                ready: false,
+                lastCheck: null,
+                prevCritical: 0,
+                baseTitle: document.title
+            };
+
+            const LEVEL_RANK = { critical: 0, warning: 1, info: 2, success: 3 };
+
+            function tnNum(v) { return Number(v) || 0; }
+
+            function tnPlural(count, word) { return count + " " + word + (count === 1 ? "" : "s"); }
+
+            // "#102 Glucose, #108 FBC +2 more"
+            function tnNames(tests, fmt) {
+
+                if (!tests.length) return "";
+
+                const shown = tests.slice(0, 2).map(function (t) {
+                    const extra = fmt ? fmt(t) : "";
+                    return "#" + t.requestId + " " + t.testName + extra;
+                });
+
+                let text = shown.join(", ");
+                if (tests.length > 2) text += " +" + (tests.length - 2) + " more";
+                return text;
+            }
+
+            function tnAgo(ts) {
+                const s = Math.max(0, (Date.now() - ts) / 1000);
+                if (s < 45) return "just now";
+                if (s < 3600) return Math.round(s / 60) + " min ago";
+                if (s < 86400) return Math.round(s / 3600) + " h ago";
+                return "yesterday";
+            }
+
+            function tnSince(ts) {
+                const d = new Date(ts);
+                const today = new Date();
+                if (d.toDateString() === today.toDateString()) {
+                    return "since " + d.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
+                }
+                return "since " + d.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
+            }
+
+            // ---------- Build the active notification list ----------
+
+            function tnBuildActive() {
+
+                const s = TN.summary || {};
+                const q = TN.queue || [];
+                const out = [];
+
+                const stat = q.filter(function (t) { return t.urgency === "STAT"; });
+                const overdue = q.filter(function (t) { return t.overdue; });
+                const near = q.filter(function (t) { return t.nearDeadline && !t.overdue; });
+                const review = q.filter(function (t) { return t.status === "To Be Reviewed"; });
+
+                const urgent = tnNum(s.urgent);
+                const late = tnNum(s.overdue);
+                const nearN = tnNum(s.nearDeadline);
+                const rev = tnNum(s.waitingForReview);
+                const ver = tnNum(s.waitingForVerification);
+                const wait = tnNum(s.waitingToBeSelected);
+                const mine = tnNum(s.selectedByTechnician);
+
+                if (urgent > 0) out.push({
+                    id: "stat:" + urgent, level: "critical", icon: "bolt",
+                    title: tnPlural(urgent, "STAT test") + (urgent === 1 ? " needs" : " need") + " attention now",
+                    text: tnNames(stat) || "Immediate attention required.",
+                    cta: "Show STAT tests", act: { type: "filter", urgency: "STAT" }
+                });
+
+                if (late > 0) out.push({
+                    id: "overdue:" + late, level: "critical", icon: "hourglass-end",
+                    title: tnPlural(late, "test") + " past turnaround time",
+                    text: tnNames(overdue, function (t) {
+                        return t.minutesRemaining < 0 ? " (" + Math.abs(t.minutesRemaining) + " min late)" : "";
+                    }) || "Past the turnaround limit.",
+                    cta: "Show overdue", act: { type: "filter", due: "overdue" }
+                });
+
+                if (nearN > 0) out.push({
+                    id: "near:" + nearN, level: "warning", icon: "stopwatch",
+                    title: tnPlural(nearN, "test") + " due within 30 minutes",
+                    text: tnNames(near, function (t) {
+                        return t.minutesRemaining >= 0 ? " (" + t.minutesRemaining + " min left)" : "";
+                    }) || "Approaching the turnaround limit.",
+                    cta: "Show near deadline", act: { type: "filter", due: "near" }
+                });
+
+                if (rev > 0) out.push({
+                    id: "review:" + rev, level: "warning", icon: "file-medical",
+                    title: tnPlural(rev, "result") + " returned for review",
+                    text: tnNames(review) || "A verifier returned results for correction.",
+                    cta: "Open verification", act: { type: "link", href: ROUTES.verification }
+                });
+
+                if (wait > 0) out.push({
+                    id: "select:" + wait, level: "info", icon: "hourglass-half",
+                    title: tnPlural(wait, "sample") + " waiting to be selected",
+                    text: "Received and ready for a technician to pick up.",
+                    cta: "View available tests", act: { type: "link", href: ROUTES.available }
+                });
+
+                if (ver > 0) out.push({
+                    id: "verify:" + ver, level: "info", icon: "circle-check",
+                    title: tnPlural(ver, "result") + " waiting for verification",
+                    text: "Captured results are ready to be validated.",
+                    cta: "Open verification", act: { type: "link", href: ROUTES.verification }
+                });
+
+                if (mine > 0) out.push({
+                    id: "mine:" + mine, level: "info", icon: "flask",
+                    title: "You have " + tnPlural(mine, "test") + " in progress",
+                    text: "Continue working on your assigned tests.",
+                    cta: "Continue testing", act: { type: "link", href: ROUTES.inProgress }
+                });
+
+                // Recent events (new arrivals since the last check)
+                TN.events.forEach(function (e) {
+                    out.push({
+                        id: e.id, level: e.level, icon: e.icon, title: e.title, text: e.text,
+                        cta: e.cta, act: e.act, event: true, ts: e.ts
+                    });
+                });
+
+                if (!out.length && TN.summary) out.push({
+                    id: "clear", level: "success", icon: "mug-hot",
+                    title: "You're all caught up",
+                    text: "No alerts and nothing waiting. Enjoy the quiet."
+                });
+
+                const now = Date.now();
+
+                out.forEach(function (n) {
+                    if (!n.ts) {
+                        if (!TN.seen[n.id]) TN.seen[n.id] = now;
+                        n.ts = TN.seen[n.id];
+                    }
+                    n.unread = !TN.read.has(n.id);
+                });
+
+                out.sort(function (a, b) {
+                    return (LEVEL_RANK[a.level] - LEVEL_RANK[b.level]) || (b.ts - a.ts);
+                });
+
+                return out;
+            }
+
+            // ---------- Detect new arrivals since the previous check ----------
+
+            function tnDetectEvents(s) {
+
+                const now = Date.now();
+                const prev = LS.get("snap", null);
+                const keys = ["waitingToBeSelected", "urgent", "waitingForReview", "waitingForVerification"];
+
+                if (prev && now - prev.t < 12 * 3600000) {
+
+                    const d = function (k) { return tnNum(s[k]) - tnNum(prev.v[k]); };
+
+                    if (d("urgent") > 0) tnPushEvent({
+                        level: "critical", icon: "bolt",
+                        title: d("urgent") === 1 ? "A new STAT test arrived" : d("urgent") + " new STAT tests arrived",
+                        text: "Marked for immediate attention.",
+                        cta: "Show STAT tests", act: { type: "filter", urgency: "STAT" }
+                    });
+
+                    if (d("waitingForReview") > 0) tnPushEvent({
+                        level: "warning", icon: "rotate-left",
+                        title: d("waitingForReview") === 1 ? "A result was returned for review" : d("waitingForReview") + " results were returned for review",
+                        text: "A verifier asked for a correction.",
+                        cta: "Open verification", act: { type: "link", href: ROUTES.verification }
+                    });
+
+                    if (d("waitingToBeSelected") > 0) tnPushEvent({
+                        level: "info", icon: "vials",
+                        title: d("waitingToBeSelected") === 1 ? "1 new sample ready to select" : d("waitingToBeSelected") + " new samples ready to select",
+                        text: "Received since your last check.",
+                        cta: "View available tests", act: { type: "link", href: ROUTES.available }
+                    });
+                }
+
+                const v = {};
+                keys.forEach(function (k) { v[k] = tnNum(s[k]); });
+                LS.set("snap", { t: now, v: v });
+            }
+
+            function tnPushEvent(e) {
+                e.id = "ev:" + Date.now() + ":" + Math.random().toString(36).slice(2, 6);
+                e.ts = Date.now();
+                TN.events.unshift(e);
+                TN.events = TN.events.slice(0, 6);
+            }
+
+            function tnExpireEvents() {
+                const cutoff = Date.now() - 4 * 3600000;
+                TN.events = TN.events.filter(function (e) { return e.ts > cutoff; });
+            }
+
+            // ---------- Refresh (recompute, persist, toast, render) ----------
+
+            function tnRefresh() {
+
+                tnExpireEvents();
+
+                const all = tnBuildActive();
+                const ids = new Set(all.map(function (n) { return n.id; }));
+                const keep = function (id) { return ids.has(id); };
+
+                // Drop state for notifications that no longer exist
+                TN.read = new Set(Array.from(TN.read).filter(keep));
+                TN.dismissed = new Set(Array.from(TN.dismissed).filter(keep));
+                Object.keys(TN.seen).forEach(function (id) { if (!keep(id)) delete TN.seen[id]; });
+
+                LS.set("read", Array.from(TN.read));
+                LS.set("dismissed", Array.from(TN.dismissed));
+                LS.set("seen", TN.seen);
+                LS.set("events", TN.events);
+
+                TN.view = all.filter(function (n) { return !TN.dismissed.has(n.id); });
+
+                // Toasts for anything new that appeared after the first load
+                TN.view.forEach(function (n) {
+                    if (TN.announced.has(n.id)) return;
+                    TN.announced.add(n.id);
+                    if (TN.ready && n.unread && (n.level === "critical" || n.level === "warning" || n.event)) {
+                        tnToast(n);
+                    }
+                });
+
+                tnRender();
+            }
+
+            // ---------- Render ----------
+
+            function tnRender() {
+
+                const view = TN.view;
+                const unread = view.filter(function (n) { return n.unread && n.level !== "success"; });
+                const critUnread = unread.filter(function (n) { return n.level === "critical"; }).length;
+
+                // Bell + badge
+                const bell = document.getElementById("techBell");
+                const badge = document.getElementById("techBellBadge");
+
+                badge.hidden = unread.length === 0;
+                badge.textContent = unread.length > 9 ? "9+" : String(unread.length);
+                bell.classList.toggle("has-critical", critUnread > 0);
+
+                if (critUnread > TN.prevCritical) {
+                    bell.classList.remove("ring");
+                    void bell.offsetWidth;
+                    bell.classList.add("ring");
+                }
+                TN.prevCritical = critUnread;
+
+                document.title = (unread.length ? "(" + unread.length + ") " : "") + TN.baseTitle;
+
+                // Header + status
+                setValue("techNotifUnread", unread.length + " new");
+
+                const crit = view.filter(function (n) { return n.level === "critical"; }).length;
+                const warn = view.filter(function (n) { return n.level === "warning"; }).length;
+                const status = document.getElementById("techNotifStatus");
+
+                if (crit > 0) {
+                    status.className = "db-n-status crit";
+                    status.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><span>' + tnPlural(crit, "critical alert") + ' need action now</span>';
+                } else if (warn > 0) {
+                    status.className = "db-n-status warn";
+                    status.innerHTML = '<i class="fa-solid fa-eye"></i><span>' + tnPlural(warn, "item") + ' to keep an eye on</span>';
+                } else {
+                    status.className = "db-n-status ok";
+                    status.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>All clear. Nothing needs your attention.</span>';
+                }
+
+                // Tabs
+                const urgentList = view.filter(function (n) { return n.level === "critical" || n.level === "warning"; });
+                const flowList = view.filter(function (n) { return n.level === "info" || n.level === "success"; });
+
+                setValue("tabAll", view.length);
+                setValue("tabUrgent", urgentList.length);
+                setValue("tabFlow", flowList.length);
+
+                document.querySelectorAll(".db-n-tab").forEach(function (t) {
+                    t.classList.toggle("active", t.dataset.tab === TN.tab);
+                });
+
+                const shown = TN.tab === "urgent" ? urgentList : TN.tab === "flow" ? flowList : view;
+
+                // List
+                const list = document.getElementById("techNotifList");
+
+                if (!shown.length) {
+                    list.innerHTML = '<div class="db-n-empty"><i class="fa-solid fa-bell-slash"></i><strong>Nothing here</strong><span>New alerts will appear as your workload changes.</span></div>';
+                } else {
+                    list.innerHTML = shown.map(function (n) {
+
+                        const when = n.event ? tnAgo(n.ts) : tnSince(n.ts);
+
+                        return '<div class="db-n-item lvl-' + n.level + (n.unread ? " unread" : "") + '" data-id="' + escapeHtml(n.id) + '">'
+                            + '<button type="button" class="db-n-main" data-act="open">'
+                            + '<span class="db-n-ico"><i class="fa-solid fa-' + n.icon + '"></i></span>'
+                            + '<span class="db-n-body">'
+                            + '<span class="db-n-title">' + escapeHtml(n.title) + (n.unread ? '<i class="db-n-dot"></i>' : "") + '</span>'
+                            + '<span class="db-n-text">' + escapeHtml(n.text) + '</span>'
+                            + '<span class="db-n-meta"><span>' + escapeHtml(when) + '</span>'
+                            + (n.cta ? '<span class="db-n-cta">' + escapeHtml(n.cta) + ' <i class="fa-solid fa-arrow-right"></i></span>' : "")
+                            + '</span>'
+                            + '</span></button>'
+                            + '<button type="button" class="db-n-x" data-act="dismiss" aria-label="Dismiss notification"><i class="fa-solid fa-xmark"></i></button>'
+                            + '</div>';
+
+                    }).join("");
+                }
+
+                // Footer
+                if (TN.lastCheck) {
+                    setValue("techNotifChecked", "Checked " + TN.lastCheck.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" }));
+                }
+                document.getElementById("techNotifRestore").hidden = TN.dismissed.size === 0;
+            }
+
+            // ---------- Toasts ----------
+
+            function tnToast(n) {
+
+                const stack = document.getElementById("techToasts");
+                const el = document.createElement("button");
+
+                el.type = "button";
+                el.className = "db-toast lvl-" + n.level;
+                el.innerHTML = '<span class="db-n-ico"><i class="fa-solid fa-' + n.icon + '"></i></span>'
+                    + '<span class="db-n-body"><span class="db-n-title">' + escapeHtml(n.title) + '</span>'
+                    + '<span class="db-n-text">' + escapeHtml(n.text) + '</span></span>';
+
+                el.addEventListener("click", function () {
+                    el.remove();
+                    tnOpen(true);
+                });
+
+                stack.appendChild(el);
+
+                setTimeout(function () {
+                    el.classList.add("out");
+                    setTimeout(function () { el.remove(); }, 300);
+                }, 7000);
+            }
+
+            // ---------- Open / close ----------
+
+            function tnOpen(open) {
+
+                const panel = document.getElementById("techNotifPanel");
+                const bell = document.getElementById("techBell");
+
+                panel.hidden = !open;
+                bell.setAttribute("aria-expanded", open ? "true" : "false");
+
+                if (open) tnRender();
+            }
+
+            function tnRun(act) {
+
+                if (!act) return;
+
+                if (act.type === "link") {
+                    window.location.href = act.href;
+                    return;
+                }
+
+                if (act.type === "filter") {
+
+                    document.getElementById("filterUrgency").value = act.urgency || "";
+                    document.getElementById("filterDue").value = act.due || "";
+                    document.getElementById("filterCategory").value = "";
+                    document.getElementById("filterRequest").value = "";
+
+                    loadQueue();
+
+                    const panel = document.getElementById("queuePanel");
+                    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+            }
+
+            // ---------- Wiring ----------
+
+            document.getElementById("techBell").addEventListener("click", function (e) {
+                e.stopPropagation();
+                tnOpen(document.getElementById("techNotifPanel").hidden);
+            });
+
+            document.addEventListener("click", function (e) {
+                const wrap = document.getElementById("techBellWrap");
+                if (!wrap.contains(e.target)) tnOpen(false);
+            });
+
+            document.addEventListener("keydown", function (e) {
+                if (e.key === "Escape") tnOpen(false);
+            });
+
+            document.getElementById("techNotifList").addEventListener("click", function (e) {
+
+                const item = e.target.closest(".db-n-item");
+                const btn = e.target.closest("[data-act]");
+                if (!item || !btn) return;
+
+                const id = item.dataset.id;
+                const n = TN.view.find(function (x) { return x.id === id; });
+                if (!n) return;
+
+                if (btn.dataset.act === "dismiss") {
+                    TN.dismissed.add(id);
+                    TN.events = TN.events.filter(function (ev) { return ev.id !== id; });
+                    tnRefresh();
+                    return;
+                }
+
+                TN.read.add(id);
+                tnRefresh();
+
+                if (n.act) {
+                    tnOpen(false);
+                    tnRun(n.act);
+                }
+            });
+
+            document.getElementById("techMarkAll").addEventListener("click", function () {
+                TN.view.forEach(function (n) { TN.read.add(n.id); });
+                tnRefresh();
+            });
+
+            document.getElementById("techNotifRestore").addEventListener("click", function () {
+                TN.dismissed.clear();
+                tnRefresh();
+            });
+
+            document.getElementById("techNotifRefresh").addEventListener("click", async function () {
+                const icon = this.querySelector("i");
+                icon.classList.add("fa-spin");
+                await refreshDashboard();
+                icon.classList.remove("fa-spin");
+            });
+
+            document.querySelectorAll(".db-n-tab").forEach(function (t) {
+                t.addEventListener("click", function () {
+                    TN.tab = t.dataset.tab;
+                    tnRender();
+                });
+            });
+
+            // Keep "x min ago" labels fresh
+            setInterval(function () {
+                if (!document.getElementById("techNotifPanel").hidden) tnRender();
+            }, 30000);
+
+
+
+            // =========================================================
+            // WORKLOAD HEALTH STRIP
+            // =========================================================
+
+            function updateHealth(d) {
+
+                const el = document.getElementById("techHealth");
+                if (!el) return;
+
+                const stat = tnNum(d.urgent);
+                const late = tnNum(d.overdue);
+                const near = tnNum(d.nearDeadline);
+                const rev = tnNum(d.waitingForReview);
+
+                let cls = "ok";
+                let html = "<strong>Workload looks under control</strong> &middot; no STAT or overdue tests, 0 warnings";
+                let act = "all";
+
+                if (stat > 0 || late > 0) {
+                    const parts = [];
+                    if (stat > 0) parts.push(tnPlural(stat, "STAT test"));
+                    if (late > 0) parts.push(late + " overdue");
+                    cls = "crit";
+                    html = "<strong>Attention needed</strong> &middot; " + parts.join(", ");
+                    act = stat > 0 ? "stat" : "overdue";
+                }
+                else if (near > 0 || rev > 0) {
+                    const parts = [];
+                    if (near > 0) parts.push(near + " near the turnaround limit");
+                    if (rev > 0) parts.push(rev + " returned for review");
+                    cls = "warn";
+                    html = "<strong>Keep an eye on your queue</strong> &middot; " + parts.join(", ");
+                    act = near > 0 ? "near" : "all";
+                }
+
+                el.className = "db-health " + cls;
+                el.dataset.act = act;
+                document.getElementById("techHealthText").innerHTML = html;
+            }
+
+            document.getElementById("techHealthCta").addEventListener("click", function () {
+
+                const act = document.getElementById("techHealth").dataset.act;
+
+                if (act === "stat") tnRun({ type: "filter", urgency: "STAT" });
+                else if (act === "overdue") tnRun({ type: "filter", due: "overdue" });
+                else if (act === "near") tnRun({ type: "filter", due: "near" });
+                else tnRun({ type: "filter" });
+            });
 
             // =========================================================
             // LOAD SUMMARY
@@ -3725,133 +3866,38 @@ if (User.IsInRole("Admin"))
 
                 try {
 
-                    const response =
-                        await fetch(
-                            '@Url.Action("DashboardSummary", "AvailableTests")'
-                        );
+                    const response = await fetch(API.summary);
 
+                    if (!response.ok) throw new Error("Unable to load dashboard summary.");
 
-                    if (!response.ok) {
+                    const data = await response.json();
 
-                        throw new Error(
-                            "Unable to load dashboard summary."
-                        );
+                    setValue("availableCount", data.waitingToBeSelected);
+                    setValue("inProgressCount", data.selectedByTechnician);
+                    setValue("verifiedCount", data.waitingForVerification);
+                    setValue("reviewCount", data.waitingForReview);
+                    setValue("urgentCount", data.urgent);
+                    setValue("overdueCount", data.overdue);
+                    setValue("nearDeadlineCount", data.nearDeadline);
+                    setValue("completedCount", data.verified);
 
-                    }
+                    setValue("flowAvailable", data.waitingToBeSelected);
+                    setValue("flowInProgress", data.selectedByTechnician);
+                    setValue("flowVerified", data.waitingForVerification);
+                    setValue("flowReview", data.waitingForReview);
 
+                    setValue("urgentChip", (data.urgent ?? 0) + " STAT tests");
+                    setValue("overdueChip", (data.overdue ?? 0) + " overdue tests");
+                    setValue("nearDeadlineChip", (data.nearDeadline ?? 0) + " near deadline");
 
-                    const data =
-                        await response.json();
+                    updateHealth(data);
 
-
-                    // =================================================
-                    // MAIN CARDS
-                    // =================================================
-
-                    setValue(
-                        "availableCount",
-                        data.waitingToBeSelected
-                    );
-
-
-                    setValue(
-                        "inProgressCount",
-                        data.selectedByTechnician
-                    );
-
-
-                    setValue(
-                        "verifiedCount",
-                        data.waitingForVerification
-                    );
-
-
-                    setValue(
-                        "reviewCount",
-                        data.waitingForReview
-                    );
-
-
-                    setValue(
-                        "urgentCount",
-                        data.urgent
-                    );
-
-
-                    setValue(
-                        "overdueCount",
-                        data.overdue
-                    );
-
-
-                    setValue(
-                        "nearDeadlineCount",
-                        data.nearDeadline
-                    );
-
-
-                    setValue(
-                        "completedCount",
-                        data.verified
-                    );
-
-
-                    // =================================================
-                    // PIPELINE
-                    // =================================================
-
-                    setValue(
-                        "flowAvailable",
-                        data.waitingToBeSelected
-                    );
-
-
-                    setValue(
-                        "flowInProgress",
-                        data.selectedByTechnician
-                    );
-
-
-                    setValue(
-                        "flowVerified",
-                        data.waitingForVerification
-                    );
-
-
-                    setValue(
-                        "flowReview",
-                        data.waitingForReview
-                    );
-
-
-                    // =================================================
-                    // CHIPS
-                    // =================================================
-
-                    document.getElementById("urgentChip")
-                        .textContent =
-                        `${data.urgent ?? 0} STAT tests`;
-
-
-                    document.getElementById("overdueChip")
-                        .textContent =
-                        `${data.overdue ?? 0} overdue tests`;
-
-
-                    document.getElementById("nearDeadlineChip")
-                        .textContent =
-                        `${data.nearDeadline ?? 0} near deadline`;
-
+                    return data;
                 }
                 catch (error) {
-
-                    console.error(
-                        "Dashboard summary error:",
-                        error
-                    );
-
+                    console.error("Dashboard summary error:", error);
+                    return null;
                 }
-
             }
 
 
@@ -3863,167 +3909,62 @@ if (User.IsInRole("Admin"))
 
                 try {
 
-                    const response =
-                        await fetch(
-                            '@Url.Action("DashboardCategories", "AvailableTests")'
-                        );
+                    const response = await fetch(API.categories);
+                    if (!response.ok) throw new Error("Unable to load categories.");
 
+                    const categories = await response.json();
+                    const select = document.getElementById("filterCategory");
+                    if (!select) return;
 
-                    if (!response.ok)
-                        throw new Error(
-                            "Unable to load categories."
-                        );
+                    select.innerHTML = '<option value="">All categories</option>';
 
-
-                    const categories =
-                        await response.json();
-
-
-                    const select =
-                        document.getElementById(
-                            "filterCategory"
-                        );
-
-
-                    if (!select)
-                        return;
-
-
-                    select.innerHTML =
-                        '<option value="">All categories</option>';
-
-
-                    categories.forEach(category => {
-
-                        const option =
-                            document.createElement("option");
-
+                    categories.forEach(function (category) {
+                        const option = document.createElement("option");
                         option.value = category;
-
                         option.textContent = category;
-
                         select.appendChild(option);
-
                     });
-
                 }
                 catch (error) {
-
-                    console.error(
-                        "Category loading error:",
-                        error
-                    );
-
+                    console.error("Category loading error:", error);
                 }
-
             }
 
 
             // =========================================================
-            // LOAD QUEUE
+            // LOAD QUEUE (table, respects filters)
             // =========================================================
 
-            async function loadQueue() {
+            async function loadQueue(quiet) {
 
-                const urgency =
-                    document.getElementById(
-                        "filterUrgency"
-                    ).value;
+                const urgency = document.getElementById("filterUrgency").value;
+                const category = document.getElementById("filterCategory").value;
+                const due = document.getElementById("filterDue").value;
+                const requestNumber = document.getElementById("filterRequest").value.trim();
 
+                const params = new URLSearchParams();
 
-                const category =
-                    document.getElementById(
-                        "filterCategory"
-                    ).value;
-
-
-                const due =
-                    document.getElementById(
-                        "filterDue"
-                    ).value;
-
-
-                const requestNumber =
-                    document.getElementById(
-                        "filterRequest"
-                    ).value.trim();
-
-
-                const params =
-                    new URLSearchParams();
-
-
-                if (urgency)
-                    params.append(
-                        "urgency",
-                        urgency
-                    );
-
-
-                if (category)
-                    params.append(
-                        "category",
-                        category
-                    );
-
-
-                if (due)
-                    params.append(
-                        "due",
-                        due
-                    );
-
-
-                if (requestNumber)
-                    params.append(
-                        "requestNumber",
-                        requestNumber
-                    );
-
+                if (urgency) params.append("urgency", urgency);
+                if (category) params.append("category", category);
+                if (due) params.append("due", due);
+                if (requestNumber) params.append("requestNumber", requestNumber);
 
                 try {
 
-                    showQueueLoading();
+                    if (!quiet) showQueueLoading();
 
+                    const url = API.queue + (params.toString() ? "?" + params.toString() : "");
+                    const response = await fetch(url);
 
-                    const url =
-                        '@Url.Action("DashboardQueue", "AvailableTests")'
-                        +
-                        (
-                            params.toString()
-                                ? "?" + params.toString()
-                                : ""
-                        );
+                    if (!response.ok) throw new Error("Unable to load technician queue.");
 
-
-                    const response =
-                        await fetch(url);
-
-
-                    if (!response.ok)
-                        throw new Error(
-                            "Unable to load technician queue."
-                        );
-
-
-                    const tests =
-                        await response.json();
-
-
+                    const tests = await response.json();
                     renderQueue(tests);
-
                 }
                 catch (error) {
-
-                    console.error(
-                        "Queue loading error:",
-                        error
-                    );
-
-                    showQueueError();
-
+                    console.error("Queue loading error:", error);
+                    if (!quiet) showQueueError();
                 }
-
             }
 
 
@@ -4033,1917 +3974,547 @@ if (User.IsInRole("Admin"))
 
             function renderQueue(tests) {
 
-                const body =
-                    document.getElementById(
-                        "queueBody"
-                    );
+                const body = document.getElementById("queueBody");
+                const count = document.getElementById("queueCount");
 
-
-                const count =
-                    document.getElementById(
-                        "queueCount"
-                    );
-
-
-                count.textContent =
-                    `${tests.length} test${tests.length === 1 ? "" : "s"}`;
-
+                count.textContent = tests.length + " test" + (tests.length === 1 ? "" : "s");
 
                 if (!tests.length) {
 
                     body.innerHTML = `
-
-                        <tr>
-
-                            <td colspan="8">
-
-                                <div class="db-empty">
-
-                                    <i class="fa-solid fa-circle-check"></i>
-
-                                    <h3>
-                                        No tests found
-                                    </h3>
-
-                                    <p>
-                                        There are no laboratory tests
-                                        matching the selected filters.
-                                    </p>
-
-                                </div>
-
-                            </td>
-
-                        </tr>
-
-                    `;
+                        <tr><td colspan="8">
+                            <div class="db-empty">
+                                <i class="fa-solid fa-circle-check"></i>
+                                <h3>No tests found</h3>
+                                <p>There are no laboratory tests matching the selected filters.</p>
+                            </div>
+                        </td></tr>`;
 
                     return;
                 }
 
-
-                body.innerHTML =
-                    tests.map(test => {
-
-                        // =============================================
-                        // URGENCY
-                        // =============================================
-
-                        let urgencyClass =
-                            "db-status-neutral";
-
-
-                        if (test.urgency === "STAT") {
-
-                            urgencyClass =
-                                "db-status-danger";
-
-                        }
-                        else if (test.urgency === "Urgent") {
-
-                            urgencyClass =
-                                "db-status-warning";
-
-                        }
-                        else if (test.urgency === "Priority") {
-
-                            urgencyClass =
-                                "db-status-info";
-
-                        }
-
-
-                        // =============================================
-                        // STATUS
-                        // =============================================
-
-                        let statusClass =
-                            "db-status-neutral";
-
-
-                        if (test.status === "In Progress") {
-
-                            statusClass =
-                                "db-status-info";
-
-                        }
-                        else if (test.status === "Completed") {
-
-                            statusClass =
-                                "db-status-success";
-
-                        }
-                        else if (
-                            test.status === "To Be Reviewed"
-                        ) {
-
-                            statusClass =
-                                "db-status-warning";
-
-                        }
-                        else if (
-                            test.status === "Submitted"
-                        ) {
-
-                            statusClass =
-                                "db-status-neutral";
-
-                        }
-
-
-                        // =============================================
-                        // DUE TIME
-                        // =============================================
-
-                        let dueClass = "";
-
-                        if (test.overdue) {
-
-                            dueClass =
-                                "db-due-overdue";
-
-                        }
-                        else if (test.nearDeadline) {
-
-                            dueClass =
-                                "db-due-near";
-
-                        }
-
-
-                        let dueText =
-                            test.dueDisplay || "—";
-
-
-                        if (
-                            test.status === "In Progress" &&
-                            test.minutesRemaining !== null &&
-                            test.minutesRemaining !== undefined
-                        ) {
-
-                            if (test.minutesRemaining < 0) {
-
-                                dueText =
-                                    `Overdue by ${Math.abs(test.minutesRemaining)} min`;
-
-                            }
-                            else if (test.minutesRemaining === 0) {
-
-                                dueText =
-                                    "Due now";
-
-                            }
-                            else {
-
-                                dueText =
-                                    `${test.minutesRemaining} min remaining`;
-
-                            }
-
-                        }
-
-
-                        // =============================================
-                        // ACTION
-                        // =============================================
-
-                        let action = "";
-
-
-                        if (test.status === "Submitted") {
-
-                            action = `
-
-                                <a
-                                    href="@Url.Action("Index", "AvailableTests")"
-                                    class="db-table-action">
-
-                                    <i class="fa-solid fa-arrow-right"></i>
-
-                                    Select
-
-                                </a>
-
-                            `;
-
-                        }
-                        else if (
-                            test.status === "In Progress"
-                        ) {
-
-                            action = `
-
-                                <a
-                                    href="@Url.Action("ProcessTest", "AvailableTests")?id=${test.id}"
-                                    class="db-table-action">
-
-                                    <i class="fa-solid fa-flask"></i>
-
-                                    Process
-
-                                </a>
-
-                            `;
-
-                        }
-                        else if (
-                            test.status === "Completed"
-                        ) {
-
-                            action = `
-
-                                <a
-                                    href="@Url.Action("Index", "Verification")"
-                                    class="db-table-action">
-
-                                    <i class="fa-solid fa-circle-check"></i>
-
-                                    Verify
-
-                                </a>
-
-                            `;
-
-                        }
-                        else if (
-                            test.status === "To Be Reviewed"
-                        ) {
-
-                            action = `
-
-                                <a
-                                    href="@Url.Action("Index", "Verification")"
-                                    class="db-table-action">
-
-                                    <i class="fa-solid fa-file-medical"></i>
-
-                                    Review
-
-                                </a>
-
-                            `;
-
-                        }
-
-
-                        return `
-
-                            <tr>
-
-                                <td>
-
-                                    <span class="db-request-number">
-
-                                        #${escapeHtml(
-                                            String(test.requestId)
-                                        )}
-
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <strong>
-                                        ${escapeHtml(
-                                            test.patient
-                                        )}
-                                    </strong>
-
-                                </td>
-
-
-                                <td>
-
-                                    <strong>
-                                        ${escapeHtml(
-                                            test.testName
-                                        )}
-                                    </strong>
-
-                                </td>
-
-
-                                <td>
-
-                                    ${escapeHtml(
-                                        test.category
-                                    )}
-
-                                </td>
-
-
-                                <td>
-
-                                    <span class="${urgencyClass}">
-
-                                        ${escapeHtml(
-                                            test.urgency
-                                        )}
-
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <span class="${statusClass}">
-
-                                        ${escapeHtml(
-                                            test.statusDisplay
-                                        )}
-
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <span class="${dueClass}">
-
-                                        ${escapeHtml(
-                                            dueText
-                                        )}
-
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    ${action}
-
-                                </td>
-
-                            </tr>
-
-                        `;
-
-                    }).join("");
-
+                body.innerHTML = tests.map(function (test) {
+
+                    let urgencyClass = "db-status-neutral";
+                    if (test.urgency === "STAT") urgencyClass = "db-status-danger";
+                    else if (test.urgency === "Urgent") urgencyClass = "db-status-warning";
+                    else if (test.urgency === "Priority") urgencyClass = "db-status-info";
+
+                    let statusClass = "db-status-neutral";
+                    if (test.status === "In Progress") statusClass = "db-status-info";
+                    else if (test.status === "Completed") statusClass = "db-status-success";
+                    else if (test.status === "To Be Reviewed") statusClass = "db-status-warning";
+
+                    let dueClass = "";
+                    if (test.overdue) dueClass = "db-due-overdue";
+                    else if (test.nearDeadline) dueClass = "db-due-near";
+
+                    let dueText = test.dueDisplay || "\u2014";
+
+                    if (test.status === "In Progress" && test.minutesRemaining !== null && test.minutesRemaining !== undefined) {
+                        if (test.minutesRemaining < 0) dueText = "Overdue by " + Math.abs(test.minutesRemaining) + " min";
+                        else if (test.minutesRemaining === 0) dueText = "Due now";
+                        else dueText = test.minutesRemaining + " min remaining";
+                    }
+
+                    let action = "";
+
+                    if (test.status === "Submitted") {
+                        action = '<a href="' + ROUTES.available + '" class="db-table-action"><i class="fa-solid fa-arrow-right"></i> Select</a>';
+                    }
+                    else if (test.status === "In Progress") {
+                        action = '<a href="' + ROUTES.process + '?id=' + encodeURIComponent(test.id) + '" class="db-table-action"><i class="fa-solid fa-flask"></i> Process</a>';
+                    }
+                    else if (test.status === "Completed") {
+                        action = '<a href="' + ROUTES.verification + '" class="db-table-action"><i class="fa-solid fa-circle-check"></i> Verify</a>';
+                    }
+                    else if (test.status === "To Be Reviewed") {
+                        action = '<a href="' + ROUTES.verification + '" class="db-table-action"><i class="fa-solid fa-file-medical"></i> Review</a>';
+                    }
+
+                    return `
+                        <tr>
+                            <td><span class="db-request-number">#${escapeHtml(String(test.requestId))}</span></td>
+                            <td><strong>${escapeHtml(test.patient)}</strong></td>
+                            <td><strong>${escapeHtml(test.testName)}</strong></td>
+                            <td>${escapeHtml(test.category)}</td>
+                            <td><span class="${urgencyClass}">${escapeHtml(test.urgency)}</span></td>
+                            <td><span class="${statusClass}">${escapeHtml(test.statusDisplay)}</span></td>
+                            <td><span class="${dueClass}">${escapeHtml(dueText)}</span></td>
+                            <td>${action}</td>
+                        </tr>`;
+
+                }).join("");
             }
 
 
             // =========================================================
-            // ESCAPE HTML
-            // =========================================================
-
-            function escapeHtml(value) {
-
-                const div =
-                    document.createElement("div");
-
-                div.textContent =
-                    value ?? "";
-
-                return div.innerHTML;
-
-            }
-
-
-            // =========================================================
-            // LOADING
+            // LOADING / ERROR
             // =========================================================
 
             function showQueueLoading() {
 
-                document.getElementById(
-                    "queueBody"
-                ).innerHTML = `
-
-                    <tr>
-
-                        <td colspan="8">
-
-                            <div class="db-empty">
-
-                                <i class="fa-solid fa-spinner fa-spin"></i>
-
-                                <h3>
-                                    Loading laboratory workload...
-                                </h3>
-
-                                <p>
-                                    Retrieving your current test queue.
-                                </p>
-
-                            </div>
-
-                        </td>
-
-                    </tr>
-
-                `;
-
+                document.getElementById("queueBody").innerHTML = `
+                    <tr><td colspan="8">
+                        <div class="db-empty">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            <h3>Loading laboratory workload...</h3>
+                            <p>Retrieving your current test queue.</p>
+                        </div>
+                    </td></tr>`;
             }
-
-
-            // =========================================================
-            // ERROR
-            // =========================================================
 
             function showQueueError() {
 
-                document.getElementById(
-                    "queueBody"
-                ).innerHTML = `
-
-                    <tr>
-
-                        <td colspan="8">
-
-                            <div class="db-empty">
-
-                                <i class="fa-solid fa-triangle-exclamation"></i>
-
-                                <h3>
-                                    Dashboard data could not be loaded
-                                </h3>
-
-                                <p>
-                                    The technician queue could not
-                                    be retrieved.
-                                </p>
-
-                                <button
-                                    type="button"
-                                    class="db-btn-solid"
-                                    onclick="loadQueue()">
-
-                                    <i class="fa-solid fa-rotate-right"></i>
-
-                                    Try again
-
-                                </button>
-
-                            </div>
-
-                        </td>
-
-                    </tr>
-
-                `;
-
+                document.getElementById("queueBody").innerHTML = `
+                    <tr><td colspan="8">
+                        <div class="db-empty">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <h3>Dashboard data could not be loaded</h3>
+                            <p>The technician queue could not be retrieved.</p>
+                            <button type="button" class="db-btn-solid" onclick="loadQueue()">
+                                <i class="fa-solid fa-rotate-right"></i> Try again
+                            </button>
+                        </div>
+                    </td></tr>`;
             }
 
 
             // =========================================================
-            // APPLY FILTER
+            // REFRESH (summary cards + notifications)
             // =========================================================
 
-            document.getElementById(
-                "applyFilter"
-            ).addEventListener(
-                "click",
-                function () {
+            async function refreshDashboard() {
 
+                const summary = await loadDashboardSummary();
+
+                if (summary) {
+                    tnDetectEvents(summary);
+                    TN.summary = summary;
+                }
+
+                try {
+                    const r = await fetch(API.queue);
+                    if (r.ok) TN.queue = await r.json();
+                } catch (e) { }
+
+                TN.lastCheck = new Date();
+                tnRefresh();
+            }
+
+
+            // =========================================================
+            // FILTER BUTTONS
+            // =========================================================
+
+            document.getElementById("applyFilter").addEventListener("click", function () { loadQueue(); });
+
+            document.getElementById("resetFilter").addEventListener("click", function () {
+                document.getElementById("filterUrgency").value = "";
+                document.getElementById("filterCategory").value = "";
+                document.getElementById("filterDue").value = "";
+                document.getElementById("filterRequest").value = "";
+                loadQueue();
+            });
+
+            document.getElementById("filterRequest").addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
                     loadQueue();
-
                 }
-            );
+            });
 
 
             // =========================================================
-            // RESET FILTER
+            // INITIAL LOAD + AUTO REFRESH
             // =========================================================
 
-            document.getElementById(
-                "resetFilter"
-            ).addEventListener(
-                "click",
-                function () {
+            document.addEventListener("DOMContentLoaded", async function () {
 
-                    document.getElementById(
-                        "filterUrgency"
-                    ).value = "";
+                await refreshDashboard();
+                await loadCategories();
+                await loadQueue();
 
+                TN.ready = true;
 
-                    document.getElementById(
-                        "filterCategory"
-                    ).value = "";
-
-
-                    document.getElementById(
-                        "filterDue"
-                    ).value = "";
-
-
-                    document.getElementById(
-                        "filterRequest"
-                    ).value = "";
-
-
-                    loadQueue();
-
-                }
-            );
-
-
-            // =========================================================
-            // ENTER KEY SEARCH
-            // =========================================================
-
-            document.getElementById(
-                "filterRequest"
-            ).addEventListener(
-                "keydown",
-                function (event) {
-
-                    if (event.key === "Enter") {
-
-                        event.preventDefault();
-
-                        loadQueue();
-
-                    }
-
-                }
-            );
-
-
-            // =========================================================
-            // INITIAL LOAD
-            // =========================================================
-
-            document.addEventListener(
-                "DOMContentLoaded",
-                async function () {
-
-                    await loadDashboardSummary();
-
-                    await loadCategories();
-
-                    await loadQueue();
-
-                }
-            );
+                // Quiet background refresh: cards, notifications and table
+                setInterval(async function () {
+                    await refreshDashboard();
+                    loadQueue(true);
+                }, 60000);
+            });
 
         </script>
+
         <style>
-    /* =========================================================
-       LAB TECHNICIAN DASHBOARD
-       TEAL MEDICAL THEME
-       ========================================================= */
 
-    :root {
-        --teal: #008f83;
-        --teal-dark: #006f67;
-        --teal-deep: #005c55;
-        --teal-bright: #00a99a;
-
-        --teal-light: #e8f7f5;
-        --teal-soft: #f1faf8;
-        --teal-border: #ccebe7;
-
-        --text: #173a3a;
-        --muted: #718785;
-
-        --white: #ffffff;
-        --bg: #f3faf9;
-
-        --green: #198754;
-        --green-light: #e9f7ef;
-
-        --red: #dc3545;
-        --red-light: #fff0f1;
-
-        --orange: #e67e22;
-        --orange-light: #fff5ea;
-
-        --purple: #7554a8;
-        --purple-light: #f4effa;
-
-        --blue: #2f7da1;
-        --blue-light: #edf7fb;
-
-        --gold: #b8860b;
-        --gold-light: #fff9e8;
-
-        --shadow-sm: 0 3px 12px rgba(0, 111, 103, .07);
-        --shadow: 0 8px 25px rgba(0, 111, 103, .09);
-        --shadow-lg: 0 14px 35px rgba(0, 111, 103, .12);
-
-        --radius: 16px;
-        --radius-sm: 11px;
-    }
-
-
-    /* =========================================================
-       PAGE
-       ========================================================= */
-
-    .db-wrap {
-        min-height: 100vh;
-        padding: 28px 34px 55px;
-        background: var(--bg);
-        color: var(--text);
-        font-family: 'Inter', sans-serif;
-    }
-
-    .db-wrap *,
-    .db-wrap *::before,
-    .db-wrap *::after {
-        box-sizing: border-box;
-    }
-
-
-    /* =========================================================
-       HEADER
-       ========================================================= */
-
-    .db-banner {
-        position: relative;
-        overflow: hidden;
-
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-
-        min-height: 190px;
-        padding: 30px 34px;
-
-        border-radius: 22px;
-
-        background:
-            linear-gradient(
-                135deg,
-                var(--teal-deep) 0%,
-                var(--teal-dark) 52%,
-                var(--teal) 100%
-            );
-
-        color: white;
-
-        box-shadow: var(--shadow-lg);
-    }
-
-    .db-banner-pattern {
-        position: absolute;
-        inset: 0;
-
-        background:
-            radial-gradient(
-                circle at 85% 20%,
-                rgba(255,255,255,.12) 0,
-                rgba(255,255,255,.12) 2px,
-                transparent 3px
-            );
-
-        background-size: 24px 24px;
-        opacity: .35;
-
-        pointer-events: none;
-    }
-
-    .db-banner::after {
-        content: "";
-
-        position: absolute;
-        width: 300px;
-        height: 300px;
-
-        right: -100px;
-        top: -160px;
-
-        border-radius: 50%;
-
-        border: 50px solid rgba(255,255,255,.05);
-    }
-
-    .db-banner-left {
-        position: relative;
-        z-index: 2;
-
-        display: flex;
-        align-items: center;
-        gap: 22px;
-    }
-
-
-    /* =========================================================
-       HEADER ICON
-       ========================================================= */
-
-    .db-banner-icon {
-        position: relative;
-
-        width: 76px;
-        height: 76px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        flex-shrink: 0;
-
-        border-radius: 20px;
-
-        background: rgba(255,255,255,.13);
-        border: 1px solid rgba(255,255,255,.22);
-
-        box-shadow:
-            inset 0 1px 0 rgba(255,255,255,.15),
-            0 8px 20px rgba(0,0,0,.10);
-
-        font-size: 30px;
-    }
-
-    .db-banner-icon i {
-        position: relative;
-        z-index: 2;
-    }
-
-    .db-icon-ring {
-        position: absolute;
-
-        width: 52px;
-        height: 52px;
-
-        border-radius: 50%;
-
-        border: 1px solid rgba(255,255,255,.25);
-    }
-
-
-    /* =========================================================
-       HEADER TEXT
-       ========================================================= */
-
-    .db-banner-text h1 {
-        margin: 0 0 5px;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 28px;
-        font-weight: 800;
-
-        letter-spacing: -.5px;
-    }
-
-    .db-banner-text h1 span {
-        color: #d8fffa;
-    }
-
-    .db-banner-text p {
-        margin: 0 0 15px;
-
-        color: rgba(255,255,255,.82);
-
-        font-size: 14px;
-        font-weight: 500;
-    }
-
-
-    /* =========================================================
-       HEADER PILLS
-       ========================================================= */
-
-    .db-pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .db-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-
-        padding: 7px 12px;
-
-        border-radius: 30px;
-
-        background: rgba(255,255,255,.11);
-        border: 1px solid rgba(255,255,255,.17);
-
-        color: rgba(255,255,255,.91);
-
-        font-size: 11px;
-        font-weight: 600;
-    }
-
-    .db-pill i {
-        color: #b8fff7;
-    }
-
-
-    /* =========================================================
-       CLOCK
-       ========================================================= */
-
-    .db-clock {
-        position: relative;
-        z-index: 2;
-
-        min-width: 190px;
-
-        padding: 18px 22px;
-
-        text-align: right;
-
-        border-radius: 15px;
-
-        background: rgba(255,255,255,.09);
-        border: 1px solid rgba(255,255,255,.16);
-
-        backdrop-filter: blur(8px);
-    }
-
-    .db-clock small {
-        display: block;
-
-        margin-bottom: 5px;
-
-        color: rgba(255,255,255,.68);
-
-        font-size: 10px;
-        font-weight: 700;
-
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    #currentDate {
-        color: rgba(255,255,255,.88);
-
-        font-size: 12px;
-        font-weight: 500;
-    }
-
-    #currentTime {
-        margin-top: 3px;
-
-        color: white;
-
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 20px;
-        font-weight: 600;
-    }
-
-
-    /* =========================================================
-       PIPELINE
-       ========================================================= */
-
-    .db-pulse {
-        margin-top: 22px;
-        padding: 22px 25px;
-
-        border-radius: var(--radius);
-
-        background: var(--white);
-        border: 1px solid var(--teal-border);
-
-        box-shadow: var(--shadow-sm);
-    }
-
-    .db-pulse-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-
-        margin-bottom: 20px;
-
-        color: var(--teal-deep);
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .db-pulse-label i {
-        color: var(--teal);
-    }
-
-    .db-flow {
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-    }
-
-    .db-flow-node {
-        min-width: 135px;
-
-        text-align: center;
-    }
-
-    .db-flow-circle {
-        width: 52px;
-        height: 52px;
-
-        margin: 0 auto 9px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        border-radius: 50%;
-
-        font-size: 18px;
-
-        border: 5px solid var(--white);
-        box-shadow: 0 0 0 1px var(--teal-border);
-    }
-
-    .n-teal {
-        color: var(--teal);
-        background: var(--teal-light);
-    }
-
-    .n-blue {
-        color: var(--blue);
-        background: var(--blue-light);
-    }
-
-    .n-green {
-        color: var(--green);
-        background: var(--green-light);
-    }
-
-    .n-purple {
-        color: var(--purple);
-        background: var(--purple-light);
-    }
-
-    .db-flow-count {
-        color: var(--text);
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 22px;
-        font-weight: 800;
-    }
-
-    .db-flow-label {
-        margin-top: 2px;
-
-        color: var(--muted);
-
-        font-size: 11px;
-        font-weight: 600;
-    }
-
-    .db-flow-line {
-        flex: 1;
-
-        max-width: 125px;
-
-        height: 3px;
-
-        margin-top: 25px;
-
-        overflow: hidden;
-
-        border-radius: 20px;
-
-        background: var(--teal-border);
-    }
-
-    .db-flow-line-fill {
-        display: block;
-
-        width: 55%;
-        height: 100%;
-
-        border-radius: 20px;
-
-        background: var(--teal);
-    }
-
-
-    /* =========================================================
-       ALERT CHIPS
-       ========================================================= */
-
-    .db-pulse-chips {
-        display: flex;
-        justify-content: center;
-        flex-wrap: wrap;
-
-        gap: 9px;
-
-        margin-top: 20px;
-    }
-
-    .db-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-
-        padding: 7px 12px;
-
-        border-radius: 30px;
-
-        color: var(--teal-deep);
-        background: var(--teal-soft);
-        border: 1px solid var(--teal-border);
-
-        font-size: 11px;
-        font-weight: 700;
-    }
-
-    .chip-stat {
-        color: #b42318;
-        background: var(--red-light);
-        border-color: #f5c6cb;
-    }
-
-    .chip-overdue {
-        color: #a84e00;
-        background: var(--orange-light);
-        border-color: #f4d4b5;
-    }
-
-
-    /* =========================================================
-       SECTION HEADINGS
-       ========================================================= */
-
-    .db-section-head {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-
-        margin: 30px 2px 15px;
-    }
-
-    .db-section-head h3 {
-        margin: 0;
-
-        color: var(--teal-deep);
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 18px;
-        font-weight: 800;
-    }
-
-    .db-section-head p {
-        margin: 4px 0 0;
-
-        color: var(--muted);
-
-        font-size: 12px;
-    }
-
-    .db-mt-lg {
-        margin-top: 34px;
-    }
-
-
-    /* =========================================================
-       GRID
-       ========================================================= */
-
-    .db-grid {
-        display: grid;
-        gap: 16px;
-    }
-
-    .db-grid-4 {
-        grid-template-columns:
-            repeat(4, minmax(0, 1fr));
-    }
-
-    .db-grid-mt {
-        margin-top: 16px;
-    }
-
-
-    /* =========================================================
-       STAT CARDS
-       ========================================================= */
-
-    .db-stat {
-        position: relative;
-
-        display: flex;
-        align-items: center;
-
-        min-height: 132px;
-
-        padding: 20px;
-
-        border-radius: var(--radius);
-
-        background: var(--white);
-        border: 1px solid var(--teal-border);
-
-        box-shadow: var(--shadow-sm);
-
-        transition:
-            transform .2s ease,
-            box-shadow .2s ease,
-            border-color .2s ease;
-    }
-
-    .db-stat:hover {
-        transform: translateY(-3px);
-
-        border-color: #b7ded9;
-
-        box-shadow: var(--shadow);
-    }
-
-    .db-stat-urgent {
-        border-left: 4px solid var(--orange);
-    }
-
-    .db-stat-icon {
-        width: 48px;
-        height: 48px;
-
-        margin-right: 15px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        flex-shrink: 0;
-
-        border-radius: 14px;
-
-        font-size: 18px;
-    }
-
-    .c-teal {
-        color: var(--teal);
-        background: var(--teal-light);
-    }
-
-    .c-teal-deep {
-        color: var(--teal-deep);
-        background: #e0f3f0;
-    }
-
-    .c-blue {
-        color: var(--blue);
-        background: var(--blue-light);
-    }
-
-    .c-green {
-        color: var(--green);
-        background: var(--green-light);
-    }
-
-    .c-purple {
-        color: var(--purple);
-        background: var(--purple-light);
-    }
-
-    .c-red {
-        color: var(--red);
-        background: var(--red-light);
-    }
-
-    .c-orange {
-        color: var(--orange);
-        background: var(--orange-light);
-    }
-
-    .c-gold {
-        color: var(--gold);
-        background: var(--gold-light);
-    }
-
-    .db-stat-body {
-        min-width: 0;
-    }
-
-    .db-stat-body .num {
-        color: var(--teal-deep);
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 27px;
-        line-height: 1;
-
-        font-weight: 800;
-    }
-
-    .db-stat-body h5 {
-        margin: 6px 0 2px;
-
-        color: var(--text);
-
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .db-stat-body small {
-        display: block;
-
-        color: var(--muted);
-
-        font-size: 10px;
-        line-height: 1.45;
-    }
-
-
-    /* =========================================================
-       QUICK ACTIONS
-       ========================================================= */
-
-    .db-action {
-        position: relative;
-
-        min-height: 165px;
-
-        padding: 22px;
-
-        text-decoration: none;
-
-        border-radius: var(--radius);
-
-        background: var(--white);
-        border: 1px solid var(--teal-border);
-
-        box-shadow: var(--shadow-sm);
-
-        transition:
-            transform .2s ease,
-            box-shadow .2s ease,
-            border-color .2s ease;
-    }
-
-    .db-action:hover {
-        transform: translateY(-4px);
-
-        border-color: var(--teal);
-
-        box-shadow: var(--shadow);
-
-        text-decoration: none;
-    }
-
-    .db-action-icon {
-        width: 45px;
-        height: 45px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        margin-bottom: 13px;
-
-        border-radius: 13px;
-
-        color: var(--teal);
-        background: var(--teal-light);
-
-        font-size: 17px;
-    }
-
-    .db-action h5 {
-        margin: 0 0 5px;
-
-        color: var(--teal-deep);
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 14px;
-        font-weight: 700;
-    }
-
-    .db-action p {
-        max-width: 230px;
-
-        margin: 0;
-
-        color: var(--muted);
-
-        font-size: 11px;
-        line-height: 1.55;
-    }
-
-    .db-action-go {
-        position: absolute;
-
-        right: 18px;
-        bottom: 18px;
-
-        width: 28px;
-        height: 28px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        border-radius: 50%;
-
-        color: var(--teal);
-        background: var(--teal-light);
-
-        font-size: 11px;
-
-        transition: all .2s ease;
-    }
-
-    .db-action:hover .db-action-go {
-        color: white;
-        background: var(--teal);
-        transform: translateX(2px);
-    }
-
-
-    /* =========================================================
-       PANEL
-       ========================================================= */
-
-    .db-panel {
-        overflow: hidden;
-
-        border-radius: var(--radius);
-
-        background: var(--white);
-        border: 1px solid var(--teal-border);
-
-        box-shadow: var(--shadow-sm);
-    }
-
-    .db-mb-lg {
-        margin-bottom: 20px;
-    }
-
-    .db-panel-head {
-        min-height: 58px;
-
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-
-        padding: 14px 20px;
-
-        background: var(--teal-soft);
-
-        border-bottom: 1px solid var(--teal-border);
-
-        color: var(--teal-deep);
-    }
-
-    .db-panel-head > div {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    .db-panel-head span {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .db-panel-head small {
-        color: var(--muted);
-
-        font-size: 10px;
-        font-weight: 500;
-    }
-
-    .db-panel-tag {
-        padding: 5px 10px;
-
-        border-radius: 20px;
-
-        color: var(--teal-deep);
-        background: var(--white);
-        border: 1px solid var(--teal-border);
-
-        font-family: 'Inter', sans-serif !important;
-        font-size: 10px !important;
-    }
-
-    .db-panel-count {
-        color: var(--teal);
-        font-size: 11px !important;
-    }
-
-
-    /* =========================================================
-       FILTERS
-       ========================================================= */
-
-    .db-panel-body {
-        padding: 20px;
-    }
-
-    .db-filter-grid {
-        display: grid;
-
-        grid-template-columns:
-            1fr
-            1fr
-            1fr
-            1.15fr
-            auto;
-
-        align-items: end;
-
-        gap: 14px;
-    }
-
-    .db-field {
-        min-width: 0;
-    }
-
-    .db-field label {
-        display: block;
-
-        margin-bottom: 7px;
-
-        color: var(--text);
-
-        font-size: 10px;
-        font-weight: 700;
-    }
-
-    .db-select,
-    .db-input {
-        width: 100%;
-        height: 42px;
-
-        padding: 0 12px;
-
-        outline: none;
-
-        border-radius: 10px;
-
-        color: var(--text);
-        background: var(--white);
-
-        border: 1px solid var(--teal-border);
-
-        font-family: 'Inter', sans-serif;
-        font-size: 11px;
-
-        transition:
-            border-color .2s ease,
-            box-shadow .2s ease;
-    }
-
-    .db-select:focus,
-    .db-input:focus {
-        border-color: var(--teal);
-
-        box-shadow:
-            0 0 0 3px rgba(0,143,131,.10);
-    }
-
-    .db-input::placeholder {
-        color: #9aabaa;
-    }
-
-    .db-field-btn {
-        display: flex;
-        gap: 7px;
-    }
-
-    .db-btn-apply,
-    .db-btn-reset {
-        height: 42px;
-
-        padding: 0 15px;
-
-        border-radius: 10px;
-
-        font-family: 'Inter', sans-serif;
-
-        font-size: 11px;
-        font-weight: 700;
-
-        cursor: pointer;
-
-        transition: all .2s ease;
-    }
-
-    .db-btn-apply {
-        color: white;
-        background: var(--teal);
-        border: 1px solid var(--teal);
-    }
-
-    .db-btn-apply:hover {
-        background: var(--teal-dark);
-        border-color: var(--teal-dark);
-
-        transform: translateY(-1px);
-    }
-
-    .db-btn-reset {
-        color: var(--teal-deep);
-        background: var(--white);
-        border: 1px solid var(--teal-border);
-    }
-
-    .db-btn-reset:hover {
-        background: var(--teal-light);
-        border-color: var(--teal);
-    }
-
-
-    /* =========================================================
-       TABLE
-       ========================================================= */
-
-    .db-table-wrap {
-        width: 100%;
-
-        overflow-x: auto;
-    }
-
-    .db-table {
-        width: 100%;
-
-        border-collapse: collapse;
-
-        font-size: 11px;
-    }
-
-    .db-table thead th {
-        padding: 13px 14px;
-
-        white-space: nowrap;
-
-        text-align: left;
-
-        color: var(--teal-deep);
-        background: #f5fbfa;
-
-        border-bottom: 1px solid var(--teal-border);
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 10px;
-        font-weight: 700;
-
-        text-transform: uppercase;
-        letter-spacing: .35px;
-    }
-
-    .db-table tbody td {
-        padding: 14px;
-
-        color: var(--text);
-
-        border-bottom: 1px solid #edf4f3;
-
-        vertical-align: middle;
-    }
-
-    .db-table tbody tr {
-        transition: background .15s ease;
-    }
-
-    .db-table tbody tr:hover {
-        background: var(--teal-soft);
-    }
-
-    .db-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    .db-table strong {
-        font-weight: 700;
-    }
-
-
-    /* =========================================================
-       REQUEST NUMBER
-       ========================================================= */
-
-    .db-request-number {
-        display: inline-block;
-
-        padding: 5px 8px;
-
-        border-radius: 7px;
-
-        color: var(--teal-deep);
-        background: var(--teal-light);
-
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 10px;
-        font-weight: 600;
-    }
-
-
-    /* =========================================================
-       STATUS BADGES
-       ========================================================= */
-
-    .db-status-neutral,
-    .db-status-info,
-    .db-status-success,
-    .db-status-warning,
-    .db-status-danger {
-        display: inline-flex;
-        align-items: center;
-
-        padding: 5px 9px;
-
-        border-radius: 20px;
-
-        white-space: nowrap;
-
-        font-size: 9px;
-        font-weight: 700;
-    }
-
-    .db-status-neutral {
-        color: var(--teal-deep);
-        background: var(--teal-light);
-    }
-
-    .db-status-info {
-        color: #236b88;
-        background: var(--blue-light);
-    }
-
-    .db-status-success {
-        color: #146c43;
-        background: var(--green-light);
-    }
-
-    .db-status-warning {
-        color: #995c00;
-        background: var(--gold-light);
-    }
-
-    .db-status-danger {
-        color: #b42318;
-        background: var(--red-light);
-    }
-
-
-    /* =========================================================
-       DUE TIME
-       ========================================================= */
-
-    .db-due-overdue {
-        display: inline-flex;
-
-        padding: 5px 8px;
-
-        border-radius: 7px;
-
-        color: #b42318;
-        background: var(--red-light);
-
-        font-weight: 700;
-        font-size: 9px;
-    }
-
-    .db-due-near {
-        display: inline-flex;
-
-        padding: 5px 8px;
-
-        border-radius: 7px;
-
-        color: #995c00;
-        background: var(--gold-light);
-
-        font-weight: 700;
-        font-size: 9px;
-    }
-
-
-    /* =========================================================
-       TABLE ACTION
-       ========================================================= */
-
-    .db-table-action {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-
-        padding: 7px 11px;
-
-        border-radius: 8px;
-
-        color: white !important;
-        background: var(--teal);
-
-        text-decoration: none !important;
-
-        font-size: 9px;
-        font-weight: 700;
-
-        white-space: nowrap;
-
-        transition: all .2s ease;
-    }
-
-    .db-table-action:hover {
-        color: white !important;
-        background: var(--teal-dark);
-
-        transform: translateY(-1px);
-    }
-
-
-    /* =========================================================
-       EMPTY / LOADING
-       ========================================================= */
-
-    .db-empty {
-        padding: 45px 20px;
-
-        text-align: center;
-    }
-
-    .db-empty > i {
-        margin-bottom: 12px;
-
-        color: var(--teal);
-
-        font-size: 27px;
-    }
-
-    .db-empty h3 {
-        margin: 0 0 5px;
-
-        color: var(--teal-deep);
-
-        font-family: 'Poppins', sans-serif;
-        font-size: 14px;
-        font-weight: 700;
-    }
-
-    .db-empty p {
-        max-width: 420px;
-
-        margin: 0 auto;
-
-        color: var(--muted);
-
-        font-size: 11px;
-    }
-
-    .db-btn-solid {
-        margin-top: 15px;
-
-        padding: 9px 15px;
-
-        border: none;
-        border-radius: 9px;
-
-        color: white;
-        background: var(--teal);
-
-        font-size: 11px;
-        font-weight: 700;
-
-        cursor: pointer;
-    }
-
-    .db-btn-solid:hover {
-        background: var(--teal-dark);
-    }
-
-
-    /* =========================================================
-       FOOTER
-       ========================================================= */
-
-    .db-footer {
-        margin-top: 35px;
-    }
-
-    .db-footer hr {
-        margin: 0 0 15px;
-
-        border: none;
-        border-top: 1px solid var(--teal-border);
-    }
-
-    .db-footer-content {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-
-        gap: 9px;
-
-        color: var(--muted);
-
-        font-size: 10px;
-    }
-
-    .db-footer-content i {
-        color: var(--teal);
-    }
-
-    .db-footer-divider {
-        color: var(--teal-border);
-    }
-
-
-    /* =========================================================
-       RESPONSIVE
-       ========================================================= */
-
-    @@media (max-width: 1200px) {
-
-        .db-grid-4 {
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
-        }
-
-        .db-filter-grid {
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
-        }
-
-        .db-field-btn {
-            align-items: center;
-        }
-    }
-
-
-    @@media (max-width: 850px) {
-
-        .db-wrap {
-            padding: 20px 18px 40px;
-        }
-
-        .db-banner {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 20px;
-
-            padding: 25px;
-        }
-
-        .db-clock {
-            width: 100%;
-
-            text-align: left;
-        }
-
-        .db-flow {
-            overflow-x: auto;
-            justify-content: flex-start;
-
-            padding-bottom: 8px;
-        }
-
-        .db-flow-node {
-            min-width: 125px;
-        }
-
-        .db-flow-line {
-            min-width: 55px;
-        }
-    }
-
-
-    @@media (max-width: 650px) {
-
-        .db-grid-4 {
-            grid-template-columns: 1fr;
-        }
-
-        .db-filter-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .db-banner-left {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-
-        .db-banner-text h1 {
-            font-size: 22px;
-        }
-
-        .db-pulse {
-            padding: 18px;
-        }
-
-        .db-section-head {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .db-table {
-            min-width: 950px;
-        }
-
-        .db-field-btn {
-            width: 100%;
-        }
-
-        .db-btn-apply,
-        .db-btn-reset {
-            flex: 1;
-        }
-    }
-</style>
+            /* =========================================================
+               LAB TECHNICIAN DASHBOARD - TEAL MEDICAL THEME
+               (header, bell and banner styling shared with patient portal)
+               ========================================================= */
+
+            :root {
+                --teal: #008f83;
+                --teal-dark: #006f67;
+                --teal-deep: #005c55;
+                --teal-bright: #00a99a;
+                --teal-light: #e8f7f5;
+                --teal-soft: #f1faf8;
+                --teal-border: #ccebe7;
+                --text: #173a3a;
+                --muted: #718785;
+                --white: #ffffff;
+                --bg: #f3f5f7;
+                --green: #198754;
+                --green-light: #e9f7ef;
+                --red: #dc3545;
+                --red-light: #fff0f1;
+                --orange: #e67e22;
+                --orange-light: #fff5ea;
+                --purple: #7554a8;
+                --purple-light: #f4effa;
+                --blue: #2f7da1;
+                --blue-light: #edf7fb;
+                --gold: #b8860b;
+                --gold-light: #fff9e8;
+                --shadow-sm: 0 3px 12px rgba(0, 111, 103, .07);
+                --shadow: 0 8px 25px rgba(0, 111, 103, .09);
+                --shadow-lg: 0 14px 35px rgba(0, 111, 103, .12);
+                --radius: 16px;
+            }
+
+            .db-wrap { min-height: 100vh; padding: 28px 34px 55px; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+            .db-wrap *, .db-wrap *::before, .db-wrap *::after { box-sizing: border-box; }
+
+
+            /* ---------- TOP BAR ---------- */
+
+            .db-topbar { position: relative; z-index: 40; display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+            .db-crumb { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; font-weight: 500; }
+            .db-crumb i { font-size: 9px; opacity: .6; }
+            .db-crumb strong { color: var(--teal-deep); font-weight: 700; }
+
+
+            /* ---------- BELL ---------- */
+
+            .db-bell-wrap { position: relative; }
+
+            .db-bell { position: relative; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 14px; border: 1px solid var(--teal-border); background: var(--white); color: var(--teal-deep); font-size: 17px; cursor: pointer; box-shadow: var(--shadow-sm); transition: transform .2s ease, border-color .2s ease, background .2s ease, color .2s ease; }
+            .db-bell:hover { transform: translateY(-1px); border-color: var(--teal); }
+            .db-bell[aria-expanded="true"] { background: var(--teal); border-color: var(--teal); color: #fff; }
+            .db-bell:focus-visible, .db-n-main:focus-visible, .db-n-tab:focus-visible { outline: 3px solid rgba(0,143,131,.35); outline-offset: 2px; }
+
+            .db-bell-badge { position: absolute; top: -7px; right: -7px; min-width: 21px; height: 21px; padding: 0 5px; display: flex; align-items: center; justify-content: center; border-radius: 20px; border: 2px solid var(--bg); background: var(--teal); color: #fff; font-size: 10px; font-weight: 700; }
+            .db-bell-badge[hidden] { display: none; }
+            .db-bell.has-critical .db-bell-badge { background: var(--red); }
+            .db-bell.has-critical::after { content: ""; position: absolute; inset: -1px; border-radius: 14px; border: 2px solid var(--red); opacity: 0; animation: db-ring-pulse 2.4s ease-out infinite; pointer-events: none; }
+            .db-bell.ring i { animation: db-bell-ring 1s ease; transform-origin: 50% 10%; }
+
+            @@keyframes db-bell-ring {
+                0%, 100% { transform: rotate(0); }
+                12% { transform: rotate(16deg); }
+                28% { transform: rotate(-14deg); }
+                44% { transform: rotate(10deg); }
+                60% { transform: rotate(-7deg); }
+                76% { transform: rotate(3deg); }
+            }
+
+            @@keyframes db-ring-pulse {
+                0% { opacity: .55; transform: scale(1); }
+                70%, 100% { opacity: 0; transform: scale(1.35); }
+            }
+
+            @@keyframes db-pop {
+                from { opacity: 0; transform: translateY(-6px) scale(.98); }
+                to { opacity: 1; transform: none; }
+            }
+
+
+            /* ---------- NOTIFICATION PANEL ---------- */
+
+            .db-n-panel { position: absolute; right: 0; top: calc(100% + 12px); z-index: 60; width: 420px; max-width: calc(100vw - 36px); overflow: hidden; border-radius: 18px; border: 1px solid var(--teal-border); background: var(--white); box-shadow: 0 24px 60px rgba(0, 70, 64, .22); transform-origin: top right; animation: db-pop .18s ease; }
+            .db-n-panel[hidden] { display: none; }
+
+            .db-n-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 15px 18px; color: #fff; background: linear-gradient(135deg, var(--teal-deep), var(--teal-dark) 55%, var(--teal)); }
+            .db-n-head-title { display: flex; align-items: center; gap: 9px; font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; }
+            .db-n-head-title em { padding: 3px 9px; border-radius: 20px; background: rgba(255,255,255,.18); font-family: 'Inter', sans-serif; font-size: 10px; font-style: normal; font-weight: 600; }
+            .db-n-markall { border: 0; background: none; color: rgba(255,255,255,.88); font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+            .db-n-markall:hover { color: #fff; }
+
+            .db-n-status { display: flex; align-items: center; gap: 9px; padding: 10px 18px; font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--teal-border); }
+            .db-n-status.crit { color: #a52434; background: var(--red-light); }
+            .db-n-status.warn { color: #8a5200; background: var(--gold-light); }
+            .db-n-status.ok { color: #146c43; background: var(--green-light); }
+
+            .db-n-tabs { display: flex; gap: 4px; padding: 9px 12px 0; border-bottom: 1px solid var(--teal-border); }
+            .db-n-tab { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; }
+            .db-n-tab b { padding: 1px 7px; border-radius: 20px; background: var(--teal-light); color: var(--teal-deep); font-size: 10px; }
+            .db-n-tab:hover { color: var(--teal-deep); }
+            .db-n-tab.active { color: var(--teal-deep); border-bottom-color: var(--teal); }
+
+            .db-n-list { max-height: 390px; overflow-y: auto; overscroll-behavior: contain; }
+
+            .db-n-item { --lvl: var(--teal); --lvl-bg: var(--teal-light); position: relative; display: flex; align-items: stretch; border-bottom: 1px solid #edf4f3; transition: background .15s ease; }
+            .db-n-item::before { content: ""; width: 4px; flex: none; background: var(--lvl); opacity: .35; }
+            .db-n-item.unread::before { opacity: 1; }
+            .db-n-item.unread { background: #f7fcfb; }
+            .db-n-item:hover { background: var(--teal-soft); }
+            .db-n-item:last-child { border-bottom: 0; }
+
+            .lvl-critical { --lvl: var(--red); --lvl-bg: var(--red-light); }
+            .lvl-warning { --lvl: var(--orange); --lvl-bg: var(--orange-light); }
+            .lvl-info { --lvl: var(--teal); --lvl-bg: var(--teal-light); }
+            .lvl-success { --lvl: var(--green); --lvl-bg: var(--green-light); }
+
+            .db-n-main { flex: 1; min-width: 0; display: flex; gap: 12px; padding: 13px 4px 13px 14px; border: 0; background: none; color: inherit; font-family: 'Inter', sans-serif; text-align: left; cursor: pointer; }
+            .db-n-ico { width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 11px; background: var(--lvl-bg); color: var(--lvl); font-size: 15px; }
+            .db-n-body { min-width: 0; display: flex; flex-direction: column; }
+            .db-n-title { display: flex; align-items: center; gap: 7px; color: var(--text); font-size: 12.5px; font-weight: 700; line-height: 1.35; }
+            .db-n-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--lvl); }
+            .db-n-text { margin-top: 2px; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+            .db-n-meta { display: flex; align-items: center; gap: 10px; margin-top: 7px; color: var(--muted); font-size: 10.5px; }
+            .db-n-cta { color: var(--teal-dark); font-weight: 700; }
+            .db-n-cta i { font-size: 9px; transition: transform .15s ease; }
+            .db-n-main:hover .db-n-cta i { transform: translateX(3px); }
+            .lvl-critical .db-n-cta { color: #a52434; }
+
+            .db-n-x { align-self: flex-start; width: 26px; height: 26px; margin: 10px 10px 0 0; border: 0; border-radius: 8px; background: none; color: #9bb0ae; font-size: 11px; cursor: pointer; opacity: 0; transition: opacity .15s ease, background .15s ease; }
+            .db-n-item:hover .db-n-x, .db-n-x:focus-visible { opacity: 1; }
+            .db-n-x:hover { background: var(--teal-light); color: var(--teal-deep); }
+
+            .db-n-empty { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 40px 24px; text-align: center; color: var(--muted); font-size: 12px; }
+            .db-n-empty i { margin-bottom: 6px; color: var(--teal); font-size: 24px; }
+            .db-n-empty strong { color: var(--teal-deep); font-family: 'Poppins', sans-serif; font-size: 13px; }
+
+            .db-n-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 18px; border-top: 1px solid var(--teal-border); background: var(--teal-soft); color: var(--muted); font-size: 10.5px; }
+            .db-n-foot-btns { display: flex; gap: 12px; }
+            .db-n-foot button { border: 0; background: none; color: var(--teal-dark); font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; }
+            .db-n-foot button:hover { color: var(--teal-deep); text-decoration: underline; }
+            .db-n-foot button[hidden] { display: none; }
+
+
+            /* ---------- TOASTS ---------- */
+
+            .db-toasts { position: fixed; top: 84px; right: 28px; z-index: 70; display: flex; flex-direction: column; gap: 10px; width: 340px; max-width: calc(100vw - 36px); pointer-events: none; }
+            .db-toast { --lvl: var(--teal); --lvl-bg: var(--teal-light); pointer-events: auto; display: flex; gap: 12px; padding: 12px 14px; border: 1px solid var(--teal-border); border-left: 4px solid var(--lvl); border-radius: 14px; background: var(--white); box-shadow: var(--shadow-lg); font-family: 'Inter', sans-serif; text-align: left; cursor: pointer; animation: db-toast-in .3s ease; }
+            .db-toast.out { opacity: 0; transform: translateX(16px); transition: all .3s ease; }
+
+            @@keyframes db-toast-in {
+                from { opacity: 0; transform: translateX(24px); }
+                to { opacity: 1; transform: none; }
+            }
+
+
+            /* ---------- BANNER ---------- */
+
+            .db-banner { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 28px; min-height: 168px; padding: 32px 38px; border-radius: 26px; background: linear-gradient(120deg, #12a193 0%, #0e8a7e 48%, #2d746d 100%); color: #fff; box-shadow: 0 14px 34px rgba(11, 95, 86, .18); }
+            .db-banner-pattern { display: none; }
+            .db-banner-left { position: relative; z-index: 2; display: flex; align-items: center; gap: 28px; }
+            .db-banner-icon { position: relative; width: 84px; height: 84px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.42); box-shadow: 0 0 0 12px rgba(255,255,255,.07); font-size: 32px; }
+            .db-icon-ring { display: none; }
+            .db-banner-text h1 { margin: 0 0 4px; font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: -.4px; }
+            .db-banner-text h1 span { color: #fff; }
+            .db-banner-text p { margin: 0 0 13px; color: rgba(255,255,255,.92); font-size: 15px; font-weight: 500; }
+            .db-pills { display: flex; flex-wrap: wrap; gap: 9px; }
+            .db-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 15px; border-radius: 999px; background: rgba(255,255,255,.17); border: 1px solid rgba(255,255,255,.14); color: #fff; font-size: 12.5px; font-weight: 600; }
+            .db-pill i { color: #fff; opacity: .9; }
+
+            .db-banner-right { position: relative; z-index: 2; display: flex; align-items: center; }
+            .db-clock { min-width: 250px; padding: 6px 0 6px 34px; text-align: left; border-left: 1px solid rgba(255,255,255,.3); }
+            .db-clock small { display: block; margin-bottom: 6px; color: rgba(255,255,255,.82); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+            #currentDate { color: #fff; font-size: 15px; font-weight: 500; }
+            #currentTime { margin-top: 6px; color: #fff; font-family: 'IBM Plex Mono', monospace; font-size: 30px; font-weight: 600; letter-spacing: .1em; }
+
+
+            /* ---------- HEALTH STRIP ---------- */
+
+            .db-health { --h: var(--teal); margin-top: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 24px; border-radius: 18px; background: #fff; border-left: 5px solid var(--h); box-shadow: 0 6px 20px rgba(15, 70, 64, .07); color: #3d5553; font-size: 14px; }
+            .db-health.warn { --h: var(--orange); }
+            .db-health.crit { --h: var(--red); }
+            .db-health-msg { display: flex; align-items: center; gap: 12px; min-width: 0; }
+            .db-health-dot { width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--h); box-shadow: 0 0 0 4px color-mix(in srgb, var(--h) 16%, transparent); }
+            .db-health strong { color: #0f2f2c; font-weight: 700; }
+            .db-health-cta { display: inline-flex; align-items: center; gap: 8px; flex: none; border: 0; background: none; color: var(--teal-deep); font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+            .db-health-cta i { font-size: 12px; transition: transform .15s ease; }
+            .db-health-cta:hover i { transform: translateX(3px); }
+            .db-health.crit .db-health-cta { color: #a52434; }
+
+            @@media (max-width: 650px) { .db-health { flex-wrap: wrap; } }
+
+
+            /* ---------- PIPELINE ---------- */
+
+            .db-pulse { margin-top: 22px; padding: 22px 25px; border-radius: var(--radius); background: var(--white); border: 1px solid var(--teal-border); box-shadow: var(--shadow-sm); }
+            .db-pulse-label { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; color: var(--teal-deep); font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 700; }
+            .db-pulse-label i { color: var(--teal); }
+            .db-flow { display: flex; align-items: flex-start; justify-content: center; }
+            .db-flow-node { min-width: 135px; text-align: center; }
+            .db-flow-circle { width: 52px; height: 52px; margin: 0 auto 9px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 5px solid var(--white); box-shadow: 0 0 0 1px var(--teal-border); font-size: 18px; }
+            .n-teal { color: var(--teal); background: var(--teal-light); }
+            .n-blue { color: var(--blue); background: var(--blue-light); }
+            .n-green { color: var(--green); background: var(--green-light); }
+            .n-purple { color: var(--purple); background: var(--purple-light); }
+            .db-flow-count { color: var(--text); font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 800; }
+            .db-flow-label { margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: 600; }
+            .db-flow-line { flex: 1; max-width: 125px; height: 3px; margin-top: 25px; overflow: hidden; border-radius: 20px; background: var(--teal-border); }
+            .db-flow-line-fill { display: block; width: 55%; height: 100%; border-radius: 20px; background: var(--teal); }
+            .db-pulse-chips { display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+            .db-chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 30px; color: var(--teal-deep); background: var(--teal-soft); border: 1px solid var(--teal-border); font-size: 11px; font-weight: 700; }
+            .chip-stat { color: #b42318; background: var(--red-light); border-color: #f5c6cb; }
+            .chip-overdue { color: #a84e00; background: var(--orange-light); border-color: #f4d4b5; }
+
+
+            /* ---------- SECTIONS + GRID ---------- */
+
+            .db-pulse { margin-top: 20px; border-radius: 24px; border: 1px solid #e8eeee; box-shadow: 0 8px 26px rgba(15, 70, 64, .06); }
+            .db-section-head { display: flex; align-items: flex-end; justify-content: space-between; margin: 38px 2px 16px; }
+            .db-section-head h3 { margin: 0; color: #0f2f2c; font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+            .db-section-head p { margin: 5px 0 0; color: #6b7f7d; font-size: 14px; }
+            .db-mt-lg { margin-top: 42px; }
+            .db-grid { display: grid; gap: 18px; }
+            .db-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .db-grid-mt { margin-top: 18px; }
+
+
+            /* ---------- STAT CARDS ---------- */
+
+            .db-stat { position: relative; display: flex; align-items: center; gap: 18px; min-height: 144px; padding: 24px; border-radius: 24px; background: #fff; border: 1px solid #e8eeee; border-top: 3px solid var(--teal); box-shadow: 0 8px 26px rgba(15, 70, 64, .06); transition: transform .2s ease, box-shadow .2s ease; }
+            .db-stat:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(15, 70, 64, .10); }
+            .db-stat-urgent { border-top-color: var(--orange); }
+            .db-stat-crit { border-top-color: var(--red); }
+            .db-stat-icon { width: 54px; height: 54px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 16px; font-size: 20px; }
+            .c-teal { color: var(--teal); background: var(--teal-light); }
+            .c-teal-deep { color: var(--teal-deep); background: #e0f3f0; }
+            .c-blue { color: var(--blue); background: var(--blue-light); }
+            .c-green { color: var(--green); background: var(--green-light); }
+            .c-purple { color: var(--purple); background: var(--purple-light); }
+            .c-red { color: var(--red); background: var(--red-light); }
+            .c-orange { color: var(--orange); background: var(--orange-light); }
+            .c-gold { color: var(--gold); background: var(--gold-light); }
+            .db-stat-body { min-width: 0; }
+            .db-stat-body .num { color: #0f2f2c; font-family: 'Poppins', sans-serif; font-size: 30px; font-weight: 700; line-height: 1; }
+            .db-stat-body h5 { margin: 7px 0 2px; color: #0f2f2c; font-size: 15px; font-weight: 700; }
+            .db-stat-body small { display: block; color: #8a9a98; font-size: 12.5px; line-height: 1.45; }
+
+
+            /* ---------- QUICK ACTIONS ---------- */
+
+            .db-action { position: relative; min-height: 170px; padding: 24px; text-decoration: none; border-radius: 24px; background: #fff; border: 1px solid #e8eeee; box-shadow: 0 8px 26px rgba(15, 70, 64, .06); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+            .db-action:hover { transform: translateY(-4px); border-color: var(--teal); box-shadow: 0 14px 34px rgba(15, 70, 64, .10); text-decoration: none; }
+            .db-action-icon { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; border-radius: 15px; color: var(--teal); background: var(--teal-light); font-size: 19px; }
+            .db-action h5 { margin: 0 0 5px; color: #0f2f2c; font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 700; }
+            .db-action p { max-width: 230px; margin: 0; color: #6b7f7d; font-size: 13px; line-height: 1.55; }
+            .db-action-go { position: absolute; right: 20px; bottom: 20px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: var(--teal); background: var(--teal-light); font-size: 12px; transition: all .2s ease; }
+            .db-action:hover .db-action-go { color: #fff; background: var(--teal); transform: translateX(2px); }
+
+
+            /* ---------- PANELS + FILTERS ---------- */
+
+            .db-panel { overflow: hidden; border-radius: 24px; background: #fff; border: 1px solid #e8eeee; box-shadow: 0 8px 26px rgba(15, 70, 64, .06); }
+            .db-mb-lg { margin-bottom: 20px; }
+            .db-panel-head { min-height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 16px 26px; background: #fff; border-bottom: 1px solid #e8eeee; color: #0f2f2c; }
+            .db-panel-head > div { display: flex; flex-direction: column; gap: 2px; }
+            .db-panel-head span { display: flex; align-items: center; gap: 10px; font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 700; }
+            .db-panel-head span i { color: var(--teal); }
+            .db-panel-head small { color: #8a9a98; font-size: 12px; font-weight: 500; }
+            .db-panel-tag, .db-panel-count { padding: 5px 13px; border-radius: 999px; background: #e1f1ee; color: #0e6b62 !important; font-size: 12px !important; font-weight: 600 !important; }
+            .db-panel-body { padding: 24px 26px; }
+            .db-filter-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1.15fr auto; align-items: end; gap: 16px; }
+            .db-field { min-width: 0; }
+            .db-field label { display: block; margin-bottom: 7px; color: #315f65; font-size: 12px; font-weight: 600; }
+            .db-select, .db-input { width: 100%; height: 44px; padding: 0 14px; outline: none; border-radius: 12px; color: #0f2f2c; background: #f0f6f5; border: 1px solid #cfe3e0; font-family: 'Inter', sans-serif; font-size: 13px; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+            .db-select:focus, .db-input:focus { background: #fff; border-color: var(--teal); box-shadow: 0 0 0 4px rgba(15, 148, 136, .12); }
+            .db-input::placeholder { color: #7b9093; }
+            .db-field-btn { display: flex; gap: 8px; }
+            .db-btn-apply, .db-btn-reset { height: 44px; padding: 0 20px; border-radius: 12px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s ease; }
+            .db-btn-apply { color: #fff; background: linear-gradient(135deg, #0f9488, #0b5f56); border: 0; box-shadow: 0 6px 16px rgba(11, 95, 86, .25); }
+            .db-btn-apply:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(11, 95, 86, .33); }
+            .db-btn-reset { color: var(--teal-dark); background: #fff; border: 1px solid #cfe3e0; }
+            .db-btn-reset:hover { background: var(--teal-light); border-color: var(--teal); }
+
+
+            /* ---------- TABLE ---------- */
+
+            .db-table-wrap { width: 100%; overflow-x: auto; }
+            .db-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+            .db-table thead th { padding: 13px 14px; white-space: nowrap; text-align: left; color: var(--teal-deep); background: #f5fbfa; border-bottom: 1px solid var(--teal-border); font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .35px; }
+            .db-table tbody td { padding: 14px; color: var(--text); border-bottom: 1px solid #edf4f3; vertical-align: middle; }
+            .db-table tbody tr { transition: background .15s ease; }
+            .db-table tbody tr:hover { background: var(--teal-soft); }
+            .db-table tbody tr:last-child td { border-bottom: none; }
+            .db-table strong { font-weight: 700; }
+            .db-request-number { display: inline-block; padding: 5px 8px; border-radius: 7px; color: var(--teal-deep); background: var(--teal-light); font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; }
+
+            .db-status-neutral, .db-status-info, .db-status-success, .db-status-warning, .db-status-danger { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 20px; white-space: nowrap; font-size: 10.5px; font-weight: 700; }
+            .db-status-neutral { color: var(--teal-deep); background: var(--teal-light); }
+            .db-status-info { color: #236b88; background: var(--blue-light); }
+            .db-status-success { color: #146c43; background: var(--green-light); }
+            .db-status-warning { color: #995c00; background: var(--gold-light); }
+            .db-status-danger { color: #b42318; background: var(--red-light); }
+            .db-due-overdue { display: inline-flex; padding: 5px 8px; border-radius: 7px; color: #b42318; background: var(--red-light); font-size: 10.5px; font-weight: 700; }
+            .db-due-near { display: inline-flex; padding: 5px 8px; border-radius: 7px; color: #995c00; background: var(--gold-light); font-size: 10.5px; font-weight: 700; }
+
+            .db-table-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 11px; border-radius: 8px; color: #fff !important; background: var(--teal); text-decoration: none !important; font-size: 10.5px; font-weight: 700; white-space: nowrap; transition: all .2s ease; }
+            .db-table-action:hover { color: #fff !important; background: var(--teal-dark); transform: translateY(-1px); }
+
+            .db-empty { padding: 45px 20px; text-align: center; }
+            .db-empty > i { margin-bottom: 12px; color: var(--teal); font-size: 27px; }
+            .db-empty h3 { margin: 0 0 5px; color: var(--teal-deep); font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; }
+            .db-empty p { max-width: 420px; margin: 0 auto; color: var(--muted); font-size: 12.5px; }
+            .db-btn-solid { margin-top: 15px; padding: 9px 15px; border: none; border-radius: 9px; color: #fff; background: var(--teal); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+            .db-btn-solid:hover { background: var(--teal-dark); }
+
+
+            /* ---------- FOOTER ---------- */
+
+            .db-footer { margin-top: 35px; }
+            .db-footer hr { margin: 0 0 15px; border: none; border-top: 1px solid var(--teal-border); }
+            .db-footer-content { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 9px; color: var(--muted); font-size: 10px; }
+            .db-footer-content i { color: var(--teal); }
+            .db-footer-divider { color: var(--teal-border); }
+
+
+            /* ---------- RESPONSIVE ---------- */
+
+            @@media (max-width: 1350px) {
+                .db-banner { flex-wrap: wrap; }
+                .db-banner-right { width: 100%; }
+                .db-clock { flex: 1; min-width: 0; padding: 18px 0 0; border-left: 0; border-top: 1px solid rgba(255,255,255,.3); }
+            }
+
+            @@media (max-width: 1200px) {
+                .db-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                .db-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                .db-field-btn { align-items: center; }
+            }
+
+            @@media (max-width: 850px) {
+                .db-wrap { padding: 20px 18px 40px; }
+                .db-banner { align-items: flex-start; flex-direction: column; gap: 20px; padding: 25px; }
+                .db-banner-right { flex-direction: column; }
+                .db-flow { overflow-x: auto; justify-content: flex-start; padding-bottom: 8px; }
+                .db-flow-node { min-width: 125px; }
+                .db-flow-line { min-width: 55px; }
+                .db-toasts { right: 18px; }
+            }
+
+            @@media (max-width: 650px) {
+                .db-grid-4, .db-filter-grid { grid-template-columns: 1fr; }
+                .db-banner-left { align-items: flex-start; flex-direction: column; }
+                .db-banner-text h1 { font-size: 22px; }
+                .db-pulse { padding: 18px; }
+                .db-section-head { align-items: flex-start; flex-direction: column; gap: 5px; }
+                .db-table { min-width: 950px; }
+                .db-field-btn { width: 100%; }
+                .db-btn-apply, .db-btn-reset { flex: 1; }
+                .db-n-panel { position: fixed; left: 18px; right: 18px; top: 140px; width: auto; max-width: none; }
+            }
+
+            @@media (prefers-reduced-motion: reduce) {
+                .db-bell.ring i, .db-bell.has-critical::after, .db-n-panel, .db-toast { animation: none; }
+            }
+
+        </style>
 
     }
 }
