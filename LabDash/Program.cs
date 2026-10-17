@@ -20,6 +20,12 @@ builder.Services.AddIdentity<LabUser, IdentityRole>(options => options.SignIn.Re
     .AddEntityFrameworkStores<LabDbContext>().AddDefaultTokenProviders();
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<LabDash.Filters.MustChangePasswordFilter>();
+
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.AddService<LabDash.Filters.MustChangePasswordFilter>();
+});
 builder.Services.AddSession();
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
