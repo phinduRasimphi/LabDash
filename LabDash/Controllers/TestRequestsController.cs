@@ -88,6 +88,8 @@ namespace LabDash.Controllers
         // =============================================================
         // CREATE — GET
         // =============================================================
+        // CREATE — GET
+        // =============================================================
         [HttpGet]
         public async Task<IActionResult> Create(int? patientId)
         {
@@ -115,6 +117,9 @@ namespace LabDash.Controllers
             ViewBag.PatientCell = patient.CellphoneNumber ?? "";
             ViewBag.RequestDate = DateTime.Today;
 
+            // =========================================================
+            // 1. ALLERGIES (Junction first, Fallback to string)
+            // =========================================================
             var allergies = await _context.PatientAllergies
                 .AsNoTracking()
                 .Where(a => a.PatientID == patientId.Value)
@@ -130,8 +135,27 @@ namespace LabDash.Controllers
                 })
                 .ToListAsync();
 
+            if (allergies.Count == 0 &&
+                !string.IsNullOrWhiteSpace(patient.Allergies) &&
+                !patient.Allergies.Equals("None", StringComparison.OrdinalIgnoreCase))
+            {
+                allergies = patient.Allergies
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .Where(x => x.Length > 0)
+                    .Select(x => new
+                    {
+                        Name = x,
+                        Category = "Uncategorised",
+                        Severity = ""
+                    })
+                    .ToList();
+            }
             ViewBag.PatientAllergies = allergies;
 
+            // =========================================================
+            // 2. CONDITIONS (Junction first, Fallback to string)
+            // =========================================================
             var conditions = await _context.PatientMedicalConditions
                 .AsNoTracking()
                 .Where(c => c.PatientID == patientId.Value)
@@ -150,8 +174,27 @@ namespace LabDash.Controllers
                 })
                 .ToListAsync();
 
+            if (conditions.Count == 0 &&
+                !string.IsNullOrWhiteSpace(patient.MedicalConditions) &&
+                !patient.MedicalConditions.Equals("None", StringComparison.OrdinalIgnoreCase))
+            {
+                conditions = patient.MedicalConditions
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .Where(x => x.Length > 0)
+                    .Select(x => new
+                    {
+                        Name = x,
+                        Category = "Uncategorised",
+                        Severity = ""
+                    })
+                    .ToList();
+            }
             ViewBag.PatientConditions = conditions;
 
+            // =========================================================
+            // 3. MEDICATIONS (Junction first, Fallback to string)
+            // =========================================================
             var medications = await _context.PatientMedications
                 .AsNoTracking()
                 .Where(m => m.PatientID == patientId.Value)
@@ -171,8 +214,28 @@ namespace LabDash.Controllers
                 })
                 .ToListAsync();
 
+            if (medications.Count == 0 &&
+                !string.IsNullOrWhiteSpace(patient.Medication) &&
+                !patient.Medication.Equals("None", StringComparison.OrdinalIgnoreCase))
+            {
+                medications = patient.Medication
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .Where(x => x.Length > 0)
+                    .Select(x => new
+                    {
+                        Name = x,
+                        Category = "Uncategorised",
+                        Dosage = "",
+                        Frequency = ""
+                    })
+                    .ToList();
+            }
             ViewBag.PatientMedications = medications;
 
+            // =========================================================
+            // 4. PREVIOUS RESULTS
+            // =========================================================
             var previousResults = await _context.TestResults
                 .AsNoTracking()
                 .Where(r =>
@@ -198,6 +261,9 @@ namespace LabDash.Controllers
 
             ViewBag.PreviousResults = previousResults;
 
+            // =========================================================
+            // 5. TEST TYPES
+            // =========================================================
             var testTypes = await _context.TestTypes
                 .AsNoTracking()
                 .Include(t => t.TestCategory)
@@ -211,6 +277,7 @@ namespace LabDash.Controllers
 
             return View();
         }
+        
 
         // =============================================================
         // CREATE — POST

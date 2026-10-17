@@ -1658,27 +1658,72 @@ namespace LabDash.Controllers
 
             if (patient == null)
             {
-                return NotFound(
-                    "No patient profile is linked to your account.");
+                return NotFound("No patient profile is linked to your account.");
             }
 
-            var consent =
-                await _context.PatientDoctorConsents
-                    .Include(c => c.ConsentItemAccesses)
-                    .FirstOrDefaultAsync(c =>
-                        c.ConsentID == consentId &&
-                        c.PatientID == patient.PatientID);
+            // 1. Load the consent AND the doctor
+            var consent = await _context.PatientDoctorConsents
+                .Include(c => c.Doctor)
+                .Include(c => c.ConsentItemAccesses)
+                .FirstOrDefaultAsync(c =>
+                    c.ConsentID == consentId &&
+                    c.PatientID == patient.PatientID);
 
             if (consent != null)
             {
+                // 2. Revoke in database
                 consent.IsActive = false;
-
-                _context.ConsentItemAccesses.RemoveRange(
-                    consent.ConsentItemAccesses);
-                _audit.Log("Consent Revoked", "Consent", $"Patient '{patient.Name} {patient.Surname}' revoked all access for consent #{consentId}.");
+                _context.ConsentItemAccesses.RemoveRange(consent.ConsentItemAccesses);
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "Access revoked.";
+                string patientName = $"{patient.Name} {patient.Surname}".Trim();
+
+                // ==========================================================
+                // 3. IN-APP NOTIFICATION (Bell Icon)
+                // ==========================================================
+                try
+                {
+                    string linkUrl = Url.Action("SharedWithMe", "Doctor", null, Request.Scheme);
+
+                    await _notifications.SendToUserAsync(
+                        recipientUserId: consent.DoctorId,
+                        title: "Access revoked",
+                        message: $"{patientName} has revoked your access to their test results.",
+                        type: "consent-revoked",
+                        linkUrl: linkUrl,
+                        relatedConsentId: consent.ConsentID,
+                        relatedPatientId: patient.PatientID,
+                        actorUserId: _userManager.GetUserId(User));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Access revoked, but the in-app notification failed.");
+                }
+
+                // ==========================================================
+                // 4. EMAIL NOTIFICATION
+                // ==========================================================
+                if (consent.Doctor != null && !string.IsNullOrWhiteSpace(consent.Doctor.Email))
+                {
+                    var subject = "Patient has revoked access to their test results";
+
+                    var body =
+                        $"<p>Dear Dr. {System.Net.WebUtility.HtmlEncode(consent.Doctor.LastName)},</p>" +
+                        $"<p><strong>{System.Net.WebUtility.HtmlEncode(patientName)}</strong> " +
+                        "has revoked your access to their test results via the LabDash patient portal.</p>" +
+                        "<p>You will no longer be able to view these results.</p>";
+
+                    try
+                    {
+                        await _emailSender.SendEmailAsync(consent.Doctor.Email, subject, body);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Access was revoked, but the email failed to send.");
+                    }
+                }
+
+                TempData["SuccessMessage"] = "Access revoked and the doctor has been notified.";
             }
 
             return RedirectToAction(nameof(Consent));
