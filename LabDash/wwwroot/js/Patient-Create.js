@@ -1,14 +1,8 @@
 ﻿// =============================================================
 //  LabDash — Create Patient Form
-//  Full client-side validation, address cascade, medical
-//  dropdowns, DOB auto-fill from SA ID, and submit button gating.
 // =============================================================
 
 document.addEventListener("DOMContentLoaded", async function () {
-
-    // -----------------------------------------------------------
-    //  Setup
-    // -----------------------------------------------------------
 
     const form = document.getElementById("createPatientForm");
     if (!form) {
@@ -34,8 +28,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
 
     const allValidatedFields = requiredFields.concat(optionalValidatedFields);
-
-    console.log("patient-create.js loaded. Required fields:", requiredFields.length);
 
     // -----------------------------------------------------------
     //  Field state helpers
@@ -66,25 +58,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         field.classList.remove("is-valid", "is-invalid");
         const span = errorSpanFor(field);
         if (span) span.textContent = "";
-    }
-
-    // -----------------------------------------------------------
-    //  Luhn checksum
-    // -----------------------------------------------------------
-
-    function luhnCheck(num) {
-        let sum = 0;
-        let alt = false;
-        for (let i = num.length - 1; i >= 0; i--) {
-            let n = parseInt(num.charAt(i), 10);
-            if (alt) {
-                n *= 2;
-                if (n > 9) n -= 9;
-            }
-            sum += n;
-            alt = !alt;
-        }
-        return sum % 10 === 0;
     }
 
     // -----------------------------------------------------------
@@ -127,26 +100,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 return "SA ID number must contain digits only.";
             if (value.length !== 13)
                 return "SA ID number must be exactly 13 digits.";
-
-            const yy = parseInt(value.substring(0, 2), 10);
-            const mm = parseInt(value.substring(2, 4), 10);
-            const dd = parseInt(value.substring(4, 6), 10);
-
-            if (mm < 1 || mm > 12)
-                return "SA ID number contains an invalid birth month.";
-
-            const currentYY = new Date().getFullYear() % 100;
-            const century = yy > currentYY ? 1900 : 2000;
-            const year = century + yy;
-
-            const daysInMonth = new Date(year, mm, 0).getDate();
-            if (dd < 1 || dd > daysInMonth)
-                return "SA ID number contains an invalid birth day.";
-
-            if (!luhnCheck(value))
-                return "SA ID number is not valid (checksum failed).";
-
-            return null;
+            return null; // Removed Luhn check
         },
 
         dob: function (value) {
@@ -365,7 +319,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         const id = idNumberInput.value.trim();
         if (id.length !== 13 || !/^\d{13}$/.test(id)) return;
 
-        if (validators.said(id) !== null) return;
+        // Luhn check removed here so the DOB always populates
 
         const yy = parseInt(id.substring(0, 2), 10);
         const mm = parseInt(id.substring(2, 4), 10);
