@@ -7,17 +7,23 @@
 
     var breakdown = Model.Conditions
         .GroupBy(c => c.Category?.Name ?? "Uncategorized")
-        .Select(g => new
-        {
-            Name = g.Key,
-            Count = g.Count()
-        })
+        .Select(g => new { Name = g.Key, Count = g.Count() })
         .OrderByDescending(g => g.Count)
         .ToList();
 
-    var breakdownMax = breakdown.Any()
-        ? breakdown.Max(b => b.Count)
-        : 0;
+    var breakdownMax = breakdown.Any() ? breakdown.Max(b => b.Count) : 0;
+
+    // ---- view-only helpers (no controller / model changes) ----
+    var totalConditions = Model.Conditions.Count;
+    var activeCounts = Model.Conditions
+        .GroupBy(c => c.Category?.Name ?? "Uncategorized")
+        .ToDictionary(g => g.Key, g => g.Count());
+    Func<string, int> countFor = name => activeCounts.TryGetValue(name, out var c) ? c : 0;
+
+    var topCategory = breakdown.FirstOrDefault();
+    var uncategorizedCount = Model.Conditions.Count(c => c.Category == null);
+    var noDescriptionCount = Model.Conditions.Count(c => string.IsNullOrWhiteSpace(c.Description));
+    var emptyCategoryCount = Model.Categories.Count(c => countFor(c.Name) == 0);
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,1223 +47,830 @@
         </div>
     }
 
-
     <!-- ==========================================
          PAGE BANNER
     =========================================== -->
-
     <div class="adm-page-banner">
-
         <div class="adm-page-banner-pattern"></div>
 
         <div class="adm-page-banner-left">
-
-            <div class="adm-page-banner-icon">
-                <i class="fas fa-heart-pulse"></i>
-            </div>
-
+            <div class="adm-page-banner-icon"><i class="fas fa-heart-pulse"></i></div>
             <div>
                 <h1>Manage Conditions</h1>
                 <p>Maintain the list of medical conditions used across the system</p>
             </div>
-
         </div>
 
-
         <div class="adm-page-banner-right">
-
             <div class="adm-mini-stats">
-
                 <div class="adm-mini-stat">
                     <span class="num">@Model.Conditions.Count</span>
                     <span class="label">Active</span>
                 </div>
-
                 <div class="adm-mini-stat">
                     <span class="num">@Model.InactiveConditions.Count</span>
                     <span class="label">Archived</span>
                 </div>
-
                 <div class="adm-mini-stat">
                     <span class="num">@Model.Categories.Count</span>
                     <span class="label">Categories</span>
                 </div>
-
             </div>
 
-
-            <button type="button"
-                    class="adm-btn adm-btn-light"
-                    onclick="openModal('modal-add')">
-
+            <button type="button" class="adm-btn adm-btn-light" onclick="openModal('modal-add')" title="Shortcut: N">
                 <i class="fas fa-plus"></i>
                 Add Condition
-
             </button>
+        </div>
+    </div>
 
+    <!-- ==========================================
+         INSIGHTS STRIP (click a card to filter)
+    =========================================== -->
+    <div class="adm-insights">
+
+        <button type="button" class="adm-insight" disabled="@(topCategory == null)"
+                data-cat="@(topCategory?.Name)" onclick="filterByCategory(this.dataset.cat)">
+            <span class="adm-insight-icon"><i class="fas fa-crown"></i></span>
+            <span class="adm-insight-body">
+                <span class="adm-insight-label">Largest category</span>
+                <span class="adm-insight-value">@(topCategory != null ? topCategory.Name : "—")</span>
+                <span class="adm-insight-sub">@(topCategory != null ? topCategory.Count + " conditions" : "No data yet")</span>
+            </span>
+        </button>
+
+        <button type="button" class="adm-insight @(uncategorizedCount > 0 ? "is-warn" : "")" disabled="@(uncategorizedCount == 0)"
+                onclick="filterByCategory('Uncategorized')">
+            <span class="adm-insight-icon"><i class="fas fa-circle-question"></i></span>
+            <span class="adm-insight-body">
+                <span class="adm-insight-label">Uncategorized</span>
+                <span class="adm-insight-value">@uncategorizedCount</span>
+                <span class="adm-insight-sub">@(uncategorizedCount > 0 ? "Need a category" : "All sorted")</span>
+            </span>
+        </button>
+
+        <button type="button" class="adm-insight @(noDescriptionCount > 0 ? "is-warn" : "")" disabled="@(noDescriptionCount == 0)"
+                onclick="toggleNoDesc(true)">
+            <span class="adm-insight-icon"><i class="fas fa-align-left"></i></span>
+            <span class="adm-insight-body">
+                <span class="adm-insight-label">Missing description</span>
+                <span class="adm-insight-value">@noDescriptionCount</span>
+                <span class="adm-insight-sub">@(noDescriptionCount > 0 ? "Click to review" : "All described")</span>
+            </span>
+        </button>
+
+        <div class="adm-insight adm-insight-static">
+            <span class="adm-insight-icon"><i class="fas fa-folder-open"></i></span>
+            <span class="adm-insight-body">
+                <span class="adm-insight-label">Empty categories</span>
+                <span class="adm-insight-value">@emptyCategoryCount</span>
+                <span class="adm-insight-sub">No active conditions in them</span>
+            </span>
         </div>
 
     </div>
 
-
-
     <!-- ==========================================
          CONDITION CATEGORIES
     =========================================== -->
-
     <div class="adm-panel">
 
         <div class="adm-panel-head">
-
-            <span>
-                <i class="fas fa-folder"></i>
-                Condition Categories
-            </span>
-
-            <span class="adm-panel-tag">
-                @Model.Categories.Count categories
-            </span>
-
+            <span><i class="fas fa-folder"></i> Condition Categories</span>
+            <span class="adm-panel-tag">@Model.Categories.Count categories</span>
         </div>
-
-
-        <!-- CATEGORY TABS -->
 
         <div class="adm-tabs">
-
-            <button type="button"
-                    class="adm-tab is-active"
-                    data-target="cat-chips-active"
-                    onclick="switchCatTab(this)">
-
-                Active
-
-                <span class="adm-tab-count">
-                    @Model.Categories.Count
-                </span>
-
+            <button type="button" class="adm-tab is-active" data-target="cat-chips-active" onclick="switchCatTab(this)">
+                Active <span class="adm-tab-count">@Model.Categories.Count</span>
             </button>
-
-
-            <button type="button"
-                    class="adm-tab"
-                    data-target="cat-chips-archived"
-                    onclick="switchCatTab(this)">
-
-                Archived
-
-                <span class="adm-tab-count">
-                    @Model.InactiveCategories.Count
-                </span>
-
+            <button type="button" class="adm-tab" data-target="cat-chips-archived" onclick="switchCatTab(this)">
+                Archived <span class="adm-tab-count">@Model.InactiveCategories.Count</span>
             </button>
-
         </div>
-
 
         <div class="adm-panel-body">
 
-
-            <!-- CATEGORY SEARCH -->
-
             <div class="adm-search-box adm-cat-search">
-
                 <i class="fas fa-magnifying-glass"></i>
-
-                <input id="cat-search"
-                       placeholder="Search categories..."
-                       oninput="filterCatChips()" />
-
+                <input id="cat-search" placeholder="Search categories..." oninput="filterCatChips()" />
             </div>
 
-
-
-            <!-- ==========================================
-                 ACTIVE CATEGORY CHIPS
-            =========================================== -->
-
-            <div class="adm-chips-container"
-                 id="cat-chips-active">
-
+            <!-- ACTIVE CATEGORY CHIPS -->
+            <div class="adm-chips-container" id="cat-chips-active">
                 @if (Model.Categories.Any())
                 {
                     <div class="adm-chips-row">
-
                         @foreach (var cat in Model.Categories)
                         {
-                            <form asp-action="DeactivateCategory"
-                                  method="post"
-                                  class="adm-chip-form"
-                                  data-name="@cat.Name.ToLower()"
+                            <form asp-action="DeactivateCategory" method="post" class="adm-chip-form" data-name="@cat.Name.ToLower()"
                                   data-cs-confirm="Archive @(cat.Name)? It will move to the Archived tab and can be restored any time."
                                   data-cs-title="Archive category?"
                                   data-cs-yes="Archive"
                                   data-cs-tone="warn"
                                   data-cs-icon="fa-box-archive">
-
                                 @Html.AntiForgeryToken()
-
-                                <input type="hidden"
-                                       name="id"
-                                       value="@cat.CategoryId" />
-
-                                <span class="adm-chip"
-                                      data-category="@cat.Name">
-
-                                    <button type="button"
-                                            class="adm-chip-name"
-                                            data-name="@cat.Name"
+                                <input type="hidden" name="id" value="@cat.CategoryId" />
+                                <span class="adm-chip" data-category="@cat.Name">
+                                    <button type="button" class="adm-chip-name" data-name="@cat.Name"
                                             onclick="openCategoryActions(this, 'active')">
                                         @cat.Name
                                     </button>
-
-                                    <button type="submit"
-                                            class="adm-chip-rm"
-                                            title="Archive category">
-
+                                    <button type="submit" class="adm-chip-rm" title="Archive category">
                                         <i class="fas fa-box-archive"></i>
-
                                     </button>
-
                                 </span>
-
                             </form>
                         }
-
                     </div>
                 }
                 else
                 {
-                    <p class="adm-hint">
-                        No categories yet — add one below.
-                    </p>
+                    <p class="adm-hint">No categories yet — add one below.</p>
                 }
-
             </div>
 
-
-
-            <!-- ==========================================
-                 ARCHIVED CATEGORY CHIPS
-            =========================================== -->
-
-            <div class="adm-chips-container"
-                 id="cat-chips-archived"
-                 style="display:none;">
-
+            <!-- ARCHIVED CATEGORY CHIPS -->
+            <div class="adm-chips-container" id="cat-chips-archived" style="display:none;">
                 @if (Model.InactiveCategories.Any())
                 {
                     <div class="adm-chips-row">
-
                         @foreach (var cat in Model.InactiveCategories)
                         {
-                            <form asp-action="ReactivateCategory"
-                                  method="post"
-                                  class="adm-chip-form"
-                                  data-name="@cat.Name.ToLower()"
+                            <form asp-action="ReactivateCategory" method="post" class="adm-chip-form" data-name="@cat.Name.ToLower()"
                                   data-cs-confirm="Restore @(cat.Name)? It will go back to the Active list."
                                   data-cs-title="Restore category?"
                                   data-cs-yes="Restore"
                                   data-cs-icon="fa-rotate-left">
-
                                 @Html.AntiForgeryToken()
-
-                                <input type="hidden"
-                                       name="id"
-                                       value="@cat.CategoryId" />
-
-                                <span class="adm-chip adm-chip-muted"
-                                      data-category="@cat.Name">
-
-                                    <button type="button"
-                                            class="adm-chip-name"
-                                            data-name="@cat.Name"
+                                <input type="hidden" name="id" value="@cat.CategoryId" />
+                                <span class="adm-chip adm-chip-muted" data-category="@cat.Name">
+                                    <button type="button" class="adm-chip-name" data-name="@cat.Name"
                                             onclick="openCategoryActions(this, 'archived')">
                                         @cat.Name
                                     </button>
-
-                                    <button type="submit"
-                                            class="adm-chip-rm"
-                                            title="Restore category">
-
+                                    <button type="submit" class="adm-chip-rm" title="Restore category">
                                         <i class="fas fa-rotate-left"></i>
-
                                     </button>
-
                                 </span>
-
                             </form>
                         }
-
                     </div>
                 }
                 else
                 {
-                    <p class="adm-hint">
-                        Nothing archived yet.
-                    </p>
+                    <p class="adm-hint">Nothing archived yet.</p>
                 }
-
             </div>
-
-
 
             <!-- CATEGORY PAGINATION -->
-
-            <div class="adm-pagination"
-                 id="category-pagination">
-
-                <button type="button"
-                        class="adm-page-btn"
-                        id="cat-prev"
-                        onclick="changeCategoryPage(-1)">
-
+            <div class="adm-pagination" id="category-pagination">
+                <button type="button" class="adm-page-btn" id="cat-prev" onclick="changeCategoryPage(-1)">
                     <i class="fas fa-chevron-left"></i>
-
                 </button>
-
-                <span class="adm-page-info"
-                      id="cat-page-info">
-                    Page 1
-                </span>
-
-                <button type="button"
-                        class="adm-page-btn"
-                        id="cat-next"
-                        onclick="changeCategoryPage(1)">
-
+                <span class="adm-page-info" id="cat-page-info">Page 1</span>
+                <button type="button" class="adm-page-btn" id="cat-next" onclick="changeCategoryPage(1)">
                     <i class="fas fa-chevron-right"></i>
-
                 </button>
-
             </div>
 
-
-
-            <!-- ==========================================
-                 ADD CATEGORY
-            =========================================== -->
-
-            <form asp-action="AddCategory"
-                  method="post"
-                  class="adm-inline-form"
+            <!-- ADD CATEGORY -->
+            <form asp-action="AddCategory" method="post" class="adm-inline-form"
                   data-cs-confirm="Add this new category to the condition list?"
                   data-cs-title="Add category?"
                   data-cs-yes="Add category"
                   data-cs-icon="fa-folder-plus">
-
                 @Html.AntiForgeryToken()
-
-                <input type="hidden"
-                       name="type"
-                       value="MedicalCondition" />
-
-                <input name="name"
-                       placeholder="New category name"
-                       required />
-
-                <button class="adm-btn adm-btn-sm"
-                        type="submit">
-
-                    <i class="fas fa-plus"></i>
-                    Add Category
-
+                <input type="hidden" name="type" value="MedicalCondition" />
+                <input name="name" placeholder="New category name" required />
+                <button class="adm-btn adm-btn-sm" type="submit">
+                    <i class="fas fa-plus"></i> Add Category
                 </button>
-
             </form>
 
         </div>
-
     </div>
-
-
 
     <!-- ==========================================
          CONDITIONS + BREAKDOWN
     =========================================== -->
-
     <div class="adm-split">
 
-
-        <!-- ==========================================
-             CONDITIONS TABLE
-        ========================================== -->
-
+        <!-- CONDITIONS TABLE -->
         <div class="adm-panel">
 
             <div class="adm-panel-head">
-
-                <span>
-                    <i class="fas fa-heart-pulse"></i>
-                    All Conditions
-                </span>
-
-                <span class="adm-panel-tag">
-                    @Model.Conditions.Count items
-                </span>
-
+                <span><i class="fas fa-heart-pulse"></i> All Conditions</span>
+                <span class="adm-panel-tag">@Model.Conditions.Count items</span>
             </div>
-
-
-
-            <!-- CONDITION TABS -->
 
             <div class="adm-tabs">
-
-                <button type="button"
-                        class="adm-tab is-active"
-                        data-tbody="cond-tbody"
-                        onclick="switchTab(this)">
-
-                    Active
-
-                    <span class="adm-tab-count">
-                        @Model.Conditions.Count
-                    </span>
-
+                <button type="button" class="adm-tab is-active" data-tbody="cond-tbody" onclick="switchTab(this)">
+                    Active <span class="adm-tab-count">@Model.Conditions.Count</span>
                 </button>
-
-
-                <button type="button"
-                        class="adm-tab"
-                        data-tbody="cond-tbody-archived"
-                        onclick="switchTab(this)">
-
-                    Archived
-
-                    <span class="adm-tab-count">
-                        @Model.InactiveConditions.Count
-                    </span>
-
+                <button type="button" class="adm-tab" data-tbody="cond-tbody-archived" onclick="switchTab(this)">
+                    Archived <span class="adm-tab-count">@Model.InactiveConditions.Count</span>
                 </button>
-
             </div>
 
-
-
-            <!-- ==========================================
-                 TOOLBAR
-            =========================================== -->
-
             <div class="adm-toolbar">
-
                 <div class="adm-search-box">
-
                     <i class="fas fa-magnifying-glass"></i>
-
-                    <input id="cond-search"
-                           placeholder="Search conditions..."
-                           oninput="filterActiveTable()" />
-
+                    <input id="cond-search" placeholder="Search conditions..." oninput="filterActiveTable()" autocomplete="off" />
+                    <kbd class="adm-kbd" title="Press / to search">/</kbd>
                 </div>
 
-
-                <select id="cond-cat-filter"
-                        onchange="filterActiveTable()">
-
-                    <option value="">
-                        All Categories
-                    </option>
-
+                <select id="cond-cat-filter" onchange="filterActiveTable()">
+                    <option value="">All Categories</option>
                     @foreach (var cat in Model.Categories)
                     {
-                        <option value="@cat.Name">
-                            @cat.Name
-                        </option>
+                        <option value="@cat.Name">@cat.Name</option>
                     }
-
+                    <option value="__none__">Uncategorized</option>
                 </select>
 
+                <button type="button" class="adm-toggle" id="flag-nodesc" aria-pressed="false" onclick="toggleNoDesc()">
+                    <i class="fas fa-align-left"></i> No description
+                </button>
 
-                <div class="adm-show-control"
-                     id="show-control">
+                <!-- NEW (Conditions only): pinned conditions, saved in this browser -->
+                <button type="button" class="adm-toggle" id="flag-pinned" aria-pressed="false" onclick="togglePinnedFilter()" title="Show only the conditions you pinned">
+                    <i class="fas fa-star adm-toggle-star"></i> Pinned <span class="adm-toggle-count" id="pinned-count">0</span>
+                </button>
 
+                <button type="button" class="adm-toggle adm-toggle-clear" id="clear-filters" style="display:none;" onclick="clearConditionFilters()">
+                    <i class="fas fa-xmark"></i> Clear
+                </button>
+
+                <div class="adm-show-control" id="show-control">
                     <span>Show</span>
-
-                    <select id="cond-page-size"
-                            onchange="changePageSize()">
-
+                    <select id="cond-page-size" onchange="changePageSize()">
                         <option value="5">5</option>
                         <option value="10">10</option>
                         <option value="15">15</option>
                         <option value="25">25</option>
                         <option value="all">All</option>
-
                     </select>
-
                 </div>
 
+                <button type="button" class="adm-toggle" id="export-csv" onclick="exportConditionsCsv()" title="Download the filtered list as CSV">
+                    <i class="fas fa-file-arrow-down"></i> Export
+                </button>
             </div>
 
-
-
-            <!-- ==========================================
-                 TABLE
-            =========================================== -->
-
             <div class="adm-table-wrap">
-
                 <div class="adm-table-scroll">
-
                     <table class="adm-table">
-
                         <thead>
-
                             <tr>
-
-                                <th>
-                                    Condition Name
-                                </th>
-
-                                <th>
-                                    Category
-                                </th>
-
-                                <th>
-                                    Description
-                                </th>
-
-                                <th>
-                                    Status
-                                </th>
-
-                                <th class="adm-th-actions">
-                                    Actions
-                                </th>
-
+                                <th class="adm-sortable" data-col="0" tabindex="0" onclick="sortConditions(this)" onkeydown="if(event.key==='Enter')sortConditions(this)">Condition Name</th>
+                                <th class="adm-sortable" data-col="1" tabindex="0" onclick="sortConditions(this)" onkeydown="if(event.key==='Enter')sortConditions(this)">Category</th>
+                                <th class="adm-sortable" data-col="2" tabindex="0" onclick="sortConditions(this)" onkeydown="if(event.key==='Enter')sortConditions(this)">Description</th>
+                                <th>Status</th>
+                                <th class="adm-th-actions">Actions</th>
                             </tr>
-
                         </thead>
 
-
-
                         <!-- ACTIVE CONDITIONS -->
-
                         <tbody id="cond-tbody">
-
                             @foreach (var item in Model.Conditions)
                             {
-                                <tr data-name="@item.ConditionName.ToLower()"
-                                    data-cat="@item.Category?.Name">
-
-                                    <td class="adm-td-strong">
-                                        @item.ConditionName
-                                    </td>
-
-
+                                <tr data-id="@item.MedicalConditionId" data-pinned="0"
+                                    data-name="@item.ConditionName.ToLower()" data-cat="@item.Category?.Name"
+                                    data-nodesc="@(string.IsNullOrWhiteSpace(item.Description) ? "1" : "0")">
+                                    <td class="adm-td-strong">@item.ConditionName</td>
                                     <td>
-
                                         @if (item.Category != null)
                                         {
-                                            <span class="adm-badge"
-                                                  data-category="@item.Category.Name">
-
-                                                @item.Category.Name
-
-                                            </span>
+                                            <span class="adm-badge" data-category="@item.Category.Name">@item.Category.Name</span>
                                         }
                                         else
                                         {
-                                            <span class="adm-badge adm-badge-muted">
-                                                Uncategorized
-                                            </span>
+                                            <span class="adm-badge adm-badge-muted">Uncategorized</span>
                                         }
-
                                     </td>
-
-
-                                    <td class="adm-td-muted">
-                                        @item.Description
-                                    </td>
-
-
+                                    <td class="adm-td-muted">@item.Description</td>
                                     <td>
-
                                         <span class="adm-status-pill adm-status-active">
-
-                                            <span class="adm-status-dot"></span>
-
-                                            Active
-
+                                            <span class="adm-status-dot"></span> Active
                                         </span>
-
                                     </td>
-
-
                                     <td>
-
                                         <div class="adm-row-actions">
+                                            <button type="button" class="adm-icon-btn adm-pin-btn" title="Pin this condition"
+                                                    aria-pressed="false" data-id="@item.MedicalConditionId"
+                                                    onclick="togglePin(this)">
+                                                <i class="fas fa-star"></i>
+                                            </button>
 
-                                            <button type="button"
-                                                    class="adm-icon-btn adm-icon-btn-edit"
+                                            <button type="button" class="adm-icon-btn adm-icon-btn-edit"
                                                     data-id="@item.MedicalConditionId"
                                                     data-name="@item.ConditionName"
                                                     data-category="@item.CategoryId"
                                                     data-description="@item.Description"
                                                     onclick="openEditModalFromButton(this)">
-
-                                                <i class="fas fa-pen"></i>
-                                                Edit
-
+                                                <i class="fas fa-pen"></i> Edit
                                             </button>
 
-
-                                            <form asp-action="DeleteCondition"
-                                                  method="post"
-                                                  class="adm-inline-form-tight"
+                                            <form asp-action="DeleteCondition" method="post" class="adm-inline-form-tight"
                                                   data-cs-confirm="Deactivate @(item.ConditionName)? It will move to the Archived tab and can be reactivated any time."
                                                   data-cs-title="Deactivate condition?"
                                                   data-cs-yes="Deactivate"
                                                   data-cs-tone="warn"
                                                   data-cs-icon="fa-box-archive">
-
                                                 @Html.AntiForgeryToken()
-
-                                                <input type="hidden"
-                                                       name="id"
-                                                       value="@item.MedicalConditionId" />
-
-                                                <button type="submit"
-                                                        class="adm-icon-btn adm-icon-btn-danger">
-
-                                                    <i class="fas fa-box-archive"></i>
-                                                    Deactivate
-
+                                                <input type="hidden" name="id" value="@item.MedicalConditionId" />
+                                                <button type="submit" class="adm-icon-btn adm-icon-btn-danger">
+                                                    <i class="fas fa-box-archive"></i> Deactivate
                                                 </button>
-
                                             </form>
-
                                         </div>
-
                                     </td>
-
                                 </tr>
                             }
-
                         </tbody>
 
-
-
                         <!-- ARCHIVED CONDITIONS -->
-
-                        <tbody id="cond-tbody-archived"
-                               style="display:none;">
-
+                        <tbody id="cond-tbody-archived" style="display:none;">
                             @foreach (var item in Model.InactiveConditions)
                             {
-                                <tr data-name="@item.ConditionName.ToLower()"
-                                    data-cat="@item.Category?.Name">
-
-                                    <td class="adm-td-strong">
-                                        @item.ConditionName
-                                    </td>
-
-
+                                <tr data-id="@item.MedicalConditionId" data-pinned="0"
+                                    data-name="@item.ConditionName.ToLower()" data-cat="@item.Category?.Name"
+                                    data-nodesc="@(string.IsNullOrWhiteSpace(item.Description) ? "1" : "0")">
+                                    <td class="adm-td-strong">@item.ConditionName</td>
                                     <td>
-
                                         @if (item.Category != null)
                                         {
-                                            <span class="adm-badge adm-badge-muted"
-                                                  data-category="@item.Category.Name">
-
-                                                @item.Category.Name
-
-                                            </span>
+                                            <span class="adm-badge adm-badge-muted" data-category="@item.Category.Name">@item.Category.Name</span>
                                         }
                                         else
                                         {
-                                            <span class="adm-badge adm-badge-muted">
-                                                Uncategorized
-                                            </span>
+                                            <span class="adm-badge adm-badge-muted">Uncategorized</span>
                                         }
-
                                     </td>
-
-
-                                    <td class="adm-td-muted">
-                                        @item.Description
-                                    </td>
-
-
+                                    <td class="adm-td-muted">@item.Description</td>
                                     <td>
-
                                         <span class="adm-status-pill adm-status-inactive">
-
-                                            <span class="adm-status-dot"></span>
-
-                                            Archived
-
+                                            <span class="adm-status-dot"></span> Archived
                                         </span>
-
                                     </td>
-
-
                                     <td>
-
                                         <div class="adm-row-actions">
-
-                                            <form asp-action="ReactivateCondition"
-                                                  method="post"
-                                                  class="adm-inline-form-tight"
+                                            <form asp-action="ReactivateCondition" method="post" class="adm-inline-form-tight"
                                                   data-cs-confirm="Reactivate @(item.ConditionName)? It will be available across the system again."
                                                   data-cs-title="Reactivate condition?"
                                                   data-cs-yes="Reactivate"
                                                   data-cs-icon="fa-rotate-left">
-
                                                 @Html.AntiForgeryToken()
-
-                                                <input type="hidden"
-                                                       name="id"
-                                                       value="@item.MedicalConditionId" />
-
-                                                <button type="submit"
-                                                        class="adm-icon-btn adm-icon-btn-restore">
-
-                                                    <i class="fas fa-rotate-left"></i>
-                                                    Reactivate
-
+                                                <input type="hidden" name="id" value="@item.MedicalConditionId" />
+                                                <button type="submit" class="adm-icon-btn adm-icon-btn-restore">
+                                                    <i class="fas fa-rotate-left"></i> Reactivate
                                                 </button>
-
                                             </form>
-
                                         </div>
-
                                     </td>
-
                                 </tr>
                             }
-
                         </tbody>
-
                     </table>
-
                 </div>
 
-
-                <!-- ACTIVE EMPTY -->
                 @if (!Model.Conditions.Any())
                 {
-                    <div class="adm-empty-state"
-                         id="cond-empty-active">
-
-                        <div class="adm-empty-icon">
-                            <i class="fas fa-heart-pulse"></i>
-                        </div>
-
+                    <div class="adm-empty-state" id="cond-empty-active">
+                        <div class="adm-empty-icon"><i class="fas fa-heart-pulse"></i></div>
                         <h5>No conditions found</h5>
-
-                        <p>
-                            Add your first condition using the button above.
-                        </p>
-
+                        <p>Add your first condition using the button above.</p>
                     </div>
                 }
 
-
-                <!-- ARCHIVED EMPTY -->
                 @if (!Model.InactiveConditions.Any())
                 {
-                    <div class="adm-empty-state"
-                         id="cond-empty-archived"
-                         style="display:none;">
-
-                        <div class="adm-empty-icon">
-                            <i class="fas fa-box-archive"></i>
-                        </div>
-
+                    <div class="adm-empty-state" id="cond-empty-archived" style="display:none;">
+                        <div class="adm-empty-icon"><i class="fas fa-box-archive"></i></div>
                         <h5>Nothing archived</h5>
-
-                        <p>
-                            Conditions you deactivate will appear here
-                            and can be reactivated any time.
-                        </p>
-
+                        <p>Conditions you deactivate will appear here and can be reactivated any time.</p>
                     </div>
                 }
 
-
-                <!-- NO SEARCH RESULTS -->
-
-                <div class="adm-empty-state"
-                     id="cond-no-results"
-                     style="display:none;">
-
-                    <div class="adm-empty-icon">
-                        <i class="fas fa-magnifying-glass"></i>
-                    </div>
-
+                <div class="adm-empty-state" id="cond-no-results" style="display:none;">
+                    <div class="adm-empty-icon"><i class="fas fa-magnifying-glass"></i></div>
                     <h5>No matching conditions</h5>
-
-                    <p>
-                        Try changing your search or category filter.
-                    </p>
-
+                    <p>Try changing your search or category filter.</p>
                 </div>
-
             </div>
 
-
-
             <!-- CONDITIONS PAGINATION -->
-
-            <div class="adm-condition-pagination"
-                 id="condition-pagination">
-
+            <div class="adm-condition-pagination" id="condition-pagination">
                 <div class="adm-pagination-left">
-
-                    <span id="condition-results-info">
-                        Showing 0 of 0
-                    </span>
-
+                    <span id="condition-results-info">Showing 0 of 0</span>
                 </div>
-
-
                 <div class="adm-pagination-right">
-
-                    <button type="button"
-                            class="adm-page-btn"
-                            id="condition-prev"
-                            onclick="changeConditionPage(-1)">
-
+                    <button type="button" class="adm-page-btn" id="condition-prev" onclick="changeConditionPage(-1)">
                         <i class="fas fa-chevron-left"></i>
-
                     </button>
-
-
-                    <span class="adm-page-info"
-                          id="condition-page-info">
-                        Page 1
-                    </span>
-
-
-                    <button type="button"
-                            class="adm-page-btn"
-                            id="condition-next"
-                            onclick="changeConditionPage(1)">
-
+                    <span class="adm-page-info" id="condition-page-info">Page 1</span>
+                    <button type="button" class="adm-page-btn" id="condition-next" onclick="changeConditionPage(1)">
                         <i class="fas fa-chevron-right"></i>
-
                     </button>
-
                 </div>
+            </div>
 
+            <div class="adm-shortcuts-hint">
+                <span><kbd class="adm-kbd">/</kbd> search</span>
+                <span><kbd class="adm-kbd">N</kbd> new condition</span>
+                <span>Click a row for details</span>
+                <span><i class="fas fa-star adm-hint-star"></i> Pin conditions you use often</span>
             </div>
 
         </div>
 
-
-
-        <!-- ==========================================
-             CATEGORY BREAKDOWN
-        =========================================== -->
-
+        <!-- CATEGORY BREAKDOWN -->
         <div class="adm-panel">
-
             <div class="adm-panel-head">
-
-                <span>
-                    <i class="fas fa-chart-simple"></i>
-                    By category
-                </span>
-
+                <span><i class="fas fa-chart-simple"></i> By category</span>
             </div>
-
-
             <div class="adm-breakdown">
-
                 @if (breakdown.Any())
                 {
                     @foreach (var b in breakdown)
                     {
-                        var pct = breakdownMax > 0
-                            ? (int)Math.Round((double)b.Count / breakdownMax * 100)
-                            : 0;
-
-                        <div class="adm-breakdown-row">
-
+                        var pct = breakdownMax > 0 ? (int)Math.Round((double)b.Count / breakdownMax * 100) : 0;
+                        var share = totalConditions > 0 ? (int)Math.Round((double)b.Count / totalConditions * 100) : 0;
+                        <div class="adm-breakdown-row is-link" role="button" tabindex="0"
+                             data-cat="@b.Name"
+                             title="Filter the table by this category"
+                             onclick="filterByCategory(this.dataset.cat)"
+                             onkeydown="if(event.key==='Enter')filterByCategory(this.dataset.cat)">
                             <div class="adm-breakdown-label">
-
-                                <span>
-                                    @b.Name
-                                </span>
-
-                                <strong>
-                                    @b.Count
-                                </strong>
-
+                                <span>@b.Name</span>
+                                <strong>@b.Count <small>(@(share)%)</small></strong>
                             </div>
-
-
                             <div class="adm-breakdown-track">
-
-                                <div class="adm-breakdown-fill"
-                                     data-category="@b.Name"
-                                     style="width:@(pct)%;">
-                                </div>
-
+                                <div class="adm-breakdown-fill" data-category="@b.Name" style="width:@(pct)%;"></div>
                             </div>
-
                         </div>
                     }
+                    <p class="adm-hint adm-breakdown-hint">Click a category to filter the table.</p>
                 }
                 else
                 {
                     <div class="adm-empty-state">
-
-                        <div class="adm-empty-icon">
-                            <i class="fas fa-chart-simple"></i>
-                        </div>
-
+                        <div class="adm-empty-icon"><i class="fas fa-chart-simple"></i></div>
                         <h5>No data yet</h5>
-
-                        <p>
-                            Once conditions are added, their spread across
-                            categories will show up here.
-                        </p>
-
+                        <p>Once conditions are added, their spread across categories will show up here.</p>
                     </div>
                 }
-
             </div>
-
         </div>
 
     </div>
 
+    <!-- ==========================================
+         DATA QUALITY (CLIENT-SIDE ONLY)
+    =========================================== -->
+    <section class="aq-section" aria-labelledby="condition-quality-title">
+        <header class="aq-head">
+            <div class="aq-head-text">
+                <h2 id="condition-quality-title">Condition quality check</h2>
+                <p>Find gaps in the active register and jump straight to the records that need fixing.</p>
+            </div>
+            <div class="aq-head-actions">
+                <span class="aq-summary" id="quality-summary" data-state="ok"><span class="aq-summary-text">All checks clear</span></span>
+                <button type="button" class="aq-btn" onclick="refreshConditionQualityCheck()">
+                    <i class="fas fa-rotate"></i> Recheck register
+                </button>
+            </div>
+        </header>
 
+        <ul class="aq-list">
+            <li class="aq-row" data-state="@(noDescriptionCount > 0 ? "warn" : "ok")">
+                <span class="aq-row-icon"><i class="fas fa-align-left"></i></span>
+                <div class="aq-row-main">
+                    <strong class="aq-row-title">Missing descriptions</strong>
+                    <span class="aq-row-desc">Active records without a description</span>
+                </div>
+                <span class="aq-count" id="quality-missing-description">@noDescriptionCount</span>
+                <span class="aq-state"></span>
+                <button type="button" class="aq-link" onclick="reviewConditionsWithoutDescriptions()">
+                    Review records <i class="fas fa-chevron-right"></i>
+                </button>
+            </li>
+
+            <li class="aq-row" data-state="@(uncategorizedCount > 0 ? "warn" : "ok")">
+                <span class="aq-row-icon"><i class="fas fa-folder-minus"></i></span>
+                <div class="aq-row-main">
+                    <strong class="aq-row-title">Uncategorized</strong>
+                    <span class="aq-row-desc">Active records that still need a category</span>
+                </div>
+                <span class="aq-count" id="quality-uncategorized">@uncategorizedCount</span>
+                <span class="aq-state"></span>
+                <button type="button" class="aq-link" onclick="reviewUncategorizedConditions()">
+                    Review records <i class="fas fa-chevron-right"></i>
+                </button>
+            </li>
+
+            <li class="aq-row" data-state="ok">
+                <span class="aq-row-icon"><i class="fas fa-clone"></i></span>
+                <div class="aq-row-main">
+                    <strong class="aq-row-title">Possible duplicate names</strong>
+                    <span class="aq-row-desc">Names that appear more than once in active records</span>
+                </div>
+                <span class="aq-count" id="quality-duplicate-count">0</span>
+                <span class="aq-state"></span>
+                <button type="button" class="aq-link" id="quality-duplicates-toggle" onclick="toggleConditionDuplicateDetails()">
+                    Check names <i class="fas fa-chevron-down"></i>
+                </button>
+            </li>
+        </ul>
+
+        <div class="aq-dupes" id="quality-duplicate-details" hidden aria-live="polite"></div>
+
+        <footer class="sec-foot">
+            <i class="fas fa-circle-info"></i>
+            These checks run on the records already loaded in this page. They do not change or save condition data.
+        </footer>
+    </section>
+
+    <!-- ==========================================
+         REGISTER OVERVIEW (CLIENT-SIDE ONLY)
+    =========================================== -->
+    <section class="ao-section" aria-labelledby="condition-insights-title">
+        <header class="ao-head">
+            <div class="ao-head-text">
+                <h2 id="condition-insights-title">Condition register insights</h2>
+                <p>Coverage, category spread and the records that may need attention.</p>
+            </div>
+            <div class="ao-head-actions">
+                <button type="button" class="ao-btn" onclick="downloadConditionAuditReport()">
+                    <i class="fas fa-file-csv"></i> Download audit report
+                </button>
+                <button type="button" class="ao-btn ao-btn-primary" onclick="printConditionInsights()">
+                    <i class="fas fa-print"></i> Print overview
+                </button>
+            </div>
+        </header>
+
+        <div class="ao-metrics">
+            <div class="ao-metric">
+                <div class="ao-metric-label"><i class="fas fa-list-check"></i> Total records</div>
+                <strong id="insight-total-records">0</strong>
+                <small>Active and archived</small>
+            </div>
+            <div class="ao-metric">
+                <div class="ao-metric-label"><i class="fas fa-layer-group"></i> Category coverage</div>
+                <strong id="insight-category-coverage">0%</strong>
+                <small id="insight-category-sub">Active records assigned to a category</small>
+                <span class="ao-meter"><span class="ao-meter-fill" id="insight-category-meter"></span></span>
+            </div>
+            <div class="ao-metric">
+                <div class="ao-metric-label"><i class="fas fa-file-circle-check"></i> Description coverage</div>
+                <strong id="insight-description-coverage">0%</strong>
+                <small id="insight-description-sub">Active records with descriptions</small>
+                <span class="ao-meter"><span class="ao-meter-fill" id="insight-description-meter"></span></span>
+            </div>
+            <div class="ao-metric">
+                <div class="ao-metric-label"><i class="fas fa-box-archive"></i> Archived records</div>
+                <strong id="insight-archived-records">0</strong>
+                <small>Not in the active register</small>
+            </div>
+        </div>
+
+        <div class="ao-body">
+            <div class="ao-col">
+                <div class="ao-col-head">
+                    <h3>Active category distribution</h3>
+                    <p>Select a category to filter the table above.</p>
+                </div>
+                <div id="condition-insights-category-list" class="adm-insights-category-list" aria-live="polite"></div>
+                <div id="condition-insights-category-empty" class="adm-insights-empty" hidden>No active condition records to chart yet.</div>
+            </div>
+
+            <div class="ao-col">
+                <div class="ao-col-head">
+                    <h3>Review queue</h3>
+                    <p>Jump straight to records that may need attention.</p>
+                </div>
+
+                <button type="button" class="ao-queue-item" onclick="reviewConditionsWithoutDescriptions()">
+                    <span class="ao-queue-icon"><i class="fas fa-align-left"></i></span>
+                    <span class="ao-queue-text"><strong>Missing descriptions</strong><small>Active records without supporting detail</small></span>
+                    <span class="ao-queue-count" id="insight-review-missing">0</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <button type="button" class="ao-queue-item" onclick="reviewUncategorizedConditions()">
+                    <span class="ao-queue-icon"><i class="fas fa-folder-minus"></i></span>
+                    <span class="ao-queue-text"><strong>Uncategorized records</strong><small>Active records with no category</small></span>
+                    <span class="ao-queue-count" id="insight-review-uncategorized">0</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <button type="button" class="ao-queue-item" onclick="showConditionDuplicateReview()">
+                    <span class="ao-queue-icon"><i class="fas fa-clone"></i></span>
+                    <span class="ao-queue-text"><strong>Possible duplicate names</strong><small>Review repeated names before changing anything</small></span>
+                    <span class="ao-queue-count" id="insight-review-duplicates">0</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <button type="button" class="ao-queue-item" onclick="showPinnedConditions()">
+                    <span class="ao-queue-icon"><i class="fas fa-star"></i></span>
+                    <span class="ao-queue-text"><strong>Pinned conditions</strong><small>Your shortlist, saved in this browser</small></span>
+                    <span class="ao-queue-count" id="insight-review-pinned">0</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <button type="button" class="ao-queue-item" onclick="showArchivedConditions()">
+                    <span class="ao-queue-icon"><i class="fas fa-box-archive"></i></span>
+                    <span class="ao-queue-text"><strong>Archived register</strong><small>Records that can be reactivated</small></span>
+                    <span class="ao-queue-count" id="insight-review-archived">0</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <footer class="sec-foot">
+            <i class="fas fa-circle-info"></i>
+            Insights are calculated from the records already rendered on this page. They do not update database records.
+        </footer>
+    </section>
 
     <!-- ==========================================
          ADD CONDITION MODAL
     =========================================== -->
-
-    <div class="adm-modal-overlay"
-         id="modal-add">
-
+    <div class="adm-modal-overlay" id="modal-add">
         <div class="adm-modal">
-
             <div class="adm-modal-title">
-
-                <span>
-
-                    <i class="fas fa-circle-plus adm-modal-icon"></i>
-
-                    Add New Condition
-
-                </span>
-
-
-                <span class="adm-modal-close"
-                      onclick="closeModal('modal-add')">
-
-                    <i class="fas fa-xmark"></i>
-
-                </span>
-
+                <span><i class="fas fa-circle-plus adm-modal-icon"></i> Add New Condition</span>
+                <span class="adm-modal-close" onclick="closeModal('modal-add')"><i class="fas fa-xmark"></i></span>
             </div>
 
-
-            <form asp-action="AddCondition"
-                  method="post"
+            <form asp-action="AddCondition" method="post"
                   data-cs-confirm="Save this new condition to the system?"
                   data-cs-title="Add condition?"
                   data-cs-yes="Save condition"
                   data-cs-icon="fa-circle-plus">
-
                 @Html.AntiForgeryToken()
 
-
                 <div class="adm-form-group">
-
-                    <label>
-                        Condition Name
-                    </label>
-
-                    <input name="name"
-                           placeholder="e.g. Chronic Kidney Disease"
-                           required />
-
+                    <label>Condition Name</label>
+                    <input name="name" id="add-name" placeholder="e.g. Chronic Kidney Disease" required
+                           oninput="checkDuplicateName(this, 'add-name-warn', null)" autocomplete="off" />
+                    <div class="adm-field-warn" id="add-name-warn" style="display:none;"></div>
                 </div>
 
-
                 <div class="adm-form-group">
-
-                    <label>
-                        Category
-                    </label>
-
-                    <select name="categoryId"
-                            required>
-
-                        <option value="">
-                            -- Select Category --
-                        </option>
-
+                    <label>Category</label>
+                    <select name="categoryId" required>
+                        <option value="">-- Select Category --</option>
                         @foreach (var cat in Model.Categories)
                         {
-                            <option value="@cat.CategoryId">
-                                @cat.Name
-                            </option>
+                            <option value="@cat.CategoryId">@cat.Name</option>
                         }
-
                     </select>
-
                 </div>
-
 
                 <div class="adm-form-group">
-
-                    <label>
-                        Description (optional)
-                    </label>
-
-                    <input name="description"
-                           placeholder="Short description" />
-
+                    <label>Description (optional)</label>
+                    <input name="description" placeholder="Short description" />
                 </div>
-
 
                 <div class="adm-modal-actions">
-
-                    <button type="button"
-                            class="adm-btn-cancel"
-                            onclick="closeModal('modal-add')">
-
-                        Cancel
-
+                    <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-add')">Cancel</button>
+                    <button type="submit" class="adm-btn">
+                        <i class="fas fa-floppy-disk"></i> Save Condition
                     </button>
-
-
-                    <button type="submit"
-                            class="adm-btn">
-
-                        <i class="fas fa-floppy-disk"></i>
-
-                        Save Condition
-
-                    </button>
-
                 </div>
-
             </form>
-
         </div>
-
     </div>
-
-
 
     <!-- ==========================================
          EDIT CONDITION MODAL
     =========================================== -->
-
-    <div class="adm-modal-overlay"
-         id="modal-edit">
-
+    <div class="adm-modal-overlay" id="modal-edit">
         <div class="adm-modal">
-
             <div class="adm-modal-title">
-
-                <span>
-
-                    <i class="fas fa-pen adm-modal-icon"></i>
-
-                    Edit Condition
-
-                </span>
-
-
-                <span class="adm-modal-close"
-                      onclick="closeModal('modal-edit')">
-
-                    <i class="fas fa-xmark"></i>
-
-                </span>
-
+                <span><i class="fas fa-pen adm-modal-icon"></i> Edit Condition</span>
+                <span class="adm-modal-close" onclick="closeModal('modal-edit')"><i class="fas fa-xmark"></i></span>
             </div>
 
-
-            <form asp-action="EditCondition"
-                  method="post"
+            <form asp-action="EditCondition" method="post"
                   data-cs-confirm="Save your changes to this condition?"
                   data-cs-title="Save changes?"
                   data-cs-yes="Save changes"
                   data-cs-icon="fa-floppy-disk">
-
                 @Html.AntiForgeryToken()
-
-
-                <input type="hidden"
-                       name="id"
-                       id="edit-id" />
-
+                <input type="hidden" name="id" id="edit-id" />
 
                 <div class="adm-form-group">
-
-                    <label>
-                        Condition Name
-                    </label>
-
-                    <input name="name"
-                           id="edit-name"
-                           placeholder="e.g. Chronic Kidney Disease"
-                           required />
-
+                    <label>Condition Name</label>
+                    <input name="name" id="edit-name" placeholder="e.g. Chronic Kidney Disease" required
+                           oninput="checkDuplicateName(this, 'edit-name-warn', document.getElementById('edit-id').value)" autocomplete="off" />
+                    <div class="adm-field-warn" id="edit-name-warn" style="display:none;"></div>
                 </div>
 
-
                 <div class="adm-form-group">
-
-                    <label>
-                        Category
-                    </label>
-
-                    <select name="categoryId"
-                            id="edit-category"
-                            required>
-
+                    <label>Category</label>
+                    <select name="categoryId" id="edit-category" required>
                         @foreach (var cat in Model.Categories)
                         {
-                            <option value="@cat.CategoryId">
-                                @cat.Name
-                            </option>
+                            <option value="@cat.CategoryId">@cat.Name</option>
                         }
-
                     </select>
-
                 </div>
-
 
                 <div class="adm-form-group">
-
-                    <label>
-                        Description (optional)
-                    </label>
-
-                    <input name="description"
-                           id="edit-description"
-                           placeholder="Short description" />
-
+                    <label>Description (optional)</label>
+                    <input name="description" id="edit-description" placeholder="Short description" />
                 </div>
-
 
                 <div class="adm-modal-actions">
-
-                    <button type="button"
-                            class="adm-btn-cancel"
-                            onclick="closeModal('modal-edit')">
-
-                        Cancel
-
+                    <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-edit')">Cancel</button>
+                    <button type="submit" class="adm-btn">
+                        <i class="fas fa-floppy-disk"></i> Save Changes
                     </button>
-
-
-                    <button type="submit"
-                            class="adm-btn">
-
-                        <i class="fas fa-floppy-disk"></i>
-
-                        Save Changes
-
-                    </button>
-
                 </div>
-
             </form>
-
         </div>
-
     </div>
-
-
 
     <!-- ==========================================
          EDIT CATEGORY MODAL
     =========================================== -->
-
-    <div class="adm-modal-overlay"
-         id="modal-edit-category">
-
+    <div class="adm-modal-overlay" id="modal-edit-category">
         <div class="adm-modal">
-
             <div class="adm-modal-title">
-
-                <span>
-
-                    <i class="fas fa-pen adm-modal-icon"></i>
-
-                    Edit Category
-
-                </span>
-
-
-                <span class="adm-modal-close"
-                      onclick="closeModal('modal-edit-category')">
-
-                    <i class="fas fa-xmark"></i>
-
-                </span>
-
+                <span><i class="fas fa-pen adm-modal-icon"></i> Edit Category</span>
+                <span class="adm-modal-close" onclick="closeModal('modal-edit-category')"><i class="fas fa-xmark"></i></span>
             </div>
 
-
-            <form asp-action="EditCategory"
-                  method="post"
+            <form asp-action="EditCategory" method="post"
                   data-cs-confirm="Save your changes to this category?"
                   data-cs-title="Save changes?"
                   data-cs-yes="Save changes"
                   data-cs-icon="fa-floppy-disk">
-
                 @Html.AntiForgeryToken()
-
-
-                <input type="hidden"
-                       name="id"
-                       id="edit-cat-id" />
-
+                <input type="hidden" name="id" id="edit-cat-id" />
 
                 <div class="adm-form-group">
-
-                    <label>
-                        Category Name
-                    </label>
-
-                    <input name="name"
-                           id="edit-cat-name"
-                           required />
-
+                    <label>Category Name</label>
+                    <input name="name" id="edit-cat-name" required />
                 </div>
-
 
                 <div class="adm-modal-actions">
-
-                    <button type="button"
-                            class="adm-btn-cancel"
-                            onclick="closeModal('modal-edit-category')">
-
-                        Cancel
-
+                    <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-edit-category')">Cancel</button>
+                    <button type="submit" class="adm-btn">
+                        <i class="fas fa-floppy-disk"></i> Save Changes
                     </button>
-
-
-                    <button type="submit"
-                            class="adm-btn">
-
-                        <i class="fas fa-floppy-disk"></i>
-
-                        Save Changes
-
-                    </button>
-
                 </div>
-
             </form>
-
         </div>
+    </div>
 
+    <!-- ==========================================
+         CONDITION DETAILS MODAL (read-only)
+    =========================================== -->
+    <div class="adm-modal-overlay" id="modal-details">
+        <div class="adm-modal">
+            <div class="adm-modal-title">
+                <span><i class="fas fa-circle-info adm-modal-icon"></i> Condition Details</span>
+                <span class="adm-modal-close" onclick="closeModal('modal-details')"><i class="fas fa-xmark"></i></span>
+            </div>
+
+            <div class="adm-detail-list">
+                <div class="adm-detail-row">
+                    <span class="adm-detail-label">Name</span>
+                    <span class="adm-detail-value" id="det-name"></span>
+                </div>
+                <div class="adm-detail-row">
+                    <span class="adm-detail-label">Category</span>
+                    <span class="adm-detail-value" id="det-category"></span>
+                </div>
+                <div class="adm-detail-row">
+                    <span class="adm-detail-label">Status</span>
+                    <span class="adm-detail-value" id="det-status"></span>
+                </div>
+                <div class="adm-detail-row">
+                    <span class="adm-detail-label">Pinned</span>
+                    <span class="adm-detail-value" id="det-pinned"></span>
+                </div>
+                <div class="adm-detail-row">
+                    <span class="adm-detail-label">Description</span>
+                    <span class="adm-detail-value" id="det-description"></span>
+                </div>
+            </div>
+
+            <div class="adm-modal-actions">
+                <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-details')">Close</button>
+                <button type="button" class="adm-btn" id="det-edit-btn" onclick="editFromDetails()">
+                    <i class="fas fa-pen"></i> Edit
+                </button>
+            </div>
+        </div>
     </div>
 
 </div>
-
 
 
 @section Scripts {
@@ -1269,14 +882,21 @@
         ========================================================== */
 
         var conditionPages = { active: 1, archived: 1 };
-
         var categoryPages = { active: 1, archived: 1 };
-
         var categoryPageSize = 6;
+
+        var conditionFlags = { noDesc: false, pinned: false };
+        var sortState = { col: -1, dir: 1 };
+        var lastMatching = [];
+        var currentDetailRow = null;
+        var pinnedIds = {};
+        var PIN_KEY = 'conditionPins';
 
 
         /* ==========================================================
            CATEGORY COLOUR SYSTEM
+           (light palette + a matching dark palette, same order so a
+           category keeps its slot when the theme changes)
         ========================================================== */
 
         var categoryColours = [
@@ -1290,48 +910,45 @@
             { bg: '#FCE8E6', text: '#A8433D', border: '#E8B8B4', glow: 'rgba(168, 67, 61, .40)' }
         ];
 
+        var categoryColoursDark = [
+            { bg: '#3A1B20', text: '#EE8A98', border: '#5E2A33', glow: 'rgba(238, 138, 152, .30)' },
+            { bg: '#3B1C1D', text: '#E9807A', border: '#5C2A2B', glow: 'rgba(233, 128, 122, .30)' },
+            { bg: '#381D1B', text: '#E1736B', border: '#58302C', glow: 'rgba(225, 115, 107, .30)' },
+            { bg: '#3C1D1A', text: '#EA8077', border: '#5E2D28', glow: 'rgba(234, 128, 119, .30)' },
+            { bg: '#3A1B28', text: '#E58DB0', border: '#5C2A40', glow: 'rgba(229, 141, 176, .30)' },
+            { bg: '#3B1C1A', text: '#E67E74', border: '#5D2B26', glow: 'rgba(230, 126, 116, .30)' },
+            { bg: '#371A19', text: '#E37B73', border: '#572A28', glow: 'rgba(227, 123, 115, .30)' },
+            { bg: '#3A1C1B', text: '#E8847C', border: '#5B2C2A', glow: 'rgba(232, 132, 124, .30)' }
+        ];
+
+        function isDarkMode() {
+            return document.documentElement.classList.contains('rq-dark');
+        }
 
         function getCategoryColour(categoryName) {
-
-            if (!categoryName) {
-                return null;
-            }
+            if (!categoryName) return null;
 
             var hash = 0;
-
             for (var i = 0; i < categoryName.length; i++) {
                 hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
             }
-
             hash = Math.abs(hash);
 
-            return categoryColours[hash % categoryColours.length];
+            var palette = isDarkMode() ? categoryColoursDark : categoryColours;
+            return palette[hash % palette.length];
         }
-
 
         function applyCategoryColours() {
+            document.querySelectorAll('[data-category]').forEach(function(element) {
+                var colour = getCategoryColour(element.getAttribute('data-category'));
+                if (!colour) return;
 
-            document
-                .querySelectorAll('[data-category]')
-                .forEach(function(element) {
-
-                    var categoryName = element.getAttribute('data-category');
-
-                    var colour = getCategoryColour(categoryName);
-
-                    if (!colour) {
-                        return;
-                    }
-
-                    element.style.setProperty('--category-bg', colour.bg);
-                    element.style.setProperty('--category-text', colour.text);
-                    element.style.setProperty('--category-border', colour.border);
-                    element.style.setProperty('--category-glow', colour.glow);
-
-                });
-
+                element.style.setProperty('--category-bg', colour.bg);
+                element.style.setProperty('--category-text', colour.text);
+                element.style.setProperty('--category-border', colour.border);
+                element.style.setProperty('--category-glow', colour.glow);
+            });
         }
-
 
 
         /* ==========================================================
@@ -1339,68 +956,68 @@
         ========================================================== */
 
         function openModal(id) {
-
             var el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('is-open');
+            document.body.style.overflow = 'hidden';
 
-            if (!el) {
-                return;
+            if (id === 'modal-add') {
+                var w = document.getElementById('add-name-warn');
+                if (w) w.style.display = 'none';
             }
 
-            el.classList.add('is-open');
-
-            document.body.style.overflow = 'hidden';
+            // focus the first field so you can start typing straight away
+            var first = el.querySelector('input:not([type=hidden]), select');
+            if (first) setTimeout(function() { first.focus(); }, 50);
         }
 
-
         function closeModal(id) {
-
             var el = document.getElementById(id);
-
-            if (!el) {
-                return;
-            }
-
+            if (!el) return;
             el.classList.remove('is-open');
-
             document.body.style.overflow = '';
         }
 
-
-        document
-            .querySelectorAll('.adm-modal-overlay')
-            .forEach(function(overlay) {
-
-                overlay.addEventListener('click', function(e) {
-
-                    if (e.target === overlay) {
-                        closeModal(overlay.id);
-                    }
-
-                });
-
+        document.querySelectorAll('.adm-modal-overlay').forEach(function(overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeModal(overlay.id);
             });
-
+        });
 
         document.addEventListener('keydown', function(e) {
-
             if (e.key === 'Escape') {
 
                 // a confirmation popup is open: let it handle Escape on its own
                 var pp = document.getElementById('ppOverlay');
-                if (pp && !pp.hidden) {
-                    return;
-                }
+                if (pp && !pp.hidden) return;
 
-                document
-                    .querySelectorAll('.adm-modal-overlay.is-open')
-                    .forEach(function(o) {
-                        closeModal(o.id);
-                    });
-
+                document.querySelectorAll('.adm-modal-overlay.is-open').forEach(function(o) {
+                    closeModal(o.id);
+                });
             }
-
         });
 
+        /* keyboard shortcuts: "/" focuses search, "N" opens Add Condition */
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+            var t = e.target;
+            var tag = (t.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select' || t.isContentEditable) return;
+
+            if (document.querySelector('.adm-modal-overlay.is-open')) return;
+
+            var pp = document.getElementById('ppOverlay');
+            if (pp && !pp.hidden) return;
+
+            if (e.key === '/') {
+                e.preventDefault();
+                document.getElementById('cond-search').focus();
+            } else if (e.key === 'n' || e.key === 'N') {
+                e.preventDefault();
+                openModal('modal-add');
+            }
+        });
 
 
         /* ==========================================================
@@ -1408,34 +1025,205 @@
         ========================================================== */
 
         function openEditModalFromButton(btn) {
-
             document.getElementById('edit-id').value = btn.dataset.id;
-
             document.getElementById('edit-name').value = btn.dataset.name;
-
             document.getElementById('edit-description').value = btn.dataset.description || '';
 
+            var warn = document.getElementById('edit-name-warn');
+            if (warn) warn.style.display = 'none';
 
             var select = document.getElementById('edit-category');
-
-
             for (var i = 0; i < select.options.length; i++) {
-
                 if (select.options[i].value === String(btn.dataset.category)) {
-
                     select.selectedIndex = i;
-
                     break;
-
                 }
-
             }
 
-
             openModal('modal-edit');
-
         }
 
+
+        /* ==========================================================
+           DUPLICATE NAME WARNING (soft, does not block saving)
+        ========================================================== */
+
+        function checkDuplicateName(input, warnId, excludeId) {
+            var warn = document.getElementById(warnId);
+            if (!warn) return;
+
+            var val = input.value.trim().toLowerCase();
+            if (!val) { warn.style.display = 'none'; return; }
+
+            var hit = null;
+
+            document.querySelectorAll('#cond-tbody tr, #cond-tbody-archived tr').forEach(function(r) {
+                if ((r.dataset.name || '') !== val) return;
+
+                var idInput = r.querySelector('input[name="id"]');
+                if (excludeId && idInput && idInput.value === String(excludeId)) return;
+
+                hit = r.parentElement.id === 'cond-tbody' ? 'active' : 'archived';
+            });
+
+            if (hit === 'active') {
+                warn.textContent = 'An active condition with this name already exists.';
+                warn.style.display = '';
+            } else if (hit === 'archived') {
+                warn.textContent = 'This name is in the Archived tab. Consider reactivating it instead.';
+                warn.style.display = '';
+            } else {
+                warn.style.display = 'none';
+            }
+        }
+
+
+        /* ==========================================================
+           ROW DETAILS MODAL
+        ========================================================== */
+
+        function openDetails(row) {
+            currentDetailRow = row;
+
+            var nameCell = row.children[0];
+            var name = nameCell.dataset.orig !== undefined ? nameCell.dataset.orig : nameCell.textContent.trim();
+            var category = row.children[1].textContent.trim();
+            var description = row.children[2].textContent.trim();
+            var isArchived = row.parentElement.id === 'cond-tbody-archived';
+
+            document.getElementById('det-name').textContent = name;
+            document.getElementById('det-category').textContent = category;
+            document.getElementById('det-status').textContent = isArchived ? 'Archived' : 'Active';
+            document.getElementById('det-pinned').textContent = row.dataset.pinned === '1' ? 'Yes' : 'No';
+
+            var descEl = document.getElementById('det-description');
+            descEl.textContent = description || 'No description provided.';
+            descEl.classList.toggle('is-empty', !description);
+
+            document.getElementById('det-edit-btn').style.display =
+                row.querySelector('.adm-icon-btn-edit') ? '' : 'none';
+
+            openModal('modal-details');
+        }
+
+        function editFromDetails() {
+            if (!currentDetailRow) return;
+            var btn = currentDetailRow.querySelector('.adm-icon-btn-edit');
+            closeModal('modal-details');
+            if (btn) openEditModalFromButton(btn);
+        }
+
+        function bindRowClicks() {
+            ['cond-tbody', 'cond-tbody-archived'].forEach(function(id) {
+                var tb = document.getElementById(id);
+                if (!tb) return;
+
+                tb.addEventListener('click', function(e) {
+                    if (e.target.closest('button, form, a')) return;
+                    var row = e.target.closest('tr');
+                    if (row) openDetails(row);
+                });
+            });
+        }
+
+
+        /* ==========================================================
+           NEW (CONDITIONS ONLY): PINNED CONDITIONS
+           Saved in this browser only (localStorage). No controller,
+           no database, no model changes.
+        ========================================================== */
+
+        function loadPins() {
+            try {
+                var saved = JSON.parse(localStorage.getItem(PIN_KEY) || '[]');
+                if (Array.isArray(saved)) {
+                    saved.forEach(function(id) { pinnedIds[String(id)] = true; });
+                }
+            } catch (e) { }
+        }
+
+        function savePins() {
+            try {
+                localStorage.setItem(PIN_KEY, JSON.stringify(Object.keys(pinnedIds)));
+            } catch (e) { }
+        }
+
+        function paintPin(row) {
+            if (!row) return;
+
+            var isPinned = !!pinnedIds[row.dataset.id];
+            row.dataset.pinned = isPinned ? '1' : '0';
+            row.classList.toggle('is-pinned', isPinned);
+
+            var btn = row.querySelector('.adm-pin-btn');
+            if (btn) {
+                btn.classList.toggle('is-on', isPinned);
+                btn.setAttribute('aria-pressed', isPinned ? 'true' : 'false');
+                btn.title = isPinned ? 'Unpin this condition' : 'Pin this condition';
+            }
+        }
+
+        function paintAllPins() {
+            document.querySelectorAll('#cond-tbody tr').forEach(paintPin);
+            updatePinnedCount();
+        }
+
+        function activePinnedTotal() {
+            return document.querySelectorAll('#cond-tbody tr[data-pinned="1"]').length;
+        }
+
+        function updatePinnedCount() {
+            var total = activePinnedTotal();
+            var chip = document.getElementById('pinned-count');
+            if (chip) chip.textContent = total;
+
+            var queue = document.getElementById('insight-review-pinned');
+            if (queue) queue.textContent = total;
+        }
+
+        function togglePin(btn) {
+            var row = btn.closest('tr');
+            if (!row) return;
+
+            var id = row.dataset.id;
+            if (pinnedIds[id]) { delete pinnedIds[id]; } else { pinnedIds[id] = true; }
+
+            savePins();
+            paintPin(row);
+            updatePinnedCount();
+
+            // if the Pinned filter is on, unpinning should drop the row straight away
+            if (conditionFlags.pinned) renderConditions();
+        }
+
+        function syncPinnedToggle() {
+            var btn = document.getElementById('flag-pinned');
+            if (!btn) return;
+            btn.classList.toggle('is-on', conditionFlags.pinned);
+            btn.setAttribute('aria-pressed', conditionFlags.pinned ? 'true' : 'false');
+        }
+
+        function togglePinnedFilter(forceOn) {
+            if (forceOn === true) {
+                showActiveConditionTab();
+                conditionFlags.pinned = true;
+            } else {
+                conditionFlags.pinned = !conditionFlags.pinned;
+            }
+
+            syncPinnedToggle();
+            conditionPages.active = 1;
+            conditionPages.archived = 1;
+            renderConditions();
+
+            if (forceOn === true) scrollToConditionTable();
+        }
+
+        function showPinnedConditions() {
+            showActiveConditionTab();
+            clearConditionFilters();
+            togglePinnedFilter(true);
+        }
 
 
         /* ==========================================================
@@ -1443,15 +1231,10 @@
         ========================================================== */
 
         function openEditCategoryModal(btn) {
-
             document.getElementById('edit-cat-id').value = btn.dataset.id;
-
             document.getElementById('edit-cat-name').value = btn.dataset.name;
-
             openModal('modal-edit-category');
-
         }
-
 
 
         /* ==========================================================
@@ -1487,17 +1270,11 @@
                         ? { title: 'Archive category?', message: 'Archive ' + name + '? It will move to the Archived tab and can be restored any time.', okText: 'Archive', tone: 'warn', icon: 'fa-box-archive' }
                         : { title: 'Restore category?', message: 'Restore ' + name + '? It will go back to the Active list.', okText: 'Restore', icon: 'fa-rotate-left' }
                     ).then(function(ok) {
-                        if (ok) {
-                            form.submit();
-                        }
+                        if (ok) form.submit();
                     });
-
                 }
-
             });
-
         }
-
 
 
         /* ==========================================================
@@ -1505,59 +1282,42 @@
         ========================================================== */
 
         function switchTab(tabBtn) {
-
             document
                 .querySelectorAll('.adm-split > .adm-panel:first-child .adm-tabs .adm-tab')
-                .forEach(function(tab) {
-                    tab.classList.remove('is-active');
-                });
-
+                .forEach(function(tab) { tab.classList.remove('is-active'); });
 
             tabBtn.classList.add('is-active');
 
-
             var activeBody = document.getElementById('cond-tbody');
-
             var archivedBody = document.getElementById('cond-tbody-archived');
-
-
             activeBody.style.display = 'none';
             archivedBody.style.display = 'none';
 
-
             var target = document.getElementById(tabBtn.dataset.tbody);
-
-            if (target) {
-                target.style.display = '';
-            }
-
+            if (target) target.style.display = '';
 
             var activeEmpty = document.getElementById('cond-empty-active');
-
             var archivedEmpty = document.getElementById('cond-empty-archived');
-
 
             if (activeEmpty) {
                 activeEmpty.style.display = tabBtn.dataset.tbody === 'cond-tbody' ? '' : 'none';
             }
-
-
             if (archivedEmpty) {
                 archivedEmpty.style.display = tabBtn.dataset.tbody === 'cond-tbody-archived' ? '' : 'none';
             }
 
-
             document.getElementById('cond-search').value = '';
-
             document.getElementById('cond-cat-filter').value = '';
+            conditionFlags.noDesc = false;
+            conditionFlags.pinned = false;
+            syncNoDescToggle();
+            syncPinnedToggle();
 
             conditionPages.active = 1;
             conditionPages.archived = 1;
 
             filterActiveTable();
-
         }
-
 
 
         /* ==========================================================
@@ -1565,263 +1325,344 @@
         ========================================================== */
 
         function getCurrentConditionBody() {
-
-            var activeTab = document.querySelectorAll('.adm-split > .adm-panel:first-child .adm-tabs .adm-tab');
-
-            var selectedTab = null;
-
-
-            activeTab.forEach(function(tab) {
-
-                if (tab.classList.contains('is-active')) {
-                    selectedTab = tab;
-                }
-
-            });
-
-
-            if (!selectedTab) {
-                return null;
-            }
-
-
+            var selectedTab = document.querySelector(
+                '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active'
+            );
+            if (!selectedTab) return null;
             return document.getElementById(selectedTab.dataset.tbody);
-
         }
-
 
         function getCurrentConditionType() {
-
-            var activeTab = document.querySelector('.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active');
-
-
-            if (!activeTab) {
-                return 'active';
-            }
-
-
+            var activeTab = document.querySelector(
+                '.adm-split > .adm-panel:first-child .adm-tabs .adm-tab.is-active'
+            );
+            if (!activeTab) return 'active';
             return activeTab.dataset.tbody === 'cond-tbody-archived' ? 'archived' : 'active';
-
         }
-
 
         function filterActiveTable() {
-
             var tbody = getCurrentConditionBody();
-
-            if (!tbody) {
-                return;
-            }
-
+            if (!tbody) return;
 
             var type = getCurrentConditionType();
-
-
             conditionPages[type] = 1;
 
-
             renderConditions();
-
         }
 
+        function highlightName(row, query) {
+            var cell = row.children[0];
+            if (!cell) return;
 
-        function renderConditions() {
+            if (cell.dataset.orig === undefined) cell.dataset.orig = cell.textContent.trim();
+            var text = cell.dataset.orig;
 
-            var tbody = getCurrentConditionBody();
+            var idx = query ? text.toLowerCase().indexOf(query) : -1;
 
-            if (!tbody) {
+            if (idx < 0) {
+                if (cell.querySelector('mark')) cell.textContent = text;
                 return;
             }
 
+            cell.textContent = '';
+            cell.appendChild(document.createTextNode(text.slice(0, idx)));
+
+            var m = document.createElement('mark');
+            m.className = 'adm-mark';
+            m.textContent = text.slice(idx, idx + query.length);
+            cell.appendChild(m);
+
+            cell.appendChild(document.createTextNode(text.slice(idx + query.length)));
+        }
+
+        function renderConditions() {
+            var tbody = getCurrentConditionBody();
+            if (!tbody) return;
 
             var type = getCurrentConditionType();
 
-
             var query = document.getElementById('cond-search').value.toLowerCase().trim();
-
-
             var category = document.getElementById('cond-cat-filter').value;
-
 
             var rows = Array.from(tbody.querySelectorAll('tr'));
 
-
             var matchingRows = rows.filter(function(row) {
-
                 var name = row.dataset.name || '';
-
                 var rowCategory = row.dataset.cat || '';
-
-
                 var nameMatch = name.includes(query);
-
-
-                var categoryMatch = !category || rowCategory === category;
-
-
-                return nameMatch && categoryMatch;
-
+                var categoryMatch = !category ||
+                    (category === '__none__' ? rowCategory === '' : rowCategory === category);
+                var descMatch = !conditionFlags.noDesc || row.dataset.nodesc === '1';
+                var pinMatch = !conditionFlags.pinned || row.dataset.pinned === '1';
+                return nameMatch && categoryMatch && descMatch && pinMatch;
             });
 
+            lastMatching = matchingRows;
+
+            rows.forEach(function(row) { highlightName(row, ''); });
+            if (query) matchingRows.forEach(function(row) { highlightName(row, query); });
 
             var pageSizeValue = document.getElementById('cond-page-size').value;
-
-
             var allResults = pageSizeValue === 'all';
-
-
             var pageSize = allResults ? matchingRows.length : parseInt(pageSizeValue);
-
-
-            if (pageSize < 1) {
-                pageSize = 5;
-            }
-
+            if (pageSize < 1) pageSize = 5;
 
             var totalPages = allResults
                 ? 1
                 : Math.max(1, Math.ceil(matchingRows.length / pageSize));
 
-
             if (conditionPages[type] > totalPages) {
                 conditionPages[type] = totalPages;
             }
 
-
             var currentPage = conditionPages[type];
-
-
             var start = allResults ? 0 : (currentPage - 1) * pageSize;
-
-
             var end = allResults ? matchingRows.length : start + pageSize;
 
+            rows.forEach(function(row) { row.style.display = 'none'; });
 
-            rows.forEach(function(row) {
-                row.style.display = 'none';
+            matchingRows.slice(start, end).forEach(function(row) {
+                row.style.display = '';
             });
 
-
-            matchingRows
-                .slice(start, end)
-                .forEach(function(row) {
-                    row.style.display = '';
-                });
-
-
-            updateConditionPagination(
-                matchingRows.length,
-                currentPage,
-                totalPages,
-                allResults,
-                start,
-                end
-            );
-
+            updateConditionPagination(matchingRows.length, currentPage, totalPages, allResults, start, end);
+            updateFilterState();
         }
 
-
         function updateConditionPagination(total, currentPage, totalPages, allResults, start, end) {
-
             var pagination = document.getElementById('condition-pagination');
-
-
             var noResults = document.getElementById('cond-no-results');
 
-
             if (total === 0) {
+                if (pagination) pagination.style.display = 'none';
 
-                if (pagination) {
-                    pagination.style.display = 'none';
-                }
-
-                if (noResults) {
-                    noResults.style.display = '';
-                }
-
+                // only say "no matching" when the tab actually has rows to match against
+                var body = getCurrentConditionBody();
+                var hasRows = body && body.querySelectorAll('tr').length > 0;
+                if (noResults) noResults.style.display = hasRows ? '' : 'none';
                 return;
-
             }
 
-
-            if (noResults) {
-                noResults.style.display = 'none';
-            }
-
+            if (noResults) noResults.style.display = 'none';
 
             if (allResults) {
-
                 start = 0;
                 end = total;
-
             }
 
-
             var showingStart = total === 0 ? 0 : start + 1;
-
-
             var showingEnd = Math.min(end, total);
-
 
             document.getElementById('condition-results-info').textContent =
                 'Showing ' + showingStart + '–' + showingEnd + ' of ' + total;
 
-
             document.getElementById('condition-page-info').textContent =
-                allResults
-                    ? 'All'
-                    : 'Page ' + currentPage + ' of ' + totalPages;
-
+                allResults ? 'All' : 'Page ' + currentPage + ' of ' + totalPages;
 
             var previous = document.getElementById('condition-prev');
-
-
             var next = document.getElementById('condition-next');
 
-
             previous.disabled = allResults || currentPage <= 1;
-
-
             next.disabled = allResults || currentPage >= totalPages;
 
-
-            if (totalPages <= 1) {
-                pagination.style.display = 'none';
-            }
-            else {
-                pagination.style.display = 'flex';
-            }
-
+            pagination.style.display = totalPages <= 1 ? 'none' : 'flex';
         }
-
 
         function changeConditionPage(direction) {
-
             var type = getCurrentConditionType();
-
-
             conditionPages[type] += direction;
-
-
-            if (conditionPages[type] < 1) {
-                conditionPages[type] = 1;
-            }
-
-
+            if (conditionPages[type] < 1) conditionPages[type] = 1;
             renderConditions();
-
         }
 
-
         function changePageSize() {
-
             conditionPages.active = 1;
             conditionPages.archived = 1;
 
-            renderConditions();
+            try {
+                localStorage.setItem('conditionPageSize', document.getElementById('cond-page-size').value);
+            } catch (e) { }
 
+            renderConditions();
         }
 
+
+        /* ==========================================================
+           SORTING
+        ========================================================== */
+
+        function cellText(row, col) {
+            var c = row.children[col];
+            if (!c) return '';
+            return (c.dataset.orig !== undefined ? c.dataset.orig : c.textContent).trim();
+        }
+
+        function sortConditions(th) {
+            var col = parseInt(th.dataset.col, 10);
+
+            sortState.dir = sortState.col === col ? -sortState.dir : 1;
+            sortState.col = col;
+
+            document.querySelectorAll('.adm-sortable').forEach(function(h) {
+                h.classList.remove('is-asc', 'is-desc');
+            });
+            th.classList.add(sortState.dir === 1 ? 'is-asc' : 'is-desc');
+
+            ['cond-tbody', 'cond-tbody-archived'].forEach(function(id) {
+                var tb = document.getElementById(id);
+                if (!tb) return;
+
+                var rows = Array.from(tb.querySelectorAll('tr'));
+                rows.sort(function(a, b) {
+                    var av = cellText(a, col);
+                    var bv = cellText(b, col);
+
+                    // blanks always go last
+                    if (!av && bv) return 1;
+                    if (av && !bv) return -1;
+
+                    return av.localeCompare(bv, undefined, { sensitivity: 'base', numeric: true }) * sortState.dir;
+                });
+                rows.forEach(function(r) { tb.appendChild(r); });
+            });
+
+            conditionPages.active = 1;
+            conditionPages.archived = 1;
+            renderConditions();
+        }
+
+
+        /* ==========================================================
+           EXTRA FILTERS (category from breakdown, no-description toggle, clear)
+        ========================================================== */
+
+        function syncNoDescToggle() {
+            var btn = document.getElementById('flag-nodesc');
+            if (!btn) return;
+            btn.classList.toggle('is-on', conditionFlags.noDesc);
+            btn.setAttribute('aria-pressed', conditionFlags.noDesc ? 'true' : 'false');
+        }
+
+        function showActiveConditionTab() {
+            var activeTabBtn = document.querySelector('.adm-tab[data-tbody="cond-tbody"]');
+            if (activeTabBtn && getCurrentConditionType() !== 'active') {
+                switchTab(activeTabBtn);
+            }
+        }
+
+        function scrollToConditionTable() {
+            var el = document.getElementById('cond-search');
+            if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function toggleNoDesc(forceOn) {
+            if (forceOn === true) {
+                showActiveConditionTab();
+                conditionFlags.noDesc = true;
+            } else {
+                conditionFlags.noDesc = !conditionFlags.noDesc;
+            }
+
+            syncNoDescToggle();
+            conditionPages.active = 1;
+            conditionPages.archived = 1;
+            renderConditions();
+
+            if (forceOn === true) scrollToConditionTable();
+        }
+
+        function filterByCategory(name) {
+            if (!name) return;
+
+            showActiveConditionTab();
+
+            var select = document.getElementById('cond-cat-filter');
+            var value = null;
+
+            for (var i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === name) { value = name; break; }
+            }
+            if (value === null && name === 'Uncategorized') value = '__none__';
+            if (value === null) return;
+
+            select.value = value;
+            conditionPages.active = 1;
+            conditionPages.archived = 1;
+            renderConditions();
+            scrollToConditionTable();
+        }
+
+        function clearConditionFilters() {
+            document.getElementById('cond-search').value = '';
+            document.getElementById('cond-cat-filter').value = '';
+            conditionFlags.noDesc = false;
+            conditionFlags.pinned = false;
+            syncNoDescToggle();
+            syncPinnedToggle();
+
+            conditionPages.active = 1;
+            conditionPages.archived = 1;
+            renderConditions();
+        }
+
+        function updateFilterState() {
+            var clearBtn = document.getElementById('clear-filters');
+            var exportBtn = document.getElementById('export-csv');
+
+            var hasFilter =
+                document.getElementById('cond-search').value.trim() !== '' ||
+                document.getElementById('cond-cat-filter').value !== '' ||
+                conditionFlags.noDesc ||
+                conditionFlags.pinned;
+
+            if (clearBtn) clearBtn.style.display = hasFilter ? '' : 'none';
+            if (exportBtn) exportBtn.disabled = lastMatching.length === 0;
+        }
+
+
+        /* ==========================================================
+           EXPORT FILTERED LIST TO CSV
+        ========================================================== */
+
+        function csvCell(value) {
+            var s = String(value == null ? '' : value);
+
+            // stop spreadsheet apps treating text as a formula
+            var danger = ['=', '+', '-', '\u0040'];
+            if (s.length && danger.indexOf(s.charAt(0)) !== -1) s = "'" + s;
+
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+
+        function exportConditionsCsv() {
+            if (!lastMatching.length) return;
+
+            var type = getCurrentConditionType();
+            var status = type === 'archived' ? 'Archived' : 'Active';
+
+            var lines = [['Condition Name', 'Category', 'Description', 'Status'].map(csvCell).join(',')];
+
+            lastMatching.forEach(function(row) {
+                lines.push([
+                    cellText(row, 0),
+                    cellText(row, 1),
+                    cellText(row, 2),
+                    status
+                ].map(csvCell).join(','));
+            });
+
+            var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'conditions-' + type + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            setTimeout(function() { URL.revokeObjectURL(url); }, 500);
+        }
 
 
         /* ==========================================================
@@ -1829,43 +1670,26 @@
         ========================================================== */
 
         function switchCatTab(tabBtn) {
-
             var panel = tabBtn.closest('.adm-panel');
 
-
-            panel
-                .querySelectorAll('.adm-tabs .adm-tab')
-                .forEach(function(tab) {
-                    tab.classList.remove('is-active');
-                });
-
-
+            panel.querySelectorAll('.adm-tabs .adm-tab').forEach(function(tab) {
+                tab.classList.remove('is-active');
+            });
             tabBtn.classList.add('is-active');
 
-
             var active = panel.querySelector('#cat-chips-active');
-
             var archived = panel.querySelector('#cat-chips-archived');
-
-
             active.style.display = 'none';
             archived.style.display = 'none';
 
-
             document.getElementById(tabBtn.dataset.target).style.display = '';
-
-
             document.getElementById('cat-search').value = '';
-
 
             categoryPages.active = 1;
             categoryPages.archived = 1;
 
-
             filterCatChips();
-
         }
-
 
 
         /* ==========================================================
@@ -1873,126 +1697,376 @@
         ========================================================== */
 
         function filterCatChips() {
-
             var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
-
-
-            if (!activeTab) {
-                return;
-            }
-
+            if (!activeTab) return;
 
             var container = document.getElementById(activeTab.dataset.target);
-
-
-            if (!container) {
-                return;
-            }
-
+            if (!container) return;
 
             var search = document.getElementById('cat-search').value.toLowerCase().trim();
-
-
             var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
 
-
             var forms = Array.from(container.querySelectorAll('.adm-chip-form'));
-
-
             var matching = forms.filter(function(form) {
                 return (form.dataset.name || '').includes(search);
             });
-
 
             categoryPages[type] = Math.min(
                 categoryPages[type],
                 Math.max(1, Math.ceil(matching.length / categoryPageSize))
             );
 
-
             var currentPage = categoryPages[type];
-
-
             var start = (currentPage - 1) * categoryPageSize;
-
-
             var end = start + categoryPageSize;
 
-
-            forms.forEach(function(form) {
-                form.style.display = 'none';
-            });
-
-
-            matching
-                .slice(start, end)
-                .forEach(function(form) {
-                    form.style.display = '';
-                });
-
+            forms.forEach(function(form) { form.style.display = 'none'; });
+            matching.slice(start, end).forEach(function(form) { form.style.display = ''; });
 
             updateCategoryPagination(matching.length, currentPage, type);
-
         }
 
-
         function updateCategoryPagination(total, currentPage, type) {
-
             var pagination = document.getElementById('category-pagination');
 
-
-            if (total <= categoryPageSize) {
-
-                pagination.style.display = total === 0 ? 'none' : 'flex';
-
-            }
-            else {
-
-                pagination.style.display = 'flex';
-
-            }
-
+            pagination.style.display = total === 0 ? 'none' : 'flex';
 
             var totalPages = Math.max(1, Math.ceil(total / categoryPageSize));
-
 
             document.getElementById('cat-page-info').textContent =
                 'Page ' + currentPage + ' of ' + totalPages;
 
-
             document.getElementById('cat-prev').disabled = currentPage <= 1;
-
-
             document.getElementById('cat-next').disabled = currentPage >= totalPages;
-
         }
 
-
         function changeCategoryPage(direction) {
-
             var activeTab = document.querySelector('.adm-panel .adm-tabs .adm-tab.is-active[data-target]');
-
-
-            if (!activeTab) {
-                return;
-            }
-
+            if (!activeTab) return;
 
             var type = activeTab.dataset.target === 'cat-chips-archived' ? 'archived' : 'active';
 
-
             categoryPages[type] += direction;
-
-
-            if (categoryPages[type] < 1) {
-                categoryPages[type] = 1;
-            }
-
+            if (categoryPages[type] < 1) categoryPages[type] = 1;
 
             filterCatChips();
-
         }
 
+
+        /* ==========================================================
+           QUALITY CHECK + REGISTER INSIGHTS (client-side only)
+        ========================================================== */
+
+        function loadPrefs() {
+            try {
+                var saved = localStorage.getItem('conditionPageSize');
+                if (!saved) return;
+
+                var select = document.getElementById('cond-page-size');
+                for (var i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === saved) {
+                        select.value = saved;
+                        break;
+                    }
+                }
+            } catch (e) { }
+        }
+
+        function setQualityState(countId, value) {
+            var el = document.getElementById(countId);
+            var row = el ? el.closest('.aq-row') : null;
+            if (row) row.dataset.state = value > 0 ? 'warn' : 'ok';
+        }
+
+        function escapeQualityText(value) {
+            return String(value).replace(/[&<>\"']/g, function(char) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[char];
+            });
+        }
+
+        function refreshConditionQualityCheck() {
+            var activeRows = Array.from(document.querySelectorAll('#cond-tbody tr'));
+            var missingDescriptions = activeRows.filter(function(row) { return row.dataset.nodesc === '1'; }).length;
+            var uncategorized = activeRows.filter(function(row) { return !((row.dataset.cat || '').trim()); }).length;
+            var names = {};
+
+            activeRows.forEach(function(row) {
+                var name = (row.dataset.name || '').trim().toLocaleLowerCase();
+                if (!name) return;
+                if (!names[name]) names[name] = { label: cellText(row, 0) || name, count: 0 };
+                names[name].count++;
+            });
+
+            var duplicates = Object.keys(names).filter(function(name) { return names[name].count > 1; })
+                .map(function(name) { return names[name]; })
+                .sort(function(a, b) { return a.label.localeCompare(b.label); });
+
+            document.getElementById('quality-missing-description').textContent = missingDescriptions;
+            document.getElementById('quality-uncategorized').textContent = uncategorized;
+            document.getElementById('quality-duplicate-count').textContent = duplicates.length;
+            setQualityState('quality-missing-description', missingDescriptions);
+            setQualityState('quality-uncategorized', uncategorized);
+            setQualityState('quality-duplicate-count', duplicates.length);
+
+            var issueCount = (missingDescriptions > 0 ? 1 : 0) + (uncategorized > 0 ? 1 : 0) + (duplicates.length > 0 ? 1 : 0);
+            var summary = document.getElementById('quality-summary');
+            if (summary) {
+                summary.dataset.state = issueCount ? 'warn' : 'ok';
+                summary.querySelector('.aq-summary-text').textContent = issueCount
+                    ? issueCount + (issueCount === 1 ? ' check needs review' : ' checks need review')
+                    : 'All checks clear';
+            }
+
+            var detail = document.getElementById('quality-duplicate-details');
+            if (duplicates.length === 0) {
+                detail.innerHTML = '<div class="adm-quality-clean"><i class="fas fa-circle-check"></i><span>No repeated condition names were found in the active register.</span></div>';
+            } else {
+                detail.innerHTML = '<strong>Names to review</strong><ul>' + duplicates.map(function(item) {
+                    return '<li><span></span>' + escapeQualityText(item.label) + ' <small>appears ' + item.count + ' times</small></li>';
+                }).join('') + '</ul>';
+            }
+        }
+
+        function toggleConditionDuplicateDetails() {
+            var detail = document.getElementById('quality-duplicate-details');
+            refreshConditionQualityCheck();
+            detail.hidden = !detail.hidden;
+            var button = document.getElementById('quality-duplicates-toggle');
+            if (button) button.innerHTML = detail.hidden ? 'Check names <i class="fas fa-chevron-down"></i>' : 'Hide names <i class="fas fa-chevron-up"></i>';
+            if (!detail.hidden) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function reviewConditionsWithoutDescriptions() {
+            showActiveConditionTab();
+            clearConditionFilters();
+            toggleNoDesc(true);
+        }
+
+        function reviewUncategorizedConditions() {
+            showActiveConditionTab();
+            clearConditionFilters();
+            document.getElementById('cond-cat-filter').value = '__none__';
+            conditionPages.active = 1;
+            renderConditions();
+            scrollToConditionTable();
+        }
+
+        function conditionInsightRows(bodyId) {
+            var body = document.getElementById(bodyId);
+            return body ? Array.from(body.querySelectorAll('tr')) : [];
+        }
+
+        function refreshConditionInsights() {
+            var activeRows = conditionInsightRows('cond-tbody');
+            var archivedRows = conditionInsightRows('cond-tbody-archived');
+            var categorized = activeRows.filter(function(row) { return (row.dataset.cat || '').trim() !== ''; }).length;
+            var described = activeRows.filter(function(row) { return row.dataset.nodesc !== '1'; }).length;
+            var activeTotal = activeRows.length;
+            var categoryCounts = {};
+
+            activeRows.forEach(function(row) {
+                var category = (row.dataset.cat || '').trim() || 'Uncategorized';
+                categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+            });
+
+            var seenNames = {};
+            activeRows.forEach(function(row) {
+                var name = (row.dataset.name || '').trim().toLocaleLowerCase();
+                if (!name) return;
+                seenNames[name] = (seenNames[name] || 0) + 1;
+            });
+            var duplicateCount = Object.keys(seenNames).filter(function(name) { return seenNames[name] > 1; }).length;
+
+            var catPct = activeTotal ? Math.round(categorized / activeTotal * 100) : 0;
+            var descPct = activeTotal ? Math.round(described / activeTotal * 100) : 0;
+
+            document.getElementById('insight-total-records').textContent = activeTotal + archivedRows.length;
+            document.getElementById('insight-category-coverage').textContent = catPct + '%';
+            document.getElementById('insight-description-coverage').textContent = descPct + '%';
+            document.getElementById('insight-description-sub').textContent = described + ' of ' + activeTotal + ' active records have descriptions';
+            document.getElementById('insight-category-sub').textContent = categorized + ' of ' + activeTotal + ' active records assigned to a category';
+            document.getElementById('insight-archived-records').textContent = archivedRows.length;
+            document.getElementById('insight-category-meter').style.width = catPct + '%';
+            document.getElementById('insight-description-meter').style.width = descPct + '%';
+            document.getElementById('insight-review-missing').textContent = activeRows.filter(function(row) { return row.dataset.nodesc === '1'; }).length;
+            document.getElementById('insight-review-uncategorized').textContent = activeRows.filter(function(row) { return !(row.dataset.cat || '').trim(); }).length;
+            document.getElementById('insight-review-duplicates').textContent = duplicateCount;
+            document.getElementById('insight-review-archived').textContent = archivedRows.length;
+            updatePinnedCount();
+
+            var list = document.getElementById('condition-insights-category-list');
+            var empty = document.getElementById('condition-insights-category-empty');
+            list.textContent = '';
+
+            var entries = Object.keys(categoryCounts).map(function(name) { return { name: name, count: categoryCounts[name] }; })
+                .sort(function(a, b) { return b.count - a.count || a.name.localeCompare(b.name); });
+            empty.hidden = entries.length > 0;
+
+            entries.forEach(function(entry) {
+                var row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'adm-insights-category-row';
+                row.title = 'Filter active conditions by ' + entry.name;
+                row.addEventListener('click', function() { filterByCategory(entry.name); });
+
+                var label = document.createElement('span');
+                label.className = 'adm-insights-category-name';
+                label.textContent = entry.name;
+
+                var track = document.createElement('span');
+                track.className = 'adm-insights-track';
+                var fill = document.createElement('span');
+                fill.className = 'adm-insights-fill';
+                fill.setAttribute('data-category', entry.name);
+                fill.style.width = (activeTotal ? entry.count / activeTotal * 100 : 0) + '%';
+                track.appendChild(fill);
+
+                var value = document.createElement('strong');
+                value.className = 'adm-insights-category-value';
+                value.textContent = entry.count + ' · ' + (activeTotal ? Math.round(entry.count / activeTotal * 100) : 0) + '%';
+
+                row.appendChild(label);
+                row.appendChild(track);
+                row.appendChild(value);
+                list.appendChild(row);
+            });
+
+            applyCategoryColours();
+        }
+
+        function showConditionDuplicateReview() {
+            toggleConditionDuplicateDetails();
+            var detail = document.getElementById('quality-duplicate-details');
+            if (detail) detail.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function showArchivedConditions() {
+            var archivedTab = document.querySelector('.adm-tab[data-tbody="cond-tbody-archived"]');
+            if (archivedTab) {
+                switchTab(archivedTab);
+                scrollToConditionTable();
+            }
+        }
+
+        function downloadConditionAuditReport() {
+            var lines = [['Condition Name', 'Category', 'Description', 'Status', 'Review Note'].map(csvCell).join(',')];
+            [['cond-tbody', 'Active'], ['cond-tbody-archived', 'Archived']].forEach(function(config) {
+                conditionInsightRows(config[0]).forEach(function(row) {
+                    var issues = [];
+                    if (config[1] === 'Active' && row.dataset.nodesc === '1') issues.push('Missing description');
+                    if (config[1] === 'Active' && !(row.dataset.cat || '').trim()) issues.push('Uncategorized');
+                    lines.push([
+                        cellText(row, 0),
+                        cellText(row, 1),
+                        cellText(row, 2),
+                        config[1],
+                        issues.join('; ') || 'No basic completeness issue detected'
+                    ].map(csvCell).join(','));
+                });
+            });
+
+            var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'condition-register-audit-' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(function() { URL.revokeObjectURL(url); }, 500);
+        }
+
+        function printConditionInsights() {
+            var activeRows = conditionInsightRows('cond-tbody');
+            var archivedRows = conditionInsightRows('cond-tbody-archived');
+            var categorized = activeRows.filter(function(row) { return (row.dataset.cat || '').trim(); }).length;
+            var described = activeRows.filter(function(row) { return row.dataset.nodesc !== '1'; }).length;
+            var categories = {};
+            activeRows.forEach(function(row) {
+                var name = (row.dataset.cat || '').trim() || 'Uncategorized';
+                categories[name] = (categories[name] || 0) + 1;
+            });
+
+            var win = window.open('', '_blank', 'width=900,height=700');
+            if (!win) {
+                alert('Please allow pop-ups to print the condition overview.');
+                return;
+            }
+
+            // Build the print document with DOM APIs. Keeping markup out of a long
+            // JavaScript string avoids Razor/HTML parser collisions in this view.
+            var doc = win.document;
+            doc.open();
+            doc.close();
+            doc.title = 'Condition Register Overview';
+
+            var style = doc.createElement('style');
+            style.textContent = 'body{font:14px Arial,sans-serif;color:#18312f;padding:28px}h1{margin-bottom:4px}p{color:#526762}.stats{display:flex;gap:12px;flex-wrap:wrap;margin:22px 0}.stat{border:1px solid #d5e2df;border-radius:8px;padding:12px 16px;min-width:130px}.stat strong{display:block;font-size:24px;margin-top:6px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;border-bottom:1px solid #d5e2df;padding:10px}th{background:#eff7f5}@@media print{button{display:none}}';
+            doc.head.appendChild(style);
+
+            var heading = doc.createElement('h1');
+            heading.textContent = 'Condition Register Overview';
+            doc.body.appendChild(heading);
+
+            var generated = doc.createElement('p');
+            generated.textContent = 'Generated locally on ' + new Date().toLocaleString() + '. Based on records rendered on the Manage Conditions page.';
+            doc.body.appendChild(generated);
+
+            var stats = doc.createElement('div');
+            stats.className = 'stats';
+            function addStat(label, value) {
+                var item = doc.createElement('div');
+                item.className = 'stat';
+                item.appendChild(doc.createTextNode(label));
+                var strong = doc.createElement('strong');
+                strong.textContent = value;
+                item.appendChild(strong);
+                stats.appendChild(item);
+            }
+            addStat('Total records', activeRows.length + archivedRows.length);
+            addStat('Active', activeRows.length);
+            addStat('Archived', archivedRows.length);
+            addStat('Category coverage', (activeRows.length ? Math.round(categorized / activeRows.length * 100) : 0) + '%');
+            addStat('Description coverage', (activeRows.length ? Math.round(described / activeRows.length * 100) : 0) + '%');
+            doc.body.appendChild(stats);
+
+            var subheading = doc.createElement('h2');
+            subheading.textContent = 'Active category distribution';
+            doc.body.appendChild(subheading);
+
+            var table = doc.createElement('table');
+            var thead = doc.createElement('thead');
+            var headerRow = doc.createElement('tr');
+            ['Category', 'Active records'].forEach(function(label) {
+                var th = doc.createElement('th');
+                th.textContent = label;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            var tbody = doc.createElement('tbody');
+            Object.keys(categories).sort(function(a, b) { return a.localeCompare(b); }).forEach(function(name) {
+                var row = doc.createElement('tr');
+                var categoryCell = doc.createElement('td');
+                categoryCell.textContent = name;
+                var countCell = doc.createElement('td');
+                countCell.textContent = categories[name];
+                row.appendChild(categoryCell);
+                row.appendChild(countCell);
+                tbody.appendChild(row);
+            });
+            table.appendChild(tbody);
+            doc.body.appendChild(table);
+
+            var note = doc.createElement('p');
+            note.textContent = 'Completeness indicators are administrative checks only and do not assess clinical suitability.';
+            doc.body.appendChild(note);
+
+            var printButton = doc.createElement('button');
+            printButton.textContent = 'Print this overview';
+            printButton.addEventListener('click', function() { win.print(); });
+            doc.body.appendChild(printButton);
+            win.focus();
+        }
 
 
         /* ==========================================================
@@ -2001,11 +2075,32 @@
 
         document.addEventListener('DOMContentLoaded', function() {
 
+            loadPins();
+            paintAllPins();
+
             applyCategoryColours();
+            refreshConditionQualityCheck();
+            refreshConditionInsights();
+            loadPrefs();
+            bindRowClicks();
+
+            // Esc inside the search box clears it
+            document.getElementById('cond-search').addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && this.value) {
+                    this.value = '';
+                    filterActiveTable();
+                    e.stopPropagation();
+                }
+            });
 
             filterCatChips();
-
             renderConditions();
+
+            // repaint the category colours whenever the theme is switched
+            new MutationObserver(applyCategoryColours).observe(
+                document.documentElement,
+                { attributes: true, attributeFilter: ['class'] }
+            );
 
         });
 
@@ -2014,12 +2109,11 @@
 }
 
 
-
 <style>
 
     /* ==========================================================
-           VARIABLES
-        ========================================================== */
+               VARIABLES
+            ========================================================== */
 
     :root {
         --adm-paper: #F0F7F6;
@@ -2036,6 +2130,8 @@
         --adm-teal-grad-end: #0A4F48;
         --adm-red: #B0463F;
         --adm-red-dim: #F7E8E7;
+        --adm-amber: #94650A;
+        --adm-amber-dim: #FFF3D6;
         --adm-radius: 20px;
         --adm-radius-sm: 13px;
         --adm-shadow: 0 6px 24px rgba(10, 60, 55, 0.08);
@@ -2044,8 +2140,8 @@
 
 
     /* ==========================================================
-           PAGE
-        ========================================================== */
+               PAGE
+            ========================================================== */
 
     .adm-page {
         max-width: 1280px;
@@ -2056,10 +2152,7 @@
     }
 
 
-    /* ==========================================================
-           ALERTS
-        ========================================================== */
-
+    /* ALERTS */
     .adm-alert {
         display: flex;
         align-items: center;
@@ -2081,10 +2174,7 @@
     }
 
 
-    /* ==========================================================
-           PAGE BANNER
-        ========================================================== */
-
+    /* PAGE BANNER */
     .adm-page-banner {
         position: relative;
         display: flex;
@@ -2180,10 +2270,7 @@
         }
 
 
-    /* ==========================================================
-           BUTTONS
-        ========================================================== */
-
+    /* BUTTONS */
     .adm-btn {
         display: inline-flex;
         align-items: center;
@@ -2235,8 +2322,127 @@
 
 
     /* ==========================================================
-           PANELS
-        ========================================================== */
+               INSIGHTS STRIP
+            ========================================================== */
+
+   
+    /* ==========================================================
+       INSIGHTS STRIP — RED SUBSYSTEM THEME
+    ========================================================== */
+
+    .adm-insights {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+
+    .adm-insight {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-align: left;
+        font-family: 'Inter', sans-serif;
+        background: var(--adm-raised);
+        color: var(--adm-ink);
+        border: 1px solid #F0D6D6;
+        border-radius: var(--adm-radius);
+        box-shadow: 0 6px 24px rgba(140, 30, 30, 0.07);
+        padding: 16px 18px;
+        cursor: pointer;
+        transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        min-width: 0;
+    }
+
+        /* Red hover treatment */
+        .adm-insight:hover:not(:disabled):not(.adm-insight-static) {
+            transform: translateY(-3px);
+            border-color: #D94A4A;
+            box-shadow: 0 10px 28px rgba(170, 35, 35, 0.14);
+        }
+
+        /* Keyboard accessibility */
+        .adm-insight:focus-visible {
+            outline: 2px solid #C62828;
+            outline-offset: 3px;
+        }
+
+        /* Disabled and informational cards */
+        .adm-insight:disabled,
+        .adm-insight-static {
+            cursor: default;
+        }
+
+    /* Red icon tiles */
+    .adm-insight-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        background: #FCE8E8;
+        color: #B42323;
+        border: 1px solid #F5D0D0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    /* Warning cards use a deeper red */
+    .adm-insight.is-warn .adm-insight-icon {
+        background: #F8D7DA;
+        color: #9F1717;
+        border-color: #EDB5B9;
+    }
+
+    /* Card text */
+    .adm-insight-body {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .adm-insight-label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #A65353;
+    }
+
+    .adm-insight-value {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 17px;
+        color: #8F1D1D;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 2px 0 1px;
+    }
+
+    .adm-insight-sub {
+        font-size: 11.5px;
+        color: #876565;
+    }
+
+    /* Responsive layout */
+    @@media (max-width: 1000px) {
+        .adm-insights {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .adm-insights {
+            grid-template-columns: 1fr;
+        }
+    }
+
+
+    /* ==========================================================
+               PANELS
+            ========================================================== */
 
     .adm-panel {
         background: var(--adm-raised);
@@ -2281,10 +2487,7 @@
     }
 
 
-    /* ==========================================================
-           SPLIT
-        ========================================================== */
-
+    /* SPLIT */
     .adm-split {
         display: grid;
         grid-template-columns: 1.7fr 1fr;
@@ -2294,8 +2497,8 @@
 
 
     /* ==========================================================
-           CATEGORY CHIPS
-        ========================================================== */
+               CATEGORY CHIPS
+            ========================================================== */
 
     .adm-chips-container {
         margin-bottom: 12px;
@@ -2337,7 +2540,7 @@
         white-space: nowrap;
     }
 
-    /* the category name is now clickable (opens the actions popup) */
+    /* the category name is clickable (opens the actions popup) */
     button.adm-chip-name {
         background: transparent;
         border: none;
@@ -2390,8 +2593,8 @@
 
 
     /* ==========================================================
-           TABS
-        ========================================================== */
+               TABS
+            ========================================================== */
 
     .adm-tabs {
         display: flex;
@@ -2434,8 +2637,8 @@
 
 
     /* ==========================================================
-           TOOLBAR
-        ========================================================== */
+               TOOLBAR
+            ========================================================== */
 
     .adm-toolbar {
         display: flex;
@@ -2496,10 +2699,108 @@
             min-width: 64px;
         }
 
+    /* toolbar toggle buttons */
+    .adm-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 10px 14px;
+        font-family: 'Inter', sans-serif;
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+
+        .adm-toggle:hover:not(:disabled) {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+            border-color: var(--adm-teal-dim);
+        }
+
+        .adm-toggle.is-on {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+            border-color: var(--adm-teal);
+        }
+
+        .adm-toggle:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+    .adm-toggle-clear:hover:not(:disabled) {
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-color: var(--adm-red-dim);
+    }
+
+    /* pinned toggle (conditions only) */
+    .adm-toggle-star {
+        color: var(--adm-amber);
+        font-size: 11.5px;
+    }
+
+    .adm-toggle-count {
+        background: var(--adm-paper);
+        color: var(--adm-ink-faint);
+        font-size: 10.5px;
+        padding: 1px 7px;
+        border-radius: 999px;
+    }
+
+    .adm-toggle.is-on .adm-toggle-count {
+        background: var(--adm-raised);
+        color: var(--adm-teal-deep);
+    }
+
+    /* keyboard hint */
+    .adm-kbd {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border: 1px solid var(--adm-line-strong);
+        border-bottom-width: 2px;
+        border-radius: 6px;
+        background: var(--adm-raised);
+        color: var(--adm-ink-faint);
+        font-family: 'Inter', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .adm-shortcuts-hint {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        align-items: center;
+        padding: 0 26px 18px;
+        color: var(--adm-ink-faint);
+        font-size: 11.5px;
+    }
+
+        .adm-shortcuts-hint span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+    .adm-hint-star {
+        color: var(--adm-amber);
+    }
+
 
     /* ==========================================================
-           TABLE
-        ========================================================== */
+               TABLE
+            ========================================================== */
 
     .adm-table-wrap {
         padding: 16px 0 6px;
@@ -2581,6 +2882,39 @@
             z-index: 5;
         }
 
+            /* sortable headers */
+            .adm-table th.adm-sortable {
+                cursor: pointer;
+                user-select: none;
+            }
+
+                .adm-table th.adm-sortable::after {
+                    content: '\2195';
+                    margin-left: 6px;
+                    opacity: .45;
+                }
+
+                .adm-table th.adm-sortable.is-asc::after {
+                    content: '\2191';
+                    opacity: 1;
+                    color: var(--adm-teal);
+                }
+
+                .adm-table th.adm-sortable.is-desc::after {
+                    content: '\2193';
+                    opacity: 1;
+                    color: var(--adm-teal);
+                }
+
+                .adm-table th.adm-sortable:hover {
+                    color: var(--adm-teal-deep);
+                }
+
+                .adm-table th.adm-sortable:focus-visible {
+                    outline: 2px solid var(--adm-teal);
+                    outline-offset: -2px;
+                }
+
     .adm-th-actions {
         text-align: left;
     }
@@ -2595,13 +2929,22 @@
         line-height: 1.45;
     }
 
-    .adm-table tbody tr:last-child td {
-        border-bottom: none;
+    .adm-table tbody tr {
+        cursor: pointer;
     }
 
-    .adm-table tbody tr:hover {
-        background: var(--adm-paper);
-    }
+        .adm-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .adm-table tbody tr:hover {
+            background: var(--adm-paper);
+        }
+
+        /* pinned rows get a thin teal edge */
+        .adm-table tbody tr.is-pinned td:first-child {
+            box-shadow: inset 3px 0 0 var(--adm-teal);
+        }
 
     .adm-td-strong {
         font-weight: 600;
@@ -2614,10 +2957,18 @@
         overflow-wrap: anywhere;
     }
 
+    /* search match highlight */
+    .adm-mark {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        border-radius: 4px;
+        padding: 0 2px;
+    }
+
 
     /* ==========================================================
-           CATEGORY BADGES
-        ========================================================== */
+               CATEGORY BADGES
+            ========================================================== */
 
     .adm-badge {
         display: inline-flex;
@@ -2654,8 +3005,8 @@
 
 
     /* ==========================================================
-           STATUS
-        ========================================================== */
+               STATUS
+            ========================================================== */
 
     .adm-status-pill {
         display: inline-flex;
@@ -2698,8 +3049,8 @@
 
 
     /* ==========================================================
-           ROW ACTIONS
-        ========================================================== */
+               ROW ACTIONS
+            ========================================================== */
 
     .adm-row-actions {
         display: flex;
@@ -2750,10 +3101,28 @@
         border-color: var(--adm-teal-dim);
     }
 
+    /* pin star (conditions only) */
+    .adm-pin-btn {
+        padding: 7px 9px;
+        color: var(--adm-ink-faint);
+    }
+
+        .adm-pin-btn:hover {
+            background: var(--adm-amber-dim);
+            color: var(--adm-amber);
+            border-color: var(--adm-amber-dim);
+        }
+
+        .adm-pin-btn.is-on {
+            background: var(--adm-amber-dim);
+            color: var(--adm-amber);
+            border-color: var(--adm-amber);
+        }
+
 
     /* ==========================================================
-           INLINE FORM
-        ========================================================== */
+               INLINE FORM
+            ========================================================== */
 
     .adm-inline-form {
         display: flex;
@@ -2779,8 +3148,8 @@
 
 
     /* ==========================================================
-           PAGINATION
-        ========================================================== */
+               PAGINATION
+            ========================================================== */
 
     .adm-pagination {
         display: flex;
@@ -2827,7 +3196,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 26px 18px;
+        padding: 12px 26px 14px;
         border-top: 1px solid var(--adm-line);
     }
 
@@ -2845,8 +3214,8 @@
 
 
     /* ==========================================================
-           CATEGORY BREAKDOWN
-        ========================================================== */
+               CATEGORY BREAKDOWN
+            ========================================================== */
 
     .adm-breakdown {
         padding: 20px 26px 26px;
@@ -2859,6 +3228,29 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
+    }
+
+        /* breakdown rows filter the table */
+        .adm-breakdown-row.is-link {
+            cursor: pointer;
+            border-radius: 10px;
+            padding: 6px 8px;
+            margin: -6px -8px;
+            transition: background .15s;
+        }
+
+            .adm-breakdown-row.is-link:hover {
+                background: var(--adm-paper);
+            }
+
+            .adm-breakdown-row.is-link:focus-visible {
+                outline: 2px solid var(--adm-teal);
+                outline-offset: 1px;
+            }
+
+    .adm-breakdown-hint {
+        margin: 2px 0 0;
+        font-size: 11.5px;
     }
 
     .adm-breakdown-label {
@@ -2879,6 +3271,11 @@
             flex-shrink: 0;
         }
 
+            .adm-breakdown-label strong small {
+                font-weight: 500;
+                font-size: 11px;
+            }
+
     .adm-breakdown-track {
         height: 8px;
         border-radius: 999px;
@@ -2897,8 +3294,8 @@
 
 
     /* ==========================================================
-           EMPTY STATE
-        ========================================================== */
+               EMPTY STATE
+            ========================================================== */
 
     .adm-empty-state {
         padding: 48px 30px;
@@ -2937,8 +3334,8 @@
 
 
     /* ==========================================================
-           MODALS
-        ========================================================== */
+               MODALS
+            ========================================================== */
 
     .adm-modal-overlay {
         display: none;
@@ -3025,6 +3422,17 @@
                 box-shadow: 0 0 0 3px var(--adm-teal-dim);
             }
 
+    /* duplicate-name warning */
+    .adm-field-warn {
+        margin-top: 8px;
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
     .adm-modal-actions {
         display: flex;
         justify-content: flex-end;
@@ -3032,10 +3440,56 @@
         margin-top: 6px;
     }
 
+    /* details modal */
+    .adm-detail-list {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 20px;
+        border: 1px solid var(--adm-line);
+        border-radius: var(--adm-radius-sm);
+        overflow: hidden;
+    }
+
+    .adm-detail-row {
+        display: flex;
+        gap: 16px;
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--adm-line);
+        font-size: 13px;
+    }
+
+        .adm-detail-row:last-child {
+            border-bottom: none;
+        }
+
+    .adm-detail-label {
+        width: 96px;
+        flex-shrink: 0;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .03em;
+        text-transform: uppercase;
+        color: var(--adm-ink-faint);
+        padding-top: 2px;
+    }
+
+    .adm-detail-value {
+        color: var(--adm-ink);
+        font-weight: 600;
+        overflow-wrap: anywhere;
+        line-height: 1.5;
+    }
+
+        .adm-detail-value.is-empty {
+            color: var(--adm-ink-faint);
+            font-weight: 500;
+            font-style: italic;
+        }
+
 
     /* ==========================================================
-           ANIMATIONS
-        ========================================================== */
+               ANIMATIONS
+            ========================================================== */
 
     @@keyframes categoryGlow {
         0%, 100% {
@@ -3059,13 +3513,17 @@
 
 
     /* ==========================================================
-           RESPONSIVE
-        ========================================================== */
+               RESPONSIVE
+            ========================================================== */
 
     @@media (max-width: 1000px) {
 
         .adm-split {
             grid-template-columns: 1fr;
+        }
+
+        .adm-insights {
+            grid-template-columns: repeat(2, 1fr);
         }
     }
 
@@ -3073,6 +3531,10 @@
 
         .adm-page {
             padding: 20px 16px 50px;
+        }
+
+        .adm-insights {
+            grid-template-columns: 1fr;
         }
 
         .adm-page-banner {
@@ -3103,6 +3565,10 @@
             gap: 12px;
         }
 
+        .adm-shortcuts-hint {
+            display: none;
+        }
+
         .adm-inline-form {
             flex-direction: column;
         }
@@ -3129,6 +3595,1053 @@
             font-size: 10px;
             padding: 4px 8px;
         }
+
+        .adm-detail-row {
+            flex-direction: column;
+            gap: 4px;
+        }
+    }
+
+
+    /* ==========================================================
+               DARK MODE (html.rq-dark, same switch as the rest of the app)
+               The category chip/badge/bar colours come from the script
+               (a dark palette is used while html.rq-dark is set).
+            ========================================================== */
+
+    /* 1. Re-point the page's variables at the shared dark palette */
+    html.rq-dark {
+        --adm-paper: #141C18;
+        --adm-raised: #172019;
+        --adm-ink: #E8EEEB;
+        --adm-ink-soft: #A5B0AA;
+        --adm-ink-faint: #7F8B85;
+        --adm-line: #26302B;
+        --adm-line-strong: #34403A;
+        --adm-teal: #2CC4BA;
+        --adm-teal-deep: #5ED0C4;
+        --adm-teal-dim: #12302D;
+        --adm-teal-grad-start: #0F7F74;
+        --adm-teal-grad-end: #0A3A35;
+        --adm-red: #E1736B;
+        --adm-red-dim: #3A1B18;
+        --adm-amber: #E8B84A;
+        --adm-amber-dim: #3A2E12;
+        --adm-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+        --adm-shadow-sm: 0 3px 10px rgba(0, 0, 0, .3);
+    }
+
+        /* 2. Beat the shared catch-all (it matches "panel" and "tag" in class names) */
+        html.rq-dark .adm-page .adm-panel .adm-panel-head .adm-panel-tag {
+            background-color: var(--adm-teal-dim) !important;
+            color: var(--adm-teal-deep) !important;
+            box-shadow: none !important;
+            border-color: transparent !important;
+        }
+
+        html.rq-dark .adm-page .adm-panel .adm-panel-body {
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
+
+        /* 3. Beat the shared "color: inherit" rule for td / th / span / p / label */
+        html.rq-dark .adm-page .adm-table-scroll .adm-table th {
+            color: var(--adm-ink-faint);
+            background: var(--adm-paper);
+        }
+
+            html.rq-dark .adm-page .adm-table-scroll .adm-table th.adm-sortable:hover {
+                color: var(--adm-teal-deep);
+            }
+
+        html.rq-dark .adm-page .adm-table td.adm-td-muted {
+            color: var(--adm-ink-soft);
+        }
+
+        html.rq-dark .adm-page .adm-table tbody tr:hover {
+            background: #1B2620;
+        }
+
+        html.rq-dark .adm-page .adm-page-banner .adm-page-banner-left h1 {
+            color: #fff;
+        }
+
+        html.rq-dark .adm-page .adm-page-banner .adm-page-banner-left p {
+            color: rgba(255, 255, 255, .85);
+        }
+
+        html.rq-dark .adm-page .adm-mini-stat span.num {
+            color: #fff;
+        }
+
+        html.rq-dark .adm-page .adm-mini-stat span.label {
+            color: rgba(255, 255, 255, .75);
+        }
+
+        /* "Add Condition" button on the banner: keep it light, with dark text */
+        html.rq-dark .adm-page .adm-page-banner .adm-btn.adm-btn-light {
+            background: #E8EEEB;
+            color: #0A3A35;
+        }
+
+        /* tabs */
+        html.rq-dark .adm-page .adm-tabs .adm-tab .adm-tab-count {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-tabs .adm-tab.is-active .adm-tab-count {
+            color: var(--adm-teal-deep);
+        }
+
+        /* "Show N rows" and pagination text */
+        html.rq-dark .adm-page .adm-toolbar .adm-show-control span {
+            color: var(--adm-ink-soft);
+        }
+
+        html.rq-dark .adm-page .adm-condition-pagination .adm-pagination-left span {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-condition-pagination .adm-page-info,
+        html.rq-dark .adm-page .adm-pagination .adm-page-info {
+            color: var(--adm-ink-soft);
+        }
+
+        /* hint + empty-state text */
+        html.rq-dark .adm-page .adm-chips-container .adm-hint,
+        html.rq-dark .adm-page .adm-breakdown .adm-hint {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-panel .adm-empty-state p {
+            color: var(--adm-ink-soft);
+        }
+
+        /* category chips: the shared rules reset the text colour and border, so restore them */
+        html.rq-dark .adm-page .adm-chips-row .adm-chip-form .adm-chip {
+            color: var(--category-text);
+            border-color: var(--category-border);
+        }
+
+        /* 4. Search inputs: sit transparent inside their box */
+        html.rq-dark .adm-page .adm-search-box input {
+            background: transparent;
+            border: none;
+            color: var(--adm-ink);
+        }
+
+            html.rq-dark .adm-page .adm-search-box input:focus {
+                outline: none;
+            }
+
+        /* 5. Selects and form fields: match the shared field look, keep borders visible */
+        html.rq-dark .adm-page .adm-toolbar select,
+        html.rq-dark .adm-page .adm-show-control select,
+        html.rq-dark .adm-page .adm-inline-form input,
+        html.rq-dark .adm-page .adm-form-group input,
+        html.rq-dark .adm-page .adm-form-group select {
+            background-color: var(--adm-paper);
+            color: var(--adm-ink);
+            border-color: var(--adm-line-strong);
+        }
+
+            html.rq-dark .adm-page .adm-inline-form input:focus,
+            html.rq-dark .adm-page .adm-form-group input:focus,
+            html.rq-dark .adm-page .adm-form-group select:focus {
+                outline: none;
+                border-color: var(--adm-teal);
+            }
+
+        /* 6. Modals */
+        html.rq-dark .adm-page .adm-modal-overlay {
+            background: rgba(0, 0, 0, .65);
+        }
+
+        html.rq-dark .adm-page .adm-modal .adm-form-group label {
+            color: var(--adm-ink-soft);
+        }
+
+        html.rq-dark .adm-page .adm-modal .adm-modal-title .adm-modal-close {
+            color: var(--adm-ink-faint);
+        }
+
+            html.rq-dark .adm-page .adm-modal .adm-modal-title .adm-modal-close:hover {
+                background: var(--adm-paper);
+                color: var(--adm-ink);
+            }
+
+        /* 7. New elements */
+        html.rq-dark .adm-page .adm-insight .adm-insight-label {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-insight .adm-insight-value {
+            color: var(--adm-ink);
+        }
+
+        html.rq-dark .adm-page .adm-insight .adm-insight-sub {
+            color: var(--adm-ink-soft);
+        }
+
+        html.rq-dark .adm-page .adm-insight:hover:not(:disabled):not(.adm-insight-static) {
+            box-shadow: 0 10px 28px rgba(0, 0, 0, .5);
+        }
+
+        html.rq-dark .adm-page .adm-table td .adm-mark,
+        html.rq-dark .adm-page .adm-table td mark.adm-mark {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+        }
+
+        html.rq-dark .adm-page .adm-shortcuts-hint span {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-kbd {
+            background: var(--adm-raised);
+            color: var(--adm-ink-faint);
+            border-color: var(--adm-line-strong);
+        }
+
+        html.rq-dark .adm-page .adm-toggle {
+            background: var(--adm-raised);
+            color: var(--adm-ink-soft);
+            border-color: var(--adm-line-strong);
+        }
+
+            html.rq-dark .adm-page .adm-toggle.is-on {
+                background: var(--adm-teal-dim);
+                color: var(--adm-teal-deep);
+                border-color: var(--adm-teal);
+            }
+
+            html.rq-dark .adm-page .adm-toggle span.adm-toggle-count {
+                background: var(--adm-paper);
+                color: var(--adm-ink-faint);
+            }
+
+            html.rq-dark .adm-page .adm-toggle.is-on span.adm-toggle-count {
+                background: var(--adm-raised);
+                color: var(--adm-teal-deep);
+            }
+
+        html.rq-dark .adm-page .adm-pin-btn {
+            color: var(--adm-ink-faint);
+        }
+
+            html.rq-dark .adm-page .adm-pin-btn.is-on {
+                background: var(--adm-amber-dim);
+                color: var(--adm-amber);
+                border-color: var(--adm-amber);
+            }
+
+        html.rq-dark .adm-page .adm-field-warn {
+            background: var(--adm-amber-dim);
+            color: var(--adm-amber);
+        }
+
+        html.rq-dark .adm-page .adm-modal .adm-detail-label {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-modal .adm-detail-value {
+            color: var(--adm-ink);
+        }
+
+            html.rq-dark .adm-page .adm-modal .adm-detail-value.is-empty {
+                color: var(--adm-ink-faint);
+            }
+
+        html.rq-dark .adm-page .adm-breakdown-row.is-link:hover {
+            background: #1B2620;
+        }
+
+
+    /* ==========================================================
+               DATA QUALITY + REGISTER OVERVIEW
+               Uses the page's existing tokens, so light and dark mode follow the rest of the page.
+            ========================================================== */
+
+    .aq-section,
+    .ao-section {
+        background: var(--adm-raised);
+        color: var(--adm-ink);
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        margin: 0 0 22px;
+        overflow: hidden;
+    }
+
+    /* ---------- headers ---------- */
+    .aq-head,
+    .ao-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 20px 26px;
+        border-bottom: 1px solid var(--adm-line);
+    }
+
+        .aq-head h2,
+        .ao-head h2 {
+            margin: 0 0 4px;
+            font: 700 16px/1.3 'Poppins', sans-serif;
+            color: var(--adm-ink);
+        }
+
+        .aq-head p,
+        .ao-head p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--adm-ink-soft);
+        }
+
+    .aq-head-actions,
+    .ao-head-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* ---------- buttons ---------- */
+    .aq-btn,
+    .ao-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 9px 15px;
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        background: var(--adm-raised);
+        color: var(--adm-ink);
+        font: 600 12.5px 'Inter', sans-serif;
+        cursor: pointer;
+        transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+    }
+
+        .aq-btn:hover,
+        .ao-btn:hover {
+            background: var(--adm-paper);
+            border-color: var(--adm-teal);
+            color: var(--adm-teal-deep);
+        }
+
+    .ao-btn-primary {
+        border-color: transparent;
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(10, 90, 80, .22);
+    }
+
+        .ao-btn-primary:hover {
+            background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 10px 22px rgba(10, 90, 80, .28);
+        }
+
+    .aq-btn:focus-visible,
+    .ao-btn:focus-visible,
+    .aq-link:focus-visible,
+    .ao-queue-item:focus-visible,
+    .adm-insights-category-row:focus-visible {
+        outline: 2px solid var(--adm-teal);
+        outline-offset: 2px;
+    }
+
+    /* ---------- overall status pill (top right of the quality check) ---------- */
+    .aq-summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+        .aq-summary::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .aq-summary[data-state="ok"] {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+        }
+
+        .aq-summary[data-state="warn"] {
+            background: var(--adm-amber-dim);
+            color: var(--adm-amber);
+        }
+
+    /* ---------- quality check rows ---------- */
+    .aq-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .aq-row {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) 56px 118px 156px;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 26px;
+        border-bottom: 1px solid var(--adm-line);
+        transition: background .15s;
+    }
+
+        .aq-row:last-child {
+            border-bottom: 0;
+        }
+
+        .aq-row:hover {
+            background: var(--adm-paper);
+        }
+
+    .aq-row-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        font-size: 15px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal);
+    }
+
+    .aq-row[data-state="warn"] .aq-row-icon {
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+    }
+
+    .aq-row-main {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+    }
+
+    .aq-row-title {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--adm-ink);
+    }
+
+    .aq-row-desc {
+        font-size: 12.5px;
+        color: var(--adm-ink-soft);
+    }
+
+    .aq-count {
+        font: 700 22px/1 'Poppins', sans-serif;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        color: var(--adm-ink);
+    }
+
+    .aq-row[data-state="warn"] .aq-count {
+        color: var(--adm-amber);
+    }
+
+    .aq-state {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        justify-self: start;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+        .aq-state::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+    .aq-row[data-state="ok"] .aq-state {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
+
+        .aq-row[data-state="ok"] .aq-state::after {
+            content: "Clear";
+        }
+
+    .aq-row[data-state="warn"] .aq-state {
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+    }
+
+        .aq-row[data-state="warn"] .aq-state::after {
+            content: "Needs review";
+        }
+
+    .aq-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        font: 600 12px 'Inter', sans-serif;
+        cursor: pointer;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+
+        .aq-link i {
+            font-size: 10px;
+        }
+
+        .aq-link:hover {
+            background: var(--adm-teal-dim);
+            border-color: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+        }
+
+    /* ---------- duplicate names detail ---------- */
+    .aq-dupes {
+        margin: 0;
+        padding: 16px 26px 18px;
+        border-top: 1px solid var(--adm-line);
+        background: var(--adm-paper);
+        font-size: 13px;
+        color: var(--adm-ink);
+    }
+
+        .aq-dupes[hidden] {
+            display: none;
+        }
+
+        .aq-dupes > strong {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 12.5px;
+        }
+
+        .aq-dupes ul {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 24px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .aq-dupes li {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+            padding: 8px 12px;
+            border: 1px solid var(--adm-line);
+            border-radius: 10px;
+            background: var(--adm-raised);
+        }
+
+            .aq-dupes li span {
+                width: 6px;
+                height: 6px;
+                flex-shrink: 0;
+                border-radius: 50%;
+                background: var(--adm-amber);
+            }
+
+            .aq-dupes li small {
+                margin-left: auto;
+                white-space: nowrap;
+                color: var(--adm-ink-faint);
+            }
+
+        .aq-dupes .adm-quality-clean {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-weight: 600;
+            color: var(--adm-teal-deep);
+        }
+
+    /* ---------- shared footer note ---------- */
+    .sec-foot {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 13px 26px;
+        border-top: 1px solid var(--adm-line);
+        background: var(--adm-paper);
+        font-size: 12px;
+        color: var(--adm-ink-faint);
+    }
+
+    /* ---------- overview: metric strip ---------- */
+    .ao-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        border-bottom: 1px solid var(--adm-line);
+    }
+
+    .ao-metric {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+        padding: 20px 26px;
+        border-right: 1px solid var(--adm-line);
+    }
+
+        .ao-metric:last-child {
+            border-right: 0;
+        }
+
+    .ao-metric-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--adm-ink-soft);
+    }
+
+        .ao-metric-label i {
+            color: var(--adm-teal);
+            font-size: 12px;
+        }
+
+    .ao-metric strong {
+        font: 700 28px/1.15 'Poppins', sans-serif;
+        font-variant-numeric: tabular-nums;
+        color: var(--adm-ink);
+    }
+
+    .ao-metric small {
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--adm-ink-faint);
+    }
+
+    .ao-meter {
+        display: block;
+        height: 6px;
+        margin-top: auto;
+        padding-top: 0;
+        border-radius: 99px;
+        background: var(--adm-line);
+        overflow: hidden;
+    }
+
+    .ao-meter-fill {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: 99px;
+        background: var(--adm-teal);
+        transition: width .4s ease;
+    }
+
+    /* ---------- overview: body ---------- */
+    .ao-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    }
+
+    .ao-col {
+        min-width: 0;
+        padding: 22px 26px 24px;
+    }
+
+        .ao-col + .ao-col {
+            border-left: 1px solid var(--adm-line);
+        }
+
+    .ao-col-head {
+        margin-bottom: 16px;
+    }
+
+        .ao-col-head h3 {
+            margin: 0 0 3px;
+            font: 700 14.5px 'Poppins', sans-serif;
+            color: var(--adm-ink);
+        }
+
+        .ao-col-head p {
+            margin: 0;
+            font-size: 12.5px;
+            color: var(--adm-ink-soft);
+        }
+
+    /* category rows (generated by refreshConditionInsights). The bars use the same category colours as the badges. */
+    .ao-col .adm-insights-category-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .ao-col .adm-insights-category-row {
+        display: grid;
+        grid-template-columns: minmax(100px, .9fr) minmax(60px, 1.4fr) auto;
+        align-items: center;
+        gap: 14px;
+        width: calc(100% + 20px);
+        margin: 0 -10px;
+        padding: 9px 10px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+        .ao-col .adm-insights-category-row:hover {
+            background: var(--adm-paper);
+        }
+
+    .ao-col .adm-insights-category-name {
+        overflow: hidden;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--adm-ink);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ao-col .adm-insights-track {
+        display: block;
+        height: 8px;
+        border-radius: 99px;
+        background: var(--adm-line);
+        overflow: hidden;
+    }
+
+    .ao-col .adm-insights-fill {
+        display: block;
+        height: 100%;
+        border-radius: 99px;
+        background: var(--category-text, var(--adm-teal));
+        box-shadow: 0 0 8px var(--category-glow, transparent);
+        opacity: .9;
+        transition: width .4s ease;
+    }
+
+    .ao-col .adm-insights-category-value {
+        font-size: 12px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        color: var(--adm-ink-soft);
+    }
+
+    .ao-col .adm-insights-empty {
+        padding: 24px 10px;
+        text-align: center;
+        font-size: 12.5px;
+        color: var(--adm-ink-faint);
+    }
+
+        .ao-col .adm-insights-empty[hidden] {
+            display: none;
+        }
+
+    /* review queue */
+    .ao-queue-item {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr) auto 12px;
+        align-items: center;
+        gap: 14px;
+        width: calc(100% + 20px);
+        margin: 0 -10px;
+        padding: 13px 10px;
+        border: 0;
+        border-top: 1px solid var(--adm-line);
+        background: transparent;
+        color: var(--adm-ink);
+        text-align: left;
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+        .ao-queue-item:hover {
+            background: var(--adm-paper);
+        }
+
+        .ao-queue-item > i {
+            font-size: 10px;
+            color: var(--adm-ink-faint);
+        }
+
+    .ao-queue-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal);
+        font-size: 13px;
+    }
+
+    .ao-queue-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+        .ao-queue-text strong {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .ao-queue-text small {
+            font-size: 12px;
+            color: var(--adm-ink-faint);
+        }
+
+    .ao-queue-count {
+        min-width: 30px;
+        padding: 4px 9px;
+        border-radius: 8px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ao-queue-item:hover .ao-queue-text strong {
+        color: var(--adm-teal-deep);
+    }
+
+    /* ---------- responsive ---------- */
+    @@media (max-width: 1100px) {
+        .ao-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .ao-metric:nth-child(2n) {
+            border-right: 0;
+        }
+
+        .ao-metric:nth-child(-n+2) {
+            border-bottom: 1px solid var(--adm-line);
+        }
+    }
+
+    @@media (max-width: 900px) {
+        .ao-body {
+            grid-template-columns: 1fr;
+        }
+
+        .ao-col + .ao-col {
+            border-left: 0;
+            border-top: 1px solid var(--adm-line);
+        }
+    }
+
+    @@media (max-width: 760px) {
+        .aq-row {
+            grid-template-columns: 40px minmax(0, 1fr) auto;
+            grid-template-areas: "icon main count" ". state action";
+            row-gap: 12px;
+            padding: 16px 18px;
+        }
+
+        .aq-row-icon {
+            grid-area: icon;
+        }
+
+        .aq-row-main {
+            grid-area: main;
+        }
+
+        .aq-count {
+            grid-area: count;
+        }
+
+        .aq-state {
+            grid-area: state;
+        }
+
+        .aq-link {
+            grid-area: action;
+            justify-self: end;
+            width: auto;
+        }
+
+        .aq-head,
+        .ao-head {
+            padding: 18px;
+        }
+
+        .aq-dupes {
+            padding: 16px 18px;
+        }
+
+            .aq-dupes ul {
+                grid-template-columns: 1fr;
+            }
+
+        .ao-col,
+        .ao-metric,
+        .sec-foot {
+            padding-left: 18px;
+            padding-right: 18px;
+        }
+    }
+
+    @@media (max-width: 520px) {
+        .ao-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .ao-metric {
+            border-right: 0;
+            border-bottom: 1px solid var(--adm-line);
+        }
+
+            .ao-metric:last-child {
+                border-bottom: 0;
+            }
+
+        .ao-head-actions,
+        .aq-head-actions {
+            width: 100%;
+        }
+
+        .ao-btn,
+        .aq-btn {
+            flex: 1;
+        }
+
+        .ao-col .adm-insights-category-row {
+            grid-template-columns: minmax(80px, .9fr) minmax(40px, 1fr) auto;
+            gap: 8px;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .ao-meter-fill,
+        .ao-col .adm-insights-fill {
+            transition: none;
+        }
+    }
+
+    /* ---------- dark mode ----------
+               The tokens already flip under html.rq-dark. These rules only re-assert text colors
+               on span / small / p elements, because the shared dark-mode rule sets them to "inherit". */
+    html.rq-dark .adm-page .aq-section span.aq-row-desc,
+    html.rq-dark .adm-page .ao-section .ao-metric-label,
+    html.rq-dark .adm-page .ao-section .ao-col-head p,
+    html.rq-dark .adm-page .aq-head p,
+    html.rq-dark .adm-page .ao-head p {
+        color: var(--adm-ink-soft);
+    }
+
+    html.rq-dark .adm-page .aq-section span.aq-count {
+        color: var(--adm-ink);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row[data-state="warn"] span.aq-count {
+        color: var(--adm-amber);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row[data-state="ok"] span.aq-state,
+    html.rq-dark .adm-page .aq-section span.aq-summary[data-state="ok"] {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row[data-state="warn"] span.aq-state,
+    html.rq-dark .adm-page .aq-section span.aq-summary[data-state="warn"] {
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row-icon {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row[data-state="warn"] .aq-row-icon {
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+    }
+
+    html.rq-dark .adm-page .aq-dupes li small,
+    html.rq-dark .adm-page .ao-metric small,
+    html.rq-dark .adm-page .ao-queue-text small,
+    html.rq-dark .adm-page .sec-foot {
+        color: var(--adm-ink-faint);
+    }
+
+    html.rq-dark .adm-page .aq-dupes,
+    html.rq-dark .adm-page .sec-foot {
+        background: var(--adm-paper);
+    }
+
+        html.rq-dark .adm-page .aq-dupes li {
+            background: var(--adm-raised);
+            border-color: var(--adm-line-strong);
+        }
+
+    html.rq-dark .adm-page .ao-section span.ao-queue-count,
+    html.rq-dark .adm-page .ao-section span.ao-queue-icon {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
+
+    html.rq-dark .adm-page .ao-section .adm-insights-category-name {
+        color: var(--adm-ink);
+    }
+
+    html.rq-dark .adm-page .ao-section .adm-insights-category-value {
+        color: var(--adm-ink-soft);
+    }
+
+    html.rq-dark .adm-page .aq-btn,
+    html.rq-dark .adm-page .ao-btn:not(.ao-btn-primary),
+    html.rq-dark .adm-page .aq-link {
+        background: var(--adm-raised);
+        color: var(--adm-ink);
+        border-color: var(--adm-line-strong);
+    }
+
+        html.rq-dark .adm-page .aq-link:hover {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+        }
+
+    html.rq-dark .adm-page .ao-btn-primary {
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        color: #fff;
+    }
+
+    html.rq-dark .adm-page .aq-row:hover,
+    html.rq-dark .adm-page .ao-queue-item:hover,
+    html.rq-dark .adm-page .ao-col .adm-insights-category-row:hover {
+        background: #1B2620;
     }
 
 </style>

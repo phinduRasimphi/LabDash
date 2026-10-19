@@ -201,5 +201,14 @@ namespace LabDash.Models
             ErrorMessage = "The confirmation password must match your password.")]
         [Display(Name = "Confirm Password")]
         public string ConfirmPassword { get; set; } = string.Empty;
+        //adding feature wiuth built in listss
+        public List<NewHealthEntry> NewMedications { get; set; } = new();
+        public List<NewHealthEntry> NewAllergies { get; set; } = new();
+        public List<NewHealthEntry> NewConditions { get; set; } = new();
+
+        public List<CategoryOption> MedicationCategories { get; set; } = new();
+        public List<CategoryOption> AllergyCategories { get; set; } = new();
+        public List<CategoryOption> ConditionCategories { get; set; } = new();
+
     }
 }

@@ -9,6 +9,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewBag.Title</title>
+    @if (User.IsInRole("Admin") || User.IsInRole("Patient"))
+    {
+        @await Html.PartialAsync("_Theme")
+    }
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link rel="icon" type="image/png" href="~/images/labdash-icon.png" />
@@ -574,20 +578,26 @@ button.a-logout {
                             </a>
 
                     </nav>
-                   <!-- Sidebar footer -->
+<!-- Sidebar footer -->
 <div class="a-sidebar-footer">
     <a href="@Url.Action("AdminProfile", "Admin")" class="a-logout">
         <i class="fas fa-user-circle"></i> My Profile
     </a>
-                        <a href="@Url.Action("Index", "Home")" class="a-logout"
-                           data-cs-confirm="You'll need to sign in again to continue."
-                           data-cs-title="Log out?"
-                           data-cs-yes="Log out"
-                           data-cs-icon="fa-right-from-bracket">
-                            <i class="fas fa-sign-out-alt"></i> Log Out
-                        </a>
+
+    <button type="button" class="a-logout ld-theme-btn" data-ld-theme-toggle>
+        <i class="fas fa-moon"></i> <span>Dark mode</span>
+    </button>
+
+    <a href="@Url.Action("Index", "Home")" class="a-logout"
+       data-cs-confirm="You'll need to sign in again to continue."
+       data-cs-title="Log out?"
+       data-cs-yes="Log out"
+       data-cs-icon="fa-right-from-bracket">
+        <i class="fas fa-sign-out-alt"></i> Log Out
+    </a>
+
     <div class="a-footer-note">LabDash &copy; 2026</div>
-</div>  
+</div>   
 
 
                     </aside>
@@ -2787,48 +2797,71 @@ var initials = string.Join("", parts.Take(2).Select(n => n[0])).ToUpper();
                     color: #fff;
                     }
 
-                    .p-sidebar-footer {
-                    margin-top: auto;
-                    padding: 20px 22px 10px;
-                    border-top: 1px solid rgba(255,255,255,.15);
-                    }
+                  .p-sidebar-footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 14px 18px;
+    border-top: 1px solid rgba(255, 255, 255, .12);
+}
 
-                    .p-logout {
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                    padding: 12px 4px;
-                    color: rgba(255,255,255,.92);
-                    text-decoration: none;
-                    font-size: 15px;
-                    font-weight: 500;
-                    border-radius: 8px;
-                    transition: background .2s ease;
-                    }
+.p-sidebar-footer .ld-foot-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
 
-                    .p-logout i {
-                    width: 20px;
-                    text-align: center;
-                    color: rgba(255,255,255,.85);
-                    }
+.p-sidebar-footer .ld-foot-btn i {
+    width: 18px;
+    text-align: center;
+    font-size: 14px;
+}
 
-                    .p-logout:hover {
-                    background: rgba(255,255,255,0.06);
-                    color: #fff;
-                    text-decoration: none;
-                    }
+/* My Profile + Dark mode */
+.p-sidebar-footer .ld-foot-neutral {
+    background: rgba(255, 255, 255, .08);
+    border-color: rgba(255, 255, 255, .14);
+    color: #fff;
+}
 
-                    .p-logout:active {
-                    background: rgba(243, 192, 77, .22);
-                    }
+.p-sidebar-footer .ld-foot-neutral:hover {
+    background: rgba(255, 255, 255, .16);
+    border-color: rgba(255, 255, 255, .28);
+    color: #fff;
+}
 
-                    .p-footer-note {
-                    color: rgba(255,255,255,.4);
-                    font-size: 11.5px;
-                    text-align: center;
-                    padding: 14px 0 4px;
-                    margin: 0;
-                    }
+/* Log out */
+.p-sidebar-footer .ld-foot-logout {
+    background: transparent;
+    color: #FFD9D6;
+}
+
+.p-sidebar-footer .ld-foot-logout:hover {
+    background: rgba(225, 115, 107, .18);
+    border-color: rgba(225, 115, 107, .35);
+    color: #fff;
+}
+
+/* Copyright */
+.p-sidebar-footer .footer-copy {
+    margin: 8px 0 0;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: .04em;
+    color: rgba(255, 255, 255, .62);
+}
                 </style>
 
                 <div class="p-shell">
@@ -2906,18 +2939,24 @@ var initials = string.Join("", parts.Take(2).Select(n => n[0])).ToUpper();
 
                         </nav>
 
-                        <!-- Sidebar footer -->
-                        <div class="p-sidebar-footer">
-                        <a href="@Url.Action("Index", "Home")" class="p-logout"
+                    <!-- Sidebar footer -->
+                    <div class="p-sidebar-footer">
+
+
+                        <button type="button" class="ld-foot-btn ld-foot-neutral ld-theme-btn" data-ld-theme-toggle>
+                            <i class="fas fa-moon"></i> <span>Dark mode</span>
+                        </button>
+
+                        <a href="@Url.Action("Index", "Home")" class="ld-foot-btn ld-foot-logout"
                            data-cs-confirm="You'll need to sign in again to view your records."
                            data-cs-title="Log out?"
                            data-cs-yes="Log out"
                            data-cs-icon="fa-right-from-bracket">
-                            <i class="fas fa-sign-out-alt"></i> Log Out
+                            <i class="fas fa-right-from-bracket"></i> <span>Log Out</span>
                         </a>
-                            <p class="footer-copy">LabDASH © 2026</p>
-                        </div>
 
+                        <div class="footer-copy">LabDASH &copy; 2026</div>
+                    </div>
                     </aside>
 
                     <!-- ═══════════════════════════

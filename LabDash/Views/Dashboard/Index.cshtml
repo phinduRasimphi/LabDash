@@ -15,6 +15,20 @@
 @if (SignInManager.IsSignedIn(User))
 if (User.IsInRole("Admin"))
 {
+   @* ===================================================================
+   ADMIN DASHBOARD (with dark mode)
+   In Views/Home/Index.cshtml (or wherever this view lives), replace everything
+   BETWEEN the braces of:
+
+       @if (SignInManager.IsSignedIn(User))
+       if (User.IsInRole("Admin"))
+       {
+           ... replace this part ...
+       }
+
+   Keep the braces and the `else if (User.IsInRole("Patient"))` that follows.
+   =================================================================== *@
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 
@@ -35,35 +49,35 @@ if (User.IsInRole("Admin"))
                 "reactivated" => "is-restored",
                 _ => ""
             };
-        var dayCounts = Model.ActivityCounts ?? new List<int>();
-var todayCount = dayCounts.Count > 0 ? dayCounts[dayCounts.Count - 1] : 0;
-var weekCount = dayCounts.Skip(Math.Max(0, dayCounts.Count - 7)).Sum();
-var totalRefs = Model.ConditionCount + Model.AllergyCount + Model.MedicationCount;
-int SharePct(int v) => totalRefs == 0 ? 0 : (int)Math.Round(v * 100.0 / totalRefs);
-var healthScore = Math.Max(0, 100 - warnings.Count * 20);
-var yesterdayCount = dayCounts.Count > 1 ? dayCounts[dayCounts.Count - 2] : 0;
-var dayDelta = todayCount - yesterdayCount;
-string DeltaText(int d) => d == 0 ? "same as yesterday" : (d > 0 ? "▲ " : "▼ ") + Math.Abs(d) + " vs yesterday";
-var topTables = Model.RecentChanges == null
-    ? new List<KeyValuePair<string, int>>()
-    : Model.RecentChanges
-        .GroupBy(l => l.TableName ?? "Unknown")
-        .Select(g => new KeyValuePair<string, int>(g.Key, g.Count()))
-        .OrderByDescending(k => k.Value).Take(4).ToList();
+            var dayCounts = Model.ActivityCounts ?? new List<int>();
+            var todayCount = dayCounts.Count > 0 ? dayCounts[dayCounts.Count - 1] : 0;
+            var weekCount = dayCounts.Skip(Math.Max(0, dayCounts.Count - 7)).Sum();
+            var totalRefs = Model.ConditionCount + Model.AllergyCount + Model.MedicationCount;
+            int SharePct(int v) => totalRefs == 0 ? 0 : (int)Math.Round(v * 100.0 / totalRefs);
+            var healthScore = Math.Max(0, 100 - warnings.Count * 20);
+            var yesterdayCount = dayCounts.Count > 1 ? dayCounts[dayCounts.Count - 2] : 0;
+            var dayDelta = todayCount - yesterdayCount;
+            string DeltaText(int d) => d == 0 ? "same as yesterday" : (d > 0 ? "▲ " : "▼ ") + Math.Abs(d) + " vs yesterday";
+            var topTables = Model.RecentChanges == null
+                ? new List<KeyValuePair<string, int>>()
+                : Model.RecentChanges
+                    .GroupBy(l => l.TableName ?? "Unknown")
+                    .Select(g => new KeyValuePair<string, int>(g.Key, g.Count()))
+                    .OrderByDescending(k => k.Value).Take(4).ToList();
 
-var topUsers = Model.RecentChanges == null
-    ? new List<KeyValuePair<string, int>>()
-    : Model.RecentChanges
-        .GroupBy(l => l.UserName ?? "Unknown")
-        .Select(g => new KeyValuePair<string, int>(g.Key, g.Count()))
-        .OrderByDescending(k => k.Value).Take(4).ToList();
+            var topUsers = Model.RecentChanges == null
+                ? new List<KeyValuePair<string, int>>()
+                : Model.RecentChanges
+                    .GroupBy(l => l.UserName ?? "Unknown")
+                    .Select(g => new KeyValuePair<string, int>(g.Key, g.Count()))
+                    .OrderByDescending(k => k.Value).Take(4).ToList();
 
-var maxTable = topTables.Count > 0 ? topTables.Max(k => k.Value) : 1;
-var maxUser = topUsers.Count > 0 ? topUsers.Max(k => k.Value) : 1;
+            var maxTable = topTables.Count > 0 ? topTables.Max(k => k.Value) : 1;
+            var maxUser = topUsers.Count > 0 ? topUsers.Max(k => k.Value) : 1;
 
-var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
-    ? Model.RecentChanges.Max(l => l.ActionDate).ToString("dd MMM, HH:mm")
-    : "None yet";
+            var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
+                ? Model.RecentChanges.Max(l => l.ActionDate).ToString("dd MMM, HH:mm")
+                : "None yet";
         }
 
         <!-- ==========================================
@@ -78,7 +92,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                     <i class="fa-solid fa-shield-halved"></i>
                 </div>
                 <div class="adm-banner-text">
-                        <h1>Welcome, <span>@Model.AdminName</span></h1>
+                    <h1>Welcome, <span>@Model.AdminName</span></h1>
                     <p>NMB-HLabSys Admin Control Center</p>
                     <div class="adm-pills">
                         <span class="adm-pill"><i class="fa-solid fa-database"></i> Reference data governance</span>
@@ -128,32 +142,33 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
         </div>
 
         <!-- ==========================================
-    AT A GLANCE
-=========================================== -->
-<div class="adm-glance">
-    <div class="adm-glance-card">
-        <small>Changes today</small>
-        <strong>@todayCount</strong>
-        <em>@DeltaText(dayDelta)</em>
-    </div>
-    <div class="adm-glance-card">
-        <small>Last 7 days</small>
-        <strong>@weekCount</strong>
-        <em>total changes</em>
-    </div>
-    <div class="adm-glance-card">
-        <small>Last change</small>
-        <strong class="is-sm">@lastChange</strong>
-        <em>most recent audit entry</em>
-    </div>
-    <div class="adm-glance-card adm-health @(healthy ? "" : "is-warn")">
-        <div class="adm-health-ring" style="--pct:@healthScore"><span>@healthScore%</span></div>
-        <div>
-            <small>Data health</small>
-            <em>@(healthy ? "All checks passed" : warnings.Count + (warnings.Count == 1 ? " warning" : " warnings"))</em>
+            AT A GLANCE
+        =========================================== -->
+        <div class="adm-glance">
+            <div class="adm-glance-card">
+                <small>Changes today</small>
+                <strong>@todayCount</strong>
+                <em>@DeltaText(dayDelta)</em>
+            </div>
+            <div class="adm-glance-card">
+                <small>Last 7 days</small>
+                <strong>@weekCount</strong>
+                <em>total changes</em>
+            </div>
+            <div class="adm-glance-card">
+                <small>Last change</small>
+                <strong class="is-sm">@lastChange</strong>
+                <em>most recent audit entry</em>
+            </div>
+            <div class="adm-glance-card adm-health @(healthy ? "" : "is-warn")">
+                <div class="adm-health-ring" style="--pct:@healthScore"><span>@healthScore%</span></div>
+                <div>
+                    <small>Data health</small>
+                    <em>@(healthy ? "All checks passed" : warnings.Count + (warnings.Count == 1 ? " warning" : " warnings"))</em>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
+
         <!-- ==========================================
             REFERENCE DATA OVERVIEW
         =========================================== -->
@@ -203,96 +218,98 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
             </div>
 
         </div>
+
         <!-- ==========================================
-    REFERENCE DATA BREAKDOWN
-=========================================== -->
-<div class="adm-section-head adm-mt-lg">
-    <div>
-        <h3>Reference data breakdown</h3>
-        <p>How your records are split, and where the recent changes are happening.</p>
-    </div>
-</div>
-
-<div class="adm-grid adm-grid-3">
-
-    <div class="adm-panel">
-        <div class="adm-panel-head">
-            <span><i class="fa-solid fa-chart-pie"></i> Composition</span>
-        </div>
-        <div class="adm-bars-body">
-            <div class="adm-mix-bar">
-                <span class="adm-mix-seg is-created" style="flex-grow:@Model.ConditionCount"></span>
-                <span class="adm-mix-seg is-purple" style="flex-grow:@Model.AllergyCount"></span>
-                <span class="adm-mix-seg is-updated" style="flex-grow:@Model.MedicationCount"></span>
-            </div>
-            <div class="adm-mix-legend adm-legend-1">
-                <div><span class="adm-dot is-created"></span>Conditions <strong>@SharePct(Model.ConditionCount)%</strong></div>
-                <div><span class="adm-dot is-purple"></span>Allergies <strong>@SharePct(Model.AllergyCount)%</strong></div>
-                <div><span class="adm-dot is-updated"></span>Medications <strong>@SharePct(Model.MedicationCount)%</strong></div>
+            REFERENCE DATA BREAKDOWN
+        =========================================== -->
+        <div class="adm-section-head adm-mt-lg">
+            <div>
+                <h3>Reference data breakdown</h3>
+                <p>How your records are split, and where the recent changes are happening.</p>
             </div>
         </div>
-    </div>
 
-    <div class="adm-panel">
-        <div class="adm-panel-head">
-            <span><i class="fa-solid fa-table-list"></i> Most changed tables</span>
-        </div>
-        <div class="adm-bars-body">
-            @if (topTables.Count == 0)
-            {
-                <p class="adm-noresult">No changes recorded yet.</p>
-            }
-            else
-            {
-                foreach (var t in topTables)
-                {
-                    <div class="adm-rank">
-                        <div class="adm-rank-label"><span>@t.Key</span><strong>@t.Value</strong></div>
-                        <div class="adm-rank-bar"><span style="width:@((int)Math.Round(t.Value * 100.0 / maxTable))%"></span></div>
+        <div class="adm-grid adm-grid-3">
+
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <span><i class="fa-solid fa-chart-pie"></i> Composition</span>
+                </div>
+                <div class="adm-bars-body">
+                    <div class="adm-mix-bar">
+                        <span class="adm-mix-seg is-created" style="flex-grow:@Model.ConditionCount"></span>
+                        <span class="adm-mix-seg is-purple" style="flex-grow:@Model.AllergyCount"></span>
+                        <span class="adm-mix-seg is-updated" style="flex-grow:@Model.MedicationCount"></span>
                     </div>
-                }
-            }
-        </div>
-    </div>
-
-    <div class="adm-panel">
-        <div class="adm-panel-head">
-            <span><i class="fa-solid fa-user-clock"></i> Most active users</span>
-        </div>
-        <div class="adm-bars-body">
-            @if (topUsers.Count == 0)
-            {
-                <p class="adm-noresult">No changes recorded yet.</p>
-            }
-            else
-            {
-                foreach (var u in topUsers)
-                {
-                    <div class="adm-rank">
-                        <div class="adm-rank-label"><span>@u.Key</span><strong>@u.Value</strong></div>
-                        <div class="adm-rank-bar"><span class="is-blue" style="width:@((int)Math.Round(u.Value * 100.0 / maxUser))%"></span></div>
+                    <div class="adm-mix-legend adm-legend-1">
+                        <div><span class="adm-dot is-created"></span>Conditions <strong>@SharePct(Model.ConditionCount)%</strong></div>
+                        <div><span class="adm-dot is-purple"></span>Allergies <strong>@SharePct(Model.AllergyCount)%</strong></div>
+                        <div><span class="adm-dot is-updated"></span>Medications <strong>@SharePct(Model.MedicationCount)%</strong></div>
                     </div>
-                }
-            }
-        </div>
-    </div>
+                </div>
+            </div>
 
-</div>
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <span><i class="fa-solid fa-table-list"></i> Most changed tables</span>
+                </div>
+                <div class="adm-bars-body">
+                    @if (topTables.Count == 0)
+                    {
+                        <p class="adm-noresult">No changes recorded yet.</p>
+                    }
+                    else
+                    {
+                        foreach (var t in topTables)
+                        {
+                            <div class="adm-rank">
+                                <div class="adm-rank-label"><span>@t.Key</span><strong>@t.Value</strong></div>
+                                <div class="adm-rank-bar"><span style="width:@((int)Math.Round(t.Value * 100.0 / maxTable))%"></span></div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="adm-panel">
+                <div class="adm-panel-head">
+                    <span><i class="fa-solid fa-user-clock"></i> Most active users</span>
+                </div>
+                <div class="adm-bars-body">
+                    @if (topUsers.Count == 0)
+                    {
+                        <p class="adm-noresult">No changes recorded yet.</p>
+                    }
+                    else
+                    {
+                        foreach (var u in topUsers)
+                        {
+                            <div class="adm-rank">
+                                <div class="adm-rank-label"><span>@u.Key</span><strong>@u.Value</strong></div>
+                                <div class="adm-rank-bar"><span class="is-blue" style="width:@((int)Math.Round(u.Value * 100.0 / maxUser))%"></span></div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+        </div>
+
         <!-- ==========================================
             QUICK ACTIONS
         =========================================== -->
-       <div class="adm-section-head adm-mt-lg">
-    <div>
-        <h3>Quick actions</h3>
-        <p>Manage the reference data that powers the rest of the system.</p>
-    </div>
-    <div class="adm-search">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input id="admActionSearch" type="search" placeholder="Search actions..." aria-label="Search quick actions" />
-    </div>
-</div>
+        <div class="adm-section-head adm-mt-lg">
+            <div>
+                <h3>Quick actions</h3>
+                <p>Manage the reference data that powers the rest of the system.</p>
+            </div>
+            <div class="adm-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input id="admActionSearch" type="search" placeholder="Search actions..." aria-label="Search quick actions" />
+            </div>
+        </div>
 
-<div class="adm-grid adm-grid-3" id="admActions">
+        <div class="adm-grid adm-grid-3" id="admActions">
 
             <a href="@Url.Action("Conditions", "Admin")" class="adm-action">
                 <div class="adm-action-icon"><i class="fa-solid fa-heart-pulse"></i></div>
@@ -338,6 +355,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
 
         </div>
         <p id="admActionEmpty" class="adm-noresult" hidden>No actions match your search.</p>
+
         <!-- ==========================================
             INSIGHTS: RECENT CHANGES + ACTIVITY
         =========================================== -->
@@ -359,19 +377,18 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
 
                 @if (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 {
-
                     <div class="adm-chips" role="group" aria-label="Filter changes">
-    <button type="button" class="adm-chip is-active" data-kind="all">All</button>
-    <button type="button" class="adm-chip" data-kind="is-created">Added</button>
-    <button type="button" class="adm-chip" data-kind="is-updated">Edited</button>
-    <button type="button" class="adm-chip" data-kind="is-removed">Removed</button>
-    <button type="button" class="adm-chip" data-kind="is-restored">Restored</button>
-    <button type="button" class="adm-chip adm-chip-export" id="admExport"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
-</div>
+                        <button type="button" class="adm-chip is-active" data-kind="all">All</button>
+                        <button type="button" class="adm-chip" data-kind="is-created">Added</button>
+                        <button type="button" class="adm-chip" data-kind="is-updated">Edited</button>
+                        <button type="button" class="adm-chip" data-kind="is-removed">Removed</button>
+                        <button type="button" class="adm-chip" data-kind="is-restored">Restored</button>
+                        <button type="button" class="adm-chip adm-chip-export" id="admExport"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+                    </div>
                     <ul class="adm-feed">
                         @foreach (var log in Model.RecentChanges)
                         {
-                        <li class="adm-feed-item" data-kind="@BadgeClass(log.Action)">
+                            <li class="adm-feed-item" data-kind="@BadgeClass(log.Action)">
                                 <span class="adm-feed-badge @BadgeClass(log.Action)">@log.Action</span>
                                 <div class="adm-feed-text">
                                     <strong>@log.TableName</strong>
@@ -439,15 +456,17 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                             </div>
                         }
                     </div>
+
                     <div class="adm-heat-wrap">
-    <span class="adm-chart-cap">Activity heat strip</span>
-    <div id="adminHeat" class="adm-heat"></div>
-    <div class="adm-heat-legend">
-        <span>Less</span>
-        <i class="adm-heat-cell l0"></i><i class="adm-heat-cell l1"></i><i class="adm-heat-cell l2"></i><i class="adm-heat-cell l3"></i><i class="adm-heat-cell l4"></i>
-        <span>More</span>
-    </div>
-</div>
+                        <span class="adm-chart-cap">Activity heat strip</span>
+                        <div id="adminHeat" class="adm-heat"></div>
+                        <div class="adm-heat-legend">
+                            <span>Less</span>
+                            <i class="adm-heat-cell l0"></i><i class="adm-heat-cell l1"></i><i class="adm-heat-cell l2"></i><i class="adm-heat-cell l3"></i><i class="adm-heat-cell l4"></i>
+                            <span>More</span>
+                        </div>
+                    </div>
+
                     <div class="adm-mix">
                         <div class="adm-mix-head">
                             <span>What changed</span>
@@ -473,7 +492,8 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
             </div>
 
         </div>
-                <!-- ==========================================
+
+        <!-- ==========================================
             SETUP CHECKLIST
         =========================================== -->
         @{
@@ -513,7 +533,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
             </ul>
         </div>
 
-                       <!-- ==========================================
+        <!-- ==========================================
             REFERENCE TABLES + RECENTLY REMOVED
         =========================================== -->
         @{
@@ -621,6 +641,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
         // Activity over time: dependency-free SVG area chart with a 7/14/30 day toggle,
         // KPI tiles and a trend badge. All data comes from the view model, so no extra
         // endpoint, controller or chart library is needed.
+        // Colours are read from the page's CSS variables, so the chart follows light/dark mode.
         (function () {
             const box = document.getElementById('adminActivityChart');
             if (!box) return;
@@ -641,6 +662,11 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 if (el) el.textContent = text;
             };
 
+            const cssVar = function (name, fallback) {
+                const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+                return v || fallback;
+            };
+
             const svgEl = function (name, attrs) {
                 const el = document.createElementNS(SVG_NS, name);
                 Object.keys(attrs || {}).forEach(function (key) { el.setAttribute(key, attrs[key]); });
@@ -658,6 +684,11 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
 
                 const n = counts.length;
                 if (n === 0) return;
+
+                const cGrid = cssVar('--adm-line', '#E1EEEC');
+                const cLabel = cssVar('--adm-ink-faint', '#8FA9A3');
+                const cTeal = cssVar('--adm-teal', '#0E8C7F');
+                const cDot = cssVar('--adm-raised', '#FFFFFF');
 
                 const W = box.clientWidth || 520;
                 const pad = { l: 34, r: 12, t: 14, b: 26 };
@@ -682,8 +713,8 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
 
                 const defs = svgEl('defs');
                 const grad = svgEl('linearGradient', { id: 'admActGrad', x1: 0, y1: 0, x2: 0, y2: 1 });
-                grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#0E8C7F', 'stop-opacity': '0.35' }));
-                grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#0E8C7F', 'stop-opacity': '0' }));
+                grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': cTeal, 'stop-opacity': '0.35' }));
+                grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': cTeal, 'stop-opacity': '0' }));
                 defs.appendChild(grad);
                 svg.appendChild(defs);
 
@@ -691,8 +722,8 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 for (let t = 0; t <= 4; t++) {
                     const v = t * step;
                     const y = yAt(v);
-                    svg.appendChild(svgEl('line', { x1: pad.l, x2: W - pad.r, y1: y, y2: y, stroke: '#E1EEEC', 'stroke-width': 1 }));
-                    const lab = svgEl('text', { x: pad.l - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#8FA9A3' });
+                    svg.appendChild(svgEl('line', { x1: pad.l, x2: W - pad.r, y1: y, y2: y, stroke: cGrid, 'stroke-width': 1 }));
+                    const lab = svgEl('text', { x: pad.l - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: cLabel });
                     lab.textContent = v;
                     svg.appendChild(lab);
                 }
@@ -701,7 +732,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 const every = Math.max(1, Math.ceil(n / 6));
                 for (let i = n - 1; i >= 0; i -= every) {
                     const anchor = i === n - 1 ? 'end' : (i === 0 ? 'start' : 'middle');
-                    const lab = svgEl('text', { x: xAt(i), y: H - 6, 'text-anchor': anchor, 'font-size': 11, fill: '#8FA9A3' });
+                    const lab = svgEl('text', { x: xAt(i), y: H - 6, 'text-anchor': anchor, 'font-size': 11, fill: cLabel });
                     lab.textContent = labels[i];
                     svg.appendChild(lab);
                 }
@@ -722,7 +753,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 svg.appendChild(svgEl('path', {
                     d: line,
                     fill: 'none',
-                    stroke: '#0E8C7F',
+                    stroke: cTeal,
                     'stroke-width': 2.5,
                     'stroke-linecap': 'round',
                     'stroke-linejoin': 'round'
@@ -731,13 +762,13 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 // dots (every day on short ranges, only busy days on long ones)
                 counts.forEach(function (v, i) {
                     if (v > 0 || n <= 14) {
-                        svg.appendChild(svgEl('circle', { cx: xAt(i), cy: yAt(v), r: 3.5, fill: '#FFFFFF', stroke: '#0E8C7F', 'stroke-width': 2 }));
+                        svg.appendChild(svgEl('circle', { cx: xAt(i), cy: yAt(v), r: 3.5, fill: cDot, stroke: cTeal, 'stroke-width': 2 }));
                     }
                 });
 
                 // hover guide + tooltip
-                const guide = svgEl('line', { y1: pad.t, y2: base, stroke: '#0E8C7F', 'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: 0 });
-                const dot = svgEl('circle', { r: 5.5, fill: '#0E8C7F', stroke: '#FFFFFF', 'stroke-width': 2, opacity: 0 });
+                const guide = svgEl('line', { y1: pad.t, y2: base, stroke: cTeal, 'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: 0 });
+                const dot = svgEl('circle', { r: 5.5, fill: cTeal, stroke: cDot, 'stroke-width': 2, opacity: 0 });
                 svg.appendChild(guide);
                 svg.appendChild(dot);
 
@@ -810,19 +841,21 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                     el.classList.add('is-down');
                 }
             }
-                    function renderHeat(labels, counts) {
-                     const el = document.getElementById('adminHeat');
-            if (!el) return;
-            const max = Math.max.apply(null, counts.concat([0]));
-            el.innerHTML = '';
-            counts.forEach(function (v, i) {
-                const cell = document.createElement('span');
-                const lvl = (v === 0 || max === 0) ? 0 : Math.min(4, Math.ceil((v / max) * 4));
-                cell.className = 'adm-heat-cell l' + lvl;
-                cell.title = labels[i] + ': ' + v + (v === 1 ? ' change' : ' changes');
-                el.appendChild(cell);
-            });
-    }
+
+            function renderHeat(labels, counts) {
+                const el = document.getElementById('adminHeat');
+                if (!el) return;
+                const max = Math.max.apply(null, counts.concat([0]));
+                el.innerHTML = '';
+                counts.forEach(function (v, i) {
+                    const cell = document.createElement('span');
+                    const lvl = (v === 0 || max === 0) ? 0 : Math.min(4, Math.ceil((v / max) * 4));
+                    cell.className = 'adm-heat-cell l' + lvl;
+                    cell.title = labels[i] + ': ' + v + (v === 1 ? ' change' : ' changes');
+                    el.appendChild(cell);
+                });
+            }
+
             // ---------- tiles + chart for the selected range ----------
             function render() {
                 const labels = allLabels.slice(-range);
@@ -838,7 +871,8 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 setText('adminActBusiestSub', max > 0 ? max + (max === 1 ? ' change' : ' changes') : 'no activity yet');
 
                 // a drawing problem must never stop the toggle or the tiles from working
-                try { renderHeat(labels, counts);
+                try {
+                    renderHeat(labels, counts);
                     drawChart(labels, counts);
                 } catch (err) {
                     if (window.console) console.error('Activity chart failed to draw:', err);
@@ -863,6 +897,12 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(render, 150);
             });
+
+            // redraw the chart when the theme is switched (light <-> dark)
+            new MutationObserver(function () { render(); }).observe(
+                document.documentElement,
+                { attributes: true, attributeFilter: ['class'] }
+            );
         })();
     </script>
 
@@ -1600,80 +1640,80 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
 
 
         /* ============ AT A GLANCE ============ */
-.adm-glance { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 28px; }
-.adm-glance-card { background: var(--adm-raised); border-radius: var(--adm-radius); box-shadow: var(--adm-shadow-sm); padding: 18px 22px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.adm-glance-card small { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--adm-ink-faint); }
-.adm-glance-card strong { font-family: 'Poppins', sans-serif; font-size: 26px; line-height: 1.3; color: var(--adm-ink); }
-.adm-glance-card strong.is-sm { font-size: 17px; line-height: 2; }
-.adm-glance-card em { font-style: normal; font-size: 12px; color: var(--adm-ink-soft); }
-.adm-health { flex-direction: row; align-items: center; gap: 16px; }
-.adm-health-ring { --pct: 0; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--adm-teal) calc(var(--pct) * 1%), var(--adm-line) 0); }
-.adm-health-ring::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--adm-raised); }
-.adm-health-ring span { position: relative; font: 700 14px 'Poppins', sans-serif; color: var(--adm-teal-deep); }
-.adm-health.is-warn .adm-health-ring { background: conic-gradient(var(--adm-orange) calc(var(--pct) * 1%), var(--adm-line) 0); }
-.adm-health.is-warn .adm-health-ring span { color: var(--adm-orange); }
+        .adm-glance { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 28px; }
+        .adm-glance-card { background: var(--adm-raised); border-radius: var(--adm-radius); box-shadow: var(--adm-shadow-sm); padding: 18px 22px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .adm-glance-card small { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--adm-ink-faint); }
+        .adm-glance-card strong { font-family: 'Poppins', sans-serif; font-size: 26px; line-height: 1.3; color: var(--adm-ink); }
+        .adm-glance-card strong.is-sm { font-size: 17px; line-height: 2; }
+        .adm-glance-card em { font-style: normal; font-size: 12px; color: var(--adm-ink-soft); }
+        .adm-health { flex-direction: row; align-items: center; gap: 16px; }
+        .adm-health-ring { --pct: 0; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--adm-teal) calc(var(--pct) * 1%), var(--adm-line) 0); }
+        .adm-health-ring::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--adm-raised); }
+        .adm-health-ring span { position: relative; font: 700 14px 'Poppins', sans-serif; color: var(--adm-teal-deep); }
+        .adm-health.is-warn .adm-health-ring { background: conic-gradient(var(--adm-orange) calc(var(--pct) * 1%), var(--adm-line) 0); }
+        .adm-health.is-warn .adm-health-ring span { color: var(--adm-orange); }
 
-/* ============ BREAKDOWN PANELS ============ */
-.adm-bars-body { padding: 20px 26px 24px; }
-.adm-legend-1 { grid-template-columns: 1fr; }
-.adm-mix-seg.is-purple { background: var(--adm-purple); }
-.adm-dot.is-purple { background: var(--adm-purple); }
-.adm-rank { margin-bottom: 16px; }
-.adm-rank:last-child { margin-bottom: 0; }
-.adm-rank-label { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 7px; color: var(--adm-ink-soft); }
-.adm-rank-label span { overflow-wrap: anywhere; }
-.adm-rank-label strong { color: var(--adm-ink); }
-.adm-rank-bar { height: 10px; border-radius: 999px; background: var(--adm-line); overflow: hidden; }
-.adm-rank-bar span { display: block; height: 100%; border-radius: 999px; background: var(--adm-teal); transition: width .6s ease; }
-.adm-rank-bar span.is-blue { background: var(--adm-blue); }
-.adm-noresult { margin: 0; text-align: center; color: var(--adm-ink-soft); font-size: 13px; padding: 10px 0; }
+        /* ============ BREAKDOWN PANELS ============ */
+        .adm-bars-body { padding: 20px 26px 24px; }
+        .adm-legend-1 { grid-template-columns: 1fr; }
+        .adm-mix-seg.is-purple { background: var(--adm-purple); }
+        .adm-dot.is-purple { background: var(--adm-purple); }
+        .adm-rank { margin-bottom: 16px; }
+        .adm-rank:last-child { margin-bottom: 0; }
+        .adm-rank-label { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 7px; color: var(--adm-ink-soft); }
+        .adm-rank-label span { overflow-wrap: anywhere; }
+        .adm-rank-label strong { color: var(--adm-ink); }
+        .adm-rank-bar { height: 10px; border-radius: 999px; background: var(--adm-line); overflow: hidden; }
+        .adm-rank-bar span { display: block; height: 100%; border-radius: 999px; background: var(--adm-teal); transition: width .6s ease; }
+        .adm-rank-bar span.is-blue { background: var(--adm-blue); }
+        .adm-noresult { margin: 0; text-align: center; color: var(--adm-ink-soft); font-size: 13px; padding: 10px 0; }
 
-/* ============ SEARCH ============ */
-.adm-search { position: relative; }
-.adm-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--adm-ink-faint); font-size: 13px; }
-.adm-search input { width: 240px; max-width: 100%; height: 40px; padding: 0 14px 0 36px; border-radius: 999px; border: 1px solid var(--adm-line-strong); background: var(--adm-raised); color: var(--adm-ink); font: 500 13px 'Inter', sans-serif; outline: none; }
-.adm-search input:focus { border-color: var(--adm-teal); box-shadow: 0 0 0 3px rgba(14, 140, 127, .12); }
+        /* ============ SEARCH ============ */
+        .adm-search { position: relative; }
+        .adm-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--adm-ink-faint); font-size: 13px; }
+        .adm-search input { width: 240px; max-width: 100%; height: 40px; padding: 0 14px 0 36px; border-radius: 999px; border: 1px solid var(--adm-line-strong); background: var(--adm-raised); color: var(--adm-ink); font: 500 13px 'Inter', sans-serif; outline: none; }
+        .adm-search input:focus { border-color: var(--adm-teal); box-shadow: 0 0 0 3px rgba(14, 140, 127, .12); }
 
-/* ============ FEED CHIPS ============ */
-.adm-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 26px; border-bottom: 1px solid var(--adm-line); }
-.adm-chip { border: 1px solid var(--adm-line); background: var(--adm-raised); color: var(--adm-ink-soft); font: 600 12px 'Inter', sans-serif; padding: 6px 13px; border-radius: 999px; cursor: pointer; transition: background .15s, color .15s; }
-.adm-chip:hover { background: var(--adm-teal-dim); }
-.adm-chip.is-active { background: var(--adm-teal); border-color: var(--adm-teal); color: #fff; }
-.adm-chip-export { margin-left: auto; color: var(--adm-teal-deep); }
-.adm-chip-export i { margin-right: 5px; }
+        /* ============ FEED CHIPS ============ */
+        .adm-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 26px; border-bottom: 1px solid var(--adm-line); }
+        .adm-chip { border: 1px solid var(--adm-line); background: var(--adm-raised); color: var(--adm-ink-soft); font: 600 12px 'Inter', sans-serif; padding: 6px 13px; border-radius: 999px; cursor: pointer; transition: background .15s, color .15s; }
+        .adm-chip:hover { background: var(--adm-teal-dim); }
+        .adm-chip.is-active { background: var(--adm-teal); border-color: var(--adm-teal); color: #fff; }
+        .adm-chip-export { margin-left: auto; color: var(--adm-teal-deep); }
+        .adm-chip-export i { margin-right: 5px; }
 
-/* ============ HEAT STRIP ============ */
-.adm-heat-wrap { margin-top: 20px; }
-.adm-heat { display: flex; gap: 3px; margin-top: 8px; }
-.adm-heat-cell { flex: 1; min-width: 4px; height: 22px; border-radius: 4px; background: var(--adm-line); display: inline-block; }
-.adm-heat-cell.l1 { background: #BFE5DF; }
-.adm-heat-cell.l2 { background: #7FCBC1; }
-.adm-heat-cell.l3 { background: #3FAE9F; }
-.adm-heat-cell.l4 { background: var(--adm-teal-deep); }
-.adm-heat-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 8px; font-size: 11px; color: var(--adm-ink-faint); }
-.adm-heat-legend .adm-heat-cell { flex: none; width: 14px; height: 14px; border-radius: 3px; }
+        /* ============ HEAT STRIP ============ */
+        .adm-heat-wrap { margin-top: 20px; }
+        .adm-heat { display: flex; gap: 3px; margin-top: 8px; }
+        .adm-heat-cell { flex: 1; min-width: 4px; height: 22px; border-radius: 4px; background: var(--adm-line); display: inline-block; }
+        .adm-heat-cell.l1 { background: #BFE5DF; }
+        .adm-heat-cell.l2 { background: #7FCBC1; }
+        .adm-heat-cell.l3 { background: #3FAE9F; }
+        .adm-heat-cell.l4 { background: var(--adm-teal-deep); }
+        .adm-heat-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 8px; font-size: 11px; color: var(--adm-ink-faint); }
+        .adm-heat-legend .adm-heat-cell { flex: none; width: 14px; height: 14px; border-radius: 3px; }
 
-/* ============ CHECKLIST ============ */
-.adm-check-head { padding: 18px 26px; border-bottom: 1px solid var(--adm-line); display: flex; flex-direction: column; gap: 10px; font-size: 13px; font-weight: 600; color: var(--adm-ink); }
-.adm-check { list-style: none; margin: 0; padding: 8px 14px 12px; }
-.adm-check a { display: flex; align-items: center; gap: 13px; padding: 12px; border-radius: 14px; color: var(--adm-ink); text-decoration: none; font-size: 13.5px; font-weight: 600; transition: background .15s; }
-.adm-check a:hover { background: var(--adm-paper); color: var(--adm-ink); text-decoration: none; }
-.adm-check-mark { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--adm-line); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--adm-teal); flex-shrink: 0; }
-.adm-check a.is-done .adm-check-mark { background: var(--adm-teal); border-color: var(--adm-teal); color: #fff; }
-.adm-check a.is-done span:last-child { color: var(--adm-ink-soft); text-decoration: line-through; }
+        /* ============ CHECKLIST ============ */
+        .adm-check-head { padding: 18px 26px; border-bottom: 1px solid var(--adm-line); display: flex; flex-direction: column; gap: 10px; font-size: 13px; font-weight: 600; color: var(--adm-ink); }
+        .adm-check { list-style: none; margin: 0; padding: 8px 14px 12px; }
+        .adm-check a { display: flex; align-items: center; gap: 13px; padding: 12px; border-radius: 14px; color: var(--adm-ink); text-decoration: none; font-size: 13.5px; font-weight: 600; transition: background .15s; }
+        .adm-check a:hover { background: var(--adm-paper); color: var(--adm-ink); text-decoration: none; }
+        .adm-check-mark { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--adm-line); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--adm-teal); flex-shrink: 0; }
+        .adm-check a.is-done .adm-check-mark { background: var(--adm-teal); border-color: var(--adm-teal); color: #fff; }
+        .adm-check a.is-done span:last-child { color: var(--adm-ink-soft); text-decoration: line-through; }
 
-@@media (max-width: 1100px) {
-    .adm-glance { grid-template-columns: repeat(2, 1fr); }
-}
-@@media (max-width: 640px) {
-    .adm-glance { grid-template-columns: 1fr; }
-    .adm-search { width: 100%; }
-    .adm-search input { width: 100%; }
-    .adm-chips { padding: 12px 16px; }
-}
-           .adm-mini-link { display: inline-block; margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--adm-teal-deep); text-decoration: none; }
-    .adm-mini-link:hover { text-decoration: underline; }
-    .adm-rank-label i { color: var(--adm-teal); margin-right: 6px; }
+        @@media (max-width: 1100px) {
+            .adm-glance { grid-template-columns: repeat(2, 1fr); }
+        }
+        @@media (max-width: 640px) {
+            .adm-glance { grid-template-columns: 1fr; }
+            .adm-search { width: 100%; }
+            .adm-search input { width: 100%; }
+            .adm-chips { padding: 12px 16px; }
+        }
+        .adm-mini-link { display: inline-block; margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--adm-teal-deep); text-decoration: none; }
+        .adm-mini-link:hover { text-decoration: underline; }
+        .adm-rank-label i { color: var(--adm-teal); margin-right: 6px; }
 
         .adm-footer { margin-top: 50px; text-align: center; }
 
@@ -1729,7 +1769,189 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 gap: 10px;
             }
         }
+
+
+        /* ==========================================================
+           DARK MODE (html.rq-dark, same switch as the rest of the app)
+           The shared dark rules force "color: inherit" on span / p / li / small / th / td
+           and restyle anything with "panel", "card" or "chip" in its class name,
+           so the colour rules below use !important where they have to win.
+        ========================================================== */
+
+        /* 1. Re-point the page's variables at the shared dark palette */
+        html.rq-dark {
+            --adm-paper: #141C18;
+            --adm-raised: #172019;
+            --adm-ink: #E8EEEB;
+            --adm-ink-soft: #A5B0AA;
+            --adm-ink-faint: #7F8B85;
+            --adm-line: #26302B;
+            --adm-line-strong: #34403A;
+            --adm-teal: #2CC4BA;
+            --adm-teal-deep: #5ED0C4;
+            --adm-teal-dim: #12302D;
+            --adm-teal-grad-start: #0F7F74;
+            --adm-teal-grad-end: #0A3A35;
+            --adm-blue: #6CB0E8;
+            --adm-blue-dim: #14283A;
+            --adm-purple: #B39DEB;
+            --adm-purple-dim: #2A2142;
+            --adm-red: #E1736B;
+            --adm-red-dim: #3A1B18;
+            --adm-orange: #E39A55;
+            --adm-orange-dim: #33200F;
+            --adm-gold: #E0B84A;
+            --adm-gold-dim: #33280F;
+            --adm-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+            --adm-shadow-sm: 0 3px 10px rgba(0, 0, 0, .3);
+        }
+
+        /* 2. Banner text (the shared h1 / p / small rules would otherwise grey it) */
+        html.rq-dark .adm-wrap .adm-banner-text h1 { color: #fff !important; }
+        html.rq-dark .adm-wrap .adm-banner-text h1 span { color: #E9FFFB !important; }
+        html.rq-dark .adm-wrap .adm-banner-text p { color: rgba(255, 255, 255, .85) !important; }
+        html.rq-dark .adm-wrap .adm-clock small { color: #DFF9F8 !important; }
+
+        /* 3. Panel tag + panel footer link (the shared catch-all restyles anything named "panel") */
+        html.rq-dark .adm-wrap .adm-panel .adm-panel-head .adm-panel-tag {
+            background-color: var(--adm-teal-dim) !important;
+            color: var(--adm-teal-deep) !important;
+            box-shadow: none !important;
+            border-color: transparent !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-split .adm-panel a.adm-panel-foot {
+            background-color: transparent !important;
+            color: var(--adm-teal-deep) !important;
+            box-shadow: none !important;
+        }
+
+        /* 4. Text colours that the shared "color: inherit" rule would flatten */
+        html.rq-dark .adm-wrap .adm-section-head p,
+        html.rq-dark .adm-wrap .adm-status-list li,
+        html.rq-dark .adm-wrap .adm-action p,
+        html.rq-dark .adm-wrap .adm-empty-state p,
+        html.rq-dark .adm-wrap .adm-feed-text span,
+        html.rq-dark .adm-wrap .adm-chart-cap,
+        html.rq-dark .adm-wrap .adm-activity-hint span,
+        html.rq-dark .adm-wrap .adm-rank-label span,
+        html.rq-dark .adm-wrap .adm-noresult,
+        html.rq-dark .adm-wrap .adm-check a.is-done span:last-child {
+            color: var(--adm-ink-soft) !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-stat small,
+        html.rq-dark .adm-wrap .adm-glance-card small,
+        html.rq-dark .adm-wrap .adm-kpi small,
+        html.rq-dark .adm-wrap .adm-feed-text small,
+        html.rq-dark .adm-wrap .adm-mix-head small,
+        html.rq-dark .adm-wrap .adm-heat-legend span,
+        html.rq-dark .adm-wrap .adm-footer-content span {
+            color: var(--adm-ink-faint) !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-footer-content .adm-footer-divider {
+            color: var(--adm-line-strong) !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-mix-head span {
+            color: var(--adm-ink) !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-action .adm-action-go {
+            color: var(--adm-teal) !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-health-ring span {
+            color: var(--adm-teal-deep) !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-health.is-warn .adm-health-ring span {
+            color: var(--adm-orange) !important;
+        }
+
+        /* trend badge */
+        html.rq-dark .adm-wrap .adm-chart-row .adm-trend {
+            background: var(--adm-line);
+            color: var(--adm-ink-soft) !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-chart-row .adm-trend.is-up {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep) !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-chart-row .adm-trend.is-down {
+            background: var(--adm-blue-dim);
+            color: var(--adm-blue) !important;
+        }
+
+        /* setup checklist marks */
+        html.rq-dark .adm-wrap .adm-check a .adm-check-mark {
+            color: var(--adm-teal) !important;
+        }
+
+        html.rq-dark .adm-wrap .adm-check a.is-done .adm-check-mark {
+            background: #0F7F74;
+            border-color: #0F7F74;
+            color: #fff !important;
+        }
+
+        /* 5. Filter chips + range toggle: solid teal with white text is too bright in dark mode */
+        html.rq-dark .adm-wrap .adm-panel .adm-chips .adm-chip {
+            border-color: var(--adm-line);
+        }
+
+        html.rq-dark .adm-wrap .adm-panel .adm-chips .adm-chip.is-active {
+            background: #0F7F74;
+            border-color: #0F7F74;
+            color: #fff;
+        }
+
+        html.rq-dark .adm-wrap .adm-panel .adm-range .adm-range-btn.is-active {
+            background: #0F7F74;
+            color: #fff;
+        }
+
+        html.rq-dark .adm-wrap .adm-panel .adm-range .adm-range-btn:hover {
+            background: rgba(44, 196, 186, .16);
+        }
+
+        /* 6. Search box */
+        html.rq-dark .adm-wrap .adm-search input {
+            background-color: var(--adm-raised);
+            color: var(--adm-ink);
+            border-color: var(--adm-line-strong);
+        }
+
+        html.rq-dark .adm-wrap .adm-search input:focus {
+            outline: none;
+            border-color: var(--adm-teal);
+            box-shadow: 0 0 0 3px rgba(44, 196, 186, .18);
+        }
+
+        /* 7. Heat strip: light teals become dark teals */
+        html.rq-dark .adm-wrap .adm-heat-cell.l1 { background: #1B4B45; }
+        html.rq-dark .adm-wrap .adm-heat-cell.l2 { background: #1F6F67; }
+        html.rq-dark .adm-wrap .adm-heat-cell.l3 { background: #2CA89C; }
+        html.rq-dark .adm-wrap .adm-heat-cell.l4 { background: #5ED0C4; }
+
+        /* 8. Chart tooltip + the "no changes yet" hint */
+        html.rq-dark .adm-wrap .adm-svgchart .adm-svgtip {
+            background: #E8EEEB;
+            color: #0E1412;
+        }
+
+        html.rq-dark .adm-wrap .adm-activity-canvas .adm-activity-hint {
+            background: rgba(23, 32, 25, .92);
+        }
+
+        /* 9. Hover shade used elsewhere in the app for table rows / list items */
+        html.rq-dark .adm-wrap .adm-check a:hover {
+            background: #1B2620;
+        }
     </style>
+
 }
 
 
@@ -1738,10 +1960,17 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
     
     else if (User.IsInRole("Patient"))
     {
-   @* ===================================================================
-   PATIENT DASHBOARD (UPGRADED)
-   Replace everything INSIDE   else if (User.IsInRole("Patient")) { ... }
-   (keep the braces of the else-if, replace only what is between them)
+        @* ===================================================================
+   PATIENT DASHBOARD (with dark mode)
+   In Views/Home/Index.cshtml (or wherever this view lives), replace everything
+   BETWEEN the braces of:
+
+       else if (User.IsInRole("Patient"))
+       {
+           ... replace this part ...
+       }
+
+   Keep the braces and the `else if (User.IsInRole("Lab_Technician"))` that follows.
    =================================================================== *@
 
         // ---------- server-side helpers + data (plain C#, no markup yet) ----------
@@ -1752,83 +1981,83 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
         const bool reportPageReady = true;     // Patient/DownloadResultsPdf (already exists)
 
         var profile = Model.PatientProfile;
-          var fullName = $"{profile.Name} {profile.Surname}".Trim();
-  var recent = Model.PatientRecentRequests != null ? Model.PatientRecentRequests.Take(5).ToList() : null;
-  int totalReq = Model.PatientTotalRequests;
-  int otherReq = Math.Max(0, totalReq - Model.PatientPendingRequests - Model.PatientInProgressRequests - Model.PatientResultsReady);
+        var fullName = $"{profile.Name} {profile.Surname}".Trim();
+        var recent = Model.PatientRecentRequests != null ? Model.PatientRecentRequests.Take(5).ToList() : null;
+        int totalReq = Model.PatientTotalRequests;
+        int otherReq = Math.Max(0, totalReq - Model.PatientPendingRequests - Model.PatientInProgressRequests - Model.PatientResultsReady);
 
-  // StatusKey is still used for URGENCY (stat / urgent / routine).
-  string StatusKey(string css) => (css ?? "").Trim().ToLowerInvariant();
+        // StatusKey is still used for URGENCY (stat / urgent / routine).
+        string StatusKey(string css) => (css ?? "").Trim().ToLowerInvariant();
 
-  // The request STAGE always comes from the status text, using the one shared rule
-  // (same rule as Patient/RequestDetails), never from the CSS class.
-  string StageKey(string status) => LabDash.Helper.RequestStage.KeyOf(status);
+        // The request STAGE always comes from the status text, using the one shared rule
+        // (same rule as Patient/RequestDetails), never from the CSS class.
+        string StageKey(string status) => LabDash.Helper.RequestStage.KeyOf(status);
 
-  int StepOf(string key) => key switch { "submitted" => 1, "inprogress" => 2, "completed" => 3, "released" => 4, "cancelled" => 0, _ => 1 };
-  int Pct(int v) => totalReq == 0 ? 0 : (int)Math.Round(v * 100.0 / totalReq);
-  string TimeInSystem(DateTime d)
-  {
-      var span = DateTime.Now - d;
-      if (span.TotalMinutes < 1) return "Just now";
-      if (span.TotalHours < 1) return $"{(int)span.TotalMinutes} min";
-      if (span.TotalDays < 1) return $"{(int)span.TotalHours} h";
-      var days = (int)span.TotalDays;
-      return days == 1 ? "1 day" : $"{days} days";
-  }
-  string UrgencyText(string css) => StatusKey(css) switch
-  {
-      "stat" => "STAT means the laboratory treats this as an emergency and processes it before everything else.",
-      "urgent" => "Urgent requests are processed ahead of routine work, usually within the same day.",
-      _ => "Routine requests are processed in the normal order the laboratory receives them."
-  };
-  string NextText(string key) => key switch
-  {
-      "submitted" => "The laboratory will receive your sample and a technician will pick up the test.",
-      "inprogress" => "A technician is analysing your sample. Results are verified before they are released.",
-      "completed" => "Testing is complete. Your results are being checked and will be released shortly.",
-      "released" => "Your results are released. You can view them or download the report.",
-      "cancelled" => "This request was cancelled, so no further results will be added.",
-      _ => "Open the request for the latest status."
-  };
-  int StatusCount(string key) => recent == null ? 0 : recent.Count(r => StageKey(r.Status) == key);
-  int UrgencyCount(string key) => recent == null ? 0 : recent.Count(r => StatusKey(r.UrgencyCssClass) == key);
+        int StepOf(string key) => key switch { "submitted" => 1, "inprogress" => 2, "completed" => 3, "released" => 4, "cancelled" => 0, _ => 1 };
+        int Pct(int v) => totalReq == 0 ? 0 : (int)Math.Round(v * 100.0 / totalReq);
+        string TimeInSystem(DateTime d)
+        {
+            var span = DateTime.Now - d;
+            if (span.TotalMinutes < 1) return "Just now";
+            if (span.TotalHours < 1) return $"{(int)span.TotalMinutes} min";
+            if (span.TotalDays < 1) return $"{(int)span.TotalHours} h";
+            var days = (int)span.TotalDays;
+            return days == 1 ? "1 day" : $"{days} days";
+        }
+        string UrgencyText(string css) => StatusKey(css) switch
+        {
+            "stat" => "STAT means the laboratory treats this as an emergency and processes it before everything else.",
+            "urgent" => "Urgent requests are processed ahead of routine work, usually within the same day.",
+            _ => "Routine requests are processed in the normal order the laboratory receives them."
+        };
+        string NextText(string key) => key switch
+        {
+            "submitted" => "The laboratory will receive your sample and a technician will pick up the test.",
+            "inprogress" => "A technician is analysing your sample. Results are verified before they are released.",
+            "completed" => "Testing is complete. Your results are being checked and will be released shortly.",
+            "released" => "Your results are released. You can view them or download the report.",
+            "cancelled" => "This request was cancelled, so no further results will be added.",
+            _ => "Open the request for the latest status."
+        };
+        int StatusCount(string key) => recent == null ? 0 : recent.Count(r => StageKey(r.Status) == key);
+        int UrgencyCount(string key) => recent == null ? 0 : recent.Count(r => StatusKey(r.UrgencyCssClass) == key);
 
-  var missing = new List<string>();
-  if (string.IsNullOrWhiteSpace(profile.Name)) missing.Add("Name");
-  if (string.IsNullOrWhiteSpace(profile.Surname)) missing.Add("Surname");
-  if (string.IsNullOrWhiteSpace(profile.IDNumber?.ToString())) missing.Add("ID number");
-  if (string.IsNullOrWhiteSpace(profile.Cellphone?.ToString())) missing.Add("Contact number");
-  if (string.IsNullOrWhiteSpace(profile.Email?.ToString())) missing.Add("Email");
-  int completePct = (int)Math.Round((5 - missing.Count) * 100.0 / 5);
-  bool hasContact = !missing.Contains("Contact number");
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(profile.Name)) missing.Add("Name");
+        if (string.IsNullOrWhiteSpace(profile.Surname)) missing.Add("Surname");
+        if (string.IsNullOrWhiteSpace(profile.IDNumber?.ToString())) missing.Add("ID number");
+        if (string.IsNullOrWhiteSpace(profile.Cellphone?.ToString())) missing.Add("Contact number");
+        if (string.IsNullOrWhiteSpace(profile.Email?.ToString())) missing.Add("Email");
+        int completePct = (int)Math.Round((5 - missing.Count) * 100.0 / 5);
+        bool hasContact = !missing.Contains("Contact number");
 
-  var dataJson = System.Text.Json.JsonSerializer.Serialize(new
-  {
-      abnormal = Model.PatientAbnormalCount,
-      ready = Model.PatientResultsReady,
-      inprogress = Model.PatientInProgressRequests,
-      total = totalReq,
-      chart = new[] { Model.PatientPendingRequests, Model.PatientInProgressRequests, Model.PatientResultsReady, otherReq },
-      abnormalUrl = Url.Action("Results", "Patient", new { abnormal = true }),
-      readyUrl = Url.Action("Requests", "Patient", new { status = "ready" }),
-      progressUrl = Url.Action("Requests", "Patient", new { status = "inprogress" }),
-      requests = recent == null
-          ? new List<object>()
-          : recent.Take(3).Select(r => (object)new
-          {
-              id = r.RequestID.ToString(),
-              key = StageKey(r.Status),
-              status = r.Status,
-              date = r.RequestDate.ToString("dd MMM yyyy"),
-              url = Url.Action("RequestDetails", "Patient", new { id = r.RequestID })
-          }).ToList()
-  });
+        var dataJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            abnormal = Model.PatientAbnormalCount,
+            ready = Model.PatientResultsReady,
+            inprogress = Model.PatientInProgressRequests,
+            total = totalReq,
+            chart = new[] { Model.PatientPendingRequests, Model.PatientInProgressRequests, Model.PatientResultsReady, otherReq },
+            abnormalUrl = Url.Action("Results", "Patient", new { abnormal = true }),
+            readyUrl = Url.Action("Requests", "Patient", new { status = "ready" }),
+            progressUrl = Url.Action("Requests", "Patient", new { status = "inprogress" }),
+            requests = recent == null
+                ? new List<object>()
+                : recent.Take(3).Select(r => (object)new
+                {
+                    id = r.RequestID.ToString(),
+                    key = StageKey(r.Status),
+                    status = r.Status,
+                    date = r.RequestDate.ToString("dd MMM yyyy"),
+                    url = Url.Action("RequestDetails", "Patient", new { id = r.RequestID })
+                }).ToList()
+        });
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
 
-  <div class="pat-wrap" id="patWrap" data-user="@profile.IDNumber">
+        <div class="pat-wrap" id="patWrap" data-user="@profile.IDNumber">
 
             <!-- ==========================================
                  TOP BAR: BREADCRUMB + NOTIFICATION BELL
@@ -2404,11 +2633,11 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
         </aside>
 
         <script>
-            (function () {
+            (function() {
                 'use strict';
 
-                var $ = function (s, r) { return (r || document).querySelector(s); };
-                var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+                var $ = function(s, r) { return (r || document).querySelector(s); };
+                var $$ = function(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
                 var wrap = document.getElementById('patWrap');
                 var USER = (wrap && wrap.dataset.user) || 'patient';
                 var READ_KEY = 'patNotifRead:' + USER;
@@ -2447,7 +2676,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 }
                 function statValues() {
                     var out = {};
-                    $$('#patStats [data-stat]').forEach(function (el) { out[el.dataset.stat] = parseInt(el.textContent, 10) || 0; });
+                    $$('#patStats [data-stat]').forEach(function(el) { out[el.dataset.stat] = parseInt(el.textContent, 10) || 0; });
                     return out;
                 }
 
@@ -2464,7 +2693,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                     return html;
                 }
                 function hydrateTrackers() {
-                    $$('.pat-track').forEach(function (t) {
+                    $$('.pat-track').forEach(function(t) {
                         if (!t.firstChild) t.innerHTML = trackerHtml(parseInt(t.dataset.step, 10) || 1);
                     });
                 }
@@ -2487,7 +2716,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 function applyFilter() {
                     var rows = $$('#patSplit tr.pat-row');
                     var any = false;
-                    rows.forEach(function (r) {
+                    rows.forEach(function(r) {
                         var show = activeFilter === 'all' || r.dataset.status === activeFilter;
                         r.classList.toggle('pat-hide', !show);
                         var det = detailOf(r);
@@ -2496,14 +2725,14 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                     });
                     var empty = document.getElementById('patFilterEmpty');
                     if (empty) empty.hidden = any || !rows.length;
-                    $$('.pat-chip').forEach(function (c) {
+                    $$('.pat-chip').forEach(function(c) {
                         var on = c.dataset.filter === activeFilter;
                         c.classList.toggle('is-active', on);
                         c.setAttribute('aria-pressed', on ? 'true' : 'false');
                     });
                 }
                 function restoreExpanded() {
-                    $$('#patSplit tr.pat-row').forEach(function (r) { if (expanded[r.dataset.id]) setRow(r, true); });
+                    $$('#patSplit tr.pat-row').forEach(function(r) { if (expanded[r.dataset.id]) setRow(r, true); });
                 }
 
                 /* ---------- Drawer ---------- */
@@ -2540,7 +2769,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                     hydrateTrackers();
                     drawerTrigger = trigger || null;
                     overlay.hidden = false;
-                    requestAnimationFrame(function () {
+                    requestAnimationFrame(function() {
                         drawer.classList.add('is-open');
                         overlay.classList.add('is-open');
                     });
@@ -2552,13 +2781,13 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                     drawer.classList.remove('is-open');
                     overlay.classList.remove('is-open');
                     drawer.setAttribute('aria-hidden', 'true');
-                    setTimeout(function () { overlay.hidden = true; }, reduceMotion ? 0 : 250);
+                    setTimeout(function() { overlay.hidden = true; }, reduceMotion ? 0 : 250);
                     if (drawerTrigger && drawerTrigger.focus) drawerTrigger.focus();
                 }
                 function copyText(text, btn) {
                     function done() {
                         var s = btn.querySelector('span');
-                        if (s) { s.textContent = 'Copied'; setTimeout(function () { s.textContent = 'Copy No.'; }, 1500); }
+                        if (s) { s.textContent = 'Copied'; setTimeout(function() { s.textContent = 'Copy No.'; }, 1500); }
                     }
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         navigator.clipboard.writeText(text).then(done, done);
@@ -2585,18 +2814,18 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                     if (d.abnormal > 0) n.push({ id: 'abn-' + d.abnormal, type: 'warn', icon: 'fa-triangle-exclamation', title: d.abnormal + (d.abnormal === 1 ? ' result is' : ' results are') + ' outside the normal range', text: 'Please review with your doctor.', href: d.abnormalUrl });
                     if (d.ready > 0) n.push({ id: 'ready-' + d.ready, type: 'ok', icon: 'fa-circle-check', title: d.ready + (d.ready === 1 ? ' result is' : ' results are') + ' ready', text: 'Verified reports are available to view.', href: d.readyUrl });
                     if (d.inprogress > 0) n.push({ id: 'prog-' + d.inprogress, type: 'info', icon: 'fa-flask', title: d.inprogress + (d.inprogress === 1 ? ' sample is' : ' samples are') + ' in progress', text: 'The laboratory is analysing them now.', href: d.progressUrl });
-                    (d.requests || []).forEach(function (r) {
+                    (d.requests || []).forEach(function(r) {
                         n.push({ id: 'req-' + r.id + '-' + r.key, type: 'req', icon: 'fa-file-waveform', title: 'Request #' + r.id, text: r.status + ' \u00B7 ' + r.date, href: r.url });
                     });
                     return n;
                 }
                 function unreadList() {
                     var read = getList(localStorage, READ_KEY);
-                    return notifs.filter(function (n) { return read.indexOf(n.id) === -1; });
+                    return notifs.filter(function(n) { return read.indexOf(n.id) === -1; });
                 }
                 function markRead(ids) {
                     var read = getList(localStorage, READ_KEY);
-                    ids.forEach(function (id) { if (read.indexOf(id) === -1) read.push(id); });
+                    ids.forEach(function(id) { if (read.indexOf(id) === -1) read.push(id); });
                     setList(localStorage, READ_KEY, read.slice(-200));
                 }
                 function renderBell() {
@@ -2614,7 +2843,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                         list.innerHTML = '<div class="pat-mini-empty"><i class="fa-regular fa-bell-slash"></i><span>You have no notifications.</span></div>';
                         return;
                     }
-                    list.innerHTML = notifs.map(function (n) {
+                    list.innerHTML = notifs.map(function(n) {
                         var isRead = read.indexOf(n.id) !== -1;
                         return '<a class="pat-nitem n-' + n.type + (isRead ? ' is-read' : '') + '" href="' + esc(n.href) + '" data-nid="' + esc(n.id) + '">'
                             + '<span class="pat-nicon"><i class="fa-solid ' + n.icon + '"></i></span>'
@@ -2631,13 +2860,13 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 /* ---------- Toasts (once per browser session) ---------- */
                 function showToasts() {
                     var shown = getList(sessionStorage, TOAST_KEY);
-                    var fresh = unreadList().filter(function (n) { return shown.indexOf(n.id) === -1; }).slice(0, 3);
+                    var fresh = unreadList().filter(function(n) { return shown.indexOf(n.id) === -1; }).slice(0, 3);
                     if (!fresh.length) return;
-                    fresh.forEach(function (n) { shown.push(n.id); });
+                    fresh.forEach(function(n) { shown.push(n.id); });
                     setList(sessionStorage, TOAST_KEY, shown.slice(-200));
                     var box = document.getElementById('patToasts');
-                    fresh.forEach(function (n, i) {
-                        setTimeout(function () {
+                    fresh.forEach(function(n, i) {
+                        setTimeout(function() {
                             var t = document.createElement('a');
                             t.className = 'pat-toast n-' + n.type;
                             t.href = n.href;
@@ -2647,7 +2876,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                                 + '<span class="pat-toast-bar"></span>';
                             var timer = setTimeout(remove, 8000);
                             function remove() { clearTimeout(timer); if (t.parentNode) t.parentNode.removeChild(t); }
-                            t.addEventListener('click', function (e) {
+                            t.addEventListener('click', function(e) {
                                 if (e.target.closest('.pat-toast-x')) { e.preventDefault(); remove(); return; }
                                 markRead([n.id]); renderBell();
                             });
@@ -2714,11 +2943,11 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                         if (!doc.getElementById('patStats')) throw new Error('Not the dashboard (session expired?)');
 
                         var before = statValues();
-                        SWAP_IDS.forEach(function (id) {
+                        SWAP_IDS.forEach(function(id) {
                             var cur = document.getElementById(id), next = doc.getElementById(id);
                             if (cur && next) cur.innerHTML = next.innerHTML;
                         });
-                        $$('#patStats [data-stat]').forEach(function (el) {
+                        $$('#patStats [data-stat]').forEach(function(el) {
                             countUp(el, before[el.dataset.stat] || 0, parseInt(el.textContent, 10) || 0);
                         });
                         hydrate();
@@ -2732,11 +2961,11 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                     }
                 }
                 btn.addEventListener('click', refresh);
-                setInterval(function () { if (!document.hidden) refresh(); }, REFRESH_MS);
-                document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+                setInterval(function() { if (!document.hidden) refresh(); }, REFRESH_MS);
+                document.addEventListener('visibilitychange', function() { if (!document.hidden) refresh(); });
 
                 /* ---------- Click handling (delegated, survives refresh) ---------- */
-                document.addEventListener('click', function (e) {
+                document.addEventListener('click', function(e) {
                     var chip = e.target.closest('.pat-chip');
                     if (chip) { activeFilter = chip.dataset.filter; applyFilter(); return; }
 
@@ -2757,14 +2986,14 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                     if (!e.target.closest('#patBellWrap')) setPanel(false);
                 });
 
-                bell.addEventListener('click', function () { setPanel(panel.hidden); });
-                document.getElementById('patMarkAll').addEventListener('click', function () {
-                    markRead(notifs.map(function (n) { return n.id; }));
+                bell.addEventListener('click', function() { setPanel(panel.hidden); });
+                document.getElementById('patMarkAll').addEventListener('click', function() {
+                    markRead(notifs.map(function(n) { return n.id; }));
                     renderBell();
                 });
 
                 /* ---------- Keyboard ---------- */
-                document.addEventListener('keydown', function (e) {
+                document.addEventListener('keydown', function(e) {
                     if (e.key === 'Escape') {
                         closeDrawer();
                         if (!panel.hidden) { setPanel(false); bell.focus(); }
@@ -2792,12 +3021,12 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 }
                 window.addEventListener('scroll', onScroll, { passive: true, capture: true });
                 window.addEventListener('resize', onScroll);
-                backTop.addEventListener('click', function () {
+                backTop.addEventListener('click', function() {
                     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
                 });
 
                 /* ---------- Initial load ---------- */
-                $$('#patStats [data-stat]').forEach(function (el) {
+                $$('#patStats [data-stat]').forEach(function(el) {
                     countUp(el, 0, parseInt(el.textContent, 10) || 0);
                 });
                 hydrate();
@@ -2806,7 +3035,7 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 window.addEventListener('load', renderChart);
             })();
         </script>
-       
+
 
         <style>
             :root {
@@ -2832,352 +3061,2322 @@ var lastChange = (Model.RecentChanges != null && Model.RecentChanges.Count > 0)
                 --sh-sm: 0 3px 10px rgba(10,60,55,.06)
             }
 
-            .pat-wrap { position: relative; max-width: 1280px; margin: 0 auto; padding: 26px 24px 60px; color: var(--ink); font-family: 'Inter',sans-serif; animation: patFadeIn .5s ease }
-            .pat-hide { display: none !important }
+            .pat-wrap {
+                position: relative;
+                max-width: 1280px;
+                margin: 0 auto;
+                padding: 26px 24px 60px;
+                color: var(--ink);
+                font-family: 'Inter',sans-serif;
+                animation: patFadeIn .5s ease
+            }
 
-            @@keyframes patFadeIn { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: translateY(0) } }
-            @@keyframes patSpin { to { transform: rotate(360deg) } }
-            @@keyframes patRingPulse { 0% { transform: scale(.9); opacity: .8 } 100% { transform: scale(1.35); opacity: 0 } }
-            @@keyframes patBell { 0%,40%,100% { transform: rotate(0) } 6% { transform: rotate(16deg) } 12% { transform: rotate(-14deg) } 18% { transform: rotate(10deg) } 24% { transform: rotate(-8deg) } 30% { transform: rotate(4deg) } }
-            @@keyframes patToastIn { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: translateX(0) } }
-            @@keyframes patToastBar { from { transform: scaleX(1) } to { transform: scaleX(0) } }
+            .pat-hide {
+                display: none !important
+            }
+
+            @@keyframes patFadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(12px)
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0)
+                }
+            }
+
+            @@keyframes patSpin {
+                to {
+                    transform: rotate(360deg)
+                }
+            }
+
+            @@keyframes patRingPulse {
+                0% {
+                    transform: scale(.9);
+                    opacity: .8
+                }
+
+                100% {
+                    transform: scale(1.35);
+                    opacity: 0
+                }
+            }
+
+            @@keyframes patBell {
+                0%, 40%, 100% {
+                    transform: rotate(0)
+                }
+
+                6% {
+                    transform: rotate(16deg)
+                }
+
+                12% {
+                    transform: rotate(-14deg)
+                }
+
+                18% {
+                    transform: rotate(10deg)
+                }
+
+                24% {
+                    transform: rotate(-8deg)
+                }
+
+                30% {
+                    transform: rotate(4deg)
+                }
+            }
+
+            @@keyframes patToastIn {
+                from {
+                    opacity: 0;
+                    transform: translateX(24px)
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateX(0)
+                }
+            }
+
+            @@keyframes patToastBar {
+                from {
+                    transform: scaleX(1)
+                }
+
+                to {
+                    transform: scaleX(0)
+                }
+            }
 
             /* ---------- top bar + bell ---------- */
-            .pat-topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; min-height: 46px }
-            .pat-crumb { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-s) }
-            .pat-crumb i { font-size: 10px; color: #8FA9A3 }
-            .pat-crumb strong { color: var(--ink); font-weight: 600 }
-            .pat-bell-slot { position: relative; width: 46px; height: 46px; flex-shrink: 0 }
-            .pat-bell-wrap { position: absolute; top: 0; right: 0 }
-            .pat-bell-wrap.is-float { position: fixed; top: 16px; right: 22px; z-index: 1050 }
-            .pat-bell { position: relative; width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--ln); background: var(--bg); color: var(--pt-deep); font-size: 17px; box-shadow: var(--sh-sm); cursor: pointer; transition: background .2s }
-            .pat-bell:hover { background: var(--pt-dim) }
-            .pat-bell.is-ringing i { display: inline-block; transform-origin: 50% 0; animation: patBell 2.4s ease-in-out infinite }
-            .pat-bell-badge { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--rd); color: #fff; font: 700 11px/20px 'Inter',sans-serif; text-align: center; border: 2px solid #fff }
-            .pat-bell-badge[hidden] { display: none }
-            .pat-notif-panel { position: absolute; top: 56px; right: 0; width: 360px; max-width: calc(100vw - 32px); background: var(--bg); border: 1px solid var(--ln); border-radius: 16px; box-shadow: 0 14px 36px rgba(10,60,55,.18); overflow: hidden; z-index: 1051 }
-            .pat-notif-panel[hidden] { display: none }
-            .pat-notif-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--ln) }
-            .pat-notif-head span { font: 700 14px 'Poppins',sans-serif; display: flex; align-items: center; gap: 8px }
-            .pat-notif-head span i { color: var(--pt) }
-            .pat-notif-markall { border: 0; background: none; color: var(--pt-deep); font: 600 12.5px 'Inter',sans-serif; cursor: pointer }
-            .pat-notif-markall:hover { text-decoration: underline }
-            .pat-notif-list { max-height: 380px; overflow-y: auto }
-            .pat-nitem, .pat-toast { display: flex; align-items: flex-start; gap: 12px; padding: 13px 18px; color: inherit; text-decoration: none; border-bottom: 1px solid var(--ln); position: relative }
-            .pat-nitem:last-child { border-bottom: 0 }
-            .pat-nitem:hover { background: #F0F7F6; text-decoration: none; color: inherit }
-            .pat-nitem.is-read { opacity: .62 }
-            .pat-nicon { width: 36px; height: 36px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px }
-            .n-warn .pat-nicon { background: var(--or-dim); color: var(--or) }
-            .n-ok .pat-nicon { background: var(--pt-dim); color: var(--pt) }
-            .n-info .pat-nicon { background: var(--bl-dim); color: var(--bl) }
-            .n-req .pat-nicon { background: var(--pr-dim); color: var(--pr) }
-            .pat-ntext { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px }
-            .pat-ntext strong { font-size: 13px; font-weight: 600 }
-            .pat-ntext small { color: var(--ink-s); font-size: 12px }
-            .pat-ndot { width: 9px; height: 9px; border-radius: 50%; background: var(--pt); margin: 6px 0 0 auto; flex-shrink: 0 }
+            .pat-topbar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 18px;
+                min-height: 46px
+            }
+
+            .pat-crumb {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 13px;
+                color: var(--ink-s)
+            }
+
+                .pat-crumb i {
+                    font-size: 10px;
+                    color: #8FA9A3
+                }
+
+                .pat-crumb strong {
+                    color: var(--ink);
+                    font-weight: 600
+                }
+
+            .pat-bell-slot {
+                position: relative;
+                width: 46px;
+                height: 46px;
+                flex-shrink: 0
+            }
+
+            .pat-bell-wrap {
+                position: absolute;
+                top: 0;
+                right: 0
+            }
+
+                .pat-bell-wrap.is-float {
+                    position: fixed;
+                    top: 16px;
+                    right: 22px;
+                    z-index: 1050
+                }
+
+            .pat-bell {
+                position: relative;
+                width: 46px;
+                height: 46px;
+                border-radius: 50%;
+                border: 1px solid var(--ln);
+                background: var(--bg);
+                color: var(--pt-deep);
+                font-size: 17px;
+                box-shadow: var(--sh-sm);
+                cursor: pointer;
+                transition: background .2s
+            }
+
+                .pat-bell:hover {
+                    background: var(--pt-dim)
+                }
+
+                .pat-bell.is-ringing i {
+                    display: inline-block;
+                    transform-origin: 50% 0;
+                    animation: patBell 2.4s ease-in-out infinite
+                }
+
+            .pat-bell-badge {
+                position: absolute;
+                top: -4px;
+                right: -4px;
+                min-width: 20px;
+                height: 20px;
+                padding: 0 5px;
+                border-radius: 999px;
+                background: var(--rd);
+                color: #fff;
+                font: 700 11px/20px 'Inter',sans-serif;
+                text-align: center;
+                border: 2px solid #fff
+            }
+
+                .pat-bell-badge[hidden] {
+                    display: none
+                }
+
+            .pat-notif-panel {
+                position: absolute;
+                top: 56px;
+                right: 0;
+                width: 360px;
+                max-width: calc(100vw - 32px);
+                background: var(--bg);
+                border: 1px solid var(--ln);
+                border-radius: 16px;
+                box-shadow: 0 14px 36px rgba(10,60,55,.18);
+                overflow: hidden;
+                z-index: 1051
+            }
+
+                .pat-notif-panel[hidden] {
+                    display: none
+                }
+
+            .pat-notif-head {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 14px 18px;
+                border-bottom: 1px solid var(--ln)
+            }
+
+                .pat-notif-head span {
+                    font: 700 14px 'Poppins',sans-serif;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px
+                }
+
+                    .pat-notif-head span i {
+                        color: var(--pt)
+                    }
+
+            .pat-notif-markall {
+                border: 0;
+                background: none;
+                color: var(--pt-deep);
+                font: 600 12.5px 'Inter',sans-serif;
+                cursor: pointer
+            }
+
+                .pat-notif-markall:hover {
+                    text-decoration: underline
+                }
+
+            .pat-notif-list {
+                max-height: 380px;
+                overflow-y: auto
+            }
+
+            .pat-nitem, .pat-toast {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                padding: 13px 18px;
+                color: inherit;
+                text-decoration: none;
+                border-bottom: 1px solid var(--ln);
+                position: relative
+            }
+
+                .pat-nitem:last-child {
+                    border-bottom: 0
+                }
+
+                .pat-nitem:hover {
+                    background: #F0F7F6;
+                    text-decoration: none;
+                    color: inherit
+                }
+
+                .pat-nitem.is-read {
+                    opacity: .62
+                }
+
+            .pat-nicon {
+                width: 36px;
+                height: 36px;
+                border-radius: 11px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                font-size: 15px
+            }
+
+            .n-warn .pat-nicon {
+                background: var(--or-dim);
+                color: var(--or)
+            }
+
+            .n-ok .pat-nicon {
+                background: var(--pt-dim);
+                color: var(--pt)
+            }
+
+            .n-info .pat-nicon {
+                background: var(--bl-dim);
+                color: var(--bl)
+            }
+
+            .n-req .pat-nicon {
+                background: var(--pr-dim);
+                color: var(--pr)
+            }
+
+            .pat-ntext {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                min-width: 0;
+                font-size: 13px
+            }
+
+                .pat-ntext strong {
+                    font-size: 13px;
+                    font-weight: 600
+                }
+
+                .pat-ntext small {
+                    color: var(--ink-s);
+                    font-size: 12px
+                }
+
+            .pat-ndot {
+                width: 9px;
+                height: 9px;
+                border-radius: 50%;
+                background: var(--pt);
+                margin: 6px 0 0 auto;
+                flex-shrink: 0
+            }
 
             /* ---------- toasts ---------- */
-            .pat-toasts { position: fixed; top: 82px; right: 22px; z-index: 1060; display: flex; flex-direction: column; gap: 10px; width: 330px; max-width: calc(100vw - 32px) }
-            .pat-toast { background: var(--bg); border: 1px solid var(--ln); border-left: 4px solid var(--pt); border-radius: 14px; box-shadow: 0 12px 30px rgba(10,60,55,.18); overflow: hidden; padding-right: 40px; animation: patToastIn .3s ease }
-            .pat-toast:hover { text-decoration: none; color: inherit }
-            .pat-toast.n-warn { border-left-color: var(--or) }
-            .pat-toast.n-info { border-left-color: var(--bl) }
-            .pat-toast.n-req { border-left-color: var(--pr) }
-            .pat-toast-x { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-s); cursor: pointer }
-            .pat-toast-x:hover { background: var(--pt-dim) }
-            .pat-toast-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--pt); transform-origin: left; animation: patToastBar 8s linear forwards }
-            .pat-toast.n-warn .pat-toast-bar { background: var(--or) }
-            .pat-toast.n-info .pat-toast-bar { background: var(--bl) }
-            .pat-toast.n-req .pat-toast-bar { background: var(--pr) }
+            .pat-toasts {
+                position: fixed;
+                top: 82px;
+                right: 22px;
+                z-index: 1060;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                width: 330px;
+                max-width: calc(100vw - 32px)
+            }
+
+            .pat-toast {
+                background: var(--bg);
+                border: 1px solid var(--ln);
+                border-left: 4px solid var(--pt);
+                border-radius: 14px;
+                box-shadow: 0 12px 30px rgba(10,60,55,.18);
+                overflow: hidden;
+                padding-right: 40px;
+                animation: patToastIn .3s ease
+            }
+
+                .pat-toast:hover {
+                    text-decoration: none;
+                    color: inherit
+                }
+
+                .pat-toast.n-warn {
+                    border-left-color: var(--or)
+                }
+
+                .pat-toast.n-info {
+                    border-left-color: var(--bl)
+                }
+
+                .pat-toast.n-req {
+                    border-left-color: var(--pr)
+                }
+
+            .pat-toast-x {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                width: 26px;
+                height: 26px;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
+                color: var(--ink-s);
+                cursor: pointer
+            }
+
+                .pat-toast-x:hover {
+                    background: var(--pt-dim)
+                }
+
+            .pat-toast-bar {
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                height: 3px;
+                background: var(--pt);
+                transform-origin: left;
+                animation: patToastBar 8s linear forwards
+            }
+
+            .pat-toast.n-warn .pat-toast-bar {
+                background: var(--or)
+            }
+
+            .pat-toast.n-info .pat-toast-bar {
+                background: var(--bl)
+            }
+
+            .pat-toast.n-req .pat-toast-bar {
+                background: var(--pr)
+            }
 
             /* ---------- page-wide extras ---------- */
-            .pat-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: linear-gradient(90deg,#12A392,#0A4F48); z-index: 1200; transition: width .1s linear }
-            .pat-backtop { position: fixed; right: 24px; bottom: 24px; width: 46px; height: 46px; border: 0; border-radius: 50%; background: var(--pt); color: #fff; font-size: 16px; cursor: pointer; box-shadow: 0 8px 20px rgba(10,90,80,.3); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .2s, transform .2s, background .2s; z-index: 1040 }
-            .pat-backtop.is-show { opacity: 1; transform: translateY(0); pointer-events: auto }
-            .pat-backtop:hover { background: var(--pt-deep) }
+            .pat-progress {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 3px;
+                width: 0;
+                background: linear-gradient(90deg,#12A392,#0A4F48);
+                z-index: 1200;
+                transition: width .1s linear
+            }
+
+            .pat-backtop {
+                position: fixed;
+                right: 24px;
+                bottom: 24px;
+                width: 46px;
+                height: 46px;
+                border: 0;
+                border-radius: 50%;
+                background: var(--pt);
+                color: #fff;
+                font-size: 16px;
+                cursor: pointer;
+                box-shadow: 0 8px 20px rgba(10,90,80,.3);
+                opacity: 0;
+                transform: translateY(12px);
+                pointer-events: none;
+                transition: opacity .2s, transform .2s, background .2s;
+                z-index: 1040
+            }
+
+                .pat-backtop.is-show {
+                    opacity: 1;
+                    transform: translateY(0);
+                    pointer-events: auto
+                }
+
+                .pat-backtop:hover {
+                    background: var(--pt-deep)
+                }
 
             /* ---------- drawer ---------- */
-            .pat-overlay { position: fixed; inset: 0; background: rgba(16,44,39,.45); opacity: 0; transition: opacity .25s; z-index: 1100 }
-            .pat-overlay.is-open { opacity: 1 }
-            .pat-overlay[hidden] { display: none }
-            .pat-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 100vw; background: var(--bg); box-shadow: -12px 0 40px rgba(10,60,55,.2); transform: translateX(100%); transition: transform .3s ease; z-index: 1110; display: flex; flex-direction: column; font-family: 'Inter',sans-serif; color: var(--ink) }
-            .pat-drawer.is-open { transform: translateX(0) }
-            .pat-drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--ln) }
-            .pat-drawer-head h4 { margin: 0; font: 700 18px 'Poppins',sans-serif }
-            .pat-drawer-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--pt-dim); color: var(--pt-deep); cursor: pointer }
-            .pat-drawer-close:hover { background: var(--pt); color: #fff }
-            .pat-drawer-body { padding: 24px; overflow-y: auto; flex: 1 }
-            .pat-dl { margin: 22px 0 0; display: flex; flex-direction: column }
-            .pat-dl > div { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--ln); font-size: 13.5px }
-            .pat-dl dt { font-weight: 600; color: var(--ink-s) }
-            .pat-dl dd { margin: 0; font-weight: 600 }
-            .pat-drawer-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px }
-            .pat-drawer-actions .pat-btn { justify-content: center }
+            .pat-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(16,44,39,.45);
+                opacity: 0;
+                transition: opacity .25s;
+                z-index: 1100
+            }
+
+                .pat-overlay.is-open {
+                    opacity: 1
+                }
+
+                .pat-overlay[hidden] {
+                    display: none
+                }
+
+            .pat-drawer {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: 420px;
+                max-width: 100vw;
+                background: var(--bg);
+                box-shadow: -12px 0 40px rgba(10,60,55,.2);
+                transform: translateX(100%);
+                transition: transform .3s ease;
+                z-index: 1110;
+                display: flex;
+                flex-direction: column;
+                font-family: 'Inter',sans-serif;
+                color: var(--ink)
+            }
+
+                .pat-drawer.is-open {
+                    transform: translateX(0)
+                }
+
+            .pat-drawer-head {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 20px 24px;
+                border-bottom: 1px solid var(--ln)
+            }
+
+                .pat-drawer-head h4 {
+                    margin: 0;
+                    font: 700 18px 'Poppins',sans-serif
+                }
+
+            .pat-drawer-close {
+                width: 36px;
+                height: 36px;
+                border: 0;
+                border-radius: 50%;
+                background: var(--pt-dim);
+                color: var(--pt-deep);
+                cursor: pointer
+            }
+
+                .pat-drawer-close:hover {
+                    background: var(--pt);
+                    color: #fff
+                }
+
+            .pat-drawer-body {
+                padding: 24px;
+                overflow-y: auto;
+                flex: 1
+            }
+
+            .pat-dl {
+                margin: 22px 0 0;
+                display: flex;
+                flex-direction: column
+            }
+
+                .pat-dl > div {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 12px 0;
+                    border-bottom: 1px solid var(--ln);
+                    font-size: 13.5px
+                }
+
+                .pat-dl dt {
+                    font-weight: 600;
+                    color: var(--ink-s)
+                }
+
+                .pat-dl dd {
+                    margin: 0;
+                    font-weight: 600
+                }
+
+            .pat-drawer-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 24px
+            }
+
+                .pat-drawer-actions .pat-btn {
+                    justify-content: center
+                }
 
             /* ---------- banner ---------- */
-            .pat-banner { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 24px; background: linear-gradient(125deg,#12A392,#0A4F48); border-radius: var(--r); padding: 32px 36px; margin-bottom: 22px; box-shadow: 0 18px 40px rgba(10,90,80,.2); overflow: hidden }
-            .pat-banner-pattern { position: absolute; inset: 0; background: radial-gradient(circle at 85% 20%,rgba(255,255,255,.1) 0,transparent 45%) }
-            .pat-banner-left { display: flex; align-items: center; gap: 22px; position: relative; z-index: 1 }
-            .pat-banner-icon { position: relative; width: 76px; height: 76px; border-radius: 50%; background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.32); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 30px }
-            .pat-icon-ring { position: absolute; inset: -6px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.4); animation: patRingPulse 2.4s ease-out infinite }
-            .pat-banner-text h1 { font-family: 'Poppins',sans-serif; font-weight: 700; font-size: 26px; margin: 0 0 4px; color: #fff }
-            .pat-banner-text h1 span { color: #E9FFFB }
-            .pat-banner-text p { margin: 0 0 14px; color: rgba(255,255,255,.85); font-size: 14.5px }
-            .pat-pills { display: flex; gap: 10px; flex-wrap: wrap }
-            .pat-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 15px; border-radius: 999px; background: rgba(255,255,255,.16); color: #fff; font-size: 12.5px }
-            .pat-clock { min-width: 230px; border-left: 1px solid rgba(255,255,255,.28); padding-left: 28px; position: relative; z-index: 1 }
-            .pat-clock small { text-transform: uppercase; color: #DFF9F8; font-size: 11px }
-            #patCurrentDate { margin-top: 6px; font-size: 14px; color: #fff }
-            #patCurrentTime { font-family: 'IBM Plex Mono',monospace; font-size: 26px; font-weight: 600; color: #fff; margin-top: 2px }
+            .pat-banner {
+                position: relative;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 24px;
+                background: linear-gradient(125deg,#12A392,#0A4F48);
+                border-radius: var(--r);
+                padding: 32px 36px;
+                margin-bottom: 22px;
+                box-shadow: 0 18px 40px rgba(10,90,80,.2);
+                overflow: hidden
+            }
+
+            .pat-banner-pattern {
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(circle at 85% 20%,rgba(255,255,255,.1) 0,transparent 45%)
+            }
+
+            .pat-banner-left {
+                display: flex;
+                align-items: center;
+                gap: 22px;
+                position: relative;
+                z-index: 1
+            }
+
+            .pat-banner-icon {
+                position: relative;
+                width: 76px;
+                height: 76px;
+                border-radius: 50%;
+                background: rgba(255,255,255,.16);
+                border: 2px solid rgba(255,255,255,.32);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #fff;
+                font-size: 30px
+            }
+
+            .pat-icon-ring {
+                position: absolute;
+                inset: -6px;
+                border-radius: 50%;
+                border: 1.5px solid rgba(255,255,255,.4);
+                animation: patRingPulse 2.4s ease-out infinite
+            }
+
+            .pat-banner-text h1 {
+                font-family: 'Poppins',sans-serif;
+                font-weight: 700;
+                font-size: 26px;
+                margin: 0 0 4px;
+                color: #fff
+            }
+
+                .pat-banner-text h1 span {
+                    color: #E9FFFB
+                }
+
+            .pat-banner-text p {
+                margin: 0 0 14px;
+                color: rgba(255,255,255,.85);
+                font-size: 14.5px
+            }
+
+            .pat-pills {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap
+            }
+
+            .pat-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 7px 15px;
+                border-radius: 999px;
+                background: rgba(255,255,255,.16);
+                color: #fff;
+                font-size: 12.5px
+            }
+
+            .pat-clock {
+                min-width: 230px;
+                border-left: 1px solid rgba(255,255,255,.28);
+                padding-left: 28px;
+                position: relative;
+                z-index: 1
+            }
+
+                .pat-clock small {
+                    text-transform: uppercase;
+                    color: #DFF9F8;
+                    font-size: 11px
+                }
+
+            #patCurrentDate {
+                margin-top: 6px;
+                font-size: 14px;
+                color: #fff
+            }
+
+            #patCurrentTime {
+                font-family: 'IBM Plex Mono',monospace;
+                font-size: 26px;
+                font-weight: 600;
+                color: #fff;
+                margin-top: 2px
+            }
 
             /* ---------- alert strips ---------- */
-            .pat-alert-strip { background: var(--bg); border-radius: var(--r); box-shadow: var(--sh-sm); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; border-left: 4px solid; gap: 12px; flex-wrap: wrap }
-            .pat-alert-strip[hidden] { display: none }
-            .pat-alert-strip.warning { border-left-color: var(--or); background: var(--or-dim) }
-            .pat-alert-strip.ok { border-left-color: var(--gn); background: var(--gn-dim) }
-            .pat-alert-dot { width: 10px; height: 10px; border-radius: 50% }
-            .pat-alert-strip.warning .pat-alert-dot { background: var(--or); box-shadow: 0 0 0 4px var(--or-dim) }
-            .pat-alert-strip.ok .pat-alert-dot { background: var(--gn); box-shadow: 0 0 0 4px var(--gn-dim) }
-            .pat-alert-link { color: var(--pt-deep); font-weight: 600; font-size: 13.5px; text-decoration: none }
-            .pat-alert-link:hover { text-decoration: underline }
+            .pat-alert-strip {
+                background: var(--bg);
+                border-radius: var(--r);
+                box-shadow: var(--sh-sm);
+                padding: 16px 24px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 28px;
+                border-left: 4px solid;
+                gap: 12px;
+                flex-wrap: wrap
+            }
+
+                .pat-alert-strip[hidden] {
+                    display: none
+                }
+
+                .pat-alert-strip.warning {
+                    border-left-color: var(--or);
+                    background: var(--or-dim)
+                }
+
+                .pat-alert-strip.ok {
+                    border-left-color: var(--gn);
+                    background: var(--gn-dim)
+                }
+
+            .pat-alert-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%
+            }
+
+            .pat-alert-strip.warning .pat-alert-dot {
+                background: var(--or);
+                box-shadow: 0 0 0 4px var(--or-dim)
+            }
+
+            .pat-alert-strip.ok .pat-alert-dot {
+                background: var(--gn);
+                box-shadow: 0 0 0 4px var(--gn-dim)
+            }
+
+            .pat-alert-link {
+                color: var(--pt-deep);
+                font-weight: 600;
+                font-size: 13.5px;
+                text-decoration: none
+            }
+
+                .pat-alert-link:hover {
+                    text-decoration: underline
+                }
 
             /* ---------- section heads + refresh ---------- */
-            .pat-section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px }
-            .pat-section-head h3 { font-family: 'Poppins',sans-serif; font-weight: 700; font-size: 20px; margin: 0 }
-            .pat-section-head p { margin: 0; color: var(--ink-s); font-size: 13.5px }
-            .pat-mt-lg { margin-top: 44px }
-            .pat-mt-md { margin-top: 18px }
-            .pat-refresh { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--ln); background: var(--bg); color: var(--pt-deep); font: 600 13px 'Inter',sans-serif; padding: 9px 16px; border-radius: 999px; cursor: pointer; box-shadow: var(--sh-sm); transition: background .2s,transform .2s }
-            .pat-refresh:hover { background: var(--pt-dim) }
-            .pat-refresh:active { transform: scale(.97) }
-            .pat-refresh.is-loading i { animation: patSpin .8s linear infinite }
+            .pat-section-head {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-bottom: 18px
+            }
 
-            .pat-grid { display: grid; gap: 18px }
-            .pat-grid-4 { grid-template-columns: repeat(4,1fr) }
-            .pat-grid-3 { grid-template-columns: repeat(3,1fr) }
+                .pat-section-head h3 {
+                    font-family: 'Poppins',sans-serif;
+                    font-weight: 700;
+                    font-size: 20px;
+                    margin: 0
+                }
+
+                .pat-section-head p {
+                    margin: 0;
+                    color: var(--ink-s);
+                    font-size: 13.5px
+                }
+
+            .pat-mt-lg {
+                margin-top: 44px
+            }
+
+            .pat-mt-md {
+                margin-top: 18px
+            }
+
+            .pat-refresh {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                border: 1px solid var(--ln);
+                background: var(--bg);
+                color: var(--pt-deep);
+                font: 600 13px 'Inter',sans-serif;
+                padding: 9px 16px;
+                border-radius: 999px;
+                cursor: pointer;
+                box-shadow: var(--sh-sm);
+                transition: background .2s,transform .2s
+            }
+
+                .pat-refresh:hover {
+                    background: var(--pt-dim)
+                }
+
+                .pat-refresh:active {
+                    transform: scale(.97)
+                }
+
+                .pat-refresh.is-loading i {
+                    animation: patSpin .8s linear infinite
+                }
+
+            .pat-grid {
+                display: grid;
+                gap: 18px
+            }
+
+            .pat-grid-4 {
+                grid-template-columns: repeat(4,1fr)
+            }
+
+            .pat-grid-3 {
+                grid-template-columns: repeat(3,1fr)
+            }
 
             /* ---------- stat cards ---------- */
-            .pat-stat { background: var(--bg); border-radius: var(--r); box-shadow: var(--sh-sm); padding: 22px; display: flex; align-items: center; gap: 16px; border-top: 3px solid var(--pt); transition: transform .2s,box-shadow .2s; text-decoration: none; color: inherit; cursor: pointer }
-            .pat-stat:hover { transform: translateY(-5px); box-shadow: var(--sh); text-decoration: none; color: inherit }
-            .pat-stat-body { flex: 1; min-width: 0 }
-            .pat-stat-body h5 { margin: 0; font-weight: 700; font-size: 15px }
-            .pat-stat-body small { color: var(--ink-s) }
-            .pat-stat-go { color: var(--pt); opacity: .35; transition: transform .2s,opacity .2s }
-            .pat-stat:hover .pat-stat-go { transform: translateX(4px); opacity: 1 }
-            .pat-stat-icon { width: 54px; height: 54px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 21px; flex-shrink: 0 }
-            .pat-stat-icon.c-teal { background: var(--pt-dim); color: var(--pt) }
-            .pat-stat-icon.c-blue { background: var(--bl-dim); color: var(--bl) }
-            .pat-stat-icon.c-purple { background: var(--pr-dim); color: var(--pr) }
-            .pat-stat-icon.c-orange { background: var(--or-dim); color: var(--or) }
-            .pat-stat .num { font-family: 'Poppins',sans-serif; font-size: 27px; font-weight: 700 }
+            .pat-stat {
+                background: var(--bg);
+                border-radius: var(--r);
+                box-shadow: var(--sh-sm);
+                padding: 22px;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                border-top: 3px solid var(--pt);
+                transition: transform .2s,box-shadow .2s;
+                text-decoration: none;
+                color: inherit;
+                cursor: pointer
+            }
+
+                .pat-stat:hover {
+                    transform: translateY(-5px);
+                    box-shadow: var(--sh);
+                    text-decoration: none;
+                    color: inherit
+                }
+
+            .pat-stat-body {
+                flex: 1;
+                min-width: 0
+            }
+
+                .pat-stat-body h5 {
+                    margin: 0;
+                    font-weight: 700;
+                    font-size: 15px
+                }
+
+                .pat-stat-body small {
+                    color: var(--ink-s)
+                }
+
+            .pat-stat-go {
+                color: var(--pt);
+                opacity: .35;
+                transition: transform .2s,opacity .2s
+            }
+
+            .pat-stat:hover .pat-stat-go {
+                transform: translateX(4px);
+                opacity: 1
+            }
+
+            .pat-stat-icon {
+                width: 54px;
+                height: 54px;
+                border-radius: 15px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 21px;
+                flex-shrink: 0
+            }
+
+                .pat-stat-icon.c-teal {
+                    background: var(--pt-dim);
+                    color: var(--pt)
+                }
+
+                .pat-stat-icon.c-blue {
+                    background: var(--bl-dim);
+                    color: var(--bl)
+                }
+
+                .pat-stat-icon.c-purple {
+                    background: var(--pr-dim);
+                    color: var(--pr)
+                }
+
+                .pat-stat-icon.c-orange {
+                    background: var(--or-dim);
+                    color: var(--or)
+                }
+
+            .pat-stat .num {
+                font-family: 'Poppins',sans-serif;
+                font-size: 27px;
+                font-weight: 700
+            }
 
             /* ---------- panels + table ---------- */
-            .pat-split { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px; align-items: start }
-            .pat-split-even { grid-template-columns: 1fr 1fr }
-            .pat-panel { background: var(--bg); border-radius: var(--r); box-shadow: var(--sh); overflow: hidden }
-            .pat-panel-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 26px; border-bottom: 1px solid var(--ln) }
-            .pat-panel-head span { font-family: 'Poppins',sans-serif; font-weight: 700; font-size: 15.5px; display: flex; align-items: center; gap: 10px }
-            .pat-panel-head span i { color: var(--pt) }
-            .pat-panel-link { color: var(--pt-deep); font-weight: 600; font-size: 13px; text-decoration: none }
-            .pat-panel-link:hover { text-decoration: underline }
-            .pat-table-wrap { overflow-x: auto }
-            .pat-table { width: 100%; border-collapse: collapse }
-            .pat-table th { background: #F0F7F6; text-align: left; padding: 12px 26px; font-size: 12px; text-transform: uppercase; color: var(--ink-s); border-bottom: 1px solid var(--ln) }
-            .pat-table td { padding: 14px 26px; border-bottom: 1px solid var(--ln); font-size: 14px }
-            .pat-table-empty { text-align: center; color: var(--ink-s); padding: 40px 26px !important }
-            .pat-row { cursor: pointer; transition: background .15s }
-            .pat-row:hover { background: #F0F7F6 }
-            .pat-row[aria-expanded="true"] { background: #F0F7F6 }
-            .pat-chev { font-size: 10px; color: var(--pt); margin-right: 8px; transition: transform .2s }
-            .pat-row[aria-expanded="true"] .pat-chev { transform: rotate(90deg) }
+            .pat-split {
+                display: grid;
+                grid-template-columns: 1.2fr 0.8fr;
+                gap: 18px;
+                align-items: start
+            }
 
-            .pat-chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 26px; border-bottom: 1px solid var(--ln) }
-            .pat-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--ln); background: var(--bg); color: var(--ink-s); font: 600 12px 'Inter',sans-serif; padding: 6px 13px; border-radius: 999px; cursor: pointer; transition: background .15s,color .15s,border-color .15s }
-            .pat-chip b { font-weight: 700; background: #F0F4F8; color: #3C5770; border-radius: 999px; padding: 1px 8px; font-size: 11px }
-            .pat-chip:hover { background: var(--pt-dim) }
-            .pat-chip.is-active { background: var(--pt); border-color: var(--pt); color: #fff }
-            .pat-chip.is-active b { background: rgba(255,255,255,.22); color: #fff }
+            .pat-split-even {
+                grid-template-columns: 1fr 1fr
+            }
 
-            .pat-detail-row > td { background: #F7FBFA; padding: 0 !important }
-            .pat-detail { padding: 22px 26px 24px }
-            .pat-track { display: flex }
-            .pat-tstep { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; text-align: center }
-            .pat-tstep::before { content: ""; position: absolute; top: 15px; right: 50%; width: 100%; height: 3px; background: var(--ln); z-index: 0 }
-            .pat-tstep:first-child::before { display: none }
-            .pat-tstep.done::before, .pat-tstep.current::before { background: var(--pt) }
-            .pat-tdot { position: relative; z-index: 1; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--bg); border: 2px solid var(--ln); color: var(--ink-s); font: 700 12px 'Inter',sans-serif }
-            .pat-tstep.done .pat-tdot { background: var(--pt); border-color: var(--pt); color: #fff }
-            .pat-tstep.current .pat-tdot { border-color: var(--pt); color: var(--pt-deep); box-shadow: 0 0 0 4px var(--pt-dim) }
-            .pat-tlabel { font-size: 11.5px; font-weight: 600; color: var(--ink-s) }
-            .pat-tstep.done .pat-tlabel, .pat-tstep.current .pat-tlabel { color: var(--ink) }
-            .pat-facts { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin: 20px 0 14px }
-            .pat-facts > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; background: var(--bg); border: 1px solid var(--ln); border-radius: 12px; padding: 11px 13px }
-            .pat-facts small { font-size: 11px; font-weight: 600; color: var(--ink-s); text-transform: uppercase; letter-spacing: .03em }
-            .pat-facts strong { font-size: 14px }
-            .pat-explain { display: flex; gap: 10px; margin: 8px 0; font-size: 13px; line-height: 1.55; color: var(--ink-s) }
-            .pat-explain i { color: var(--pt); margin-top: 3px }
-            .pat-explain strong { color: var(--ink) }
-            .pat-detail-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px }
-            .pat-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--ln); background: var(--bg); color: var(--pt-deep); font: 600 13px 'Inter',sans-serif; padding: 9px 16px; border-radius: 999px; cursor: pointer; text-decoration: none; transition: background .15s,color .15s,border-color .15s }
-            .pat-btn:hover { background: var(--pt-dim); color: var(--pt-deep); text-decoration: none }
-            .pat-btn.primary { background: var(--pt); border-color: var(--pt); color: #fff }
-            .pat-btn.primary:hover { background: var(--pt-deep); border-color: var(--pt-deep); color: #fff }
-            .pat-btn.is-disabled { opacity: .5; cursor: not-allowed; pointer-events: auto }
-            .pat-btn.is-disabled:hover { background: var(--pt); border-color: var(--pt) }
+            .pat-panel {
+                background: var(--bg);
+                border-radius: var(--r);
+                box-shadow: var(--sh);
+                overflow: hidden
+            }
 
-            .pat-urgency { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600 }
-            .pat-urgency.routine { background: var(--pt-dim); color: var(--pt-deep) }
-            .pat-urgency.urgent { background: var(--or-dim); color: #924E18 }
-            .pat-urgency.stat { background: var(--rd-dim); color: #942F28 }
-            .pat-status { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600 }
-            .pat-status.submitted { background: #F0F4F8; color: #3C5770 }
-            .pat-status.inprogress { background: var(--or-dim); color: #924E18 }
-            .pat-status.completed { background: var(--gn-dim); color: var(--gn) }
-            .pat-status.released { background: var(--pt-dim); color: var(--pt-deep) }
+            .pat-panel-head {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 18px 26px;
+                border-bottom: 1px solid var(--ln)
+            }
+
+                .pat-panel-head span {
+                    font-family: 'Poppins',sans-serif;
+                    font-weight: 700;
+                    font-size: 15.5px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px
+                }
+
+                    .pat-panel-head span i {
+                        color: var(--pt)
+                    }
+
+            .pat-panel-link {
+                color: var(--pt-deep);
+                font-weight: 600;
+                font-size: 13px;
+                text-decoration: none
+            }
+
+                .pat-panel-link:hover {
+                    text-decoration: underline
+                }
+
+            .pat-table-wrap {
+                overflow-x: auto
+            }
+
+            .pat-table {
+                width: 100%;
+                border-collapse: collapse
+            }
+
+                .pat-table th {
+                    background: #F0F7F6;
+                    text-align: left;
+                    padding: 12px 26px;
+                    font-size: 12px;
+                    text-transform: uppercase;
+                    color: var(--ink-s);
+                    border-bottom: 1px solid var(--ln)
+                }
+
+                .pat-table td {
+                    padding: 14px 26px;
+                    border-bottom: 1px solid var(--ln);
+                    font-size: 14px
+                }
+
+            .pat-table-empty {
+                text-align: center;
+                color: var(--ink-s);
+                padding: 40px 26px !important
+            }
+
+            .pat-row {
+                cursor: pointer;
+                transition: background .15s
+            }
+
+                .pat-row:hover {
+                    background: #F0F7F6
+                }
+
+                .pat-row[aria-expanded="true"] {
+                    background: #F0F7F6
+                }
+
+            .pat-chev {
+                font-size: 10px;
+                color: var(--pt);
+                margin-right: 8px;
+                transition: transform .2s
+            }
+
+            .pat-row[aria-expanded="true"] .pat-chev {
+                transform: rotate(90deg)
+            }
+
+            .pat-chips {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                padding: 14px 26px;
+                border-bottom: 1px solid var(--ln)
+            }
+
+            .pat-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                border: 1px solid var(--ln);
+                background: var(--bg);
+                color: var(--ink-s);
+                font: 600 12px 'Inter',sans-serif;
+                padding: 6px 13px;
+                border-radius: 999px;
+                cursor: pointer;
+                transition: background .15s,color .15s,border-color .15s
+            }
+
+                .pat-chip b {
+                    font-weight: 700;
+                    background: #F0F4F8;
+                    color: #3C5770;
+                    border-radius: 999px;
+                    padding: 1px 8px;
+                    font-size: 11px
+                }
+
+                .pat-chip:hover {
+                    background: var(--pt-dim)
+                }
+
+                .pat-chip.is-active {
+                    background: var(--pt);
+                    border-color: var(--pt);
+                    color: #fff
+                }
+
+                    .pat-chip.is-active b {
+                        background: rgba(255,255,255,.22);
+                        color: #fff
+                    }
+
+            .pat-detail-row > td {
+                background: #F7FBFA;
+                padding: 0 !important
+            }
+
+            .pat-detail {
+                padding: 22px 26px 24px
+            }
+
+            .pat-track {
+                display: flex
+            }
+
+            .pat-tstep {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                position: relative;
+                text-align: center
+            }
+
+                .pat-tstep::before {
+                    content: "";
+                    position: absolute;
+                    top: 15px;
+                    right: 50%;
+                    width: 100%;
+                    height: 3px;
+                    background: var(--ln);
+                    z-index: 0
+                }
+
+                .pat-tstep:first-child::before {
+                    display: none
+                }
+
+                .pat-tstep.done::before, .pat-tstep.current::before {
+                    background: var(--pt)
+                }
+
+            .pat-tdot {
+                position: relative;
+                z-index: 1;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: var(--bg);
+                border: 2px solid var(--ln);
+                color: var(--ink-s);
+                font: 700 12px 'Inter',sans-serif
+            }
+
+            .pat-tstep.done .pat-tdot {
+                background: var(--pt);
+                border-color: var(--pt);
+                color: #fff
+            }
+
+            .pat-tstep.current .pat-tdot {
+                border-color: var(--pt);
+                color: var(--pt-deep);
+                box-shadow: 0 0 0 4px var(--pt-dim)
+            }
+
+            .pat-tlabel {
+                font-size: 11.5px;
+                font-weight: 600;
+                color: var(--ink-s)
+            }
+
+            .pat-tstep.done .pat-tlabel, .pat-tstep.current .pat-tlabel {
+                color: var(--ink)
+            }
+
+            .pat-facts {
+                display: grid;
+                grid-template-columns: repeat(4,1fr);
+                gap: 12px;
+                margin: 20px 0 14px
+            }
+
+                .pat-facts > div {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                    align-items: flex-start;
+                    background: var(--bg);
+                    border: 1px solid var(--ln);
+                    border-radius: 12px;
+                    padding: 11px 13px
+                }
+
+                .pat-facts small {
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: var(--ink-s);
+                    text-transform: uppercase;
+                    letter-spacing: .03em
+                }
+
+                .pat-facts strong {
+                    font-size: 14px
+                }
+
+            .pat-explain {
+                display: flex;
+                gap: 10px;
+                margin: 8px 0;
+                font-size: 13px;
+                line-height: 1.55;
+                color: var(--ink-s)
+            }
+
+                .pat-explain i {
+                    color: var(--pt);
+                    margin-top: 3px
+                }
+
+                .pat-explain strong {
+                    color: var(--ink)
+                }
+
+            .pat-detail-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 16px
+            }
+
+            .pat-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                border: 1px solid var(--ln);
+                background: var(--bg);
+                color: var(--pt-deep);
+                font: 600 13px 'Inter',sans-serif;
+                padding: 9px 16px;
+                border-radius: 999px;
+                cursor: pointer;
+                text-decoration: none;
+                transition: background .15s,color .15s,border-color .15s
+            }
+
+                .pat-btn:hover {
+                    background: var(--pt-dim);
+                    color: var(--pt-deep);
+                    text-decoration: none
+                }
+
+                .pat-btn.primary {
+                    background: var(--pt);
+                    border-color: var(--pt);
+                    color: #fff
+                }
+
+                    .pat-btn.primary:hover {
+                        background: var(--pt-deep);
+                        border-color: var(--pt-deep);
+                        color: #fff
+                    }
+
+                .pat-btn.is-disabled {
+                    opacity: .5;
+                    cursor: not-allowed;
+                    pointer-events: auto
+                }
+
+                    .pat-btn.is-disabled:hover {
+                        background: var(--pt);
+                        border-color: var(--pt)
+                    }
+
+            .pat-urgency {
+                display: inline-block;
+                padding: 3px 10px;
+                border-radius: 999px;
+                font-size: 11.5px;
+                font-weight: 600
+            }
+
+                .pat-urgency.routine {
+                    background: var(--pt-dim);
+                    color: var(--pt-deep)
+                }
+
+                .pat-urgency.urgent {
+                    background: var(--or-dim);
+                    color: #924E18
+                }
+
+                .pat-urgency.stat {
+                    background: var(--rd-dim);
+                    color: #942F28
+                }
+
+            .pat-status {
+                display: inline-block;
+                padding: 3px 10px;
+                border-radius: 999px;
+                font-size: 11.5px;
+                font-weight: 600
+            }
+
+                .pat-status.submitted {
+                    background: #F0F4F8;
+                    color: #3C5770
+                }
+
+                .pat-status.inprogress {
+                    background: var(--or-dim);
+                    color: #924E18
+                }
+
+                .pat-status.completed {
+                    background: var(--gn-dim);
+                    color: var(--gn)
+                }
+
+                .pat-status.released {
+                    background: var(--pt-dim);
+                    color: var(--pt-deep)
+                }
 
             /* ---------- profile ---------- */
-            .pat-complete { display: flex; align-items: center; gap: 18px; padding: 20px 26px; border-bottom: 1px solid var(--ln) }
-            .pat-ring { --pct: 0; width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0; background: conic-gradient(var(--pt) calc(var(--pct) * 1%), var(--ln) 0); display: flex; align-items: center; justify-content: center; position: relative }
-            .pat-ring::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bg) }
-            .pat-ring span { position: relative; font: 700 15px 'Poppins',sans-serif; color: var(--pt-deep) }
-            .pat-complete-text { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
-            .pat-complete-text strong { font-size: 14.5px }
-            .pat-complete-text small { color: var(--ink-s); font-size: 12.5px; line-height: 1.5 }
-            .pat-profile-list { padding: 10px 26px 18px }
-            .pat-profile-row { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--ln); font-size: 13.5px }
-            .pat-profile-val { text-align: right; overflow-wrap: anywhere }
-            .pat-profile-label { font-weight: 600; color: var(--ink-s) }
+            .pat-complete {
+                display: flex;
+                align-items: center;
+                gap: 18px;
+                padding: 20px 26px;
+                border-bottom: 1px solid var(--ln)
+            }
+
+            .pat-ring {
+                --pct: 0;
+                width: 72px;
+                height: 72px;
+                border-radius: 50%;
+                flex-shrink: 0;
+                background: conic-gradient(var(--pt) calc(var(--pct) * 1%), var(--ln) 0);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative
+            }
+
+                .pat-ring::before {
+                    content: "";
+                    position: absolute;
+                    inset: 8px;
+                    border-radius: 50%;
+                    background: var(--bg)
+                }
+
+                .pat-ring span {
+                    position: relative;
+                    font: 700 15px 'Poppins',sans-serif;
+                    color: var(--pt-deep)
+                }
+
+            .pat-complete-text {
+                display: flex;
+                flex-direction: column;
+                gap: 3px;
+                min-width: 0
+            }
+
+                .pat-complete-text strong {
+                    font-size: 14.5px
+                }
+
+                .pat-complete-text small {
+                    color: var(--ink-s);
+                    font-size: 12.5px;
+                    line-height: 1.5
+                }
+
+            .pat-profile-list {
+                padding: 10px 26px 18px
+            }
+
+            .pat-profile-row {
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 11px 0;
+                border-bottom: 1px solid var(--ln);
+                font-size: 13.5px
+            }
+
+            .pat-profile-val {
+                text-align: right;
+                overflow-wrap: anywhere
+            }
+
+            .pat-profile-label {
+                font-weight: 600;
+                color: var(--ink-s)
+            }
 
             /* ---------- quick actions ---------- */
-            .pat-action { display: flex; flex-direction: column; text-decoration: none; color: inherit; background: var(--bg); border-radius: var(--r); padding: 28px 24px; box-shadow: var(--sh-sm); position: relative; overflow: hidden; transition: transform .25s,box-shadow .25s }
-            .pat-action::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg,var(--pt),var(--pt-deep)) }
-            .pat-action:hover { transform: translateY(-6px); box-shadow: var(--sh); text-decoration: none; color: inherit }
-            .pat-action-icon { width: 54px; height: 54px; margin-bottom: 16px; border-radius: 16px; background: var(--pt-dim); color: var(--pt); display: flex; align-items: center; justify-content: center; font-size: 23px }
-            .pat-action h5 { font-weight: 700; margin: 0 0 8px; font-size: 15px }
-            .pat-action p { margin: 0; color: var(--ink-s); font-size: 13px; line-height: 1.6 }
-            .pat-action-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; padding-top: 16px; min-height: 48px }
-            .pat-badges { display: flex; gap: 6px; flex-wrap: wrap }
-            .pat-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: #F0F4F8; color: #3C5770 }
-            .pat-badge.info { background: var(--bl-dim); color: var(--bl) }
-            .pat-badge.ok { background: var(--pt-dim); color: var(--pt-deep) }
-            .pat-badge.warn { background: var(--or-dim); color: #924E18 }
-            .pat-action-go { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--pt-dim); color: var(--pt); margin-left: auto; transition: transform .2s,background .2s,color .2s }
-            .pat-action:hover .pat-action-go { transform: translateX(4px); background: var(--pt); color: #fff }
+            .pat-action {
+                display: flex;
+                flex-direction: column;
+                text-decoration: none;
+                color: inherit;
+                background: var(--bg);
+                border-radius: var(--r);
+                padding: 28px 24px;
+                box-shadow: var(--sh-sm);
+                position: relative;
+                overflow: hidden;
+                transition: transform .25s,box-shadow .25s
+            }
+
+                .pat-action::before {
+                    content: "";
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 4px;
+                    background: linear-gradient(90deg,var(--pt),var(--pt-deep))
+                }
+
+                .pat-action:hover {
+                    transform: translateY(-6px);
+                    box-shadow: var(--sh);
+                    text-decoration: none;
+                    color: inherit
+                }
+
+            .pat-action-icon {
+                width: 54px;
+                height: 54px;
+                margin-bottom: 16px;
+                border-radius: 16px;
+                background: var(--pt-dim);
+                color: var(--pt);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 23px
+            }
+
+            .pat-action h5 {
+                font-weight: 700;
+                margin: 0 0 8px;
+                font-size: 15px
+            }
+
+            .pat-action p {
+                margin: 0;
+                color: var(--ink-s);
+                font-size: 13px;
+                line-height: 1.6
+            }
+
+            .pat-action-foot {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 10px;
+                margin-top: auto;
+                padding-top: 16px;
+                min-height: 48px
+            }
+
+            .pat-badges {
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap
+            }
+
+            .pat-badge {
+                display: inline-block;
+                padding: 3px 10px;
+                border-radius: 999px;
+                font-size: 11.5px;
+                font-weight: 600;
+                background: #F0F4F8;
+                color: #3C5770
+            }
+
+                .pat-badge.info {
+                    background: var(--bl-dim);
+                    color: var(--bl)
+                }
+
+                .pat-badge.ok {
+                    background: var(--pt-dim);
+                    color: var(--pt-deep)
+                }
+
+                .pat-badge.warn {
+                    background: var(--or-dim);
+                    color: #924E18
+                }
+
+            .pat-action-go {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: var(--pt-dim);
+                color: var(--pt);
+                margin-left: auto;
+                transition: transform .2s,background .2s,color .2s
+            }
+
+            .pat-action:hover .pat-action-go {
+                transform: translateX(4px);
+                background: var(--pt);
+                color: #fff
+            }
 
             /* ---------- health insights ---------- */
-            .pat-insights { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; align-items: start }
-            .pat-donut-body { padding: 22px 26px 24px }
-            .pat-donut { position: relative; height: 190px; margin-bottom: 18px }
-            .pat-donut canvas { max-width: 100%; max-height: 100% }
-            .pat-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none }
-            .pat-donut-center strong { font: 700 28px 'Poppins',sans-serif }
-            .pat-donut-center small { color: var(--ink-s); font-size: 12px }
-            .pat-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px }
-            .pat-legend-2 { margin-top: 14px }
-            .pat-legend li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-s) }
-            .pat-legend strong { margin-left: auto; color: var(--ink) }
-            .pat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0 }
-            .pat-mini-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 32px 26px; text-align: center; color: var(--ink-s); font-size: 13px; line-height: 1.55 }
-            .pat-mini-empty i { font-size: 24px; color: var(--pt) }
+            .pat-insights {
+                display: grid;
+                grid-template-columns: repeat(3,1fr);
+                gap: 18px;
+                align-items: start
+            }
 
-            .pat-timeline { list-style: none; margin: 0; padding: 10px 26px 14px; position: relative }
-            .pat-timeline li { position: relative; padding: 12px 0 12px 26px }
-            .pat-timeline li::before { content: ""; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; background: var(--ln) }
-            .pat-timeline li:first-child::before { top: 50% }
-            .pat-timeline li:last-child::before { bottom: 50% }
-            .pat-tl-dot { position: absolute; left: 0; top: 18px; width: 12px; height: 12px; border-radius: 50%; background: #3C5770; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--ln) }
-            .pat-tl-dot.inprogress { background: var(--or) }
-            .pat-tl-dot.completed { background: var(--gn) }
-            .pat-tl-dot.released { background: var(--pt) }
-            .pat-timeline a { display: flex; flex-direction: column; gap: 1px; color: inherit; text-decoration: none; font-size: 13px }
-            .pat-timeline a:hover { text-decoration: none; color: inherit }
-            .pat-timeline a:hover strong { color: var(--pt-deep) }
-            .pat-timeline strong { font-size: 13.5px }
-            .pat-timeline span { color: var(--ink-s) }
-            .pat-timeline small { color: #8FA9A3; font-size: 12px }
+            .pat-donut-body {
+                padding: 22px 26px 24px
+            }
 
-            .pat-steps { list-style: none; margin: 0; padding: 8px 14px 12px }
-            .pat-steps a { display: flex; align-items: center; gap: 13px; padding: 12px; border-radius: 14px; color: inherit; text-decoration: none; transition: background .15s }
-            .pat-steps a:hover { background: #F0F7F6; text-decoration: none; color: inherit }
-            .pat-check { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--ln); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--pt); flex-shrink: 0 }
-            .pat-steps .is-done .pat-check { background: var(--pt); border-color: var(--pt); color: #fff }
-            .pat-steps strong { display: block; font-size: 13.5px }
-            .pat-steps small { display: block; color: var(--ink-s); font-size: 12px; margin-top: 2px }
+            .pat-donut {
+                position: relative;
+                height: 190px;
+                margin-bottom: 18px
+            }
+
+                .pat-donut canvas {
+                    max-width: 100%;
+                    max-height: 100%
+                }
+
+            .pat-donut-center {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                pointer-events: none
+            }
+
+                .pat-donut-center strong {
+                    font: 700 28px 'Poppins',sans-serif
+                }
+
+                .pat-donut-center small {
+                    color: var(--ink-s);
+                    font-size: 12px
+                }
+
+            .pat-legend {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px 16px
+            }
+
+            .pat-legend-2 {
+                margin-top: 14px
+            }
+
+            .pat-legend li {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 12.5px;
+                color: var(--ink-s)
+            }
+
+            .pat-legend strong {
+                margin-left: auto;
+                color: var(--ink)
+            }
+
+            .pat-dot {
+                width: 9px;
+                height: 9px;
+                border-radius: 50%;
+                flex-shrink: 0
+            }
+
+            .pat-mini-empty {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+                padding: 32px 26px;
+                text-align: center;
+                color: var(--ink-s);
+                font-size: 13px;
+                line-height: 1.55
+            }
+
+                .pat-mini-empty i {
+                    font-size: 24px;
+                    color: var(--pt)
+                }
+
+            .pat-timeline {
+                list-style: none;
+                margin: 0;
+                padding: 10px 26px 14px;
+                position: relative
+            }
+
+                .pat-timeline li {
+                    position: relative;
+                    padding: 12px 0 12px 26px
+                }
+
+                    .pat-timeline li::before {
+                        content: "";
+                        position: absolute;
+                        left: 5px;
+                        top: 0;
+                        bottom: 0;
+                        width: 2px;
+                        background: var(--ln)
+                    }
+
+                    .pat-timeline li:first-child::before {
+                        top: 50%
+                    }
+
+                    .pat-timeline li:last-child::before {
+                        bottom: 50%
+                    }
+
+            .pat-tl-dot {
+                position: absolute;
+                left: 0;
+                top: 18px;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                background: #3C5770;
+                border: 2px solid var(--bg);
+                box-shadow: 0 0 0 1px var(--ln)
+            }
+
+                .pat-tl-dot.inprogress {
+                    background: var(--or)
+                }
+
+                .pat-tl-dot.completed {
+                    background: var(--gn)
+                }
+
+                .pat-tl-dot.released {
+                    background: var(--pt)
+                }
+
+            .pat-timeline a {
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
+                color: inherit;
+                text-decoration: none;
+                font-size: 13px
+            }
+
+                .pat-timeline a:hover {
+                    text-decoration: none;
+                    color: inherit
+                }
+
+                    .pat-timeline a:hover strong {
+                        color: var(--pt-deep)
+                    }
+
+            .pat-timeline strong {
+                font-size: 13.5px
+            }
+
+            .pat-timeline span {
+                color: var(--ink-s)
+            }
+
+            .pat-timeline small {
+                color: #8FA9A3;
+                font-size: 12px
+            }
+
+            .pat-steps {
+                list-style: none;
+                margin: 0;
+                padding: 8px 14px 12px
+            }
+
+                .pat-steps a {
+                    display: flex;
+                    align-items: center;
+                    gap: 13px;
+                    padding: 12px;
+                    border-radius: 14px;
+                    color: inherit;
+                    text-decoration: none;
+                    transition: background .15s
+                }
+
+                    .pat-steps a:hover {
+                        background: #F0F7F6;
+                        text-decoration: none;
+                        color: inherit
+                    }
+
+            .pat-check {
+                width: 34px;
+                height: 34px;
+                border-radius: 50%;
+                border: 2px solid var(--ln);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 13px;
+                color: var(--pt);
+                flex-shrink: 0
+            }
+
+            .pat-steps .is-done .pat-check {
+                background: var(--pt);
+                border-color: var(--pt);
+                color: #fff
+            }
+
+            .pat-steps strong {
+                display: block;
+                font-size: 13.5px
+            }
+
+            .pat-steps small {
+                display: block;
+                color: var(--ink-s);
+                font-size: 12px;
+                margin-top: 2px
+            }
 
             /* ---------- pipeline + urgency ---------- */
-            .pat-bars { padding: 20px 26px 24px }
-            .pat-bar-row { margin-bottom: 16px }
-            .pat-bar-row:last-child { margin-bottom: 0 }
-            .pat-bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 7px; color: var(--ink-s) }
-            .pat-bar-label strong { color: var(--ink) }
-            .pat-bar { height: 10px; border-radius: 999px; background: var(--ln); overflow: hidden }
-            .pat-bar span { display: block; height: 100%; border-radius: 999px; transition: width .6s ease }
-            .b-blue { background: var(--bl) }
-            .b-orange { background: var(--or) }
-            .b-teal { background: var(--pt) }
-            .b-purple { background: var(--pr) }
-            .pat-stack { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--ln) }
-            .pat-stack span { flex-basis: 0; min-width: 0 }
-            .s-routine { background: var(--pt) }
-            .s-urgent { background: var(--or) }
-            .s-stat { background: var(--rd) }
-            .pat-note { margin: 14px 0 0; font-size: 12px; color: #8FA9A3 }
+            .pat-bars {
+                padding: 20px 26px 24px
+            }
+
+            .pat-bar-row {
+                margin-bottom: 16px
+            }
+
+                .pat-bar-row:last-child {
+                    margin-bottom: 0
+                }
+
+            .pat-bar-label {
+                display: flex;
+                justify-content: space-between;
+                font-size: 13px;
+                margin-bottom: 7px;
+                color: var(--ink-s)
+            }
+
+                .pat-bar-label strong {
+                    color: var(--ink)
+                }
+
+            .pat-bar {
+                height: 10px;
+                border-radius: 999px;
+                background: var(--ln);
+                overflow: hidden
+            }
+
+                .pat-bar span {
+                    display: block;
+                    height: 100%;
+                    border-radius: 999px;
+                    transition: width .6s ease
+                }
+
+            .b-blue {
+                background: var(--bl)
+            }
+
+            .b-orange {
+                background: var(--or)
+            }
+
+            .b-teal {
+                background: var(--pt)
+            }
+
+            .b-purple {
+                background: var(--pr)
+            }
+
+            .pat-stack {
+                display: flex;
+                height: 14px;
+                border-radius: 999px;
+                overflow: hidden;
+                background: var(--ln)
+            }
+
+                .pat-stack span {
+                    flex-basis: 0;
+                    min-width: 0
+                }
+
+            .s-routine {
+                background: var(--pt)
+            }
+
+            .s-urgent {
+                background: var(--or)
+            }
+
+            .s-stat {
+                background: var(--rd)
+            }
+
+            .pat-note {
+                margin: 14px 0 0;
+                font-size: 12px;
+                color: #8FA9A3
+            }
 
             /* ---------- tips + help ---------- */
-            .pat-tip { background: var(--bg); border-radius: var(--r); box-shadow: var(--sh-sm); padding: 24px; border-top: 3px solid var(--pt) }
-            .pat-tip-icon { width: 46px; height: 46px; border-radius: 14px; background: var(--pt-dim); color: var(--pt); display: flex; align-items: center; justify-content: center; font-size: 19px; margin-bottom: 14px }
-            .pat-tip h5 { margin: 0 0 8px; font-weight: 700; font-size: 15px }
-            .pat-tip p { margin: 0; color: var(--ink-s); font-size: 13px; line-height: 1.65 }
-            .pat-help { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 18px; padding: 24px 30px; border-radius: var(--r); background: linear-gradient(125deg,#12A392,#0A4F48); color: #fff; box-shadow: 0 14px 30px rgba(10,90,80,.18) }
-            .pat-help h4 { margin: 0 0 4px; font: 700 18px 'Poppins',sans-serif; color: #fff }
-            .pat-help p { margin: 0; color: rgba(255,255,255,.85); font-size: 13.5px }
-            .pat-help-btn { display: inline-flex; align-items: center; gap: 8px; background: #fff; color: var(--pt-deep); font: 700 13.5px 'Inter',sans-serif; padding: 11px 20px; border-radius: 999px; text-decoration: none; transition: transform .2s }
-            .pat-help-btn:hover { transform: translateY(-2px); color: var(--pt-deep); text-decoration: none }
+            .pat-tip {
+                background: var(--bg);
+                border-radius: var(--r);
+                box-shadow: var(--sh-sm);
+                padding: 24px;
+                border-top: 3px solid var(--pt)
+            }
+
+            .pat-tip-icon {
+                width: 46px;
+                height: 46px;
+                border-radius: 14px;
+                background: var(--pt-dim);
+                color: var(--pt);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 19px;
+                margin-bottom: 14px
+            }
+
+            .pat-tip h5 {
+                margin: 0 0 8px;
+                font-weight: 700;
+                font-size: 15px
+            }
+
+            .pat-tip p {
+                margin: 0;
+                color: var(--ink-s);
+                font-size: 13px;
+                line-height: 1.65
+            }
+
+            .pat-help {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 18px;
+                flex-wrap: wrap;
+                margin-top: 18px;
+                padding: 24px 30px;
+                border-radius: var(--r);
+                background: linear-gradient(125deg,#12A392,#0A4F48);
+                color: #fff;
+                box-shadow: 0 14px 30px rgba(10,90,80,.18)
+            }
+
+                .pat-help h4 {
+                    margin: 0 0 4px;
+                    font: 700 18px 'Poppins',sans-serif;
+                    color: #fff
+                }
+
+                .pat-help p {
+                    margin: 0;
+                    color: rgba(255,255,255,.85);
+                    font-size: 13.5px
+                }
+
+            .pat-help-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: #fff;
+                color: var(--pt-deep);
+                font: 700 13.5px 'Inter',sans-serif;
+                padding: 11px 20px;
+                border-radius: 999px;
+                text-decoration: none;
+                transition: transform .2s
+            }
+
+                .pat-help-btn:hover {
+                    transform: translateY(-2px);
+                    color: var(--pt-deep);
+                    text-decoration: none
+                }
 
             /* ---------- footer ---------- */
-            .pat-footer { margin-top: 50px; text-align: center }
-            .pat-footer hr { border: none; border-top: 1px solid var(--ln); margin-bottom: 22px }
-            .pat-footer-content { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; color: var(--ink-s); font-size: 13px }
-            .pat-footer-content i { color: var(--pt) }
+            .pat-footer {
+                margin-top: 50px;
+                text-align: center
+            }
+
+                .pat-footer hr {
+                    border: none;
+                    border-top: 1px solid var(--ln);
+                    margin-bottom: 22px
+                }
+
+            .pat-footer-content {
+                display: flex;
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 12px;
+                color: var(--ink-s);
+                font-size: 13px
+            }
+
+                .pat-footer-content i {
+                    color: var(--pt)
+                }
 
             /* ---------- keyboard focus ---------- */
             .pat-stat:focus-visible, .pat-action:focus-visible, .pat-refresh:focus-visible, .pat-row:focus-visible, .pat-alert-link:focus-visible, .pat-panel-link:focus-visible,
             .pat-bell:focus-visible, .pat-chip:focus-visible, .pat-btn:focus-visible, .pat-nitem:focus-visible, .pat-notif-markall:focus-visible, .pat-drawer-close:focus-visible,
-            .pat-backtop:focus-visible, .pat-steps a:focus-visible, .pat-help-btn:focus-visible, .pat-toast:focus-visible { outline: 3px solid rgba(14,140,127,.45); outline-offset: 2px }
+            .pat-backtop:focus-visible, .pat-steps a:focus-visible, .pat-help-btn:focus-visible, .pat-toast:focus-visible {
+                outline: 3px solid rgba(14,140,127,.45);
+                outline-offset: 2px
+            }
 
             /* ---------- responsive ---------- */
             @@media (max-width: 1100px) {
-                .pat-grid-4, .pat-grid-3 { grid-template-columns: repeat(2,1fr) }
-                .pat-split, .pat-split-even { grid-template-columns: 1fr }
-                .pat-insights { grid-template-columns: 1fr 1fr }
+                .pat-grid-4, .pat-grid-3 {
+                    grid-template-columns: repeat(2,1fr)
+                }
+
+                .pat-split, .pat-split-even {
+                    grid-template-columns: 1fr
+                }
+
+                .pat-insights {
+                    grid-template-columns: 1fr 1fr
+                }
             }
 
             @@media (max-width: 900px) {
-                .pat-banner { flex-direction: column; align-items: flex-start; gap: 24px }
-                .pat-clock { width: 100%; border-left: none; border-top: 1px solid rgba(255,255,255,.28); padding-top: 18px; padding-left: 0 }
-                .pat-banner-left { flex-direction: column }
-                .pat-facts { grid-template-columns: repeat(2,1fr) }
+                .pat-banner {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 24px
+                }
+
+                .pat-clock {
+                    width: 100%;
+                    border-left: none;
+                    border-top: 1px solid rgba(255,255,255,.28);
+                    padding-top: 18px;
+                    padding-left: 0
+                }
+
+                .pat-banner-left {
+                    flex-direction: column
+                }
+
+                .pat-facts {
+                    grid-template-columns: repeat(2,1fr)
+                }
             }
 
             @@media (max-width: 640px) {
-                .pat-wrap { padding: 20px 16px }
-                .pat-grid-4, .pat-grid-3, .pat-insights { grid-template-columns: 1fr }
-                .pat-alert-strip { flex-direction: column; align-items: flex-start }
-                .pat-chips { padding: 12px 16px }
-                .pat-table th, .pat-table td { padding-left: 16px; padding-right: 16px }
-                .pat-detail { padding: 18px 16px 20px }
-                .pat-tlabel { font-size: 10.5px }
-                .pat-toasts { right: 16px; top: 76px }
-                .pat-bell-wrap.is-float { right: 16px }
+                .pat-wrap {
+                    padding: 20px 16px
+                }
+
+                .pat-grid-4, .pat-grid-3, .pat-insights {
+                    grid-template-columns: 1fr
+                }
+
+                .pat-alert-strip {
+                    flex-direction: column;
+                    align-items: flex-start
+                }
+
+                .pat-chips {
+                    padding: 12px 16px
+                }
+
+                .pat-table th, .pat-table td {
+                    padding-left: 16px;
+                    padding-right: 16px
+                }
+
+                .pat-detail {
+                    padding: 18px 16px 20px
+                }
+
+                .pat-tlabel {
+                    font-size: 10.5px
+                }
+
+                .pat-toasts {
+                    right: 16px;
+                    top: 76px
+                }
+
+                .pat-bell-wrap.is-float {
+                    right: 16px
+                }
             }
 
             @@media (prefers-reduced-motion: reduce) {
-                .pat-wrap, .pat-icon-ring, .pat-refresh.is-loading i, .pat-bell.is-ringing i, .pat-toast { animation: none }
-                .pat-toast-bar { animation-duration: 8s }
-                .pat-drawer, .pat-overlay, .pat-backtop, .pat-bar span, .pat-progress, .pat-chev { transition: none }
+                .pat-wrap, .pat-icon-ring, .pat-refresh.is-loading i, .pat-bell.is-ringing i, .pat-toast {
+                    animation: none
+                }
+
+                .pat-toast-bar {
+                    animation-duration: 8s
+                }
+
+                .pat-drawer, .pat-overlay, .pat-backtop, .pat-bar span, .pat-progress, .pat-chev {
+                    transition: none
+                }
             }
+
+
+            /* ==========================================================
+                           DARK MODE (html.rq-dark, same switch as the rest of the app)
+                           The shared dark rules force "color: inherit" on span / p / li / small / th / td,
+                           and restyle anything with "panel" or "chip" in its class name, so the colour
+                           rules below use !important where they have to win.
+                           The drawer, toasts and back-to-top button sit outside .pat-wrap, so their
+                           rules do not start from .pat-wrap.
+                        ========================================================== */
+
+            /* 1. Re-point the page's variables at the shared dark palette */
+            html.rq-dark {
+                --pt: #2CC4BA;
+                --pt-deep: #5ED0C4;
+                --pt-dim: #12302D;
+                --bl: #6CB0E8;
+                --bl-dim: #14283A;
+                --pr: #B39DEB;
+                --pr-dim: #2A2142;
+                --or: #E0A540;
+                --or-dim: #33280F;
+                --rd: #E1736B;
+                --rd-dim: #3A1B18;
+                --gn: #5CBB82;
+                --gn-dim: #13301F;
+                --bg: #172019;
+                --ink: #E8EEEB;
+                --ink-s: #A5B0AA;
+                --ln: #26302B;
+                --sh: 0 6px 24px rgba(0, 0, 0, .45);
+                --sh-sm: 0 3px 10px rgba(0, 0, 0, .3);
+            }
+
+                /* 2. Banner + help block: darker teal gradient, white text */
+                html.rq-dark .pat-wrap .pat-banner,
+                html.rq-dark .pat-wrap .pat-help {
+                    background: linear-gradient(125deg, #0F7F74, #0A3A35);
+                }
+
+                html.rq-dark .pat-wrap .pat-banner-text h1 {
+                    color: #fff !important;
+                }
+
+                    html.rq-dark .pat-wrap .pat-banner-text h1 span {
+                        color: #E9FFFB !important;
+                    }
+
+                        html.rq-dark .pat-wrap .pat-banner-text h1 span#patGreeting {
+                            color: #fff !important;
+                        }
+
+                html.rq-dark .pat-wrap .pat-banner-text p {
+                    color: rgba(255, 255, 255, .85) !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-clock small {
+                    color: #DFF9F8 !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-help h4 {
+                    color: #fff !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-help p {
+                    color: rgba(255, 255, 255, .85) !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-help a.pat-help-btn {
+                    background: #E8EEEB;
+                    color: #0A3A35;
+                }
+
+                    html.rq-dark .pat-wrap .pat-help a.pat-help-btn:hover {
+                        color: #0A3A35;
+                    }
+
+                /* 3. "View All" / "Edit" links in panel headers (the shared catch-all restyles anything named "panel") */
+                html.rq-dark .pat-wrap .pat-panel .pat-panel-head a.pat-panel-link {
+                    background-color: transparent !important;
+                    color: var(--pt-deep) !important;
+                    box-shadow: none !important;
+                }
+
+                /* notification dropdown keeps its shadow */
+                html.rq-dark .pat-wrap .pat-topbar .pat-bell-slot .pat-bell-wrap .pat-notif-panel {
+                    box-shadow: 0 14px 36px rgba(0, 0, 0, .55) !important;
+                }
+
+                /* 4. Text colours that the shared "color: inherit" rule would flatten */
+                html.rq-dark .pat-wrap .pat-crumb span,
+                html.rq-dark .pat-wrap .pat-section-head p,
+                html.rq-dark .pat-wrap .pat-stat small,
+                html.rq-dark .pat-wrap .pat-table th,
+                html.rq-dark .pat-wrap .pat-table td.pat-table-empty,
+                html.rq-dark .pat-wrap .pat-facts small,
+                html.rq-dark .pat-wrap .pat-explain,
+                html.rq-dark .pat-wrap .pat-explain span,
+                html.rq-dark .pat-wrap .pat-complete-text small,
+                html.rq-dark .pat-wrap .pat-profile-label,
+                html.rq-dark .pat-wrap .pat-legend li,
+                html.rq-dark .pat-wrap .pat-donut-center small,
+                html.rq-dark .pat-wrap .pat-mini-empty span,
+                html.rq-dark .pat-wrap .pat-timeline span,
+                html.rq-dark .pat-wrap .pat-steps small,
+                html.rq-dark .pat-wrap .pat-bar-label span,
+                html.rq-dark .pat-wrap .pat-tip p,
+                html.rq-dark .pat-wrap .pat-footer-content span,
+                html.rq-dark .pat-notif-panel .pat-ntext small,
+                html.rq-dark .pat-toasts .pat-ntext small,
+                html.rq-dark .pat-notif-panel .pat-mini-empty span {
+                    color: var(--ink-s) !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-timeline small,
+                html.rq-dark .pat-wrap .pat-note {
+                    color: #7F8B85 !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-profile-row .pat-profile-val {
+                    color: var(--ink) !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-stat .pat-stat-go {
+                    color: var(--pt) !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-ring span {
+                    color: var(--pt-deep) !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-bell .pat-bell-badge {
+                    color: #fff !important;
+                    border-color: var(--bg);
+                }
+
+                /* notification / toast icons */
+                html.rq-dark .n-warn .pat-nicon {
+                    color: var(--or) !important;
+                }
+
+                html.rq-dark .n-ok .pat-nicon {
+                    color: var(--pt) !important;
+                }
+
+                html.rq-dark .n-info .pat-nicon {
+                    color: var(--bl) !important;
+                }
+
+                html.rq-dark .n-req .pat-nicon {
+                    color: var(--pr) !important;
+                }
+
+                /* progress tracker (rows + drawer) */
+                html.rq-dark .pat-tstep .pat-tdot {
+                    color: var(--ink-s) !important;
+                }
+
+                html.rq-dark .pat-tstep.current .pat-tdot {
+                    color: var(--pt-deep) !important;
+                }
+
+                html.rq-dark .pat-tstep.done .pat-tdot {
+                    background: #0F7F74;
+                    border-color: #0F7F74;
+                    color: #fff !important;
+                }
+
+                html.rq-dark .pat-tstep .pat-tlabel {
+                    color: var(--ink-s) !important;
+                }
+
+                html.rq-dark .pat-tstep.done .pat-tlabel,
+                html.rq-dark .pat-tstep.current .pat-tlabel {
+                    color: var(--ink) !important;
+                }
+
+                /* next steps checklist */
+                html.rq-dark .pat-wrap .pat-steps a .pat-check {
+                    color: var(--pt) !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-steps a.is-done .pat-check {
+                    background: #0F7F74;
+                    border-color: #0F7F74;
+                    color: #fff !important;
+                }
+
+                /* 5. Urgency + status badges (their text colours were dark browns / reds) */
+                html.rq-dark .pat-urgency.routine {
+                    color: var(--pt-deep) !important;
+                }
+
+                html.rq-dark .pat-urgency.urgent {
+                    color: #E0A540 !important;
+                }
+
+                html.rq-dark .pat-urgency.stat {
+                    color: #E1736B !important;
+                }
+
+                html.rq-dark .pat-status.submitted {
+                    background: #26302B;
+                    color: #B8C7C1;
+                }
+
+                html.rq-dark .pat-status.inprogress {
+                    color: #E0A540;
+                }
+
+                html.rq-dark .pat-wrap .pat-badge {
+                    background: #26302B;
+                    color: #B8C7C1;
+                }
+
+                    html.rq-dark .pat-wrap .pat-badge.info {
+                        background: var(--bl-dim);
+                        color: var(--bl);
+                    }
+
+                    html.rq-dark .pat-wrap .pat-badge.ok {
+                        background: var(--pt-dim);
+                        color: var(--pt-deep);
+                    }
+
+                    html.rq-dark .pat-wrap .pat-badge.warn {
+                        background: var(--or-dim);
+                        color: #E0A540;
+                    }
+
+                html.rq-dark .pat-wrap .pat-timeline li .pat-tl-dot {
+                    background: #7F8B85;
+                }
+
+                    html.rq-dark .pat-wrap .pat-timeline li .pat-tl-dot.inprogress {
+                        background: var(--or);
+                    }
+
+                    html.rq-dark .pat-wrap .pat-timeline li .pat-tl-dot.completed {
+                        background: var(--gn);
+                    }
+
+                    html.rq-dark .pat-wrap .pat-timeline li .pat-tl-dot.released {
+                        background: var(--pt);
+                    }
+
+                /* 6. Buttons and chips that were solid teal with white text */
+                html.rq-dark .pat-btn.primary,
+                html.rq-dark .pat-btn.primary.is-disabled:hover {
+                    background: #0F7F74;
+                    border-color: #0F7F74;
+                    color: #fff !important;
+                }
+
+                    html.rq-dark .pat-btn.primary:hover {
+                        background: #0A5850;
+                        border-color: #0A5850;
+                    }
+
+                html.rq-dark .pat-wrap .pat-chips .pat-chip {
+                    border-color: var(--ln);
+                }
+
+                    html.rq-dark .pat-wrap .pat-chips .pat-chip.is-active {
+                        background: #0F7F74;
+                        border-color: #0F7F74;
+                        color: #fff;
+                    }
+
+                    html.rq-dark .pat-wrap .pat-chips .pat-chip b {
+                        background: #26302B;
+                        color: #A5B0AA;
+                    }
+
+                    html.rq-dark .pat-wrap .pat-chips .pat-chip.is-active b {
+                        background: rgba(255, 255, 255, .22);
+                        color: #fff;
+                    }
+
+                html.rq-dark .pat-backtop {
+                    background: #0F7F74;
+                    color: #fff;
+                }
+
+                    html.rq-dark .pat-backtop:hover {
+                        background: #0A5850;
+                    }
+
+                html.rq-dark .pat-wrap .pat-action:hover .pat-action-go {
+                    background: #0F7F74;
+                    color: #fff !important;
+                }
+
+                html.rq-dark .pat-wrap .pat-action .pat-action-go {
+                    color: var(--pt) !important;
+                }
+
+                /* 7. Light hover / zebra shades become dark ones */
+                html.rq-dark .pat-wrap .pat-table th {
+                    background: #141C18;
+                }
+
+                html.rq-dark .pat-wrap .pat-table .pat-row:hover,
+                html.rq-dark .pat-wrap .pat-table .pat-row[aria-expanded="true"] {
+                    background: #1B2620;
+                }
+
+                html.rq-dark .pat-wrap .pat-table .pat-detail-row > td {
+                    background: #141C18;
+                }
+
+                html.rq-dark .pat-wrap .pat-steps a:hover {
+                    background: #1B2620;
+                }
+
+                html.rq-dark .pat-nitem:hover {
+                    background: #1B2620;
+                }
+
+                /* 8. Drawer + overlay */
+                html.rq-dark .pat-overlay {
+                    background: rgba(0, 0, 0, .65);
+                }
+
+                html.rq-dark .pat-drawer {
+                    box-shadow: -12px 0 40px rgba(0, 0, 0, .55);
+                }
+
+                html.rq-dark .pat-drawer-close:hover {
+                    background: #0F7F74;
+                    color: #fff;
+                }
+
+                html.rq-dark .pat-toast-x:hover {
+                    background: var(--pt-dim);
+                }
         </style>
+
 
 
 

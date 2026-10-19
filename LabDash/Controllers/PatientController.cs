@@ -1451,6 +1451,8 @@ namespace LabDash.Controllers
             return View(model);
         }
 
+        
+
         // ============================================================
         // CONSENT
         // ============================================================
@@ -1472,7 +1474,52 @@ namespace LabDash.Controllers
         }
 
         // ============================================================
-        // GRANT CONSENT (per test item, not whole request)
+        // SEARCH DOCTORS (name or HPCSA number)
+        // Min 3 characters, max 8 results, no e-mail/phone returned.
+        // ============================================================
+
+        [HttpGet]
+        public async Task<IActionResult> SearchDoctors(string? q)
+        {
+            q = (q ?? "").Trim();
+
+            if (q.Length < 3)
+            {
+                return Json(Array.Empty<object>());
+            }
+
+            var doctorRoleId = await _context.Roles
+                .Where(r => r.Name == "Doctor")
+                .Select(r => r.Id)
+                .FirstOrDefaultAsync();
+
+            if (doctorRoleId == null)
+            {
+                return Json(Array.Empty<object>());
+            }
+
+            var results = await _context.Users
+                .Where(u => _context.UserRoles.Any(ur =>
+                    ur.UserId == u.Id && ur.RoleId == doctorRoleId))
+                .Where(u =>
+                    (u.FirstName + " " + u.LastName).Contains(q) ||
+                    (u.HPCSANumber != null && u.HPCSANumber.Contains(q)))
+                .OrderBy(u => u.FirstName)
+                .ThenBy(u => u.LastName)
+                .Take(8)
+                .Select(u => new
+                {
+                    doctorId = u.Id,
+                    name = u.FirstName + " " + u.LastName,
+                    hpcsa = u.HPCSANumber ?? ""
+                })
+                .ToListAsync();
+
+            return Json(results);
+        }
+
+        // ============================================================
+        // GRANT CONSENT (per test item, released requests only)
         // ============================================================
 
         [HttpPost]
@@ -1516,11 +1563,13 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Consent));
             }
 
-            // Only allow items that belong to this patient's own requests —
-            // never trust the posted ids blindly.
+            // Only items that belong to this patient's own RELEASED requests.
+            // Never trust the posted ids blindly.
             var validItemIds = await _context.TestRequestItems
                 .Where(i =>
                     i.TestRequest.PatientId == patient.PatientID &&
+                    i.TestRequest.Status != null &&
+                    i.TestRequest.Status.Contains("Release") &&
                     itemIds.Contains(i.TestRequestItemId))
                 .Select(i => i.TestRequestItemId)
                 .ToListAsync();
@@ -1578,8 +1627,12 @@ namespace LabDash.Controllers
                         });
                 }
             }
-            _audit.Log("Consent Granted", "Consent", $"Patient '{patient.Name} {patient.Surname}' granted Dr. {doctorUser?.FirstName} {doctorUser?.LastName} access to {validItemIds.Count} test item(s).");
+
+            _audit.Log("Consent Granted", "Consent",
+                $"Patient '{patient.Name} {patient.Surname}' granted Dr. {doctorUser?.FirstName} {doctorUser?.LastName} access to {validItemIds.Count} test item(s).");
+
             await _context.SaveChangesAsync();
+
             // ----------------------------------------------------------
             // In-app notification to the doctor
             // ----------------------------------------------------------
@@ -1612,7 +1665,9 @@ namespace LabDash.Controllers
                     "Consent granted but the in-app notification failed.");
             }
 
-            // Notify doctor by email
+            // ----------------------------------------------------------
+            // E-mail the doctor (required by the project specification)
+            // ----------------------------------------------------------
             if (doctorUser != null && !string.IsNullOrWhiteSpace(doctorUser.Email))
             {
                 var subject = "A patient has granted you access to test results";
@@ -1647,7 +1702,7 @@ namespace LabDash.Controllers
         }
 
         // ============================================================
-        // REVOKE CONSENT — whole doctor (all items, instantly)
+        // REVOKE CONSENT: whole doctor (all items, instantly)
         // ============================================================
 
         [HttpPost]
@@ -1675,7 +1730,10 @@ namespace LabDash.Controllers
 
                 _context.ConsentItemAccesses.RemoveRange(
                     consent.ConsentItemAccesses);
-                _audit.Log("Consent Revoked", "Consent", $"Patient '{patient.Name} {patient.Surname}' revoked all access for consent #{consentId}.");
+
+                _audit.Log("Consent Revoked", "Consent",
+                    $"Patient '{patient.Name} {patient.Surname}' revoked all access for consent #{consentId}.");
+
                 await _context.SaveChangesAsync();
 
                 TempData["SuccessMessage"] = "Access revoked.";
@@ -1685,7 +1743,8 @@ namespace LabDash.Controllers
         }
 
         // ============================================================
-        // REVOKE ITEM ACCESS — single test, instantly
+        // REVOKE ITEM ACCESS: single test, instantly
+        // If it was the last test, the consent row is closed too.
         // ============================================================
 
         [HttpPost]
@@ -1711,9 +1770,23 @@ namespace LabDash.Controllers
 
             if (access != null)
             {
+                var consent = access.Consent!;
+
                 _context.ConsentItemAccesses.Remove(access);
-                _audit.Log("Consent Revoked", "Consent", $"Patient '{patient.Name} {patient.Surname}' revoked access to one test (access #{consentItemAccessId}).");
+
+                _audit.Log("Consent Revoked", "Consent",
+                    $"Patient '{patient.Name} {patient.Surname}' revoked access to one test (access #{consentItemAccessId}).");
+
                 await _context.SaveChangesAsync();
+
+                var remaining = await _context.ConsentItemAccesses
+                    .AnyAsync(a => a.ConsentID == consent.ConsentID);
+
+                if (!remaining)
+                {
+                    consent.IsActive = false;
+                    await _context.SaveChangesAsync();
+                }
 
                 TempData["SuccessMessage"] =
                     "Access to that test was revoked.";
@@ -1724,6 +1797,7 @@ namespace LabDash.Controllers
 
         // ============================================================
         // BUILD CONSENT VIEW MODEL
+        // Only RELEASED requests can be shared.
         // ============================================================
 
         private async Task<ConsentViewModel> BuildConsentViewModelAsync(
@@ -1803,7 +1877,10 @@ namespace LabDash.Controllers
 
             var requests =
                 await _context.TestRequests
-                    .Where(r => r.PatientId == patientId)
+                    .Where(r =>
+                        r.PatientId == patientId &&
+                        r.Status != null &&
+                        r.Status.Contains("Release"))
                     .Include(r => r.TestRequestItems)
                         .ThenInclude(i => i.TestType)
                     .OrderByDescending(r => r.RequestDate)
