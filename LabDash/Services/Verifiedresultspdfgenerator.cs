@@ -47,7 +47,7 @@ namespace LabDash.Services
                 {
                     page.Size(PageSizes.A4);
                     page.Margin(35);
-                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily(Fonts.Calibri));
+                    page.DefaultTextStyle(x => x.FontSize(10));
 
                     page.Header().Column(col =>
                     {

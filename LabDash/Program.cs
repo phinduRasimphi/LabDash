@@ -41,6 +41,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditService, LabDash.Services.AuditService>();
 builder.Services.AddScoped<IRazorEmailRenderer, RazorEmailRenderer>();
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var app = builder.Build();
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 QuestPDF.Settings.UseSystemFonts = true;
