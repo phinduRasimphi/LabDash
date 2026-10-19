@@ -5,7 +5,7 @@ namespace LabDash.Services
 {
     public interface IVerifiedResultsNotificationService
     {
-        Task SendVerifiedResultsAsync(int requestId);
+        Task<bool> SendVerifiedResultsAsync(int requestId);
     }
 
     public class VerifiedResultsNotificationService : IVerifiedResultsNotificationService
@@ -27,23 +27,10 @@ namespace LabDash.Services
             _logger = logger;
         }
 
-        public async Task SendVerifiedResultsAsync(int requestId)
+        public async Task<bool> SendVerifiedResultsAsync(int requestId)
         {
-            // Everything in this method is best-effort: the verification
-            // itself is already committed to the database by the time
-            // this runs, so a failure here (bad doctor email, SMTP down,
-            // PDF error, etc.) must never look like the verification
-            // failed. Log loudly, return quietly.
             try
             {
-                // ------------------------------------------------------------------
-                // ASSUMPTION: TestRequest has a "RequestingDoctor" navigation
-                // property (a LabUser, same pattern as AssignedTechnician /
-                // CapturedByTechnician elsewhere) with FullName + Email.
-                // If your model instead stores a plain doctor name/email as
-                // strings directly on TestRequest, or references a separate
-                // Doctor entity, adjust the two lines marked below.
-                // ------------------------------------------------------------------
                 var request = await _context.TestRequests
                     .Include(r => r.Patient)
                     .Include(r => r.RequestingDoctor)
@@ -55,31 +42,28 @@ namespace LabDash.Services
                 {
                     _logger.LogWarning(
                         "SendVerifiedResultsAsync: TestRequest {RequestId} not found.", requestId);
-                    return;
+                    return false;
                 }
 
-                var doctorEmail = request.RequestingDoctor?.Email; // ASSUMPTION
-                var doctorName = request.RequestingDoctor?.FullName; // ASSUMPTION
+                var doctorEmail = request.RequestingDoctor?.Email;
+                var doctorName = request.RequestingDoctor?.FullName;
 
                 if (string.IsNullOrWhiteSpace(doctorEmail))
                 {
                     _logger.LogWarning(
-                        "SendVerifiedResultsAsync: no email on file for the requesting doctor on request {RequestId}. Notification skipped.",
+                        "SendVerifiedResultsAsync: no email on file for the requesting doctor on request {RequestId}.",
                         requestId);
-                    return;
+                    return false;
                 }
 
                 var itemIds = request.TestRequestItems
                     .Select(i => i.TestRequestItemId)
                     .ToList();
 
-                // ------------------------------------------------------------------
-                // ASSUMPTION: TestResult has a "VerifiedByTechnician" navigation
-                // property, parallel to the existing CapturedByTechnician one.
-                // ------------------------------------------------------------------
                 var results = await _context.TestResults
                     .Include(r => r.VerifiedByTechnician)
-                    .Where(r => itemIds.Contains(r.TestRequestItemId))
+                    .Where(r => itemIds.Contains(r.TestRequestItemId)
+                             && r.Status == "Verified")
                     .ToListAsync();
 
                 var reportData = new VerifiedResultsReportData
@@ -116,7 +100,7 @@ namespace LabDash.Services
                     $"<p>Dear {System.Net.WebUtility.HtmlEncode(doctorName ?? "Doctor")},</p>" +
                     $"<p>All laboratory tests for request <strong>TR-{request.RequestId}</strong> " +
                     $"({System.Net.WebUtility.HtmlEncode(reportData.PatientFullName)}) have been verified. " +
-                    "The full results are attached as a PDF.</p>" +
+                    "The full results are attached as a PDF and are also available in the patient folder.</p>" +
                     "<p>Regards,<br/>LabDash Laboratory Team</p>";
 
                 var fileName = $"LabResults_TR-{request.RequestId}.pdf";
@@ -127,6 +111,8 @@ namespace LabDash.Services
                 _logger.LogInformation(
                     "Verified-results PDF emailed to {DoctorEmail} for request {RequestId}.",
                     doctorEmail, requestId);
+
+                return true;
             }
             catch (Exception ex)
             {
@@ -134,6 +120,8 @@ namespace LabDash.Services
                     ex,
                     "Failed to send verified-results notification for request {RequestId}.",
                     requestId);
+
+                return false;
             }
         }
     }

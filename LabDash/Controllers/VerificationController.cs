@@ -523,12 +523,26 @@ namespace LabDash.Controllers
                 // originally captured the result.
                 item.AssignedTechnicianId = result.CapturedByTechnicianId;
             }
+            // ========================================================
+            // DOES THIS VERIFICATION COMPLETE THE WHOLE REQUEST?
+            // ========================================================
 
+            bool allVerified = false;
 
+            if (verification.Status == "Verified")
+            {
+                // Check the OTHER items. This one is already marked "Verified" in memory.
+                allVerified = !await _context.TestRequestItems
+                    .AnyAsync(x => x.RequestId == item.RequestId
+                                && x.TestRequestItemId != item.TestRequestItemId
+                                && x.Status != "Verified");
 
+                if (allVerified)
+                    item.TestRequest.Status = "Verified";
+            }
 
             // ========================================================
-            // SAVE
+            // SAVE (result + item + request status in ONE save)
             // ========================================================
 
             try
@@ -544,73 +558,123 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-
-
             // ========================================================
-            // IF VERIFIED, CHECK ENTIRE REQUEST
+            // EMAIL THE DOCTOR (once, when the whole request is verified)
             // ========================================================
 
-            if (verification.Status == "Verified")
+            if (allVerified && item.TestRequest.ResultsEmailedAt == null)
             {
-                var allVerified =
-                    await _context.TestRequestItems
+                var sent = await _notificationService.SendVerifiedResultsAsync(item.RequestId);
 
-                        .Where(x =>
-                            x.RequestId ==
-                            item.RequestId)
-
-                        .AllAsync(x =>
-                            x.Status == "Verified");
-
-
-                if (allVerified)
+                if (sent)
                 {
-                    item.TestRequest.Status =
-                        "Verified";
-
-
+                    item.TestRequest.ResultsEmailedAt = DateTime.Now;
                     await _context.SaveChangesAsync();
-
-
-
-                    // ------------------------------------------------
-                    // NOTIFY DOCTOR
-                    // ------------------------------------------------
-
-                    try
-                    {
-                        await _notificationService
-                            .SendVerifiedResultsAsync(
-                                item.RequestId);
-                    }
-                    catch
-                    {
-                        // Do not break verification
-                        // if email notification fails.
-                    }
+                }
+                else
+                {
+                    TempData["Warning"] =
+                        "Result verified, but the email to the doctor could not be sent. " +
+                        "The doctor can still view the results in the patient folder.";
                 }
             }
-
-
 
             // ========================================================
             // SUCCESS MESSAGE
             // ========================================================
 
-            if (verification.Status == "Verified")
-            {
-                TempData["Success"] =
-                    "Laboratory result verified successfully.";
-            }
-            else
-            {
-                TempData["Success"] =
-                    "Laboratory result returned to the capturing technician for review.";
-            }
-
-
+            TempData["Success"] = verification.Status == "Verified"
+                ? "Laboratory result verified successfully."
+                : "Laboratory result returned to the capturing technician for review.";
 
             return RedirectToAction(nameof(Index));
+
+
+
+            //// ========================================================
+            //// SAVE
+            //// ========================================================
+
+            //try
+            //{
+            //    await _context.SaveChangesAsync();
+            //}
+            //catch (Exception ex)
+            //{
+            //    TempData["Error"] =
+            //        "Verification could not be saved: " +
+            //        (ex.InnerException?.Message ?? ex.Message);
+
+            //    return RedirectToAction(nameof(Index));
+            //}
+
+
+
+            //// ========================================================
+            //// IF VERIFIED, CHECK ENTIRE REQUEST
+            //// ========================================================
+
+            //if (verification.Status == "Verified")
+            //{
+            //    var allVerified =
+            //        await _context.TestRequestItems
+
+            //            .Where(x =>
+            //                x.RequestId ==
+            //                item.RequestId)
+
+            //            .AllAsync(x =>
+            //                x.Status == "Verified");
+
+
+            //    if (allVerified)
+            //    {
+            //        item.TestRequest.Status =
+            //            "Verified";
+
+
+            //        await _context.SaveChangesAsync();
+
+
+
+            //        // ------------------------------------------------
+            //        // NOTIFY DOCTOR
+            //        // ------------------------------------------------
+
+            //        try
+            //        {
+            //            await _notificationService
+            //                .SendVerifiedResultsAsync(
+            //                    item.RequestId);
+            //        }
+            //        catch
+            //        {
+            //            // Do not break verification
+            //            // if email notification fails.
+            //        }
+            //    }
+            //}
+
+
+
+            //// ========================================================
+            //// SUCCESS MESSAGE
+            //// ========================================================
+
+            //if (verification.Status == "Verified")
+            //{
+            //    TempData["Success"] =
+            //        "Laboratory result verified successfully.";
+            //}
+            //else
+            //{
+            //    TempData["Success"] =
+            //        "Laboratory result returned to the capturing technician for review.";
+            //}
+
+
+
+            //return RedirectToAction(nameof(Index));
         }
     }
 }

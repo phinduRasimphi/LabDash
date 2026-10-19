@@ -58,6 +58,7 @@ namespace LabDash.Models
 
         [StringLength(500)]
         public string? SampleBarcodes { get; set; }
+        public DateTime? ResultsEmailedAt { get; set; }
         public virtual ICollection<Sample> Samples { get; set; }
             = new List<Sample>();
 

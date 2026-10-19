@@ -971,18 +971,19 @@ namespace LabDash.Controllers
                 .FirstOrDefaultAsync(x =>
                     x.TestRequestItemId == item.TestRequestItemId);
 
-            // Load latest verification/review information
-            var verification = await _context.TestVerifications
+            // Load ALL verification/review records, newest first
+            var verificationHistory = await _context.TestVerifications
                 .Include(x => x.VerifiedByTechnician)
                 .Where(x =>
                     x.TestRequestItemId == item.TestRequestItemId)
                 .OrderByDescending(x => x.VerificationDate)
-                .FirstOrDefaultAsync();
+                .ToListAsync();
 
             ViewBag.TestItem = item;
             ViewBag.Patient = item.TestRequest?.Patient;
             ViewBag.Result = result;
-            ViewBag.Verification = verification;
+            ViewBag.Verification = verificationHistory.FirstOrDefault(); // latest
+            ViewBag.VerificationHistory = verificationHistory;           // all records
             ViewBag.CurrentTechnician = technician;
 
             return View(item);

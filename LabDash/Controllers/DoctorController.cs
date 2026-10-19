@@ -132,12 +132,75 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
+        // RESULTS PASSWORD GATE
+        // =========================================================
+
+        private const string ResultsAccessSessionKey = "DoctorResultsAccess";
+        private const string ResultsRequiredPassword = "Password!123";
+
+        [HttpGet]
+        public IActionResult ResultsAccess(int? requestId, string? returnUrl)
+        {
+            // Already authenticated this session? Go straight through.
+            if (HttpContext.Session.GetString(ResultsAccessSessionKey) == "Granted")
+            {
+                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                    return Redirect(returnUrl);
+
+                return RedirectToAction(nameof(PatientSharedResults), new { requestId = requestId ?? 0 });
+            }
+
+            ViewBag.RequestId = requestId ?? 0;
+            ViewBag.ReturnUrl = returnUrl;
+            return View("ResultsPassword");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ResultsAccess(int? requestId, string? returnUrl, string password)
+        {
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                ModelState.AddModelError(string.Empty, "Please enter the access password.");
+                ViewBag.RequestId = requestId ?? 0;
+                ViewBag.ReturnUrl = returnUrl;
+                return View("ResultsPassword");
+            }
+
+            if (password != ResultsRequiredPassword)
+            {
+                ModelState.AddModelError(string.Empty, "Incorrect password. Please try again.");
+                ViewBag.RequestId = requestId ?? 0;
+                ViewBag.ReturnUrl = returnUrl;
+                return View("ResultsPassword");
+            }
+
+            HttpContext.Session.SetString(ResultsAccessSessionKey, "Granted");
+
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                return Redirect(returnUrl);
+
+            return RedirectToAction(nameof(PatientSharedResults), new { requestId = requestId ?? 0 });
+        }
+
+        // =========================================================
         // PATIENT SHARED RESULTS
         // =========================================================
 
         [HttpGet]
         public async Task<IActionResult> PatientSharedResults(int patientId)
         {
+            // =========================================================
+            // PASSWORD GATE CHECK
+            // =========================================================
+            if (HttpContext.Session.GetString(ResultsAccessSessionKey) != "Granted")
+            {
+                return RedirectToAction(nameof(ResultsAccess), new
+                {
+                    returnUrl = Url.Action("PatientSharedResults", new { patientId })
+                });
+            }
+
             var currentUser = await _userManager.GetUserAsync(User);
 
             if (currentUser == null)
@@ -387,7 +450,7 @@ namespace LabDash.Controllers
                 Timestamp_AccountCreated = DateTime.UtcNow,
                 ActivationTokenHash = null,
                 ActivationTokenExpiresUtc = null,
-                  EmailConfirmed = true
+                EmailConfirmed = true
             };
 
             IdentityResult createResult;

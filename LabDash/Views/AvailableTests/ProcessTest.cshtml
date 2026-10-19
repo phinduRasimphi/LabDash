@@ -26,6 +26,7 @@
         dueDateTime = dueValue.ToString("dd MMM yyyy HH:mm");
     }
 
+    // Time remaining is always shown in total minutes (never hours or days).
     string timeRemaining = "Not available";
 
     if (ViewBag.TimeRemaining is TimeSpan remainingValue)
@@ -34,15 +35,12 @@
         {
             timeRemaining = "Due now";
         }
-        else if (remainingValue.TotalHours >= 1)
-        {
-            timeRemaining =
-                $"{(int)remainingValue.TotalHours}h {remainingValue.Minutes}m";
-        }
         else
         {
+            var remainingMinutes = (int)remainingValue.TotalMinutes;
+
             timeRemaining =
-                $"{remainingValue.Minutes}m {remainingValue.Seconds}s";
+                $"{remainingMinutes}m {remainingValue.Seconds:00}s";
         }
     }
 

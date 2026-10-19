@@ -67,19 +67,32 @@ namespace LabDash.Controllers
             var fromDate = model.FromDate.Date;
             var toDateExclusive = model.ToDate.Date.AddDays(1);
 
+            // =====================================================
+            // LOAD ALL FINISHED TESTS FOR THIS TECHNICIAN
+            // =====================================================
+            // A finished test can be:
+            //   Completed       - waiting for verification
+            //   Verified        - verified by another technician
+            //   To Be Reviewed  - returned for review
+            // =====================================================
+
             var completedTests = await _context.TestRequestItems
-     .Include(x => x.TestType)
-     .Include(x => x.TestRequest)
-         .ThenInclude(x => x.Patient)
-     .Where(x =>
-         x.AssignedTechnicianId == technician.Id &&
-         x.Status == "Completed" &&
-         x.CompletionDateTime.HasValue &&
-         x.CompletionDateTime.Value >= fromDate &&
-         x.CompletionDateTime.Value < toDateExclusive)
-     .OrderBy(x => x.TestType.Category)
-     .ThenBy(x => x.CompletionDateTime)
-     .ToListAsync();
+                .Include(x => x.TestType)
+                .Include(x => x.TestRequest)
+                    .ThenInclude(x => x.Patient)
+                .Where(x =>
+                    x.AssignedTechnicianId == technician.Id &&
+                    (
+                        x.Status == "Completed" ||
+                        x.Status == "Verified" ||
+                        x.Status == "To Be Reviewed"
+                    ) &&
+                    x.CompletionDateTime.HasValue &&
+                    x.CompletionDateTime.Value >= fromDate &&
+                    x.CompletionDateTime.Value < toDateExclusive)
+                .OrderBy(x => x.TestType.Category)
+                .ThenBy(x => x.CompletionDateTime)
+                .ToListAsync();
 
             if (!completedTests.Any())
             {

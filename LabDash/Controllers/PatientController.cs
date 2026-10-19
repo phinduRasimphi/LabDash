@@ -1713,20 +1713,32 @@ namespace LabDash.Controllers
 
             if (patient == null)
             {
-                return NotFound(
-                    "No patient profile is linked to your account.");
+                return NotFound("No patient profile is linked to your account.");
             }
 
-            var consent =
-                await _context.PatientDoctorConsents
-                    .Include(c => c.ConsentItemAccesses)
-                    .FirstOrDefaultAsync(c =>
-                        c.ConsentID == consentId &&
-                        c.PatientID == patient.PatientID);
+            // 1. Load the consent AND the doctor
+            var consent = await _context.PatientDoctorConsents
+                .Include(c => c.Doctor)
+                .Include(c => c.ConsentItemAccesses)
+                .FirstOrDefaultAsync(c =>
+                    c.ConsentID == consentId &&
+                    c.PatientID == patient.PatientID);
 
             if (consent != null)
             {
+                // 2. Revoke in database
                 consent.IsActive = false;
+                _context.ConsentItemAccesses.RemoveRange(consent.ConsentItemAccesses);
+                await _context.SaveChangesAsync();
+
+                string patientName = $"{patient.Name} {patient.Surname}".Trim();
+
+                // ==========================================================
+                // 3. IN-APP NOTIFICATION (Bell Icon)
+                // ==========================================================
+                try
+                {
+                    string linkUrl = Url.Action("SharedWithMe", "Doctor", null, Request.Scheme);
 
                 _context.ConsentItemAccesses.RemoveRange(
                     consent.ConsentItemAccesses);
@@ -1736,7 +1748,7 @@ namespace LabDash.Controllers
 
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "Access revoked.";
+                TempData["SuccessMessage"] = "Access revoked and the doctor has been notified.";
             }
 
             return RedirectToAction(nameof(Consent));

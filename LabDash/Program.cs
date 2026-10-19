@@ -40,10 +40,14 @@ builder.Services.AddScoped<IVerifiedResultsNotificationService, VerifiedResultsN
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuditService, LabDash.Services.AuditService>();
 builder.Services.AddScoped<IRazorEmailRenderer, RazorEmailRenderer>();
+
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 builder.Services.AddScoped<HealthEntryService>();
 var app = builder.Build();
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 QuestPDF.Settings.UseSystemFonts = true;
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
