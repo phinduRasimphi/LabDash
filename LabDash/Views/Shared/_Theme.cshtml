@@ -1,0 +1,388 @@
+﻿<script>
+    // Runs before the page paints: no flash of the wrong theme.
+    // Same key and class as the Test Requests page, so every page agrees.
+    (function() {
+        try {
+            var t = localStorage.getItem('rqTheme');
+            var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (t === 'dark' || (t === null && sysDark)) { document.documentElement.classList.add('rq-dark'); }
+        } catch (e) { }
+
+        var r = document.documentElement;
+        function cur() { return r.classList.contains('rq-dark') ? 'dark' : 'light'; }
+        function paint() {
+            var d = cur() === 'dark';
+            document.querySelectorAll('[data-ld-theme-toggle]').forEach(function(b) {
+                var i = b.querySelector('i'), s = b.querySelector('span');
+                if (i) { i.className = d ? 'fas fa-sun' : 'fas fa-moon'; }
+                if (s) { s.textContent = d ? 'Light mode' : 'Dark mode'; }
+            });
+        }
+        function set(t) {
+            r.classList.toggle('rq-dark', t === 'dark');
+            try { localStorage.setItem('rqTheme', t); } catch (e) { }
+            paint();
+        }
+        window.ldTheme = { set: set, get: cur, toggle: function() { set(cur() === 'dark' ? 'light' : 'dark'); } };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            paint();
+            document.querySelectorAll('[data-ld-theme-toggle]').forEach(function(b) {
+                b.addEventListener('click', function() { window.ldTheme.toggle(); });
+            });
+            // keeps the icon right when another script (e.g. the Requests banner button) changes the theme
+            new MutationObserver(paint).observe(r, { attributes: true, attributeFilter: ['class'] });
+        });
+        // keep other open tabs in step
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'rqTheme') { r.classList.toggle('rq-dark', e.newValue === 'dark'); }
+        });
+    })();
+</script>
+
+<style>
+    /* =====================================================
+           SHARED DARK MODE (Patient + Admin)
+           Everything hangs off html.rq-dark
+           ===================================================== */
+    html.rq-dark {
+        color-scheme: dark;
+        background: #0E1412;
+    }
+
+        html.rq-dark body {
+            background: #0E1412 !important;
+            color: #E8EEEB;
+        }
+
+        /* page shells and content areas */
+        html.rq-dark :is(.p-shell, .p-main, .p-content, .a-shell, .a-main, .a-content) {
+            background: #0E1412 !important;
+            color: #E8EEEB;
+        }
+
+        html.rq-dark :is(.p-sidebar, .a-sidebar) {
+            background: #0A3A35 !important;
+        }
+
+        html.rq-dark :is(.p-user-strip, .a-user-strip) {
+            border-color: #0A3A35;
+        }
+
+        /* generic text */
+        html.rq-dark :is(h1, h2, h3, h4, h5, h6) {
+            color: #E8EEEB;
+        }
+
+        html.rq-dark :is(.p-content, .a-content):not(:has(> .p-wrap, > .pp-wrap, > .rq-wrap, > .rx-wrap)) :is(p, li, label, td, th, span, small):not([class*="badge"], [class*="pill"], [class*="status"]) {
+            color: inherit;
+        }
+
+        html.rq-dark :is(.p-content, .a-content) a:not([class]) {
+            color: #4FD6CC;
+        }
+
+        html.rq-dark hr {
+            border-color: #26302B;
+        }
+
+        /* common building blocks (Bootstrap-style and plain) */
+        html.rq-dark :is(.card, .modal-content, .dropdown-menu, .list-group-item, .offcanvas, .accordion-item) {
+            background-color: #172019 !important;
+            color: #E8EEEB !important;
+            border-color: #26302B !important;
+        }
+
+        html.rq-dark .table {
+            --bs-table-bg: transparent;
+            --bs-table-color: #E8EEEB;
+            --bs-table-striped-bg: #141C18;
+            --bs-table-hover-bg: #1B2620;
+            color: #E8EEEB;
+            border-color: #26302B;
+        }
+
+        html.rq-dark :is(table td, table th) {
+            border-color: #26302B;
+        }
+
+        html.rq-dark :is(input, select, textarea):not(.rq-wrap *) {
+            background-color: #172019;
+            color: #E8EEEB;
+            border-color: #34403A;
+        }
+
+        html.rq-dark :is(input, textarea)::placeholder {
+            color: #7F8B85;
+        }
+
+        html.rq-dark .form-control, html.rq-dark .form-select {
+            background-color: #172019 !important;
+            color: #E8EEEB !important;
+            border-color: #34403A !important;
+        }
+
+            html.rq-dark .form-control:focus, html.rq-dark .form-select:focus {
+                border-color: #2CC4BA !important;
+            }
+
+        html.rq-dark option {
+            background: #172019;
+            color: #E8EEEB;
+        }
+
+        html.rq-dark .btn-close {
+            filter: invert(1);
+        }
+
+        /* ---------- Patient pages (_PatientPageStyles uses these variables) ---------- */
+        html.rq-dark .pp-wrap {
+            --pt-dim: #12302D;
+            --pt-deep: #5ED0C4;
+            --or-dim: #33280F;
+            --rd-dim: #3A1B18;
+            --gn: #5CBB82;
+            --gn-dim: #13301F;
+            --ink: #E8EEEB;
+            --ink-s: #A5B0AA;
+            --ln: #26302B;
+            --sh: 0 6px 24px rgba(0,0,0,.45);
+            --sh-sm: 0 3px 10px rgba(0,0,0,.3);
+        }
+
+        html.rq-dark .pp-panel {
+            background: #172019;
+        }
+
+        html.rq-dark .pp-tdot {
+            background: #172019;
+        }
+
+        html.rq-dark .pp-tstep.done .pp-tdot {
+            background: var(--pt);
+        }
+
+        html.rq-dark .pp-btn, html.rq-dark .pp-chip {
+            background: #172019;
+        }
+
+            html.rq-dark .pp-btn.primary {
+                background: var(--pt);
+                color: #fff;
+            }
+
+            html.rq-dark .pp-btn:hover, html.rq-dark .pp-chip:hover {
+                background: #12302D;
+            }
+
+            html.rq-dark .pp-chip.is-active {
+                background: var(--pt);
+                color: #fff;
+            }
+
+        html.rq-dark .pp-table th {
+            background: #141C18;
+        }
+
+        html.rq-dark .pp-chip b, html.rq-dark .pp-status.submitted {
+            background: #202B26;
+            color: #B8C7C1;
+        }
+
+        html.rq-dark :is(.pp-urgency.urgent, .pp-status.inprogress, .pp-flag.abnormal) {
+            color: #E0A540;
+        }
+
+        html.rq-dark .pp-urgency.stat {
+            color: #E1736B;
+        }
+
+        html.rq-dark .pp-note.warn {
+            color: #E0A540;
+        }
+
+        /* ---------- Admin dashboard blocks (styles live in _SystemLayout) ---------- */
+        html.rq-dark .admin-modern-container {
+            color: #E8EEEB;
+        }
+
+        html.rq-dark :is(.portal-main-title, .portal-stat-number) {
+            color: #E8EEEB !important;
+        }
+
+        html.rq-dark :is(.portal-sub-title, .portal-stat-label, .portal-stat-subtext, .glowing-activity-row) {
+            color: #A5B0AA !important;
+        }
+
+        html.rq-dark :is(.portal-stat-card, .portal-block-card) {
+            background: #172019 !important;
+            border-color: #26302B !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,.35);
+        }
+
+        html.rq-dark .portal-block-header {
+            border-bottom-color: #26302B;
+            color: #E8EEEB;
+        }
+
+        html.rq-dark .portal-table th {
+            background: #141C18 !important;
+            color: #A5B0AA !important;
+        }
+
+        html.rq-dark .portal-table td {
+            color: #D5DEDA !important;
+            border-color: #26302B !important;
+        }
+
+        html.rq-dark .portal-action-btn {
+            background: #141C18;
+            border-color: #26302B;
+            color: #E8EEEB;
+        }
+
+            html.rq-dark .portal-action-btn:hover {
+                background: #1B2620;
+                color: #4FD6CC;
+                border-color: #2CC4BA;
+            }
+
+        html.rq-dark .portal-alert-strip {
+            background: #3A1B18;
+            border-color: #5A2A26;
+            color: #E1736B;
+        }
+
+        html.rq-dark .portal-alert-link {
+            color: #F0A19B;
+        }
+
+    /* ---------- Patient Profile page (.p-wrap): redefine its colour variables ---------- */
+    html.rq-dark {
+        --p-paper: #0E1412;
+        --p-raised: #172019;
+        --p-ink: #E8EEEB;
+        --p-ink-soft: #A5B0AA;
+        --p-ink-faint: #7F8B85;
+        --p-line: #26302B;
+        --p-line-strong: #34403A;
+        --p-teal: #2CC4BA;
+        --p-teal-deep: #4FD6CC;
+        --p-teal-dim: #12302D;
+        --p-shadow: 0 8px 26px rgba(0,0,0,.45);
+        --p-shadow-sm: 0 3px 10px rgba(0,0,0,.3);
+    }
+        /* parts of the Profile page that hard-code white */
+        html.rq-dark .p-input-wrap:focus-within {
+            background: #172019;
+        }
+
+        html.rq-dark .p-check-card:hover {
+            background: #1B2620;
+        }
+
+        html.rq-dark :is(.p-check-box, .p-health-page-btn, .p-add-entry, .p-add-remove) {
+            background: #172019;
+        }
+
+        html.rq-dark .p-add-row :is(input, select, textarea) {
+            background: #0E1412;
+            color: #E8EEEB;
+            border-color: #34403A;
+        }
+
+        html.rq-dark .p-check-card input:checked + .p-check-box::after {
+            color: #062421;
+        }
+
+        html.rq-dark :is(.p-health-page-btn.active, .p-add-btn:hover) {
+            color: #062421;
+        }
+
+        html.rq-dark :is(.p-validation, .p-field-error, .p-add-remove) {
+            color: #E1736B;
+        }
+
+        html.rq-dark .p-wrap .p-input:-webkit-autofill {
+            -webkit-text-fill-color: #E8EEEB;
+            box-shadow: 0 0 0 40px #0E1412 inset;
+        }
+
+        /* ---------- Catch-all for Patient/Admin pages I have not seen yet ----------
+           Gives unknown cards, panels and form fields the same dark look as the Requests page.
+           Guesses by class name, and skips pages that have their own variable-based styles (.p-wrap, .pp-wrap, .rq-wrap). */
+        html.rq-dark :is(.p-content, .a-content):not(:has(> .p-wrap, > .pp-wrap, > .rq-wrap, > .rx-wrap)) :is([class*="card"], [class*="panel"], [class*="section"], [class*="notice"], [class*="tile"], [class*="block"]):not([class*="banner"], [class*="hero"], [class*="btn"], [class*="badge"], [class*="avatar"], [class*="label"], [class*="title"], [class*="head"]) {
+            background-color: #172019 !important;
+            color: #E8EEEB !important;
+            border-color: #26302B !important;
+            box-shadow: 0 3px 10px rgba(0,0,0,.3);
+        }
+
+        html.rq-dark :is(.p-content, .a-content):not(:has(> .p-wrap, > .pp-wrap, > .rq-wrap, > .rx-wrap)) :is([class*="card-head"], [class*="panel-head"], [class*="section-head"], [class*="card-header"]) {
+            background-color: transparent !important;
+            border-color: #26302B !important;
+            color: #E8EEEB !important;
+        }
+        /* form fields: darker well on the card, with the icon area blending in */
+        html.rq-dark :is(.p-content, .a-content):not(:has(> .p-wrap, > .pp-wrap, > .rq-wrap, > .rx-wrap)) :is([class*="input-wrap"], [class*="input-group"], [class*="input-box"], [class*="input-icon"], [class*="field-wrap"], [class*="field-box"]):not([class*="label"]) {
+            background-color: #0E1412 !important;
+            border-color: #34403A !important;
+            color: #E8EEEB !important;
+        }
+
+        html.rq-dark :is(.p-content, .a-content):not(:has(> .p-wrap, > .pp-wrap, > .rq-wrap, > .rx-wrap)) :is([class*="input-wrap"], [class*="input-group"], [class*="input-box"], [class*="field-wrap"], [class*="field-box"]) :is(input, select, textarea) {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            color: #E8EEEB !important;
+        }
+
+        html.rq-dark :is(.p-content, .a-content):not(:has(> .p-wrap, > .pp-wrap, > .rq-wrap, > .rx-wrap)) :is(input, select, textarea):disabled,
+        html.rq-dark :is(.p-content, .a-content):not(:has(> .p-wrap, > .pp-wrap, > .rq-wrap, > .rx-wrap)) :is(input, select, textarea)[readonly] {
+            color: #A5B0AA !important;
+        }
+
+        html.rq-dark :is(.p-content, .a-content):not(:has(> .p-wrap, > .pp-wrap, > .rq-wrap, > .rx-wrap)) :is(input, select, textarea):focus {
+            outline: 2px solid #2CC4BA;
+            outline-offset: 1px;
+        }
+
+        html.rq-dark :is(.p-content, .a-content):not(:has(> .p-wrap, > .pp-wrap, > .rq-wrap, > .rx-wrap)) :is(.badge, [class*="tag"], [class*="chip"]):not(.rq-wrap *) {
+            border-color: #34403A;
+        }
+
+    /* sidebar footers: stack Log Out, theme toggle and copyright in one column */
+    .p-sidebar-footer, .a-sidebar-footer {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 2px;
+    }
+
+        .p-sidebar-footer :is(.p-logout, .ld-theme-btn), .a-sidebar-footer :is(.a-logout, .ld-theme-btn) {
+            width: 100%;
+            box-sizing: border-box;
+            white-space: nowrap;
+        }
+
+        .p-sidebar-footer .footer-copy, .a-sidebar-footer .a-footer-note {
+            width: 100%;
+        }
+
+    .ld-theme-btn {
+        cursor: pointer;
+        color: rgba(255,255,255,.92);
+    }
+
+    /* soften images and charts a little */
+    html.rq-dark img:not(.ld-brand img, .sidebar-brand img) {
+        opacity: .92;
+    }
+
+    @@media print {
+        html.rq-dark body, html.rq-dark :is(.p-main, .p-content, .a-main, .a-content) {
+            background: #fff !important;
+            color: #000;
+        }
+    }
+</style>

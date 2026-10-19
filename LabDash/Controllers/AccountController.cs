@@ -1,6 +1,7 @@
 ﻿using LabDash.Areas.Identity.Data;
 using LabDash.Models;
 using LabDash.Services;
+using LabDash.ViewModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,7 @@ namespace LabDash.Controllers
         private readonly IEmailSender _emailSender;
         private readonly NotificationService _notifications;
         private readonly IAuditService _audit;
+        private readonly HealthEntryService _healthEntries;
 
         public AccountController(
             LabDbContext dbContext,
@@ -30,7 +32,8 @@ namespace LabDash.Controllers
             IEmailSender emailSender,
             SignInManager<LabUser> signInManager,
             NotificationService notifications,
-            IAuditService audit)
+            IAuditService audit,
+            HealthEntryService healthEntries)
         {
             _userManager = userManager;
             _context = dbContext;
@@ -40,6 +43,7 @@ namespace LabDash.Controllers
             _signInManager = signInManager;
             _notifications = notifications;
             _audit = audit;
+            _healthEntries = healthEntries;
         }
 
         // ============================================================
@@ -744,6 +748,8 @@ Here's to healthier days ahead,
 
         // ============================================================
         // REGISTER - GET
+        // (PopulateMedicalOptions now also loads the category lists
+        //  used by the "add your own" rows.)
         // ============================================================
 
         [HttpGet]
@@ -833,6 +839,10 @@ Here's to healthier days ahead,
             model.SelectedAllergyIds ??= new List<int>();
             model.SelectedMedicationIds ??= new List<int>();
 
+            model.NewMedications ??= new List<NewHealthEntry>();
+            model.NewAllergies ??= new List<NewHealthEntry>();
+            model.NewConditions ??= new List<NewHealthEntry>();
+
             // --------------------------------------------------------
             // VALIDATE MODEL
             // --------------------------------------------------------
@@ -921,23 +931,59 @@ Here's to healthier days ahead,
             }
 
             // ========================================================
-            // CUSTOM MEDICAL INFORMATION
+            // TEXT SUMMARY COLUMNS (same approach as the Profile page):
+            // ticked items + anything typed in + "None" if empty
             // ========================================================
 
+            var conditionNames = await _context.MedicalConditions
+                .Where(x => x.IsActive &&
+                            model.SelectedMedicalConditionIds.Contains(x.MedicalConditionId))
+                .OrderBy(x => x.ConditionName)
+                .Select(x => x.ConditionName)
+                .ToListAsync();
+
+            var allergyNames = await _context.Allergies
+                .Where(x => x.IsActive &&
+                            model.SelectedAllergyIds.Contains(x.AllergyId))
+                .OrderBy(x => x.AllergyName)
+                .Select(x => x.AllergyName)
+                .ToListAsync();
+
+            var medicationNames = await _context.Medications
+                .Where(x => x.IsActive &&
+                            model.SelectedMedicationIds.Contains(x.MedicationId))
+                .OrderBy(x => x.MedicationName)
+                .Select(x => x.MedicationName)
+                .ToListAsync();
+
+            // old single text boxes (no longer on the form, kept so nothing breaks)
+            if (!string.IsNullOrWhiteSpace(model.OtherMedicalCondition))
+                conditionNames.Add(model.OtherMedicalCondition.Trim());
+
+            if (!string.IsNullOrWhiteSpace(model.OtherAllergy))
+                allergyNames.Add(model.OtherAllergy.Trim());
+
+            if (!string.IsNullOrWhiteSpace(model.OtherMedication))
+                medicationNames.Add(model.OtherMedication.Trim());
+
+            // the "add your own" rows
+            conditionNames.AddRange(
+                HealthEntryService.UniqueNamed(model.NewConditions).Select(x => x.Name!));
+
+            allergyNames.AddRange(
+                HealthEntryService.UniqueNamed(model.NewAllergies).Select(x => x.Name!));
+
+            medicationNames.AddRange(
+                HealthEntryService.UniqueNamed(model.NewMedications).Select(x => x.Name!));
+
             string customCondition =
-                string.IsNullOrWhiteSpace(model.OtherMedicalCondition)
-                    ? "None"
-                    : model.OtherMedicalCondition.Trim();
+                conditionNames.Any() ? string.Join(", ", conditionNames) : "None";
 
             string customAllergy =
-                string.IsNullOrWhiteSpace(model.OtherAllergy)
-                    ? "None"
-                    : model.OtherAllergy.Trim();
+                allergyNames.Any() ? string.Join(", ", allergyNames) : "None";
 
             string customMedication =
-                string.IsNullOrWhiteSpace(model.OtherMedication)
-                    ? "None"
-                    : model.OtherMedication.Trim();
+                medicationNames.Any() ? string.Join(", ", medicationNames) : "None";
 
             // ========================================================
             // CREATE PATIENT
@@ -1042,6 +1088,20 @@ Here's to healthier days ahead,
                 }
             }
 
+            // Save the ticked items first, so the "add your own" step below
+            // can see them and never creates a duplicate link.
+            await _context.SaveChangesAsync();
+
+            // ========================================================
+            // "ADD YOUR OWN" ENTRIES (same rules as the Profile page)
+            // ========================================================
+
+            await _healthEntries.AddNewEntriesAsync(
+                newPatient.PatientID,
+                model.NewMedications,
+                model.NewAllergies,
+                model.NewConditions);
+
             // ========================================================
             // AUDIT
             // ========================================================
@@ -1098,10 +1158,16 @@ Here's to healthier days ahead,
 
         // ============================================================
         // POPULATE MEDICAL OPTIONS
+        // Lists for the multi-selects + categories for the
+        // "add your own" rows. Called on GET and on every failed POST.
         // ============================================================
 
         private async Task PopulateMedicalOptions(PatientRegisterViewModel model)
         {
+            model.SelectedMedicalConditionIds ??= new List<int>();
+            model.SelectedAllergyIds ??= new List<int>();
+            model.SelectedMedicationIds ??= new List<int>();
+
             model.MedicalConditionOptions = await _context.MedicalConditions
                 .Where(x => x.IsActive)
                 .OrderBy(x => x.ConditionName)
@@ -1135,6 +1201,18 @@ Here's to healthier days ahead,
                     Selected = model.SelectedMedicationIds.Contains(x.MedicationId)
                 })
                 .ToListAsync();
+
+            // categories for the "add your own" rows
+            async Task<List<CategoryOption>> Cats(string type) =>
+                await _context.Categories
+                    .Where(c => c.Type == type && c.IsActive)
+                    .OrderBy(c => c.Name)
+                    .Select(c => new CategoryOption { Id = c.CategoryId, Name = c.Name })
+                    .ToListAsync();
+
+            model.MedicationCategories = await Cats("Medication");
+            model.AllergyCategories = await Cats("Allergy");
+            model.ConditionCategories = await Cats("MedicalCondition");
         }
 
         // ============================================================

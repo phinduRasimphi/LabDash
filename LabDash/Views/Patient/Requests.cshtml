@@ -6,8 +6,11 @@
     ViewData["Title"] = "My Test Requests";
     ViewData["ActivePage"] = "Requests";
 
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+
     // The 5 stages a request moves through (cancelled sits outside the flow)
     var stages = new[] { "Submitted", "Sample received", "In progress", "Completed", "Released" };
+    var stageKeys = new[] { "submitted", "received", "inprogress", "completed", "released" };
 
     // Works whatever exact text is stored in the DB ("Samples Received", "Released by doctor", ...)
     string StatusKey(string? raw)
@@ -63,10 +66,19 @@
         var k = StatusKey(x.Status);
         if (k == "cancelled" || k == "released") return false;
         var u = (x.Urgency ?? "").ToLowerInvariant();
-        return u == "high" || u == "urgent";
+        return u == "high" || u == "urgent" || u == "stat";
     }
 
-    // PREVIEW MODE (development only): open /Patient/Requests?preview=1 to see one sample card per status
+    string AgeText(int days)
+    {
+        if (days <= 0) return "today";
+        if (days == 1) return "yesterday";
+        if (days < 30) return days + " days ago";
+        if (days < 60) return "1 month ago";
+        return (days / 30) + " months ago";
+    }
+
+    // PREVIEW MODE (development only): open /Patient/Requests?preview=1 to see sample cards
     List<LabDash.Models.TestRequestViewModel> SampleRequests()
     {
         var now = DateTime.Now;
@@ -88,10 +100,20 @@
             M(9003, "In progress", "Routine", 3, "Full Blood Count", "Glucose", "Cholesterol", "Ferritin"),
             M(9004, "Completed", "Routine", 4, "Full Blood Count"),
             M(9005, "Released by doctor", "Routine", 5, "Glucose"),
-            M(9006, "Cancelled", "Routine", 6, "Cholesterol")
+            M(9006, "Cancelled", "Routine", 6, "Cholesterol"),
+            M(9007, "Released by doctor", "Routine", 20, "Glucose", "Full Blood Count"),
+            M(9008, "Released by doctor", "Routine", 41, "Cholesterol"),
+            M(9009, "Released by doctor", "Routine", 75, "Ferritin", "Glucose"),
+            M(9010, "Cancelled", "Routine", 100, "Full Blood Count"),
+            M(9011, "Released by doctor", "Routine", 130, "Cholesterol", "Glucose")
         };
         list[4].ReleaseDate = now.AddDays(-4);
         list[5].CancelReason = "Sample could not be collected";
+        list[6].ReleaseDate = now.AddDays(-17);
+        list[7].ReleaseDate = now.AddDays(-37);
+        list[8].ReleaseDate = now.AddDays(-70);
+        list[9].CancelReason = "I no longer need these tests";
+        list[10].ReleaseDate = now.AddDays(-124);
         return list;
     }
 
@@ -108,18 +130,118 @@
     var presentKeys = new[] { "submitted", "received", "inprogress", "completed", "released", "cancelled" }
         .Where(k => items.Any(x => StatusKey(x.Status) == k))
         .ToList();
+
+    // "What needs my attention" strip
+    string spotTitle = "", spotText = "", spotBtn = "", spotFilter = "", spotIcon = "", spotTone = "";
+    if (released > 0)
+    {
+        spotTone = "green"; spotIcon = "fa-circle-check"; spotFilter = "released";
+        spotTitle = released == 1 ? "1 result is ready for you" : released + " results are ready for you";
+        spotText = "Your doctor has reviewed and released them.";
+        spotBtn = "Show ready results";
+    }
+    else if (open > 0)
+    {
+        var latest = items.Where(x => StatusKey(x.Status) != "cancelled").OrderByDescending(x => x.RequestDate).First();
+        var lk = StatusKey(latest.Status);
+        spotTone = "teal"; spotIcon = iconOf[lk]; spotFilter = "open";
+        spotTitle = "Your latest request is " + labelOf[lk].ToLower();
+        spotText = noteOf[lk];
+        spotBtn = "Show open requests";
+    }
+
+    // ---- Activity insights (all requests, not affected by filters) ----
+    var turnDays = items
+        .Where(x => StatusKey(x.Status) == "released" && x.ReleaseDate.HasValue)
+        .Select(x => Math.Max(0, (x.ReleaseDate.Value.Date - x.RequestDate.Date).Days))
+        .ToList();
+    double avgTurn = turnDays.Count > 0 ? Math.Round(turnDays.Average(), 1) : -1;
+    var fastestTurn = turnDays.Count > 0 ? turnDays.Min() : -1;
+    var slowestTurn = turnDays.Count > 0 ? turnDays.Max() : -1;
+
+    var docGroup = items
+        .GroupBy(x => x.DoctorName ?? "Unknown")
+        .OrderByDescending(g => g.Count())
+        .ThenBy(g => g.Key)
+        .FirstOrDefault();
+
+    var topTests = items
+        .SelectMany(x => x.Tests ?? new List<string>())
+        .GroupBy(n => n)
+        .OrderByDescending(g => g.Count())
+        .ThenBy(g => g.Key)
+        .Take(5)
+        .Select(g => (Name: g.Key, Count: g.Count()))
+        .ToList();
+    var maxTest = topTests.Count > 0 ? topTests.Max(z => z.Count) : 1;
+
+    var nowD = DateTime.Now;
+    var monthBars = Enumerable.Range(0, 6)
+        .Select(i => nowD.AddMonths(i - 5))
+        .Select(d => (Label: d.ToString("MMM"), Count: items.Count(x => x.RequestDate.Year == d.Year && x.RequestDate.Month == d.Month)))
+        .ToList();
+    var maxMonth = Math.Max(1, monthBars.Max(z => z.Count));
+
+    // ---- Extra insights ----
+    var busiest = items
+        .GroupBy(x => new { x.RequestDate.Year, x.RequestDate.Month })
+        .OrderByDescending(g => g.Count())
+        .ThenByDescending(g => g.Key.Year)
+        .ThenByDescending(g => g.Key.Month)
+        .FirstOrDefault();
+    var openItems = items.Where(x => { var k = StatusKey(x.Status); return k != "cancelled" && k != "released"; }).ToList();
+    var oldestOpenDays = openItems.Count > 0 ? openItems.Max(x => Math.Max(0, (DateTime.Now.Date - x.RequestDate.Date).Days)) : -1;
+    var testsTotal = items.Where(x => StatusKey(x.Status) != "cancelled").Sum(x => (x.Tests ?? new List<string>()).Count);
+
+    // status donut (green = ready, amber = in progress, red = cancelled)
+    var pRel = total > 0 ? (double)released / total * 100 : 0;
+    var pOpen = total > 0 ? (double)open / total * 100 : 0;
+    var cutA = pRel;
+    var cutB = pRel + pOpen;
+    var donutStyle = "conic-gradient(var(--rq-green) 0 " + cutA.ToString("0.##", inv) + "%, var(--rq-amber) " + cutA.ToString("0.##", inv) + "% " + cutB.ToString("0.##", inv) + "%, var(--rq-red) " + cutB.ToString("0.##", inv) + "% 100%)";
+
+    // filter dropdown sources
+    var doctorList = items.Select(x => x.DoctorName ?? "Unknown").Distinct().OrderBy(n => n).ToList();
+    var testList = items.SelectMany(x => x.Tests ?? new List<string>()).Distinct().OrderBy(n => n).ToList();
+
+    // Expected-ready date for open requests, based on this patient's own past waits
+    DateTime? ExpectedFor(LabDash.Models.TestRequestViewModel x)
+    {
+        var k = StatusKey(x.Status);
+        if (k == "cancelled" || k == "released" || avgTurn < 0) return null;
+        return x.RequestDate.Date.AddDays(Math.Ceiling(avgTurn));
+    }
 }
+
+<script>
+    // Runs before the page paints: no flash of the wrong theme
+    (function() {
+        try {
+            document.documentElement.classList.add('rq-js');
+            var t = localStorage.getItem('rqTheme');
+            var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (t === 'dark' || (t === null && sysDark)) { document.documentElement.classList.add('rq-dark'); }
+        } catch (e) { }
+    })();
+</script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 
-<div class="rq-wrap">
+<div class="rq-wrap" id="rqWrap" data-theme="light">
+
+    <div class="rq-progress" id="rqProgress" aria-hidden="true"><span></span></div>
 
     <!-- ==========================================
-        CONSOLE HEADER
+        CONSOLE HEADER (banner)
     =========================================== -->
     <div class="rq-console">
         <div class="rq-console-scan"></div>
+
+        <button type="button" id="rqTheme" class="rq-theme" aria-label="Switch between light and dark mode" title="Light / dark mode">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+
         <div class="rq-console-left">
             <div class="rq-console-eyebrow">Patient Portal &middot; Specimen Tracking</div>
             <h1>My Test Requests</h1>
@@ -129,7 +251,7 @@
         <div class="rq-console-right">
             @if (activeTotal > 0)
             {
-                <div class="rq-console-ring" style="--rq-pct: @readyPercent">
+                <div class="rq-console-ring" id="rqRing" data-pct="@readyPercent" style="--rq-pct: @readyPercent">
                     <div class="rq-ring-inner">
                         <span>@readyPercent.ToString("0")%</span>
                         <small>Ready</small>
@@ -138,81 +260,170 @@
             }
             <div class="rq-console-readout">
                 <span class="rq-readout-label">Total on file</span>
-                <span class="rq-readout-num">@total.ToString("D3")</span>
+                <span class="rq-readout-num rq-count" data-count="@total" data-pad="3">@total.ToString("D3")</span>
             </div>
         </div>
     </div>
 
     @if (preview)
     {
-        <div style="margin:0 0 16px;padding:10px 14px;border-radius:10px;background:#FBF0DC;color:#7A5410;font-size:12.5px;font-weight:600">
-            Preview mode &mdash; sample data, one card per status. Remove <code>?preview=1</code> from the address to see your real requests.
+        <div class="rq-preview-note">
+            Preview mode &mdash; sample data. Remove <code>?preview=1</code> from the address to see your real requests.
         </div>
     }
 
     <!-- ==========================================
-        SUMMARY TICKER (Ready + In progress + Cancelled = Total)
+        WHAT NEEDS YOUR ATTENTION
+    =========================================== -->
+    @if (!string.IsNullOrEmpty(spotTitle))
+    {
+        <div class="rq-spot rq-spot-@spotTone">
+            <i class="fa-solid @spotIcon"></i>
+            <div class="rq-spot-text">
+                <strong>@spotTitle</strong>
+                <span>@spotText</span>
+            </div>
+            <button type="button" class="rq-spot-btn" data-spot-filter="@spotFilter">@spotBtn</button>
+        </div>
+    }
+
+    <!-- "Since your last visit" strip (filled in by script when something changed) -->
+    <div class="rq-since rq-hidden" id="rqSince" role="status">
+        <i class="fa-solid fa-bell"></i>
+        <div class="rq-since-text"><strong id="rqSinceTitle"></strong><span id="rqSinceText"></span></div>
+        <button type="button" class="rq-since-btn" id="rqSinceShow">Show them</button>
+        <button type="button" class="rq-since-x" id="rqSinceDismiss" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- ==========================================
+        SUMMARY TICKER (click a tile to filter)
     =========================================== -->
     @if (total > 0)
     {
         <div class="rq-ticker">
-            <div class="rq-tick">
+            <button type="button" class="rq-tick active" data-tick-filter="all">
                 <span class="rq-tick-bar rq-bar-ink"></span>
-                <span class="rq-tick-num">@total.ToString("D2")</span>
+                <span class="rq-tick-num rq-count" data-count="@total" data-pad="2">@total.ToString("D2")</span>
                 <span class="rq-tick-label">Total requests</span>
-            </div>
-            <div class="rq-tick">
+            </button>
+            <button type="button" class="rq-tick" data-tick-filter="released">
                 <span class="rq-tick-bar rq-bar-green"></span>
-                <span class="rq-tick-num">@released.ToString("D2")</span>
+                <span class="rq-tick-num rq-count" data-count="@released" data-pad="2">@released.ToString("D2")</span>
                 <span class="rq-tick-label">Results ready</span>
-            </div>
-            <div class="rq-tick">
+            </button>
+            <button type="button" class="rq-tick" data-tick-filter="open">
                 <span class="rq-tick-bar rq-bar-amber"></span>
-                <span class="rq-tick-num">@open.ToString("D2")</span>
+                <span class="rq-tick-num rq-count" data-count="@open" data-pad="2">@open.ToString("D2")</span>
                 <span class="rq-tick-label">In progress</span>
-            </div>
-            <div class="rq-tick">
+            </button>
+            <button type="button" class="rq-tick" data-tick-filter="cancelled">
                 <span class="rq-tick-bar rq-bar-red"></span>
-                <span class="rq-tick-num">@cancelled.ToString("D2")</span>
+                <span class="rq-tick-num rq-count" data-count="@cancelled" data-pad="2">@cancelled.ToString("D2")</span>
                 <span class="rq-tick-label">Cancelled</span>
-            </div>
+            </button>
         </div>
     }
 
     <!-- ==========================================
-        TOOLBAR — search, status filter, sort, export
+        TOOLBAR (sticks to the top while you scroll, then folds its status chips away)
     =========================================== -->
     @if (total > 0)
     {
-        <div class="rq-toolbar">
+        <div class="rq-top-sentinel" id="rqTopSentinel"></div>
 
-            <div class="rq-search">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="rqSearchInput" placeholder="Search by doctor or test..." aria-label="Search test requests">
+        <div class="rq-sticky" id="rqSticky">
+            <div class="rq-toolbar">
+
+                <div class="rq-toolbar-row">
+                    <div class="rq-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="rqSearchInput" placeholder="Search by doctor, test or request number" aria-label="Search test requests" autocomplete="off">
+                        <kbd id="rqKbd" title="Press / to search">/</kbd>
+                        <button type="button" id="rqSearchClear" class="rq-search-clear" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <div class="rq-toolbar-actions">
+                        <button type="button" id="rqChipsToggle" class="rq-icon-btn rq-chips-toggle" aria-expanded="false" title="Show or hide status filters" aria-label="Show or hide status filters">
+                            <i class="fa-solid fa-sliders"></i><span class="rq-dot"></span>
+                        </button>
+                        <select id="rqRange" class="rq-select" aria-label="Filter by date">
+                            <option value="all">All time</option>
+                            <option value="30">Last 30 days</option>
+                            <option value="90">Last 3 months</option>
+                            <option value="365">Last 12 months</option>
+                        </select>
+                        <select id="rqSortSelect" class="rq-select" aria-label="Sort requests">
+                            <option value="newest">Newest first</option>
+                            <option value="oldest">Oldest first</option>
+                            <option value="urgent">Urgent first</option>
+                            <option value="pinned">Pinned first</option>
+                        </select>
+                        <button type="button" id="rqDensity" class="rq-icon-btn" aria-pressed="false" title="Switch between full and compact tickets" aria-label="Compact view">
+                            <i class="fa-solid fa-bars"></i>
+                        </button>
+                        <button type="button" id="rqGrid" class="rq-icon-btn rq-grid-btn" aria-pressed="false" title="Show tickets in two columns" aria-label="Two column view">
+                            <i class="fa-solid fa-table-cells-large"></i>
+                        </button>
+                        <button type="button" id="rqPrintBtn" class="rq-icon-btn" title="Print this list" aria-label="Print this list">
+                            <i class="fa-solid fa-print"></i>
+                        </button>
+                        <button type="button" id="rqExportBtn" class="rq-export">
+                            <i class="fa-solid fa-file-arrow-down"></i> Export CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div class="rq-chips-row">
+                    <div class="rq-filter-chips" role="group" aria-label="Filter by status">
+                        <button type="button" class="rq-chip active" data-status-filter="all">All <em>@total</em></button>
+                        @foreach (var k in presentKeys)
+                        {
+                            <button type="button" class="rq-chip" data-status-filter="@k">@labelOf[k] <em>@items.Count(x => StatusKey(x.Status) == k)</em></button>
+                        }
+                        <button type="button" class="rq-chip rq-chip-urgent" data-urgent-filter="true" title="Urgent requests that are still open" aria-pressed="false">
+                            <i class="fa-solid fa-bolt"></i> Urgent only <em>@urgentOpen</em>
+                        </button>
+                        <button type="button" class="rq-chip rq-chip-pin" data-flag-filter="pinned" title="Requests you starred" aria-pressed="false">
+                            <i class="fa-solid fa-star"></i> Pinned <em>0</em>
+                        </button>
+                        <button type="button" class="rq-chip rq-chip-upd" data-flag-filter="updated" title="New, changed or unopened since your last visit" aria-pressed="false">
+                            <i class="fa-solid fa-bell"></i> Updated <em>0</em>
+                        </button>
+                    </div>
+
+                    @if (doctorList.Count > 1 || testList.Count > 1)
+                    {
+                        <div class="rq-extra-filters">
+                            @if (doctorList.Count > 1)
+                            {
+                                <select id="rqDoctorSel" class="rq-select" aria-label="Filter by doctor">
+                                    <option value="">All doctors</option>
+                                    @foreach (var dn in doctorList)
+                                    {
+                                        <option value="@dn">Dr. @dn</option>
+                                    }
+                                </select>
+                            }
+                            @if (testList.Count > 1)
+                            {
+                                <select id="rqTestSel" class="rq-select" aria-label="Filter by test">
+                                    <option value="">All tests</option>
+                                    @foreach (var tn in testList)
+                                    {
+                                        <option value="@tn">@tn</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+                    }
+                </div>
+
             </div>
+        </div>
 
-            <div class="rq-filter-chips" role="tablist" aria-label="Filter by status">
-                <button type="button" class="rq-chip active" data-status-filter="all">All</button>
-                @foreach (var k in presentKeys)
-                {
-                    <button type="button" class="rq-chip" data-status-filter="@k">@labelOf[k]</button>
-                }
-                <button type="button" class="rq-chip rq-chip-urgent" data-urgent-filter="true" title="Urgent requests that are still open">
-                    <i class="fa-solid fa-bolt"></i> Urgent only (@urgentOpen)
-                </button>
-            </div>
-
-            <div class="rq-toolbar-actions">
-                <select id="rqSortSelect" class="rq-sort" aria-label="Sort requests">
-                    <option value="newest">Newest first</option>
-                    <option value="oldest">Oldest first</option>
-                    <option value="urgent">Urgent first</option>
-                </select>
-                <button type="button" id="rqExportBtn" class="rq-export">
-                    <i class="fa-solid fa-file-arrow-down"></i> Export CSV
-                </button>
-            </div>
-
+        <div class="rq-resultbar" aria-live="polite">
+            <span id="rqCount"></span>
+            <button type="button" id="rqResetInline" class="rq-linkbtn rq-hidden">Reset filters</button>
         </div>
     }
 
@@ -235,16 +446,34 @@
 
                 var testsList = r.Tests ?? new List<string>();
                 var visibleTestCount = 3;
+                var daysAgo = Math.Max(0, (DateTime.Now.Date - r.RequestDate.Date).Days);
+                var daysOpen = isReleased && r.ReleaseDate.HasValue
+                    ? Math.Max(0, (r.ReleaseDate.Value.Date - r.RequestDate.Date).Days)
+                    : daysAgo;
+                var urgencyText = string.IsNullOrWhiteSpace(r.Urgency) ? "Routine" : r.Urgency;
+                var doctorKey = r.DoctorName ?? "Unknown";
+                var expDate = ExpectedFor(r);
+                var expIso = expDate.HasValue ? expDate.Value.ToString("yyyy-MM-dd") : "";
+                var expLate = expDate.HasValue && expDate.Value < DateTime.Now.Date;
+                var relDays = isReleased && r.ReleaseDate.HasValue
+                    ? Math.Max(0, (DateTime.Now.Date - r.ReleaseDate.Value.Date).Days)
+                    : 9999;
 
-                <div class="rq-card @(isCancelled ? "rq-card-cancelled" : "") @(isUrgent ? "rq-card-urgent" : "") @(isReleased ? "rq-card-clickable" : "")"
-                     data-id="@r.RequestID"
-                     data-doctor="@r.DoctorName"
-                     data-date="@r.RequestDate.ToString("yyyy-MM-dd")"
-                     data-status="@key"
-                     data-status-label="@labelOf[key]"
-                     data-urgent="@isUrgent.ToString().ToLower()"
-                     data-tests="@string.Join("|", testsList)"
-                     data-href="@resultsUrl">
+                <article class="rq-card @(isCancelled ? "rq-card-cancelled" : "") @(isUrgent ? "rq-card-urgent" : "") @(isReleased ? "rq-card-clickable" : "")"
+                         data-id="@r.RequestID"
+                         data-doctor="@doctorKey"
+                         data-date="@r.RequestDate.ToString("yyyy-MM-dd")"
+                         data-req-label="@r.RequestDate.ToString("dd MMM yyyy")"
+                         data-month-label="@r.RequestDate.ToString("MMMM yyyy")"
+                         data-days="@daysAgo"
+                         data-status="@key"
+                         data-status-label="@labelOf[key]"
+                         data-urgent="@isUrgent.ToString().ToLower()"
+                         data-urgency="@urgencyText"
+                         data-expected="@expIso"
+                         data-rel-days="@relDays"
+                         data-tests="@string.Join("|", testsList)"
+                         data-href="@resultsUrl">
 
                     @if (isUrgent)
                     {
@@ -253,10 +482,15 @@
 
                     <div class="rq-stub">
                         <div class="rq-barcode" aria-hidden="true"></div>
-                        <div class="rq-stub-id">#@r.RequestID</div>
-                        <button type="button" class="rq-copy-btn" data-copy="#@r.RequestID" title="Copy request ID" aria-label="Copy request ID">
-                            <i class="fa-solid fa-copy"></i>
-                        </button>
+                        <div class="rq-stub-id">@r.RequestID</div>
+                        <div class="rq-stub-tools">
+                            <button type="button" class="rq-copy-btn" data-copy="#@r.RequestID" title="Copy request number" aria-label="Copy request number">
+                                <i class="fa-solid fa-copy"></i>
+                            </button>
+                            <button type="button" class="rq-pin-btn" data-pin="@r.RequestID" aria-pressed="false" title="Pin this request" aria-label="Pin this request">
+                                <i class="fa-regular fa-star"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="rq-perf"></div>
@@ -264,8 +498,9 @@
                     <div class="rq-body">
                         <div class="rq-row-top">
                             <div>
-                                <div class="rq-doctor"><i class="fa-solid fa-user-doctor"></i> Dr. @r.DoctorName</div>
-                                <div class="rq-date">Requested @r.RequestDate.ToString("dd MMM yyyy")</div>
+                                <div class="rq-doctor"><i class="fa-solid fa-user-doctor"></i> <span>Dr. <span class="rq-hl">@r.DoctorName</span></span></div>
+                                <div class="rq-date">Requested @r.RequestDate.ToString("dd MMM yyyy") (@AgeText(daysAgo))</div>
+                                <div class="rq-badges"></div>
                             </div>
 
                             @if (isReleased)
@@ -278,16 +513,16 @@
                             {
                                 <div class="rq-actions">
                                     <span class="rq-pill rq-pill-@key">@labelOf[key]</span>
+                                    @if (!isCancelled)
+                                    {
+                                        <span class="rq-stepcount">Step @(stageIndex + 1) of @stages.Length</span>
+                                    }
 
                                     @if (!preview && (key == "submitted" || key == "received"))
                                     {
-                                        <form asp-action="CancelRequest" asp-controller="Patient" method="post" class="rq-cancel-form">
-                                            <input type="hidden" name="requestId" value="@r.RequestID" />
-                                            <input type="hidden" name="reason" value="" />
-                                            <button type="button" class="rq-cancel-btn">
-                                                <i class="fa-solid fa-xmark"></i> Cancel request
-                                            </button>
-                                        </form>
+                                        <button type="button" class="rq-cancel-btn" data-cancel-id="@r.RequestID">
+                                            <i class="fa-solid fa-xmark"></i> Cancel request
+                                        </button>
                                     }
                                 </div>
                             }
@@ -318,7 +553,7 @@
                             <div class="rq-cancelled-rail">
                                 <i class="fa-solid fa-circle-xmark"></i>
                                 <span>
-                                    Request cancelled &mdash; no further processing.
+                                    Request cancelled. No further processing.
                                     @if (!string.IsNullOrWhiteSpace(r.CancelReason))
                                     {
                                         <text> Reason: @r.CancelReason</text>
@@ -335,6 +570,17 @@
                                     @if (isReleased && r.ReleaseDate.HasValue)
                                     {
                                         <text> Released on @r.ReleaseDate.Value.ToString("dd MMM yyyy").</text>
+                                    }
+                                    @if (expDate.HasValue)
+                                    {
+                                        if (expLate)
+                                        {
+                                            <text> This is taking a little longer than your usual wait.</text>
+                                        }
+                                        else
+                                        {
+                                            <text> Usually ready around @expDate.Value.ToString("dd MMM").</text>
+                                        }
                                     }
                                 </span>
                             </div>
@@ -355,50 +601,393 @@
                                 }
                             </div>
                         }
+
+                        <div class="rq-foot">
+                            <button type="button" class="rq-details-btn" aria-expanded="false" aria-controls="dr-@r.RequestID">
+                                <span class="rq-details-label">Details</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                            <span class="rq-note-ind rq-hidden" title="You have a private note on this request"><i class="fa-solid fa-note-sticky"></i> Note</span>
+                        </div>
+
+                        <!-- Expandable details drawer -->
+                        <div class="rq-drawer" id="dr-@r.RequestID">
+                            <div class="rq-drawer-inner">
+                                <div class="rq-drawer-grid">
+
+                                    <dl class="rq-facts">
+                                        <div><dt>Request number</dt><dd>#@r.RequestID</dd></div>
+                                        <div><dt>Doctor</dt><dd>Dr. @r.DoctorName</dd></div>
+                                        <div><dt>Requested</dt><dd>@r.RequestDate.ToString("dd MMM yyyy")</dd></div>
+                                        <div><dt>Priority</dt><dd>@urgencyText</dd></div>
+                                        @if (isReleased && r.ReleaseDate.HasValue)
+                                        {
+                                            <div><dt>Released</dt><dd>@r.ReleaseDate.Value.ToString("dd MMM yyyy") (after @daysOpen day@(daysOpen == 1 ? "" : "s"))</dd></div>
+                                        }
+                                        else if (!isCancelled)
+                                        {
+                                            <div><dt>Open for</dt><dd>@daysAgo day@(daysAgo == 1 ? "" : "s")</dd></div>
+                                        }
+                                        @if (expDate.HasValue)
+                                        {
+                                            <div><dt>Expected around</dt><dd>@expDate.Value.ToString("dd MMM yyyy")</dd></div>
+                                        }
+                                        <div class="rq-facts-wide">
+                                            <dt>Tests (@testsList.Count)</dt>
+                                            <dd>
+                                                @if (testsList.Count == 0)
+                                                {
+                                                    <span>None listed</span>
+                                                }
+                                                else
+                                                {
+                                                    <ul>@foreach (var tn in testsList) {
+                                                        <li>@tn</li>
+                                                    }
+                                                </ul>
+                                            }
+                                        </dd>
+                                    </div>
+                                </dl>
+
+                                @if (isCancelled)
+                                {
+                                    <div class="rq-why">
+                                        <h6>Why was it cancelled?</h6>
+                                        <p>@(string.IsNullOrWhiteSpace(r.CancelReason) ? "No reason was recorded." : r.CancelReason)</p>
+                                        <p class="rq-why-hint">Need these tests done? Ask your doctor to create a new request.</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <ol class="rq-timeline">
+                                        @for (int i = 0; i < stageKeys.Length; i++)
+                                        {
+                                            var tlState = i < stageIndex || (i == stageIndex && isReleased) ? "done" : (i == stageIndex ? "now" : "todo");
+                                            <li class="rq-tl-@tlState">
+                                                <span class="rq-tl-dot"></span>
+                                                <div>
+                                                    <strong>@stages[i]</strong>
+                                                    <span>@noteOf[stageKeys[i]]</span>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ol>
+                                }
+                            </div>
+
+                            <!-- Tools: print, copy, remind, private note -->
+                            <div class="rq-drawer-tools">
+                                <div class="rq-tool-row">
+                                    <button type="button" class="rq-tool" data-act="print"><i class="fa-solid fa-print"></i> Print slip</button>
+                                    <button type="button" class="rq-tool" data-act="summary"><i class="fa-solid fa-clipboard"></i> Copy summary</button>
+                                    @if (!isCancelled && !isReleased)
+                                    {
+                                        <button type="button" class="rq-tool" data-act="remind"><i class="fa-solid fa-calendar-plus"></i> Remind me</button>
+                                    }
+                                    @if (isReleased)
+                                    {
+                                        <a href="@resultsUrl" class="rq-tool rq-tool-go"><i class="fa-solid fa-flask-vial"></i> Open results</a>
+                                    }
+                                </div>
+                                <label class="rq-notebox">
+                                    <span>Private note <small>(saved on this device only, your doctor cannot see it)</small></span>
+                                    <textarea rows="2" maxlength="400" data-note="@r.RequestID" placeholder="e.g. Fasting needed, bring ID, ask about the cholesterol result"></textarea>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            }
-        </div>
+            </article>
+        }
+    </div>
 
-        <div class="rq-no-matches" id="rqNoMatches">
-            <i class="fa-solid fa-filter-circle-xmark"></i>
-            <p>No requests match your filters.</p>
-            <button type="button" id="rqClearFilters">Clear filters</button>
-        </div>
-    }
-    else
-    {
-        <div class="rq-empty">
-            <div class="rq-empty-barcode"></div>
-            <h5>No specimens on file</h5>
-            <p>You currently have no laboratory or diagnostic test requests. New orders from your doctor will appear here.</p>
-        </div>
-    }
+    <div class="rq-sentinel" id="rqSentinel"></div>
+
+    <div class="rq-more-wrap">
+        <button type="button" id="rqMore" class="rq-more rq-hidden"></button>
+        <div id="rqEnd" class="rq-end rq-hidden"></div>
+    </div>
+
+    <div class="rq-no-matches" id="rqNoMatches">
+        <i class="fa-solid fa-filter-circle-xmark"></i>
+        <p>No requests match your filters.</p>
+        <button type="button" id="rqClearFilters">Clear filters</button>
+    </div>
 
     <!-- ==========================================
+            YOUR ACTIVITY (fills in as you scroll to it)
+        =========================================== -->
+    <section class="rq-insights rq-reveal" aria-label="Your activity">
+        <div class="rq-sec-head">
+            <h2>Your activity</h2>
+            <p>A summary of every request on your account.</p>
+        </div>
+
+        <div class="rq-ins-grid">
+
+            <div class="rq-ins-card">
+                <span class="rq-ins-label">Average wait for results</span>
+                @if (avgTurn >= 0)
+                {
+                    <div class="rq-ins-big"><span data-countup data-value="@avgTurn.ToString(inv)" data-dec="1">@avgTurn.ToString("0.#", inv)</span> <small>day@(avgTurn == 1 ? "" : "s")</small></div>
+                    <p>From request to release, across @turnDays.Count released request@(turnDays.Count == 1 ? "" : "s").</p>
+                }
+                else
+                {
+                    <div class="rq-ins-big rq-ins-none">Not enough data yet</div>
+                    <p>This appears once your first results are released.</p>
+                }
+            </div>
+
+            <div class="rq-ins-card">
+                <span class="rq-ins-label">Doctor you see most</span>
+                @if (docGroup != null)
+                {
+                    <div class="rq-ins-big rq-ins-name">Dr. @docGroup.Key</div>
+                    <p>@docGroup.Count() request@(docGroup.Count() == 1 ? "" : "s") on your account.</p>
+                }
+            </div>
+
+            <div class="rq-ins-card">
+                <span class="rq-ins-label">Requests per month</span>
+                <div class="rq-vbars">
+                    @foreach (var mb in monthBars)
+                    {
+                        var vh = (int)Math.Round(mb.Count * 100.0 / maxMonth);
+                        <div class="rq-vbar">
+                            <span class="rq-vbar-n">@mb.Count</span>
+                            <div class="rq-vbar-track"><div class="rq-bar rq-bar-v" style="height:@(vh)%"></div></div>
+                            <span class="rq-vbar-l">@mb.Label</span>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="rq-ins-card">
+                <span class="rq-ins-label">Tests you have had most</span>
+                @if (topTests.Count == 0)
+                {
+                    <p>No tests recorded yet.</p>
+                }
+                else
+                {
+                    <ul class="rq-hbars">
+                        @foreach (var tt in topTests)
+                        {
+                            var hw = (int)Math.Round(tt.Count * 100.0 / maxTest);
+                            <li>
+                                <div class="rq-hrow"><span>@tt.Name</span><b>@tt.Count</b></div>
+                                <div class="rq-hbar"><div class="rq-bar rq-bar-h" style="width:@(hw)%"></div></div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            <div class="rq-ins-card">
+                <span class="rq-ins-label">Where your requests stand</span>
+                <div class="rq-donut-row">
+                    <div class="rq-donut" style="background:@donutStyle">
+                        <div class="rq-donut-hole"><b>@total</b><small>total</small></div>
+                    </div>
+                    <ul class="rq-legend">
+                        <li><i class="rq-lg rq-lg-green"></i> Results ready <b>@released</b></li>
+                        <li><i class="rq-lg rq-lg-amber"></i> In progress <b>@open</b></li>
+                        <li><i class="rq-lg rq-lg-red"></i> Cancelled <b>@cancelled</b></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="rq-ins-card">
+                <span class="rq-ins-label">Highlights</span>
+                <ul class="rq-facts-list">
+                    <li><span>Fastest result</span><b>@(fastestTurn >= 0 ? fastestTurn + " day" + (fastestTurn == 1 ? "" : "s") : "n/a")</b></li>
+                    <li><span>Slowest result</span><b>@(slowestTurn >= 0 ? slowestTurn + " day" + (slowestTurn == 1 ? "" : "s") : "n/a")</b></li>
+                    <li><span>Busiest month</span><b>@(busiest != null ? new DateTime(busiest.Key.Year, busiest.Key.Month, 1).ToString("MMM yyyy") + " (" + busiest.Count() + ")" : "n/a")</b></li>
+                    <li><span>Longest open request</span><b>@(oldestOpenDays >= 0 ? oldestOpenDays + " day" + (oldestOpenDays == 1 ? "" : "s") : "none open")</b></li>
+                    <li><span>Tests ordered (not cancelled)</span><b>@testsTotal</b></li>
+                </ul>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ==========================================
+            STATUS GUIDE
+        =========================================== -->
+    <details class="rq-guide">
+        <summary><i class="fa-solid fa-circle-question"></i> What do the statuses mean?</summary>
+        <ol>
+            @for (int gi = 0; gi < stageKeys.Length; gi++)
+            {
+                <li>
+                    <i class="fa-solid @iconOf[stageKeys[gi]]"></i>
+                    <div><strong>@labelOf[stageKeys[gi]]</strong><span>@noteOf[stageKeys[gi]]</span></div>
+                </li>
+            }
+            <li>
+                <i class="fa-solid fa-circle-xmark"></i>
+                <div><strong>Cancelled</strong><span>The request was stopped and no further testing will happen. You can cancel a request until the lab starts testing.</span></div>
+            </li>
+        </ol>
+    </details>
+
+    <!-- Quick-action dock (appears once you scroll) -->
+    <div class="rq-dock" id="rqDock">
+        @if (released > 0)
+        {
+            <button type="button" id="rqNextReady" class="rq-dock-btn rq-dock-ready" title="Jump to the next ready result">
+                <i class="fa-solid fa-circle-check"></i><span>Next result</span><b>@released</b>
+            </button>
+        }
+        <button type="button" id="rqExpandAll" class="rq-dock-btn" title="Open or close the details of every ticket">
+            <i class="fa-solid fa-angles-down"></i><span>Expand all</span>
+        </button>
+        <button type="button" id="rqHelpBtn" class="rq-dock-btn rq-dock-icon rq-dock-help" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">
+            <i class="fa-solid fa-keyboard"></i>
+        </button>
+        <button type="button" id="rqTop" class="rq-dock-btn rq-dock-icon" aria-label="Back to top" title="Back to top">
+            <i class="fa-solid fa-arrow-up"></i>
+        </button>
+    </div>
+}
+    else
+{
+    <div class="rq-empty">
+        <div class="rq-empty-barcode"></div>
+        <h5>No requests yet</h5>
+        <p>When your doctor sends a test request to the lab, it will appear here and you can follow it from sample to result.</p>
+    </div>
+}
+
+<!-- ==========================================
         FOOTER
     =========================================== -->
-    <div class="rq-footer">
-        <hr />
-        <div class="rq-footer-content">
-            <i class="fa-solid fa-shield-halved"></i>
-            <span>Laboratory Information Management System</span>
-            <span class="rq-footer-divider">|</span>
-            <span>Patient Portal</span>
-            <span class="rq-footer-divider">|</span>
-            <span>@DateTime.Now.Year</span>
+<div class="rq-footer">
+    <hr />
+    <div class="rq-footer-content">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>Laboratory Information Management System</span>
+        <span class="rq-footer-divider">|</span>
+        <span>Patient Portal</span>
+        <span class="rq-footer-divider">|</span>
+        <span>@DateTime.Now.Year</span>
+    </div>
+</div>
+
+<!-- ==========================================
+        CANCEL DIALOG
+    =========================================== -->
+<div class="rq-modal" id="rqModal" aria-hidden="true">
+    <div class="rq-modal-card" role="dialog" aria-modal="true" aria-labelledby="rqModalTitle">
+        <form asp-action="CancelRequest" asp-controller="Patient" method="post" id="rqCancelForm">
+            <input type="hidden" name="requestId" id="rqCancelId" value="" />
+            <input type="hidden" name="reason" id="rqCancelReason" value="" />
+
+            <h3 id="rqModalTitle">Cancel request <span id="rqModalRef"></span>?</h3>
+            <p class="rq-modal-sub">The lab will stop work on this request and your doctor will be told. This cannot be undone.</p>
+
+            <div class="rq-reasons" role="group" aria-label="Reason for cancelling">
+                <button type="button" class="rq-reason" data-reason="I no longer need these tests">I no longer need these tests</button>
+                <button type="button" class="rq-reason" data-reason="I could not give a sample">I could not give a sample</button>
+                <button type="button" class="rq-reason" data-reason="The request was made by mistake">Made by mistake</button>
+                <button type="button" class="rq-reason" data-reason="I will use another lab">I will use another lab</button>
+            </div>
+
+            <label class="rq-modal-label" for="rqReasonText">Anything else to add? (optional)</label>
+            <textarea id="rqReasonText" rows="2" maxlength="250" placeholder="Add a short note for your doctor"></textarea>
+
+            <div class="rq-modal-actions">
+                <button type="button" class="rq-btn-ghost" id="rqModalKeep">Keep request</button>
+                <button type="submit" class="rq-btn-danger">Cancel request</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==========================================
+        SHORTCUTS DIALOG
+    =========================================== -->
+<div class="rq-modal" id="rqHelp" aria-hidden="true">
+    <div class="rq-modal-card" role="dialog" aria-modal="true" aria-labelledby="rqHelpTitle">
+        <h3 id="rqHelpTitle">Keyboard shortcuts</h3>
+        <p class="rq-modal-sub">Move around your requests without the mouse.</p>
+        <ul class="rq-keys">
+            <li><kbd>/</kbd><span>Search</span></li>
+            <li><kbd>J</kbd> <kbd>K</kbd><span>Next / previous request</span></li>
+            <li><kbd>Enter</kbd><span>Open results (or details)</span></li>
+            <li><kbd>E</kbd><span>Show or hide details</span></li>
+            <li><kbd>P</kbd><span>Pin or unpin the request</span></li>
+            <li><kbd>G</kbd><span>Two column view</span></li>
+            <li><kbd>C</kbd><span>Compact view</span></li>
+            <li><kbd>T</kbd><span>Light / dark mode</span></li>
+            <li><kbd>?</kbd><span>Show this list</span></li>
+            <li><kbd>Esc</kbd><span>Close a dialog or clear search</span></li>
+        </ul>
+        <div class="rq-modal-actions">
+            <button type="button" class="rq-btn-ghost" id="rqHelpClose">Close</button>
         </div>
     </div>
+</div>
+
+<div class="rq-toast" id="rqToast" role="status" aria-live="polite"></div>
 
 </div>
 
 <style>
-    :root {
+    /* =====================================================
+           PAGE-WIDE DARK MODE
+           Paints the layout around the view too (sides, header,
+           sidebar, footer), not only the .rq-wrap block.
+           ===================================================== */
+    html.rq-dark {
+        color-scheme: dark;
+        background: #0E1412 !important;
+    }
+
+        html.rq-dark body {
+            background: #0E1412 !important;
+            color: #E8EEEB !important;
+        }
+
+        html.rq-dark :is(body > *, body > * > *, body > * > * > *):where(:not(.rq-wrap, .rq-wrap *, script, style, link, img, svg, i, button, a, input, select, textarea, label, .modal-backdrop, .rq-modal)) {
+            background-color: #0E1412 !important;
+            color: #E8EEEB !important;
+            border-color: #26302B !important;
+        }
+
+        html.rq-dark :is(header, nav, aside, footer, .sidebar, .navbar, .topbar, .top-bar, #sidebar, .side-nav, .app-sidebar, .app-header, .navbar-collapse):where(:not(.rq-wrap *)) {
+            background-color: #121A17 !important;
+            background-image: none !important;
+            color: #CBD5D0 !important;
+            border-color: #26302B !important;
+        }
+
+        html.rq-dark :is(main, .main, .main-content, .content, .content-wrapper, .page-content, .page-wrapper, .wrapper, .container, .container-fluid, #content, #main, .card, .dropdown-menu, .modal-content, .list-group-item, .offcanvas):where(:not(.rq-wrap *)) {
+            background-color: #0E1412 !important;
+            color: #E8EEEB !important;
+            border-color: #26302B !important;
+        }
+
+        html.rq-dark :is(nav, aside, header, .sidebar, .navbar, #sidebar, .side-nav) :is(a, span, i, li, small, p):where(:not(.rq-wrap *)) {
+            color: #CBD5D0 !important;
+        }
+
+        html.rq-dark :is(hr, .dropdown-divider):where(:not(.rq-wrap *)) {
+            border-color: #26302B !important;
+        }
+
+    /* =====================================================
+           VIEW STYLES
+           ===================================================== */
+    .rq-wrap {
+        --rq-top: 0px;
         --rq-paper: #F5F3ED;
         --rq-raised: #FFFFFF;
         --rq-ink: #191D1B;
         --rq-ink-soft: #5C6560;
-        --rq-ink-faint: #98A19B;
+        --rq-ink-faint: #7E8882;
         --rq-line: #E4E0D3;
         --rq-line-strong: #D3CDBB;
         --rq-console-a: #14201C;
@@ -408,14 +997,35 @@
         --rq-teal-dim: #E0F3F1;
         --rq-green: #3F8F5F;
         --rq-green-dim: #E5F3EA;
-        --rq-amber: #C98A2A;
+        --rq-amber: #B87A1E;
         --rq-amber-dim: #FBF0DC;
         --rq-red: #B0463F;
         --rq-red-dim: #F7E8E6;
         --rq-radius: 16px;
-        --rq-shadow: 0 8px 26px rgba(20, 25, 22, 0.07);
+        --rq-shadow: 0 8px 26px rgba(20, 25, 22, 0.09);
         --rq-shadow-sm: 0 3px 10px rgba(20, 25, 22, 0.05);
     }
+
+        .rq-wrap[data-theme="dark"], html.rq-dark .rq-wrap {
+            --rq-paper: #0E1412;
+            --rq-raised: #172019;
+            --rq-ink: #E8EEEB;
+            --rq-ink-soft: #A5B0AA;
+            --rq-ink-faint: #7F8B85;
+            --rq-line: #26302B;
+            --rq-line-strong: #34403A;
+            --rq-teal: #2CC4BA;
+            --rq-teal-deep: #4FD6CC;
+            --rq-teal-dim: #12302D;
+            --rq-green: #5CBB82;
+            --rq-green-dim: #13301F;
+            --rq-amber: #E0A540;
+            --rq-amber-dim: #33280F;
+            --rq-red: #E1736B;
+            --rq-red-dim: #3A1B18;
+            --rq-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+            --rq-shadow-sm: 0 3px 10px rgba(0, 0, 0, 0.3);
+        }
 
     .rq-wrap {
         max-width: 980px;
@@ -424,7 +1034,49 @@
         color: var(--rq-ink);
         font-family: 'Inter', sans-serif;
         background: var(--rq-paper);
+        transition: background .25s ease, color .25s ease;
+        position: relative;
     }
+
+        .rq-wrap button, .rq-wrap select, .rq-wrap textarea, .rq-wrap input {
+            font-family: 'Inter', sans-serif;
+        }
+
+            .rq-wrap button:focus-visible, .rq-wrap select:focus-visible, .rq-wrap textarea:focus-visible, .rq-wrap a:focus-visible, .rq-wrap summary:focus-visible {
+                outline: 2px solid var(--rq-teal);
+                outline-offset: 2px;
+            }
+
+    .rq-hidden {
+        display: none !important;
+    }
+
+    .rq-wrap mark {
+        background: var(--rq-amber-dim);
+        color: var(--rq-amber);
+        border-radius: 3px;
+        padding: 0 2px;
+    }
+
+    /* ============ SCROLL PROGRESS ============ */
+    .rq-progress {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: var(--rq-top);
+        height: 3px;
+        z-index: 1040;
+        pointer-events: none;
+    }
+
+        .rq-progress span {
+            display: block;
+            height: 100%;
+            width: 100%;
+            background: var(--rq-teal);
+            transform: scaleX(0);
+            transform-origin: left;
+        }
 
     /* ============ CONSOLE HEADER ============ */
     .rq-console {
@@ -436,7 +1088,7 @@
         background: linear-gradient(155deg, var(--rq-console-a), var(--rq-console-b));
         border-radius: var(--rq-radius);
         padding: 30px 34px;
-        margin-bottom: 20px;
+        margin-bottom: 18px;
         overflow: hidden;
         box-shadow: 0 16px 34px rgba(10, 18, 16, 0.28);
     }
@@ -448,6 +1100,27 @@
         pointer-events: none;
     }
 
+    .rq-theme {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 3;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,.18);
+        background: rgba(255,255,255,.06);
+        color: rgba(245,247,246,.8);
+        cursor: pointer;
+        font-size: 13px;
+        transition: background .15s ease, transform .3s ease;
+    }
+
+        .rq-theme:hover {
+            background: rgba(255,255,255,.14);
+            transform: rotate(18deg);
+        }
+
     .rq-console-left {
         position: relative;
         z-index: 1;
@@ -457,16 +1130,15 @@
         font-family: 'IBM Plex Mono', monospace;
         font-size: 11px;
         font-weight: 600;
-        letter-spacing: .1em;
-        text-transform: uppercase;
-        color: var(--rq-teal);
+        letter-spacing: .08em;
+        color: #2CC4BA;
         margin-bottom: 10px;
     }
 
     .rq-console-left h1 {
         font-family: 'Space Grotesk', sans-serif;
         font-weight: 700;
-        font-size: 27px;
+        font-size: 28px;
         color: #F5F7F6;
         margin: 0 0 6px;
         letter-spacing: -.01em;
@@ -474,7 +1146,7 @@
 
     .rq-console-left p {
         margin: 0;
-        color: rgba(245,247,246,.62);
+        color: rgba(245,247,246,.7);
         font-size: 13.5px;
         max-width: 380px;
     }
@@ -498,7 +1170,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: conic-gradient(var(--rq-teal) calc(var(--rq-pct) * 1%), rgba(255,255,255,.12) 0);
+        background: conic-gradient(#2CC4BA calc(var(--rq-pct) * 1%), rgba(255,255,255,.12) 0);
     }
 
     .rq-ring-inner {
@@ -522,10 +1194,9 @@
 
         .rq-ring-inner small {
             margin-top: 3px;
-            font-size: 7px;
-            color: rgba(245,247,246,.5);
-            text-transform: uppercase;
-            letter-spacing: .05em;
+            font-size: 8px;
+            color: rgba(245,247,246,.6);
+            letter-spacing: .04em;
         }
 
     .rq-console-readout {
@@ -535,10 +1206,8 @@
     .rq-readout-label {
         display: block;
         font-family: 'IBM Plex Mono', monospace;
-        font-size: 10px;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-        color: rgba(245,247,246,.5);
+        font-size: 10.5px;
+        color: rgba(245,247,246,.6);
         margin-bottom: 6px;
     }
 
@@ -547,27 +1216,172 @@
         font-family: 'IBM Plex Mono', monospace;
         font-size: 34px;
         font-weight: 700;
-        color: var(--rq-teal);
+        color: #2CC4BA;
         letter-spacing: .04em;
         text-shadow: 0 0 18px rgba(14, 163, 154, 0.55);
     }
 
-    /* ============ TICKER ============ */
+    .rq-preview-note {
+        margin: 0 0 16px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: var(--rq-amber-dim);
+        color: var(--rq-amber);
+        font-size: 12.5px;
+        font-weight: 600;
+    }
+
+    /* ============ ATTENTION STRIP ============ */
+    .rq-spot {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 13px 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        background: var(--rq-raised);
+        box-shadow: var(--rq-shadow-sm);
+        border-left: 4px solid var(--rq-teal);
+    }
+
+    .rq-spot-green {
+        border-left-color: var(--rq-green);
+    }
+
+    .rq-spot > i {
+        font-size: 18px;
+        color: var(--rq-teal);
+    }
+
+    .rq-spot-green > i {
+        color: var(--rq-green);
+    }
+
+    .rq-spot-text {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+        .rq-spot-text strong {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14.5px;
+        }
+
+        .rq-spot-text span {
+            font-size: 12.5px;
+            color: var(--rq-ink-soft);
+        }
+
+    .rq-spot-btn {
+        border: none;
+        background: var(--rq-ink);
+        color: var(--rq-raised);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: transform .15s ease;
+    }
+
+        .rq-spot-btn:hover {
+            transform: translateY(-1px);
+        }
+
+    /* ---- Since your last visit ---- */
+    .rq-since {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 14px 12px 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        background: var(--rq-amber-dim);
+        border-left: 4px solid var(--rq-amber);
+    }
+
+        .rq-since > i {
+            color: var(--rq-amber);
+            font-size: 16px;
+        }
+
+    .rq-since-text {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+        .rq-since-text strong {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            color: var(--rq-ink);
+        }
+
+        .rq-since-text span {
+            font-size: 12.5px;
+            color: var(--rq-ink-soft);
+        }
+
+    .rq-since-btn {
+        border: none;
+        background: var(--rq-amber);
+        color: #fff;
+        border-radius: 999px;
+        padding: 7px 13px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .rq-since-x {
+        border: none;
+        background: none;
+        color: var(--rq-ink-faint);
+        cursor: pointer;
+        padding: 4px 6px;
+    }
+
+        .rq-since-x:hover {
+            color: var(--rq-ink);
+        }
+
+    /* ============ TICKER (filter tiles) ============ */
     .rq-ticker {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 14px;
-        margin-bottom: 18px;
+        margin-bottom: 16px;
     }
 
     .rq-tick {
         background: var(--rq-raised);
+        border: 2px solid transparent;
         border-radius: 12px;
         box-shadow: var(--rq-shadow-sm);
         padding: 14px 16px 12px;
         position: relative;
         overflow: hidden;
+        text-align: left;
+        cursor: pointer;
+        color: inherit;
+        transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
     }
+
+        .rq-tick:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--rq-shadow);
+        }
+
+        .rq-tick.active {
+            border-color: var(--rq-ink);
+        }
 
     .rq-tick-bar {
         position: absolute;
@@ -598,29 +1412,95 @@
         font-family: 'IBM Plex Mono', monospace;
         font-size: 22px;
         font-weight: 700;
-        color: var(--rq-ink);
         margin-top: 4px;
     }
 
     .rq-tick-label {
         display: block;
-        font-size: 11px;
+        font-size: 11.5px;
         color: var(--rq-ink-soft);
         margin-top: 2px;
         font-weight: 500;
     }
 
-    /* ============ TOOLBAR ============ */
+    /* ============ STICKY TOOLBAR ============ */
+    .rq-top-sentinel {
+        height: 1px;
+        margin-bottom: -1px;
+    }
+
+    .rq-sticky {
+        position: sticky;
+        top: var(--rq-top);
+        z-index: 30;
+        padding: 6px 0;
+        background: var(--rq-paper);
+        transition: background .25s ease;
+    }
+
     .rq-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 18px;
         background: var(--rq-raised);
         border-radius: 12px;
         box-shadow: var(--rq-shadow-sm);
         padding: 12px 16px;
+        transition: box-shadow .2s ease;
+    }
+
+    .rq-sticky.rq-stuck .rq-toolbar {
+        box-shadow: 0 12px 30px rgba(0,0,0,.18);
+    }
+
+    .rq-toolbar-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .rq-chips-row > .rq-filter-chips {
+        padding-top: 12px;
+    }
+
+    .rq-extra-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-top: 10px;
+    }
+
+    .rq-sticky.rq-stuck:not(.rq-chips-open) .rq-chips-row {
+        display: none;
+    }
+
+    .rq-chips-toggle {
+        display: none;
+        position: relative;
+    }
+
+    .rq-sticky.rq-stuck .rq-chips-toggle {
+        display: inline-block;
+    }
+
+    .rq-chips-toggle[aria-expanded="true"] {
+        background: var(--rq-ink);
+        border-color: var(--rq-ink);
+        color: var(--rq-raised);
+    }
+
+    .rq-dot {
+        display: none;
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--rq-red);
+        border: 2px solid var(--rq-raised);
+    }
+
+    .rq-chips-toggle.rq-has-filter .rq-dot {
+        display: block;
     }
 
     .rq-search {
@@ -632,8 +1512,14 @@
         border-radius: 999px;
         padding: 8px 14px;
         flex: 1;
-        min-width: 200px;
+        min-width: 220px;
+        transition: border-color .15s ease, box-shadow .15s ease;
     }
+
+        .rq-search:focus-within {
+            border-color: var(--rq-teal);
+            box-shadow: 0 0 0 3px var(--rq-teal-dim);
+        }
 
         .rq-search i {
             color: var(--rq-ink-faint);
@@ -644,7 +1530,6 @@
             border: none;
             background: transparent;
             outline: none;
-            font-family: 'Inter', sans-serif;
             font-size: 13px;
             color: var(--rq-ink);
             width: 100%;
@@ -653,6 +1538,98 @@
             .rq-search input::placeholder {
                 color: var(--rq-ink-faint);
             }
+
+        .rq-search kbd {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10.5px;
+            color: var(--rq-ink-faint);
+            border: 1px solid var(--rq-line-strong);
+            border-radius: 5px;
+            padding: 0 6px;
+            line-height: 18px;
+            background: transparent;
+            box-shadow: none;
+        }
+
+    .rq-search-clear {
+        display: none;
+        border: none;
+        background: none;
+        color: var(--rq-ink-faint);
+        cursor: pointer;
+        padding: 0 2px;
+    }
+
+    .rq-search.has-text kbd {
+        display: none;
+    }
+
+    .rq-search.has-text .rq-search-clear {
+        display: block;
+    }
+
+    .rq-toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+    }
+
+    .rq-select {
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-paper);
+        color: var(--rq-ink-soft);
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        max-width: 220px;
+    }
+
+    .rq-icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-paper);
+        color: var(--rq-ink-soft);
+        cursor: pointer;
+        font-size: 12px;
+        transition: all .15s ease;
+    }
+
+        .rq-icon-btn:hover {
+            border-color: var(--rq-teal);
+            color: var(--rq-teal-deep);
+        }
+
+        .rq-icon-btn[aria-pressed="true"] {
+            background: var(--rq-ink);
+            border-color: var(--rq-ink);
+            color: var(--rq-raised);
+        }
+
+    .rq-export {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        border: none;
+        background: var(--rq-ink);
+        color: var(--rq-raised);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .15s ease;
+    }
+
+        .rq-export:hover {
+            background: var(--rq-teal-deep);
+            color: #fff;
+        }
 
     .rq-filter-chips {
         display: flex;
@@ -669,12 +1646,18 @@
         color: var(--rq-ink-soft);
         border-radius: 999px;
         padding: 6px 12px;
-        font-size: 11px;
+        font-size: 11.5px;
         font-weight: 600;
-        font-family: 'Inter', sans-serif;
         cursor: pointer;
         transition: all .15s ease;
     }
+
+        .rq-chip em {
+            font-style: normal;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10.5px;
+            opacity: .7;
+        }
 
         .rq-chip:hover {
             border-color: var(--rq-teal);
@@ -684,7 +1667,7 @@
         .rq-chip.active {
             background: var(--rq-ink);
             border-color: var(--rq-ink);
-            color: #fff;
+            color: var(--rq-raised);
         }
 
     .rq-chip-urgent.active {
@@ -693,56 +1676,72 @@
         color: #fff;
     }
 
-    .rq-toolbar-actions {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-left: auto;
-    }
-
-    .rq-sort {
-        border: 1px solid var(--rq-line-strong);
-        background: var(--rq-paper);
-        color: var(--rq-ink-soft);
-        border-radius: 999px;
-        padding: 7px 12px;
-        font-family: 'Inter', sans-serif;
-        font-size: 11.5px;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .rq-export {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        border: none;
-        background: var(--rq-ink);
+    .rq-chip-pin.active {
+        background: var(--rq-amber);
+        border-color: var(--rq-amber);
         color: #fff;
-        border-radius: 999px;
-        padding: 8px 14px;
-        font-family: 'Inter', sans-serif;
-        font-size: 11.5px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background .15s ease;
     }
 
-        .rq-export:hover {
-            background: var(--rq-teal-deep);
-        }
+    .rq-chip-upd.active {
+        background: var(--rq-teal-deep);
+        border-color: var(--rq-teal-deep);
+        color: #fff;
+    }
 
-    /* ============ TICKET LIST ============ */
+    .rq-resultbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 4px 12px;
+        font-size: 12px;
+        color: var(--rq-ink-faint);
+    }
+
+    .rq-linkbtn {
+        border: none;
+        background: none;
+        color: var(--rq-teal-deep);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    /* ============ MONTH GROUP HEADERS ============ */
     .rq-list {
         display: flex;
         flex-direction: column;
         gap: 14px;
     }
 
-    .rq-hidden {
-        display: none !important;
+    .rq-month {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 2px 0;
+        border-bottom: 1px solid var(--rq-line);
+        margin-bottom: -2px;
     }
 
+        .rq-month:first-child {
+            padding-top: 0;
+        }
+
+        .rq-month span {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .rq-month em {
+            font-style: normal;
+            font-size: 12px;
+            color: var(--rq-ink-faint);
+            padding-bottom: 6px;
+        }
+
+    /* ============ TICKETS ============ */
     .rq-card {
         position: relative;
         display: flex;
@@ -758,12 +1757,25 @@
             transform: translateY(-2px);
         }
 
+        .rq-card.rq-open {
+            box-shadow: var(--rq-shadow);
+        }
+
     .rq-card-cancelled {
-        opacity: .72;
+        opacity: .78;
     }
 
     .rq-card-urgent {
         animation: rqUrgentGlow 2.4s ease-in-out infinite;
+    }
+
+    .rq-card.rq-flash {
+        animation: rqFlash 1.5s ease-out;
+    }
+
+    .rq-card.rq-kfocus {
+        outline: 2px solid var(--rq-teal);
+        outline-offset: 3px;
     }
 
     @@keyframes rqUrgentGlow {
@@ -776,6 +1788,20 @@
         }
     }
 
+    @@keyframes rqFlash {
+        0% {
+            box-shadow: 0 0 0 0 rgba(63,143,95,.6);
+        }
+
+        30% {
+            box-shadow: 0 0 0 7px rgba(63,143,95,.35);
+        }
+
+        100% {
+            box-shadow: var(--rq-shadow-sm), 0 0 0 0 rgba(63,143,95,0);
+        }
+    }
+
     .rq-flag {
         position: absolute;
         top: 14px;
@@ -783,10 +1809,8 @@
         background: var(--rq-amber);
         color: #fff;
         font-family: 'IBM Plex Mono', monospace;
-        font-size: 10px;
+        font-size: 10.5px;
         font-weight: 700;
-        letter-spacing: .06em;
-        text-transform: uppercase;
         padding: 5px 14px 5px 18px;
         clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 50%);
         z-index: 2;
@@ -821,18 +1845,25 @@
         color: var(--rq-ink-soft);
     }
 
-    .rq-copy-btn {
+    .rq-stub-tools {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .rq-copy-btn, .rq-pin-btn {
         border: none;
-        background: rgba(0,0,0,.05);
+        background: rgba(128,128,128,.14);
         color: var(--rq-ink-faint);
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        font-size: 9px;
+        font-size: 10px;
         transition: all .15s ease;
     }
 
@@ -844,6 +1875,16 @@
         .rq-copy-btn.rq-copied {
             background: var(--rq-green-dim);
             color: var(--rq-green);
+        }
+
+        .rq-pin-btn:hover {
+            background: var(--rq-amber-dim);
+            color: var(--rq-amber);
+        }
+
+        .rq-pin-btn[aria-pressed="true"] {
+            background: var(--rq-amber-dim);
+            color: var(--rq-amber);
         }
 
     .rq-perf {
@@ -873,7 +1914,7 @@
 
     .rq-body {
         flex: 1;
-        padding: 18px 22px 20px;
+        padding: 18px 22px 14px;
         display: flex;
         flex-direction: column;
         gap: 14px;
@@ -892,7 +1933,6 @@
         font-family: 'Space Grotesk', sans-serif;
         font-weight: 600;
         font-size: 15px;
-        color: var(--rq-ink);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -904,44 +1944,73 @@
         }
 
     .rq-date {
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 11.5px;
+        font-size: 12px;
         color: var(--rq-ink-faint);
         margin-top: 3px;
+    }
+
+    .rq-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+        .rq-badges:not(:empty) {
+            margin-top: 7px;
+        }
+
+    .rq-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 10.5px;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 999px;
+    }
+
+    .rq-badge-updated {
+        background: var(--rq-teal-dim);
+        color: var(--rq-teal-deep);
+    }
+
+    .rq-badge-new {
+        background: var(--rq-amber-dim);
+        color: var(--rq-amber);
+    }
+
+    .rq-badge-unread {
+        background: var(--rq-green-dim);
+        color: var(--rq-green);
     }
 
     .rq-view {
         display: inline-flex;
         align-items: center;
         gap: 7px;
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 11.5px;
-        font-weight: 600;
-        letter-spacing: .03em;
-        text-transform: uppercase;
-        color: var(--rq-teal);
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+        background: var(--rq-green);
         text-decoration: none;
-        padding: 7px 3px;
-        border-bottom: 1.5px solid transparent;
-        transition: border-color .2s, gap .2s;
+        padding: 8px 16px;
+        border-radius: 999px;
+        transition: gap .2s, filter .2s;
+        margin-right: 70px;
     }
 
         .rq-view:hover {
-            color: var(--rq-teal);
+            color: #fff;
             text-decoration: none;
-            border-color: var(--rq-teal);
-            gap: 10px;
+            gap: 11px;
+            filter: brightness(1.08);
         }
 
-    /* ============ STATUS PILL + PLAIN-LANGUAGE NOTE ============ */
     .rq-pill {
         display: inline-flex;
         align-items: center;
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 10.5px;
+        font-size: 11px;
         font-weight: 700;
-        letter-spacing: .05em;
-        text-transform: uppercase;
         padding: 5px 11px;
         border-radius: 999px;
         white-space: nowrap;
@@ -957,17 +2026,16 @@
         color: var(--rq-teal-deep);
     }
 
-    .rq-pill-inprogress {
+    .rq-pill-inprogress, .rq-pill-completed {
         background: var(--rq-amber-dim);
         color: var(--rq-amber);
     }
 
-    .rq-pill-completed {
-        background: var(--rq-amber-dim);
-        color: var(--rq-amber);
+    .rq-pill-cancelled {
+        background: var(--rq-red-dim);
+        color: var(--rq-red);
     }
 
-    /* ============ CANCEL BUTTON (patient) ============ */
     .rq-actions {
         display: flex;
         flex-direction: column;
@@ -975,8 +2043,11 @@
         gap: 8px;
     }
 
-    .rq-cancel-form {
-        margin: 0;
+    .rq-stepcount {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10.5px;
+        color: var(--rq-ink-faint);
+        margin-top: -3px;
     }
 
     .rq-cancel-btn {
@@ -985,8 +2056,7 @@
         color: var(--rq-red);
         border-radius: 999px;
         padding: 5px 12px;
-        font-family: 'Inter', sans-serif;
-        font-size: 11px;
+        font-size: 11.5px;
         font-weight: 600;
         cursor: pointer;
         transition: all .15s ease;
@@ -1032,12 +2102,6 @@
         cursor: pointer;
     }
 
-        .rq-card-clickable:hover .rq-view {
-            border-color: var(--rq-teal);
-            gap: 10px;
-        }
-
-    /* ============ TEST CHIPS ============ */
     .rq-tests-wrap {
         display: flex;
         flex-direction: column;
@@ -1055,7 +2119,7 @@
         color: var(--rq-teal-deep);
         border-radius: 8px;
         padding: 4px 10px;
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 600;
     }
 
@@ -1075,8 +2139,7 @@
         border: none;
         background: none;
         color: var(--rq-ink-faint);
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 10.5px;
+        font-size: 11.5px;
         font-weight: 600;
         cursor: pointer;
         padding: 0;
@@ -1095,7 +2158,6 @@
             transform: rotate(180deg);
         }
 
-    /* ============ LIFECYCLE RAIL ============ */
     .rq-rail {
         display: flex;
         margin-top: 2px;
@@ -1123,7 +2185,19 @@
 
         .rq-step-line.rq-filled {
             background: var(--rq-teal);
+            transform-origin: left;
+            animation: rqGrow .7s ease-out;
         }
+
+    @@keyframes rqGrow {
+        from {
+            transform: scaleX(0);
+        }
+
+        to {
+            transform: scaleX(1);
+        }
+    }
 
     .rq-step-dot {
         width: 11px;
@@ -1161,10 +2235,7 @@
     }
 
     .rq-step-label {
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 9.5px;
-        letter-spacing: .04em;
-        text-transform: uppercase;
+        font-size: 11px;
         color: var(--rq-ink-faint);
     }
 
@@ -1173,31 +2244,406 @@
     }
 
     .rq-step.rq-active .rq-step-label {
-        color: var(--rq-teal);
-        font-weight: 600;
+        color: var(--rq-teal-deep);
+        font-weight: 700;
     }
 
     .rq-step.rq-done .rq-step-label {
         color: var(--rq-green);
-        font-weight: 600;
+        font-weight: 700;
     }
 
     .rq-cancelled-rail {
         display: flex;
         align-items: flex-start;
         gap: 8px;
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 12px;
+        font-size: 12.5px;
         color: var(--rq-red);
-        padding-top: 4px;
-        border-top: 1px dashed var(--rq-line);
+        padding-top: 8px;
+        border-top: 1px dashed var(--rq-line-strong);
     }
 
         .rq-cancelled-rail i {
             margin-top: 2px;
         }
 
-    /* ============ NO MATCHES / EMPTY STATE ============ */
+    /* ============ DETAILS DRAWER ============ */
+    .rq-foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid var(--rq-line);
+        padding-top: 8px;
+    }
+
+    .rq-note-ind {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--rq-amber);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .rq-details-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: none;
+        background: none;
+        color: var(--rq-ink-soft);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 0;
+    }
+
+        .rq-details-btn:hover {
+            color: var(--rq-teal-deep);
+        }
+
+        .rq-details-btn i {
+            font-size: 10px;
+            transition: transform .25s ease;
+        }
+
+    .rq-card.rq-open .rq-details-btn i {
+        transform: rotate(180deg);
+    }
+
+    .rq-drawer {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows .3s ease;
+    }
+
+    .rq-card.rq-open .rq-drawer {
+        grid-template-rows: 1fr;
+    }
+
+    .rq-drawer-inner {
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    .rq-drawer-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+        padding: 6px 0 6px;
+    }
+
+    .rq-facts {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 16px;
+        align-content: start;
+    }
+
+        .rq-facts dt {
+            font-size: 11px;
+            color: var(--rq-ink-faint);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .rq-facts dd {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+    .rq-facts-wide {
+        grid-column: 1 / -1;
+    }
+
+    .rq-facts ul {
+        margin: 4px 0 0;
+        padding-left: 18px;
+        font-weight: 500;
+        font-size: 12.5px;
+        line-height: 1.7;
+    }
+
+    .rq-timeline {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        position: relative;
+    }
+
+        .rq-timeline li {
+            display: flex;
+            gap: 12px;
+            padding-bottom: 14px;
+            position: relative;
+        }
+
+            .rq-timeline li:last-child {
+                padding-bottom: 0;
+            }
+
+            .rq-timeline li::before {
+                content: "";
+                position: absolute;
+                left: 5px;
+                top: 14px;
+                bottom: -2px;
+                width: 2px;
+                background: var(--rq-line-strong);
+            }
+
+            .rq-timeline li:last-child::before {
+                display: none;
+            }
+
+    .rq-tl-done::before {
+        background: var(--rq-teal) !important;
+    }
+
+    .rq-tl-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--rq-line-strong);
+        flex-shrink: 0;
+        margin-top: 3px;
+        z-index: 1;
+    }
+
+    .rq-tl-done .rq-tl-dot {
+        background: var(--rq-teal);
+    }
+
+    .rq-tl-now .rq-tl-dot {
+        background: var(--rq-teal);
+        box-shadow: 0 0 0 4px var(--rq-teal-dim);
+    }
+
+    .rq-timeline strong {
+        display: block;
+        font-size: 12.5px;
+    }
+
+    .rq-timeline span {
+        font-size: 12px;
+        color: var(--rq-ink-soft);
+        line-height: 1.45;
+    }
+
+    .rq-tl-todo strong, .rq-tl-todo span {
+        opacity: .55;
+    }
+
+    .rq-why h6 {
+        margin: 0 0 6px;
+        font-size: 13px;
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .rq-why p {
+        margin: 0 0 8px;
+        font-size: 12.5px;
+        color: var(--rq-ink-soft);
+        line-height: 1.5;
+    }
+
+    .rq-why-hint {
+        color: var(--rq-ink-faint) !important;
+    }
+
+    /* ---- Drawer tools ---- */
+    .rq-drawer-tools {
+        padding: 14px 0 6px;
+        margin-top: 8px;
+        border-top: 1px dashed var(--rq-line-strong);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .rq-tool-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .rq-tool {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-paper);
+        color: var(--rq-ink-soft);
+        border-radius: 999px;
+        padding: 6px 13px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all .15s ease;
+    }
+
+        .rq-tool:hover {
+            border-color: var(--rq-teal);
+            color: var(--rq-teal-deep);
+            text-decoration: none;
+        }
+
+    .rq-tool-go {
+        background: var(--rq-green);
+        border-color: var(--rq-green);
+        color: #fff;
+    }
+
+        .rq-tool-go:hover {
+            color: #fff;
+            filter: brightness(1.08);
+            border-color: var(--rq-green);
+        }
+
+    .rq-notebox {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--rq-ink-soft);
+    }
+
+        .rq-notebox small {
+            font-weight: 500;
+            color: var(--rq-ink-faint);
+        }
+
+        .rq-notebox textarea {
+            width: 100%;
+            border: 1px solid var(--rq-line-strong);
+            background: var(--rq-paper);
+            color: var(--rq-ink);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12.5px;
+            resize: vertical;
+        }
+
+    /* ============ COMPACT VIEW ============ */
+    .rq-list.rq-compact {
+        gap: 10px;
+    }
+
+    .rq-compact .rq-note, .rq-compact .rq-rail, .rq-compact .rq-tests-toggle {
+        display: none;
+    }
+
+    .rq-compact .rq-test-extra {
+        display: none !important;
+    }
+
+    .rq-compact .rq-body {
+        padding: 12px 18px 8px;
+        gap: 10px;
+    }
+
+    .rq-compact .rq-stub {
+        width: 66px;
+        padding: 10px 6px;
+    }
+
+    .rq-compact .rq-barcode {
+        height: 28px;
+    }
+
+    .rq-compact .rq-cancelled-rail {
+        display: none;
+    }
+
+    /* ============ TWO COLUMN VIEW ============ */
+    .rq-list.rq-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        align-items: start;
+    }
+
+    .rq-grid .rq-month {
+        grid-column: 1 / -1;
+    }
+
+    .rq-grid .rq-stub {
+        width: 66px;
+        padding: 14px 6px;
+    }
+
+    .rq-grid .rq-barcode {
+        height: 32px;
+    }
+
+    .rq-grid .rq-step-label {
+        display: none;
+    }
+
+    .rq-grid .rq-body {
+        padding: 16px 16px 12px;
+    }
+
+    .rq-grid .rq-view {
+        margin-right: 0;
+    }
+
+    .rq-grid .rq-drawer-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rq-grid .rq-actions {
+        align-items: flex-start;
+    }
+
+    /* ============ PAGING ============ */
+    .rq-sentinel {
+        height: 1px;
+    }
+
+    .rq-more-wrap {
+        display: flex;
+        justify-content: center;
+        margin-top: 18px;
+    }
+
+    .rq-more {
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-raised);
+        color: var(--rq-ink);
+        border-radius: 999px;
+        padding: 10px 22px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color .15s ease, transform .15s ease;
+    }
+
+        .rq-more:hover {
+            border-color: var(--rq-teal);
+            transform: translateY(-1px);
+        }
+
+    .rq-end {
+        font-size: 12.5px;
+        color: var(--rq-ink-faint);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+    }
+
+        .rq-end::before, .rq-end::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--rq-line);
+        }
+
     .rq-no-matches {
         display: none;
         flex-direction: column;
@@ -1226,7 +2672,6 @@
             font-weight: 600;
             cursor: pointer;
             color: var(--rq-ink-soft);
-            font-family: 'Inter', sans-serif;
         }
 
             .rq-no-matches button:hover {
@@ -1259,16 +2704,658 @@
         font-family: 'Space Grotesk', sans-serif;
         font-size: 16px;
         font-weight: 700;
-        color: var(--rq-ink);
     }
 
     .rq-empty p {
         margin: 0;
-        max-width: 340px;
+        max-width: 360px;
         font-size: 13.5px;
         color: var(--rq-ink-soft);
         line-height: 1.6;
     }
+
+    /* ============ INSIGHTS ============ */
+    .rq-insights {
+        margin-top: 44px;
+    }
+
+    .rq-sec-head {
+        margin-bottom: 14px;
+    }
+
+        .rq-sec-head h2 {
+            margin: 0;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .rq-sec-head p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: var(--rq-ink-soft);
+        }
+
+    .rq-ins-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+
+    .rq-ins-card {
+        background: var(--rq-raised);
+        border-radius: 14px;
+        box-shadow: var(--rq-shadow-sm);
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .rq-ins-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--rq-ink-soft);
+    }
+
+    .rq-ins-big {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 34px;
+        line-height: 1.1;
+    }
+
+        .rq-ins-big small {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--rq-ink-soft);
+        }
+
+    .rq-ins-name {
+        font-size: 22px;
+        padding-top: 6px;
+        overflow-wrap: anywhere;
+    }
+
+    .rq-ins-none {
+        font-size: 18px;
+        color: var(--rq-ink-soft);
+        padding-top: 6px;
+    }
+
+    .rq-ins-card p {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--rq-ink-faint);
+        line-height: 1.5;
+    }
+
+    .rq-vbars {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 10px;
+        height: 130px;
+        padding-top: 6px;
+    }
+
+    .rq-vbar {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        height: 100%;
+    }
+
+    .rq-vbar-track {
+        flex: 1;
+        width: 100%;
+        max-width: 34px;
+        display: flex;
+        align-items: flex-end;
+        background: var(--rq-paper);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .rq-vbar-n {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .rq-vbar-l {
+        font-size: 11px;
+        color: var(--rq-ink-faint);
+    }
+
+    .rq-bar {
+        background: var(--rq-teal);
+        border-radius: 6px;
+    }
+
+    .rq-bar-v {
+        width: 100%;
+        min-height: 3px;
+        transform-origin: bottom;
+    }
+
+    .rq-bar-h {
+        height: 100%;
+        transform-origin: left;
+    }
+
+    .rq-hbars {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .rq-hrow {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 12.5px;
+        margin-bottom: 4px;
+    }
+
+        .rq-hrow b {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11.5px;
+        }
+
+    .rq-hbar {
+        height: 8px;
+        background: var(--rq-paper);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    /* donut + highlights */
+    .rq-donut-row {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        padding-top: 6px;
+    }
+
+    .rq-donut {
+        width: 112px;
+        height: 112px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rq-donut-hole {
+        width: 74px;
+        height: 74px;
+        border-radius: 50%;
+        background: var(--rq-raised);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .rq-donut-hole b {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .rq-donut-hole small {
+            font-size: 10px;
+            color: var(--rq-ink-faint);
+            margin-top: 3px;
+        }
+
+    .rq-legend {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        flex: 1;
+    }
+
+        .rq-legend li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12.5px;
+            color: var(--rq-ink-soft);
+        }
+
+            .rq-legend li b {
+                margin-left: auto;
+                font-family: 'IBM Plex Mono', monospace;
+                font-size: 12px;
+                color: var(--rq-ink);
+            }
+
+    .rq-lg {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        display: inline-block;
+    }
+
+    .rq-lg-green {
+        background: var(--rq-green);
+    }
+
+    .rq-lg-amber {
+        background: var(--rq-amber);
+    }
+
+    .rq-lg-red {
+        background: var(--rq-red);
+    }
+
+    .rq-facts-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+        .rq-facts-list li {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 12.5px;
+            padding: 9px 0;
+            border-bottom: 1px dashed var(--rq-line-strong);
+            color: var(--rq-ink-soft);
+        }
+
+            .rq-facts-list li:last-child {
+                border-bottom: none;
+            }
+
+        .rq-facts-list b {
+            color: var(--rq-ink);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            text-align: right;
+        }
+
+    .rq-js .rq-reveal .rq-bar-v {
+        transform: scaleY(0);
+        transition: transform .8s cubic-bezier(.2,.8,.2,1);
+    }
+
+    .rq-js .rq-reveal .rq-bar-h {
+        transform: scaleX(0);
+        transition: transform .8s cubic-bezier(.2,.8,.2,1);
+    }
+
+    .rq-js .rq-reveal.rq-in .rq-bar-v {
+        transform: scaleY(1);
+    }
+
+    .rq-js .rq-reveal.rq-in .rq-bar-h {
+        transform: scaleX(1);
+    }
+
+    /* ============ STATUS GUIDE ============ */
+    .rq-guide {
+        margin-top: 18px;
+        background: var(--rq-raised);
+        border-radius: 14px;
+        box-shadow: var(--rq-shadow-sm);
+        padding: 4px 20px;
+    }
+
+        .rq-guide summary {
+            cursor: pointer;
+            list-style: none;
+            padding: 14px 0;
+            font-size: 13.5px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .rq-guide summary::-webkit-details-marker {
+                display: none;
+            }
+
+            .rq-guide summary i {
+                color: var(--rq-teal);
+            }
+
+            .rq-guide summary::after {
+                content: "\f078";
+                font-family: "Font Awesome 6 Free", "Font Awesome 5 Free", sans-serif;
+                font-weight: 900;
+                font-size: 10px;
+                margin-left: auto;
+                color: var(--rq-ink-faint);
+                transition: transform .2s ease;
+            }
+
+        .rq-guide[open] summary::after {
+            transform: rotate(180deg);
+        }
+
+        .rq-guide ol {
+            list-style: none;
+            margin: 0;
+            padding: 0 0 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px 24px;
+        }
+
+        .rq-guide li {
+            display: flex;
+            gap: 12px;
+        }
+
+            .rq-guide li > i {
+                color: var(--rq-teal);
+                margin-top: 3px;
+                width: 16px;
+                text-align: center;
+            }
+
+            .rq-guide li strong {
+                display: block;
+                font-size: 13px;
+            }
+
+            .rq-guide li span {
+                font-size: 12.5px;
+                color: var(--rq-ink-soft);
+                line-height: 1.5;
+            }
+
+    /* ============ QUICK-ACTION DOCK ============ */
+    .rq-dock {
+        position: fixed;
+        right: 22px;
+        bottom: 24px;
+        z-index: 1045;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+        opacity: 0;
+        transform: translateY(14px);
+        pointer-events: none;
+        transition: opacity .2s ease, transform .2s ease;
+    }
+
+        .rq-dock.rq-show {
+            opacity: 1;
+            transform: none;
+            pointer-events: auto;
+        }
+
+    .rq-dock-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-raised);
+        color: var(--rq-ink);
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: var(--rq-shadow);
+        transition: transform .15s ease, border-color .15s ease;
+    }
+
+        .rq-dock-btn:hover {
+            transform: translateY(-2px);
+            border-color: var(--rq-teal);
+        }
+
+    .rq-dock-ready {
+        background: var(--rq-green);
+        border-color: var(--rq-green);
+        color: #fff;
+    }
+
+        .rq-dock-ready b {
+            background: rgba(255,255,255,.25);
+            border-radius: 999px;
+            padding: 0 7px;
+            font-size: 11px;
+        }
+
+    .rq-dock-icon {
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        justify-content: center;
+        background: var(--rq-ink);
+        color: var(--rq-raised);
+        border-color: var(--rq-ink);
+    }
+
+    .rq-dock-help {
+        background: var(--rq-raised);
+        color: var(--rq-ink-soft);
+        border-color: var(--rq-line-strong);
+    }
+
+    /* ============ MODAL + TOAST ============ */
+    .rq-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1050;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(8, 14, 12, .55);
+        backdrop-filter: blur(3px);
+    }
+
+        .rq-modal.rq-show {
+            display: flex;
+        }
+
+    .rq-modal-card {
+        width: 100%;
+        max-width: 440px;
+        background: var(--rq-raised);
+        color: var(--rq-ink);
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow: 0 24px 60px rgba(0,0,0,.35);
+        animation: rqPop .22s ease-out;
+    }
+
+    @@keyframes rqPop {
+        from {
+            opacity: 0;
+            transform: translateY(10px) scale(.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    .rq-modal-card h3 {
+        margin: 0 0 6px;
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 18px;
+    }
+
+        .rq-modal-card h3 span {
+            color: var(--rq-ink-faint);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 15px;
+        }
+
+    .rq-modal-sub {
+        margin: 0 0 16px;
+        font-size: 13px;
+        color: var(--rq-ink-soft);
+        line-height: 1.5;
+    }
+
+    .rq-reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .rq-reason {
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-paper);
+        color: var(--rq-ink-soft);
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+
+        .rq-reason:hover {
+            border-color: var(--rq-teal);
+        }
+
+        .rq-reason.active {
+            background: var(--rq-ink);
+            border-color: var(--rq-ink);
+            color: var(--rq-raised);
+        }
+
+    .rq-modal-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: var(--rq-ink-soft);
+    }
+
+    .rq-modal-card textarea {
+        width: 100%;
+        border: 1px solid var(--rq-line-strong);
+        background: var(--rq-paper);
+        color: var(--rq-ink);
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-size: 13px;
+        resize: vertical;
+    }
+
+    .rq-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .rq-btn-ghost, .rq-btn-danger {
+        border-radius: 999px;
+        padding: 9px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .rq-btn-ghost {
+        border: 1px solid var(--rq-line-strong);
+        background: transparent;
+        color: var(--rq-ink);
+    }
+
+    .rq-btn-danger {
+        border: none;
+        background: var(--rq-red);
+        color: #fff;
+    }
+
+        .rq-btn-danger:hover {
+            filter: brightness(1.1);
+        }
+
+    .rq-keys {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+        .rq-keys li {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 0;
+            border-bottom: 1px dashed var(--rq-line-strong);
+            font-size: 13px;
+        }
+
+            .rq-keys li:last-child {
+                border-bottom: none;
+            }
+
+            .rq-keys li span {
+                margin-left: auto;
+                color: var(--rq-ink-soft);
+            }
+
+        .rq-keys kbd {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            min-width: 24px;
+            text-align: center;
+            color: var(--rq-ink);
+            background: var(--rq-paper);
+            border: 1px solid var(--rq-line-strong);
+            border-radius: 6px;
+            padding: 2px 7px;
+            box-shadow: 0 1px 0 var(--rq-line-strong);
+        }
+
+    .rq-toast {
+        position: fixed;
+        left: 50%;
+        bottom: 28px;
+        transform: translate(-50%, 20px);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 1100;
+        background: #172019;
+        color: #F5F7F6;
+        border: 1px solid #34403A;
+        border-radius: 999px;
+        padding: 10px 18px;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 10px 30px rgba(0,0,0,.3);
+        transition: opacity .2s ease, transform .2s ease;
+    }
+
+        .rq-toast.rq-show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
 
     /* ============ FOOTER ============ */
     .rq-footer {
@@ -1290,7 +3377,6 @@
         gap: 12px;
         color: var(--rq-ink-faint);
         font-size: 12.5px;
-        font-family: 'IBM Plex Mono', monospace;
     }
 
         .rq-footer-content i {
@@ -1302,7 +3388,7 @@
     }
 
     /* ============ RESPONSIVE ============ */
-    @@media (max-width: 700px) {
+    @@media (max-width: 760px) {
         .rq-ticker {
             grid-template-columns: repeat(2, 1fr);
         }
@@ -1322,14 +3408,49 @@
             justify-content: space-between;
         }
 
-        .rq-toolbar {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
         .rq-toolbar-actions {
             margin-left: 0;
-            justify-content: space-between;
+            width: 100%;
+        }
+
+        .rq-drawer-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .rq-spot, .rq-since {
+            flex-wrap: wrap;
+        }
+
+        .rq-view {
+            margin-right: 0;
+        }
+
+        .rq-ins-grid, .rq-guide ol {
+            grid-template-columns: 1fr;
+        }
+
+        .rq-sticky {
+            position: static;
+        }
+
+        .rq-chips-toggle {
+            display: none !important;
+        }
+
+        .rq-sticky.rq-stuck:not(.rq-chips-open) .rq-chips-row {
+            display: block;
+        }
+
+        .rq-list.rq-grid {
+            display: flex;
+        }
+
+        .rq-grid-btn {
+            display: none;
+        }
+
+        .rq-dock-help {
+            display: none;
         }
     }
 
@@ -1363,52 +3484,240 @@
             .rq-ring-inner span {
                 font-size: 11px;
             }
+
+        .rq-search kbd {
+            display: none;
+        }
+
+        .rq-dock {
+            right: 14px;
+            bottom: 16px;
+        }
+
+        .rq-dock-btn:not(.rq-dock-icon) span {
+            display: none;
+        }
+
+        .rq-dock-btn {
+            padding: 11px 13px;
+        }
+
+        .rq-donut-row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .rq-wrap *, .rq-wrap *::before, .rq-wrap *::after {
+            animation: none !important;
+            transition: none !important;
+        }
+    }
+
+    /* ============ PRINT ============ */
+    @@media print {
+        aside, nav, .sidebar, .navbar, #sidebar, .side-nav, .topbar, .app-sidebar {
+            display: none !important;
+        }
+
+        .rq-theme, .rq-progress, .rq-dock, .rq-toast, .rq-modal, .rq-toolbar, .rq-sticky, .rq-resultbar, .rq-spot, .rq-since,
+        .rq-ticker, .rq-more-wrap, .rq-sentinel, .rq-no-matches, .rq-guide, .rq-insights, .rq-top-sentinel,
+        .rq-stub-tools, .rq-cancel-btn, .rq-drawer-tools, .rq-details-btn, .rq-tests-toggle {
+            display: none !important;
+        }
+
+        .rq-wrap {
+            max-width: none;
+            padding: 0;
+            background: #fff;
+        }
+
+        .rq-card {
+            break-inside: avoid;
+            box-shadow: none !important;
+            border: 1px solid #ccc;
+            transform: none !important;
+            animation: none !important;
+        }
+
+            .rq-card .rq-test-extra {
+                display: inline-flex !important;
+            }
+
+        .rq-drawer {
+            grid-template-rows: 1fr !important;
+        }
+
+        .rq-list.rq-grid {
+            display: flex;
+        }
+
+        body.rq-print-one .rq-wrap > *:not(.rq-list) {
+            display: none !important;
+        }
+
+        body.rq-print-one .rq-list > *:not(.rq-print-target) {
+            display: none !important;
+        }
+
+        body.rq-print-one .rq-print-target .rq-drawer-tools {
+            display: none !important;
+        }
     }
 </style>
 
 <script>
     (function() {
+        var wrap = document.getElementById('rqWrap');
+        var root = document.documentElement;
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var preview = @(preview ? "true" : "false");
+        var NS = preview ? 'rqPv_' : 'rq_';
+
+        function store(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
+        function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+        function readJson(k, fallback) { try { var v = JSON.parse(localStorage.getItem(k)); return v === null || v === undefined ? fallback : v; } catch (e) { return fallback; } }
+        function pad(n, len) { var s = String(n); while (s.length < len) { s = '0' + s; } return s; }
+
+        var toastEl = document.getElementById('rqToast');
+        var toastTimer;
+        function toast(msg) {
+            if (!toastEl) { return; }
+            toastEl.textContent = msg;
+            toastEl.classList.add('rq-show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(function() { toastEl.classList.remove('rq-show'); }, 2000);
+        }
+
         // ---------------------------------------------
-        // Copy request ID to clipboard
+        // Light / dark mode (whole page, remembered, follows the device until you choose)
         // ---------------------------------------------
+        var themeBtn = document.getElementById('rqTheme');
+        function setTheme(t) {
+            wrap.setAttribute('data-theme', t);
+            root.classList.toggle('rq-dark', t === 'dark');
+            if (themeBtn) { themeBtn.firstElementChild.className = t === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon'; }
+        }
+        var savedTheme = read('rqTheme');
+        var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setTheme(savedTheme ? (savedTheme === 'dark' ? 'dark' : 'light') : (sysDark ? 'dark' : 'light'));
+        function toggleTheme() {
+            var next = wrap.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+            store('rqTheme', next);
+        }
+        if (themeBtn) { themeBtn.addEventListener('click', toggleTheme); }
+
+        // Always print in light mode
+        var themeBeforePrint = null;
+        window.addEventListener('beforeprint', function() { themeBeforePrint = wrap.getAttribute('data-theme'); setTheme('light'); });
+        window.addEventListener('afterprint', function() {
+            if (themeBeforePrint) { setTheme(themeBeforePrint); themeBeforePrint = null; }
+            document.body.classList.remove('rq-print-one');
+            document.querySelectorAll('.rq-print-target').forEach(function(c) { c.classList.remove('rq-print-target'); });
+        });
+
+        // ---------------------------------------------
+        // Find a fixed/sticky site header so our sticky bits sit under it
+        // ---------------------------------------------
+        var topOffset = 0;
+        function detectTop() {
+            var h = 0;
+            document.querySelectorAll('header, nav, .navbar, .topbar, .top-bar, .app-header').forEach(function(el) {
+                if (wrap.contains(el)) { return; }
+                var cs = getComputedStyle(el);
+                var r = el.getBoundingClientRect();
+                if ((cs.position === 'fixed' || cs.position === 'sticky') && r.top <= 1 && r.height > 0 && r.height < 200 && r.width > window.innerWidth * 0.5) {
+                    h = Math.max(h, r.bottom);
+                }
+            });
+            topOffset = Math.round(h);
+            wrap.style.setProperty('--rq-top', topOffset + 'px');
+        }
+        detectTop();
+        window.addEventListener('resize', detectTop);
+
+        // ---------------------------------------------
+        // Banner count-up and ring fill (the one load-time moment)
+        // ---------------------------------------------
+        function countUp(el, target, len, dec, dur) {
+            var start = null;
+            function step(ts) {
+                if (start === null) { start = ts; }
+                var p = Math.min((ts - start) / dur, 1);
+                var v = target * (1 - Math.pow(1 - p, 3));
+                el.textContent = dec ? v.toFixed(dec) : pad(Math.round(v), len);
+                if (p < 1) { requestAnimationFrame(step); }
+            }
+            requestAnimationFrame(step);
+        }
+
+        if (!reduce) {
+            document.querySelectorAll('.rq-count').forEach(function(el) {
+                var target = parseInt(el.dataset.count, 10) || 0;
+                var len = parseInt(el.dataset.pad, 10) || 1;
+                el.textContent = pad(0, len);
+                countUp(el, target, len, 0, 800);
+            });
+
+            var ring = document.getElementById('rqRing');
+            if (ring) {
+                var pct = parseFloat(ring.dataset.pct) || 0;
+                var rs = null;
+                ring.style.setProperty('--rq-pct', 0);
+                requestAnimationFrame(function tick(ts) {
+                    if (rs === null) { rs = ts; }
+                    var p = Math.min((ts - rs) / 900, 1);
+                    ring.style.setProperty('--rq-pct', pct * (1 - Math.pow(1 - p, 3)));
+                    if (p < 1) { requestAnimationFrame(tick); }
+                });
+            }
+        }
+
+        // ---------------------------------------------
+        // Copy helper + copy request number
+        // ---------------------------------------------
+        function copyText(text, done) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done).catch(function() { });
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); done(); } catch (e) { }
+                document.body.removeChild(ta);
+            }
+        }
+
         document.querySelectorAll('.rq-copy-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var text = btn.getAttribute('data-copy');
                 var icon = btn.querySelector('i');
-
-                function showCopied() {
+                copyText(text, function() {
                     icon.classList.remove('fa-copy');
                     icon.classList.add('fa-check');
                     btn.classList.add('rq-copied');
+                    toast('Copied ' + text);
                     setTimeout(function() {
                         icon.classList.remove('fa-check');
                         icon.classList.add('fa-copy');
                         btn.classList.remove('rq-copied');
                     }, 1500);
-                }
-
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(text).then(showCopied).catch(function() { });
-                } else {
-                    var ta = document.createElement('textarea');
-                    ta.value = text;
-                    ta.style.position = 'fixed';
-                    ta.style.opacity = '0';
-                    document.body.appendChild(ta);
-                    ta.select();
-                    try { document.execCommand('copy'); showCopied(); } catch (e) { }
-                    document.body.removeChild(ta);
-                }
+                });
             });
         });
 
         // ---------------------------------------------
-        // Expand/collapse test chips
+        // Expand / collapse test chips
         // ---------------------------------------------
         document.querySelectorAll('.rq-tests-toggle').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var target = document.getElementById(btn.getAttribute('data-target'));
-                if (!target) return;
+                if (!target) { return; }
                 var expanded = target.classList.toggle('rq-expanded');
                 btn.classList.toggle('rq-open', expanded);
                 var label = btn.querySelector('.rq-tests-toggle-label');
@@ -1418,153 +3727,767 @@
         });
 
         // ---------------------------------------------
-        // A released card opens that request's results
-        // (links and buttons inside the card keep their own behaviour)
+        // Pins, "updated since last visit" flags, unread results, private notes
         // ---------------------------------------------
+        var allCards = Array.prototype.slice.call(document.querySelectorAll('.rq-card'));
+        var pins = readJson(NS + 'pins', []);
+        var seen = readJson(NS + 'seen', []);
+        var snap = readJson(NS + 'snap', null);
+        var flags = readJson(NS + 'flags', {});
+        var STATUS_NAME = { submitted: 'Submitted', received: 'Sample received', inprogress: 'In progress', completed: 'Completed', released: 'Results ready', cancelled: 'Cancelled' };
+
+        function saveAll() {
+            store(NS + 'pins', JSON.stringify(pins));
+            store(NS + 'seen', JSON.stringify(seen));
+            store(NS + 'flags', JSON.stringify(flags));
+        }
+
+        function markSeen(id) {
+            if (seen.indexOf(id) === -1) { seen.push(id); }
+            delete flags[id];
+            saveAll();
+        }
+
+        // work out what changed since the last visit
+        var firstVisit = snap === null;
+        var newSnap = {};
+        allCards.forEach(function(card) {
+            var id = card.dataset.id;
+            var st = card.dataset.status;
+            newSnap[id] = st;
+            if (!firstVisit) {
+                if (!(id in snap)) { flags[id] = { t: 'new' }; }
+                else if (snap[id] !== st) { flags[id] = { t: 'updated', from: snap[id] }; }
+            }
+        });
+        // drop flags for requests that no longer exist
+        Object.keys(flags).forEach(function(id) { if (!(id in newSnap)) { delete flags[id]; } });
+        store(NS + 'snap', JSON.stringify(newSnap));
+        saveAll();
+
+        function paintCard(card) {
+            var id = card.dataset.id;
+            var pinned = pins.indexOf(id) !== -1;
+            var f = flags[id];
+            var unread = card.dataset.status === 'released' && seen.indexOf(id) === -1 && Number(card.dataset.relDays) <= 14;
+
+            card.dataset.pinned = pinned ? 'true' : 'false';
+            card.dataset.flag = f ? f.t : '';
+            card.dataset.unread = unread ? 'true' : 'false';
+
+            var pb = card.querySelector('.rq-pin-btn');
+            pb.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+            pb.title = pinned ? 'Unpin this request' : 'Pin this request';
+            pb.firstElementChild.className = pinned ? 'fa-solid fa-star' : 'fa-regular fa-star';
+
+            var box = card.querySelector('.rq-badges');
+            box.innerHTML = '';
+            function badge(cls, icon, text, title) {
+                var b = document.createElement('span');
+                b.className = 'rq-badge ' + cls;
+                if (title) { b.title = title; }
+                var i = document.createElement('i');
+                i.className = 'fa-solid ' + icon;
+                b.appendChild(i);
+                b.appendChild(document.createTextNode(' ' + text));
+                box.appendChild(b);
+            }
+            if (f && f.t === 'updated') { badge('rq-badge-updated', 'fa-arrows-rotate', 'Updated', 'Was: ' + (STATUS_NAME[f.from] || f.from)); }
+            if (f && f.t === 'new') { badge('rq-badge-new', 'fa-circle-plus', 'New'); }
+            if (unread) { badge('rq-badge-unread', 'fa-envelope-open-text', 'Results not opened yet'); }
+
+            var note = readJson(NS + 'note_' + id, '');
+            card.querySelector('.rq-note-ind').classList.toggle('rq-hidden', !note);
+        }
+
+        function refreshFlagCounts() {
+            var p = 0, u = 0;
+            allCards.forEach(function(c) {
+                if (c.dataset.pinned === 'true') { p++; }
+                if (c.dataset.flag || c.dataset.unread === 'true') { u++; }
+            });
+            var pe = document.querySelector('[data-flag-filter="pinned"] em');
+            var ue = document.querySelector('[data-flag-filter="updated"] em');
+            if (pe) { pe.textContent = p; }
+            if (ue) { ue.textContent = u; }
+        }
+
+        function dismissFlag(card) {
+            var id = card.dataset.id;
+            if (flags[id]) { delete flags[id]; saveAll(); paintCard(card); refreshFlagCounts(); }
+        }
+
+        // since-last-visit strip
+        var sinceEl = document.getElementById('rqSince');
+        function showSince() {
+            var ids = Object.keys(flags);
+            var upd = ids.filter(function(i) { return flags[i].t === 'updated'; }).length;
+            var nw = ids.filter(function(i) { return flags[i].t === 'new'; }).length;
+            if (!sinceEl || (upd + nw) === 0) { return; }
+            var parts = [];
+            if (upd) { parts.push(upd + ' request' + (upd === 1 ? '' : 's') + ' moved to a new stage'); }
+            if (nw) { parts.push(nw + ' new request' + (nw === 1 ? '' : 's') + ' added'); }
+            document.getElementById('rqSinceTitle').textContent = 'Since your last visit';
+            document.getElementById('rqSinceText').textContent = parts.join(' and ') + '.';
+            sinceEl.classList.remove('rq-hidden');
+        }
+
+        // private notes
+        document.querySelectorAll('textarea[data-note]').forEach(function(ta) {
+            var id = ta.getAttribute('data-note');
+            ta.value = readJson(NS + 'note_' + id, '');
+            var t;
+            ta.addEventListener('input', function() {
+                clearTimeout(t);
+                t = setTimeout(function() {
+                    store(NS + 'note_' + id, JSON.stringify(ta.value));
+                    var card = ta.closest('.rq-card');
+                    card.querySelector('.rq-note-ind').classList.toggle('rq-hidden', !ta.value.trim());
+                }, 300);
+            });
+        });
+
+        function togglePin(card) {
+            var id = card.dataset.id;
+            var ix = pins.indexOf(id);
+            if (ix === -1) { pins.push(id); toast('Pinned #' + id); } else { pins.splice(ix, 1); toast('Unpinned #' + id); }
+            saveAll();
+            paintCard(card);
+            refreshFlagCounts();
+            if (typeof render === 'function' && (state.flag === 'pinned' || sortSelect.value === 'pinned')) {
+                if (sortSelect.value === 'pinned') { applySort(); }
+                render();
+            }
+        }
+        document.querySelectorAll('.rq-pin-btn').forEach(function(b) {
+            b.addEventListener('click', function(e) { e.stopPropagation(); togglePin(b.closest('.rq-card')); });
+        });
+
+        // ---------------------------------------------
+        // Details drawer
+        // ---------------------------------------------
+        function setOpen(card, open) {
+            card.classList.toggle('rq-open', open);
+            var btn = card.querySelector('.rq-details-btn');
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.querySelector('.rq-details-label').textContent = open ? 'Hide details' : 'Details';
+            if (open) { dismissFlag(card); }
+        }
+        document.querySelectorAll('.rq-details-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var card = btn.closest('.rq-card');
+                setOpen(card, !card.classList.contains('rq-open'));
+            });
+        });
+
+        // Released card opens its results (links, buttons and the drawer keep their own behaviour)
         document.querySelectorAll('.rq-card[data-href]').forEach(function(card) {
+            if (!card.dataset.href) { return; }
             card.addEventListener('click', function(e) {
-                if (e.target.closest('a, button')) { return; }
+                if (e.target.closest('a, button, .rq-drawer, textarea, label')) { return; }
+                markSeen(card.dataset.id);
                 window.location.href = card.dataset.href;
             });
         });
+        document.querySelectorAll('.rq-view, .rq-tool-go').forEach(function(a) {
+            a.addEventListener('click', function() { markSeen(a.closest('.rq-card').dataset.id); });
+        });
 
         // ---------------------------------------------
-        // Cancel a request (patient) - confirm, ask for an optional reason, then post
+        // Drawer tools: print slip, copy summary, calendar reminder
         // ---------------------------------------------
-        document.querySelectorAll('.rq-cancel-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var form = btn.closest('form');
-                if (!confirm('Cancel this request? This cannot be undone.')) { return; }
-                var reason = prompt('Reason for cancelling (optional):', '');
-                if (reason === null) { return; }          // pressed Cancel on the prompt
-                form.querySelector('input[name="reason"]').value = reason;
-                form.submit();
+        function summaryOf(card) {
+            var tests = (card.dataset.tests || '').split('|').filter(Boolean).join(', ') || 'None listed';
+            var lines = [
+                'Test request #' + card.dataset.id,
+                'Doctor: Dr. ' + card.dataset.doctor,
+                'Requested: ' + card.dataset.reqLabel,
+                'Status: ' + card.dataset.statusLabel,
+                'Priority: ' + card.dataset.urgency,
+                'Tests: ' + tests
+            ];
+            if (card.dataset.expected) { lines.push('Expected around: ' + card.dataset.expected); }
+            return lines.join('\n');
+        }
+
+        function icsDate(iso) { return iso.replace(/-/g, ''); }
+        function addDays(iso, n) {
+            var p = iso.split('-');
+            var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + n);
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1, 2) + '-' + pad(d.getDate(), 2);
+        }
+        function todayIso() {
+            var d = new Date();
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1, 2) + '-' + pad(d.getDate(), 2);
+        }
+        function downloadFile(name, mime, text) {
+            var blob = new Blob([text], { type: mime });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function remind(card) {
+            var day = card.dataset.expected && card.dataset.expected >= todayIso() ? card.dataset.expected : addDays(todayIso(), 1);
+            var tests = (card.dataset.tests || '').split('|').filter(Boolean).join(', ');
+            var ics = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//LabDash//Patient Portal//EN',
+                'BEGIN:VEVENT',
+                'UID:rq-' + card.dataset.id + '-' + Date.now() + '@@labdash',
+                'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
+                'DTSTART;VALUE=DATE:' + icsDate(day),
+                'DTEND;VALUE=DATE:' + icsDate(addDays(day, 1)),
+                'SUMMARY:Check lab request #' + card.dataset.id,
+                'DESCRIPTION:Check the status of your test request' + (tests ? ' (' + tests + ')' : '') + ' in the patient portal.',
+                'END:VEVENT',
+                'END:VCALENDAR'
+            ].join('\r\n');
+            downloadFile('lab-request-' + card.dataset.id + '.ics', 'text/calendar;charset=utf-8;', ics);
+            toast('Reminder saved for ' + day);
+        }
+
+        function printCard(card) {
+            setOpen(card, true);
+            card.classList.add('rq-print-target');
+            document.body.classList.add('rq-print-one');
+            setTimeout(function() { window.print(); }, 80);
+        }
+
+        document.querySelectorAll('.rq-tool[data-act]').forEach(function(b) {
+            b.addEventListener('click', function() {
+                var card = b.closest('.rq-card');
+                var act = b.getAttribute('data-act');
+                if (act === 'print') { printCard(card); }
+                else if (act === 'summary') { copyText(summaryOf(card), function() { toast('Summary copied'); }); }
+                else if (act === 'remind') { remind(card); }
             });
         });
 
         // ---------------------------------------------
-        // Search + status filter + urgent toggle + sort
+        // Dialogs: cancel + shortcuts
+        // ---------------------------------------------
+        var modal = document.getElementById('rqModal');
+        var cancelForm = document.getElementById('rqCancelForm');
+        var reasonText = document.getElementById('rqReasonText');
+        var reasonChips = document.querySelectorAll('.rq-reason');
+        var helpModal = document.getElementById('rqHelp');
+        var lastFocus = null;
+
+        function openModal(id) {
+            lastFocus = document.activeElement;
+            document.getElementById('rqCancelId').value = id;
+            document.getElementById('rqModalRef').textContent = '#' + id;
+            reasonText.value = '';
+            reasonChips.forEach(function(c) { c.classList.remove('active'); });
+            modal.classList.add('rq-show');
+            modal.setAttribute('aria-hidden', 'false');
+            if (reasonChips[0]) { reasonChips[0].focus(); }
+        }
+        function closeModal() {
+            modal.classList.remove('rq-show');
+            modal.setAttribute('aria-hidden', 'true');
+            if (lastFocus && lastFocus.focus) { lastFocus.focus(); }
+        }
+        function openHelp() { lastFocus = document.activeElement; helpModal.classList.add('rq-show'); helpModal.setAttribute('aria-hidden', 'false'); document.getElementById('rqHelpClose').focus(); }
+        function closeHelp() { helpModal.classList.remove('rq-show'); helpModal.setAttribute('aria-hidden', 'true'); if (lastFocus && lastFocus.focus) { lastFocus.focus(); } }
+
+        if (modal) {
+            document.querySelectorAll('.rq-cancel-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() { openModal(btn.getAttribute('data-cancel-id')); });
+            });
+            reasonChips.forEach(function(chip) {
+                chip.addEventListener('click', function() {
+                    var was = chip.classList.contains('active');
+                    reasonChips.forEach(function(c) { c.classList.remove('active'); });
+                    if (!was) { chip.classList.add('active'); }
+                });
+            });
+            document.getElementById('rqModalKeep').addEventListener('click', closeModal);
+            modal.addEventListener('click', function(e) { if (e.target === modal) { closeModal(); } });
+            cancelForm.addEventListener('submit', function() {
+                var chosen = document.querySelector('.rq-reason.active');
+                var parts = [];
+                if (chosen) { parts.push(chosen.getAttribute('data-reason')); }
+                if (reasonText.value.trim()) { parts.push(reasonText.value.trim()); }
+                document.getElementById('rqCancelReason').value = parts.join(': ');
+            });
+        }
+        if (helpModal) {
+            document.getElementById('rqHelpClose').addEventListener('click', closeHelp);
+            helpModal.addEventListener('click', function(e) { if (e.target === helpModal) { closeHelp(); } });
+        }
+        var helpBtn = document.getElementById('rqHelpBtn');
+        if (helpBtn) { helpBtn.addEventListener('click', openHelp); }
+
+        // ---------------------------------------------
+        // Scroll features (work with window scroll or a scrolling layout container)
+        // ---------------------------------------------
+        var progressBar = document.querySelector('#rqProgress span');
+        var dock = document.getElementById('rqDock');
+
+        function onScroll() {
+            var r = wrap.getBoundingClientRect();
+            var scrollable = r.height - window.innerHeight;
+            var p = scrollable > 0 ? Math.min(Math.max(-r.top / scrollable, 0), 1) : 0;
+            if (progressBar) { progressBar.style.transform = 'scaleX(' + p + ')'; }
+            if (dock) { dock.classList.toggle('rq-show', r.top < -260); }
+        }
+        var ticking = false;
+        document.addEventListener('scroll', function() {
+            if (ticking) { return; }
+            ticking = true;
+            requestAnimationFrame(function() { onScroll(); ticking = false; });
+        }, true);
+        window.addEventListener('resize', onScroll);
+        onScroll();
+
+        var topBtn = document.getElementById('rqTop');
+        if (topBtn) {
+            topBtn.addEventListener('click', function() {
+                wrap.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+            });
+        }
+
+        // Insights fill in when scrolled into view
+        document.querySelectorAll('.rq-reveal').forEach(function(sec) {
+            function reveal() {
+                sec.classList.add('rq-in');
+                sec.querySelectorAll('[data-countup]').forEach(function(el) {
+                    var v = parseFloat(el.dataset.value) || 0;
+                    var dec = parseInt(el.dataset.dec, 10) || 0;
+                    if (!reduce) { countUp(el, v, 1, dec, 900); }
+                });
+            }
+            if ('IntersectionObserver' in window) {
+                var rio = new IntersectionObserver(function(es) {
+                    if (es[0].isIntersecting) { reveal(); rio.disconnect(); }
+                }, { threshold: 0.25 });
+                rio.observe(sec);
+            } else { reveal(); }
+        });
+
+        // ---------------------------------------------
+        // Filters, search, sort, range, views, paging
         // ---------------------------------------------
         var list = document.getElementById('rqList');
         if (!list) { return; }
 
+        var PAGE = 6;
+        var state = { search: '', status: 'all', urgentOnly: false, range: 'all', flag: '', doctor: '', test: '', limit: PAGE };
+
         var searchInput = document.getElementById('rqSearchInput');
+        var searchBox = searchInput.closest('.rq-search');
         var sortSelect = document.getElementById('rqSortSelect');
+        var rangeSelect = document.getElementById('rqRange');
+        var doctorSel = document.getElementById('rqDoctorSel');
+        var testSel = document.getElementById('rqTestSel');
         var statusChips = document.querySelectorAll('[data-status-filter]');
+        var flagChips = document.querySelectorAll('[data-flag-filter]');
+        var ticks = document.querySelectorAll('[data-tick-filter]');
         var urgentChip = document.querySelector('[data-urgent-filter]');
         var noMatches = document.getElementById('rqNoMatches');
-        var clearBtn = document.getElementById('rqClearFilters');
+        var moreBtn = document.getElementById('rqMore');
+        var endEl = document.getElementById('rqEnd');
+        var countEl = document.getElementById('rqCount');
+        var resetInline = document.getElementById('rqResetInline');
+        var sentinel = document.getElementById('rqSentinel');
+        var sticky = document.getElementById('rqSticky');
+        var chipsToggle = document.getElementById('rqChipsToggle');
+        var io = null;
 
-        var state = { search: '', status: 'all', urgentOnly: false };
+        function matches(card) {
+            var haystack = ((card.dataset.doctor || '') + ' ' + (card.dataset.tests || '') + ' ' + (card.dataset.id || '')).toLowerCase();
+            if (state.search && haystack.indexOf(state.search) === -1) { return false; }
+            var st = card.dataset.status;
+            if (state.status === 'open') { if (st === 'released' || st === 'cancelled') { return false; } }
+            else if (state.status !== 'all' && st !== state.status) { return false; }
+            if (state.urgentOnly && card.dataset.urgent !== 'true') { return false; }
+            if (state.range !== 'all' && Number(card.dataset.days) > Number(state.range)) { return false; }
+            if (state.flag === 'pinned' && card.dataset.pinned !== 'true') { return false; }
+            if (state.flag === 'updated' && !(card.dataset.flag || card.dataset.unread === 'true')) { return false; }
+            if (state.doctor && card.dataset.doctor !== state.doctor) { return false; }
+            if (state.test && ('|' + (card.dataset.tests || '') + '|').indexOf('|' + state.test + '|') === -1) { return false; }
+            return true;
+        }
 
-        function applyFilters() {
-            var cards = list.querySelectorAll('.rq-card');
-            var visibleCount = 0;
+        function isFiltered() {
+            return state.search !== '' || state.status !== 'all' || state.urgentOnly || state.range !== 'all' || state.flag !== '' || state.doctor !== '' || state.test !== '';
+        }
+
+        // highlight the search term inside doctor names and test chips
+        function hl(el, term) {
+            var t = el.getAttribute('data-orig');
+            if (t === null) { t = el.textContent; el.setAttribute('data-orig', t); }
+            var i = term ? t.toLowerCase().indexOf(term) : -1;
+            if (i < 0) { if (el.childElementCount || el.textContent !== t) { el.textContent = t; } return; }
+            el.textContent = '';
+            el.appendChild(document.createTextNode(t.slice(0, i)));
+            var m = document.createElement('mark');
+            m.textContent = t.slice(i, i + term.length);
+            el.appendChild(m);
+            el.appendChild(document.createTextNode(t.slice(i + term.length)));
+        }
+
+        function buildMonthHeaders(cards) {
+            list.querySelectorAll('.rq-month').forEach(function(h) { h.remove(); });
+            if (sortSelect.value === 'urgent' || sortSelect.value === 'pinned') { return; }
+
+            var counts = {};
+            cards.forEach(function(c) {
+                if (c.dataset.match === 'true') { counts[c.dataset.monthLabel] = (counts[c.dataset.monthLabel] || 0) + 1; }
+            });
+
+            var last = null;
+            cards.forEach(function(c) {
+                if (c.classList.contains('rq-hidden')) { return; }
+                var m = c.dataset.monthLabel;
+                if (m === last) { return; }
+                last = m;
+                var h = document.createElement('div');
+                h.className = 'rq-month';
+                var a = document.createElement('span');
+                var b = document.createElement('em');
+                a.textContent = m;
+                b.textContent = counts[m] + ' request' + (counts[m] === 1 ? '' : 's');
+                h.appendChild(a);
+                h.appendChild(b);
+                list.insertBefore(h, c);
+            });
+        }
+
+        function render() {
+            var cards = Array.prototype.slice.call(list.querySelectorAll('.rq-card'));
+            var matched = 0, shown = 0;
 
             cards.forEach(function(card) {
-                var haystack = ((card.dataset.doctor || '') + ' ' + (card.dataset.tests || '')).toLowerCase();
-                var matchesSearch = state.search === '' || haystack.indexOf(state.search) !== -1;
-                var matchesStatus = state.status === 'all' || card.dataset.status === state.status;
-                var matchesUrgent = !state.urgentOnly || card.dataset.urgent === 'true';
-
-                var visible = matchesSearch && matchesStatus && matchesUrgent;
+                var ok = matches(card);
+                card.dataset.match = ok ? 'true' : 'false';
+                if (!ok) { card.classList.add('rq-hidden'); return; }
+                matched++;
+                var visible = shown < state.limit;
                 card.classList.toggle('rq-hidden', !visible);
-                if (visible) { visibleCount++; }
+                if (visible) {
+                    shown++;
+                    card.querySelectorAll('.rq-hl, .rq-test-chip').forEach(function(el) { hl(el, state.search); });
+                }
             });
 
-            if (noMatches) {
-                noMatches.style.display = visibleCount === 0 ? 'flex' : 'none';
-            }
+            buildMonthHeaders(cards);
+
+            noMatches.style.display = matched === 0 ? 'flex' : 'none';
+            countEl.textContent = matched === 0 ? '' : ('Showing ' + shown + ' of ' + matched + ' request' + (matched === 1 ? '' : 's'));
+            resetInline.classList.toggle('rq-hidden', !isFiltered());
+            if (chipsToggle) { chipsToggle.classList.toggle('rq-has-filter', isFiltered()); }
+
+            var remaining = matched - shown;
+            moreBtn.classList.toggle('rq-hidden', remaining <= 0);
+            moreBtn.textContent = 'Show ' + Math.min(remaining, PAGE) + ' more (' + remaining + ' left)';
+
+            var allShown = matched > 0 && remaining <= 0 && matched > PAGE;
+            endEl.classList.toggle('rq-hidden', !allShown);
+            endEl.textContent = 'You have reached the end (' + matched + ' requests)';
+
+            // Re-check the scroll sentinel so the next page loads if it is still in view
+            if (io && remaining > 0) { io.unobserve(sentinel); io.observe(sentinel); }
         }
 
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                state.search = searchInput.value.trim().toLowerCase();
-                applyFilters();
+        function setStatus(val) {
+            state.status = val;
+            state.limit = PAGE;
+            statusChips.forEach(function(c) { c.classList.toggle('active', c.getAttribute('data-status-filter') === val); });
+            ticks.forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-tick-filter') === val); });
+            render();
+        }
+
+        function setFlag(val) {
+            state.flag = state.flag === val ? '' : val;
+            state.limit = PAGE;
+            flagChips.forEach(function(c) {
+                var on = c.getAttribute('data-flag-filter') === state.flag;
+                c.classList.toggle('active', on);
+                c.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+            render();
+        }
+
+        function resetAll() {
+            state = { search: '', status: 'all', urgentOnly: false, range: 'all', flag: '', doctor: '', test: '', limit: PAGE };
+            searchInput.value = '';
+            searchBox.classList.remove('has-text');
+            rangeSelect.value = 'all';
+            if (doctorSel) { doctorSel.value = ''; }
+            if (testSel) { testSel.value = ''; }
+            urgentChip.classList.remove('active');
+            urgentChip.setAttribute('aria-pressed', 'false');
+            flagChips.forEach(function(c) { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
+            setStatus('all');
+        }
+
+        // Infinite scroll: load the next page as the end of the list nears the screen
+        if ('IntersectionObserver' in window) {
+            io = new IntersectionObserver(function(es) {
+                if (es[0].isIntersecting && !moreBtn.classList.contains('rq-hidden')) {
+                    state.limit += PAGE;
+                    render();
+                }
+            }, { rootMargin: '0px 0px 320px 0px' });
+            io.observe(sentinel);
+        }
+
+        // Toolbar: detect when it is stuck, then fold the status chips into a toggle
+        if (sticky && 'IntersectionObserver' in window) {
+            var sentTop = document.getElementById('rqTopSentinel');
+            var sio = new IntersectionObserver(function(es) {
+                var e = es[0];
+                var stuck = !e.isIntersecting && e.boundingClientRect.top < topOffset + 1;
+                sticky.classList.toggle('rq-stuck', stuck);
+                if (!stuck) { sticky.classList.remove('rq-chips-open'); if (chipsToggle) { chipsToggle.setAttribute('aria-expanded', 'false'); } }
+            }, { rootMargin: '-' + (topOffset + 1) + 'px 0px 0px 0px', threshold: 0 });
+            sio.observe(sentTop);
+        }
+        if (chipsToggle) {
+            chipsToggle.addEventListener('click', function() {
+                var open = sticky.classList.toggle('rq-chips-open');
+                chipsToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
             });
         }
 
-        statusChips.forEach(function(chip) {
-            chip.addEventListener('click', function() {
-                statusChips.forEach(function(c) { c.classList.remove('active'); });
-                chip.classList.add('active');
-                state.status = chip.getAttribute('data-status-filter');
-                applyFilters();
+        searchInput.addEventListener('input', function() {
+            state.search = searchInput.value.trim().toLowerCase();
+            state.limit = PAGE;
+            searchBox.classList.toggle('has-text', searchInput.value.length > 0);
+            render();
+        });
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') { searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); searchInput.blur(); }
+        });
+        document.getElementById('rqSearchClear').addEventListener('click', function() {
+            searchInput.value = '';
+            searchInput.dispatchEvent(new Event('input'));
+            searchInput.focus();
+        });
+
+        statusChips.forEach(function(chip) { chip.addEventListener('click', function() { setStatus(chip.getAttribute('data-status-filter')); }); });
+        ticks.forEach(function(t) { t.addEventListener('click', function() { setStatus(t.getAttribute('data-tick-filter')); }); });
+        flagChips.forEach(function(c) { c.addEventListener('click', function() { setFlag(c.getAttribute('data-flag-filter')); }); });
+
+        document.querySelectorAll('[data-spot-filter]').forEach(function(b) {
+            b.addEventListener('click', function() {
+                setStatus(b.getAttribute('data-spot-filter'));
+                list.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
             });
         });
 
-        if (urgentChip) {
-            urgentChip.addEventListener('click', function() {
-                state.urgentOnly = !state.urgentOnly;
-                urgentChip.classList.toggle('active', state.urgentOnly);
-                applyFilters();
-            });
-        }
+        urgentChip.addEventListener('click', function() {
+            state.urgentOnly = !state.urgentOnly;
+            state.limit = PAGE;
+            urgentChip.classList.toggle('active', state.urgentOnly);
+            urgentChip.setAttribute('aria-pressed', state.urgentOnly ? 'true' : 'false');
+            render();
+        });
 
-        if (clearBtn) {
-            clearBtn.addEventListener('click', function() {
-                state = { search: '', status: 'all', urgentOnly: false };
-                if (searchInput) { searchInput.value = ''; }
-                statusChips.forEach(function(c) { c.classList.toggle('active', c.getAttribute('data-status-filter') === 'all'); });
-                if (urgentChip) { urgentChip.classList.remove('active'); }
-                applyFilters();
-            });
-        }
+        rangeSelect.addEventListener('change', function() { state.range = rangeSelect.value; state.limit = PAGE; render(); });
+        if (doctorSel) { doctorSel.addEventListener('change', function() { state.doctor = doctorSel.value; state.limit = PAGE; render(); }); }
+        if (testSel) { testSel.addEventListener('change', function() { state.test = testSel.value; state.limit = PAGE; render(); }); }
 
-        if (sortSelect) {
-            sortSelect.addEventListener('change', function() {
-                var value = sortSelect.value;
-                var cards = Array.prototype.slice.call(list.querySelectorAll('.rq-card'));
+        document.getElementById('rqClearFilters').addEventListener('click', resetAll);
+        resetInline.addEventListener('click', resetAll);
+        moreBtn.addEventListener('click', function() { state.limit += PAGE; render(); });
 
-                cards.sort(function(a, b) {
-                    if (value === 'urgent') {
-                        var au = a.dataset.urgent === 'true', bu = b.dataset.urgent === 'true';
-                        if (au !== bu) { return au ? -1 : 1; }
-                        return b.dataset.date.localeCompare(a.dataset.date);
-                    }
-                    if (value === 'oldest') { return a.dataset.date.localeCompare(b.dataset.date); }
+        function applySort() {
+            var value = sortSelect.value;
+            var cards = Array.prototype.slice.call(list.querySelectorAll('.rq-card'));
+            cards.sort(function(a, b) {
+                if (value === 'urgent') {
+                    var au = a.dataset.urgent === 'true', bu = b.dataset.urgent === 'true';
+                    if (au !== bu) { return au ? -1 : 1; }
                     return b.dataset.date.localeCompare(a.dataset.date);
-                });
+                }
+                if (value === 'pinned') {
+                    var ap = a.dataset.pinned === 'true', bp = b.dataset.pinned === 'true';
+                    if (ap !== bp) { return ap ? -1 : 1; }
+                    return b.dataset.date.localeCompare(a.dataset.date);
+                }
+                if (value === 'oldest') { return a.dataset.date.localeCompare(b.dataset.date); }
+                return b.dataset.date.localeCompare(a.dataset.date);
+            });
+            cards.forEach(function(c) { list.appendChild(c); });
+        }
+        sortSelect.addEventListener('change', function() {
+            store('rqSort', sortSelect.value);
+            applySort();
+            render();
+        });
 
-                cards.forEach(function(c) { list.appendChild(c); });
+        // Compact + two-column views (remembered)
+        var densityBtn = document.getElementById('rqDensity');
+        var gridBtn = document.getElementById('rqGrid');
+        function setDensity(compact) {
+            list.classList.toggle('rq-compact', compact);
+            densityBtn.setAttribute('aria-pressed', compact ? 'true' : 'false');
+            densityBtn.firstElementChild.className = compact ? 'fa-solid fa-table-list' : 'fa-solid fa-bars';
+        }
+        function setGrid(on) {
+            list.classList.toggle('rq-grid', on);
+            gridBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+        function toggleDensity() {
+            var compact = !list.classList.contains('rq-compact');
+            setDensity(compact);
+            store('rqCompact', compact ? '1' : '0');
+            toast(compact ? 'Compact view' : 'Full view');
+        }
+        function toggleGrid() {
+            var on = !list.classList.contains('rq-grid');
+            setGrid(on);
+            store('rqGridView', on ? '1' : '0');
+            toast(on ? 'Two column view' : 'Single column view');
+        }
+        setDensity(read('rqCompact') === '1');
+        setGrid(read('rqGridView') === '1');
+        densityBtn.addEventListener('click', toggleDensity);
+        gridBtn.addEventListener('click', toggleGrid);
+
+        // Print the whole (filtered) list
+        document.getElementById('rqPrintBtn').addEventListener('click', function() {
+            var hidden = list.querySelectorAll('.rq-card[data-match="true"].rq-hidden');
+            hidden.forEach(function(c) { c.classList.remove('rq-hidden'); c.dataset.printTemp = '1'; });
+            window.addEventListener('afterprint', function() {
+                list.querySelectorAll('[data-print-temp]').forEach(function(c) { c.classList.add('rq-hidden'); c.removeAttribute('data-print-temp'); });
+            }, { once: true });
+            setTimeout(function() { window.print(); }, 60);
+        });
+
+        // ---------------------------------------------
+        // Dock: jump to next ready result, expand/collapse every ticket
+        // ---------------------------------------------
+        var readyIdx = -1;
+        var nextBtn = document.getElementById('rqNextReady');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function() {
+                function visibleReady() {
+                    return Array.prototype.slice.call(list.querySelectorAll('.rq-card[data-status="released"]:not(.rq-hidden)'));
+                }
+                var vis = visibleReady();
+                if (!vis.length) { resetAll(); setStatus('released'); vis = visibleReady(); }
+                if (!vis.length) { return; }
+                readyIdx = (readyIdx + 1) % vis.length;
+                var c = vis[readyIdx];
+                c.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+                c.classList.remove('rq-flash');
+                void c.offsetWidth;
+                c.classList.add('rq-flash');
+                setTimeout(function() { c.classList.remove('rq-flash'); }, 1600);
+                toast('Result ' + (readyIdx + 1) + ' of ' + vis.length);
             });
         }
 
-        // ---------------------------------------------
-        // CSV export (respects current filters)
-        // ---------------------------------------------
-        var exportBtn = document.getElementById('rqExportBtn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', function() {
-                var rows = [['Request ID', 'Doctor', 'Date', 'Status', 'Urgent', 'Tests']];
-
-                list.querySelectorAll('.rq-card:not(.rq-hidden)').forEach(function(card) {
-                    rows.push([
-                        card.dataset.id || '',
-                        card.dataset.doctor || '',
-                        card.dataset.date || '',
-                        card.dataset.statusLabel || '',
-                        card.dataset.urgent === 'true' ? 'Yes' : 'No',
-                        (card.dataset.tests || '').split('|').join('; ')
-                    ]);
-                });
-
-                var csv = rows.map(function(row) {
-                    return row.map(function(field) {
-                        return '"' + String(field).replace(/"/g, '""') + '"';
-                    }).join(',');
-                }).join('\n');
-
-                var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                var url = URL.createObjectURL(blob);
-                var a = document.createElement('a');
-                a.href = url;
-                a.download = 'test-requests.csv';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+        var expandBtn = document.getElementById('rqExpandAll');
+        var allOpen = false;
+        if (expandBtn) {
+            expandBtn.addEventListener('click', function() {
+                allOpen = !allOpen;
+                list.querySelectorAll('.rq-card:not(.rq-hidden)').forEach(function(c) { setOpen(c, allOpen); });
+                expandBtn.querySelector('span').textContent = allOpen ? 'Collapse all' : 'Expand all';
+                expandBtn.querySelector('i').className = allOpen ? 'fa-solid fa-angles-up' : 'fa-solid fa-angles-down';
             });
         }
+
+        // CSV export (every request that matches the filters, not just the visible page)
+        document.getElementById('rqExportBtn').addEventListener('click', function() {
+            var rows = [['Request ID', 'Doctor', 'Date', 'Status', 'Urgent', 'Tests']];
+            list.querySelectorAll('.rq-card').forEach(function(card) {
+                if (card.dataset.match === 'false') { return; }
+                rows.push([
+                    card.dataset.id || '',
+                    card.dataset.doctor || '',
+                    card.dataset.date || '',
+                    card.dataset.statusLabel || '',
+                    card.dataset.urgent === 'true' ? 'Yes' : 'No',
+                    (card.dataset.tests || '').split('|').join('; ')
+                ]);
+            });
+
+            var csv = rows.map(function(row) {
+                return row.map(function(field) { return '"' + String(field).replace(/"/g, '""') + '"'; }).join(',');
+            }).join('\n');
+
+            downloadFile('test-requests.csv', 'text/csv;charset=utf-8;', csv);
+            toast('Exported ' + (rows.length - 1) + ' request' + (rows.length === 2 ? '' : 's'));
+        });
+
+        // ---------------------------------------------
+        // Keyboard shortcuts
+        // ---------------------------------------------
+        var kIdx = -1;
+        function visibleCards() { return Array.prototype.slice.call(list.querySelectorAll('.rq-card:not(.rq-hidden)')); }
+        function focusCard(i) {
+            var vis = visibleCards();
+            if (!vis.length) { return; }
+            kIdx = Math.max(0, Math.min(vis.length - 1, i));
+            list.querySelectorAll('.rq-kfocus').forEach(function(c) { c.classList.remove('rq-kfocus'); });
+            vis[kIdx].classList.add('rq-kfocus');
+            vis[kIdx].scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+        }
+        function focused() { return list.querySelector('.rq-kfocus'); }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (modal && modal.classList.contains('rq-show')) { closeModal(); return; }
+                if (helpModal && helpModal.classList.contains('rq-show')) { closeHelp(); return; }
+                var kf = focused(); if (kf) { kf.classList.remove('rq-kfocus'); }
+                return;
+            }
+            if (e.ctrlKey || e.metaKey || e.altKey) { return; }
+            var tag = (document.activeElement && document.activeElement.tagName) || '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') { return; }
+            if ((modal && modal.classList.contains('rq-show')) || (helpModal && helpModal.classList.contains('rq-show'))) { return; }
+
+            var k = e.key;
+            if (k === '/') { e.preventDefault(); searchInput.focus(); }
+            else if (k === '?') { e.preventDefault(); openHelp(); }
+            else if (k === 'j' || k === 'J') { focusCard(kIdx + 1); }
+            else if (k === 'k' || k === 'K') { focusCard(kIdx - 1); }
+            else if (k === 't' || k === 'T') { toggleTheme(); }
+            else if (k === 'g' || k === 'G') { if (window.innerWidth > 760) { toggleGrid(); } }
+            else if (k === 'c' || k === 'C') { toggleDensity(); }
+            else {
+                var f = focused();
+                if (!f) { return; }
+                if (k === 'e' || k === 'E') { setOpen(f, !f.classList.contains('rq-open')); }
+                else if (k === 'p' || k === 'P') { togglePin(f); }
+                else if (k === 'Enter' && tag !== 'BUTTON' && tag !== 'A') {
+                    if (f.dataset.href) { markSeen(f.dataset.id); window.location.href = f.dataset.href; }
+                    else { setOpen(f, !f.classList.contains('rq-open')); }
+                }
+            }
+        });
+
+        // ---------------------------------------------
+        // First paint of the new features
+        // ---------------------------------------------
+        allCards.forEach(paintCard);
+        refreshFlagCounts();
+        showSince();
+
+        document.getElementById('rqSinceDismiss').addEventListener('click', function() { sinceEl.classList.add('rq-hidden'); });
+        document.getElementById('rqSinceShow').addEventListener('click', function() {
+            sinceEl.classList.add('rq-hidden');
+            resetAll();
+            setFlag('updated');
+            list.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+        });
+
+        var savedSort = read('rqSort');
+        if (savedSort && sortSelect.querySelector('option[value="' + savedSort + '"]')) { sortSelect.value = savedSort; applySort(); }
+
+        render();
     })();
 </script>

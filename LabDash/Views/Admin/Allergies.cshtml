@@ -12,6 +12,18 @@
         .ToList();
 
     var breakdownMax = breakdown.Any() ? breakdown.Max(b => b.Count) : 0;
+
+    // ---- NEW: view-only helpers (no controller / model changes) ----
+    var totalAllergies = Model.Allergies.Count;
+    var activeCounts = Model.Allergies
+        .GroupBy(a => a.Category?.Name ?? "Uncategorized")
+        .ToDictionary(g => g.Key, g => g.Count());
+    Func<string, int> countFor = name => activeCounts.TryGetValue(name, out var c) ? c : 0;
+
+    var topCategory = breakdown.FirstOrDefault();
+    var uncategorizedCount = Model.Allergies.Count(a => a.Category == null);
+    var noDescriptionCount = Model.Allergies.Count(a => string.IsNullOrWhiteSpace(a.Description));
+    var emptyCategoryCount = Model.Categories.Count(c => countFor(c.Name) == 0);
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -65,11 +77,57 @@
                 </div>
             </div>
 
-            <button type="button" class="adm-btn adm-btn-light" onclick="openModal('modal-add')">
+            <button type="button" class="adm-btn adm-btn-light" onclick="openModal('modal-add')" title="Shortcut: N">
                 <i class="fas fa-plus"></i>
                 Add Allergy
             </button>
         </div>
+    </div>
+
+    <!-- ==========================================
+         NEW: INSIGHTS STRIP (click a card to filter)
+    =========================================== -->
+    <div class="adm-insights">
+
+        <button type="button" class="adm-insight" disabled="@(topCategory == null)"
+                data-cat="@(topCategory?.Name)" onclick="filterByCategory(this.dataset.cat)">
+            <span class="adm-insight-icon"><i class="fas fa-crown"></i></span>
+            <span class="adm-insight-body">
+                <span class="adm-insight-label">Largest category</span>
+                <span class="adm-insight-value">@(topCategory != null ? topCategory.Name : "—")</span>
+                <span class="adm-insight-sub">@(topCategory != null ? topCategory.Count + " allergies" : "No data yet")</span>
+            </span>
+        </button>
+
+        <button type="button" class="adm-insight @(uncategorizedCount > 0 ? "is-warn" : "")" disabled="@(uncategorizedCount == 0)"
+                onclick="filterByCategory('Uncategorized')">
+            <span class="adm-insight-icon"><i class="fas fa-circle-question"></i></span>
+            <span class="adm-insight-body">
+                <span class="adm-insight-label">Uncategorized</span>
+                <span class="adm-insight-value">@uncategorizedCount</span>
+                <span class="adm-insight-sub">@(uncategorizedCount > 0 ? "Need a category" : "All sorted")</span>
+            </span>
+        </button>
+
+        <button type="button" class="adm-insight @(noDescriptionCount > 0 ? "is-warn" : "")" disabled="@(noDescriptionCount == 0)"
+                onclick="toggleNoDesc(true)">
+            <span class="adm-insight-icon"><i class="fas fa-align-left"></i></span>
+            <span class="adm-insight-body">
+                <span class="adm-insight-label">Missing description</span>
+                <span class="adm-insight-value">@noDescriptionCount</span>
+                <span class="adm-insight-sub">@(noDescriptionCount > 0 ? "Click to review" : "All described")</span>
+            </span>
+        </button>
+
+        <div class="adm-insight adm-insight-static">
+            <span class="adm-insight-icon"><i class="fas fa-folder-open"></i></span>
+            <span class="adm-insight-body">
+                <span class="adm-insight-label">Empty categories</span>
+                <span class="adm-insight-value">@emptyCategoryCount</span>
+                <span class="adm-insight-sub">No active allergies in them</span>
+            </span>
+        </div>
+
     </div>
 
     <!-- ==========================================
@@ -218,7 +276,8 @@
             <div class="adm-toolbar">
                 <div class="adm-search-box">
                     <i class="fas fa-magnifying-glass"></i>
-                    <input id="allergy-search" placeholder="Search allergies..." oninput="filterActiveTable()" />
+                    <input id="allergy-search" placeholder="Search allergies..." oninput="filterActiveTable()" autocomplete="off" />
+                    <kbd class="adm-kbd" title="Press / to search">/</kbd>
                 </div>
 
                 <select id="allergy-cat-filter" onchange="filterActiveTable()">
@@ -227,7 +286,16 @@
                     {
                         <option value="@cat.Name">@cat.Name</option>
                     }
+                    <option value="__none__">Uncategorized</option>
                 </select>
+
+                <button type="button" class="adm-toggle" id="flag-nodesc" aria-pressed="false" onclick="toggleNoDesc()">
+                    <i class="fas fa-align-left"></i> No description
+                </button>
+
+                <button type="button" class="adm-toggle adm-toggle-clear" id="clear-filters" style="display:none;" onclick="clearAllergyFilters()">
+                    <i class="fas fa-xmark"></i> Clear
+                </button>
 
                 <div class="adm-show-control" id="show-control">
                     <span>Show</span>
@@ -239,6 +307,10 @@
                         <option value="all">All</option>
                     </select>
                 </div>
+
+                <button type="button" class="adm-toggle" id="export-csv" onclick="exportAllergiesCsv()" title="Download the filtered list as CSV">
+                    <i class="fas fa-file-arrow-down"></i> Export
+                </button>
             </div>
 
             <div class="adm-table-wrap">
@@ -246,9 +318,9 @@
                     <table class="adm-table">
                         <thead>
                             <tr>
-                                <th>Allergy Name</th>
-                                <th>Category</th>
-                                <th>Description</th>
+                                <th class="adm-sortable" data-col="0" tabindex="0" onclick="sortAllergies(this)" onkeydown="if(event.key==='Enter')sortAllergies(this)">Allergy Name</th>
+                                <th class="adm-sortable" data-col="1" tabindex="0" onclick="sortAllergies(this)" onkeydown="if(event.key==='Enter')sortAllergies(this)">Category</th>
+                                <th class="adm-sortable" data-col="2" tabindex="0" onclick="sortAllergies(this)" onkeydown="if(event.key==='Enter')sortAllergies(this)">Description</th>
                                 <th>Status</th>
                                 <th class="adm-th-actions">Actions</th>
                             </tr>
@@ -258,7 +330,7 @@
                         <tbody id="allergy-tbody">
                             @foreach (var item in Model.Allergies)
                             {
-                                <tr data-name="@item.AllergyName.ToLower()" data-cat="@item.Category?.Name">
+                                <tr data-name="@item.AllergyName.ToLower()" data-cat="@item.Category?.Name" data-nodesc="@(string.IsNullOrWhiteSpace(item.Description) ? "1" : "0")">
                                     <td class="adm-td-strong">@item.AllergyName</td>
                                     <td>
                                         @if (item.Category != null)
@@ -309,7 +381,7 @@
                         <tbody id="allergy-tbody-archived" style="display:none;">
                             @foreach (var item in Model.InactiveAllergies)
                             {
-                                <tr data-name="@item.AllergyName.ToLower()" data-cat="@item.Category?.Name">
+                                <tr data-name="@item.AllergyName.ToLower()" data-cat="@item.Category?.Name" data-nodesc="@(string.IsNullOrWhiteSpace(item.Description) ? "1" : "0")">
                                     <td class="adm-td-strong">@item.AllergyName</td>
                                     <td>
                                         @if (item.Category != null)
@@ -389,6 +461,12 @@
                 </div>
             </div>
 
+            <div class="adm-shortcuts-hint">
+                <span><kbd class="adm-kbd">/</kbd> search</span>
+                <span><kbd class="adm-kbd">N</kbd> new allergy</span>
+                <span>Click a row for details</span>
+            </div>
+
         </div>
 
         <!-- CATEGORY BREAKDOWN -->
@@ -402,16 +480,22 @@
                     @foreach (var b in breakdown)
                     {
                         var pct = breakdownMax > 0 ? (int)Math.Round((double)b.Count / breakdownMax * 100) : 0;
-                        <div class="adm-breakdown-row">
+                        var share = totalAllergies > 0 ? (int)Math.Round((double)b.Count / totalAllergies * 100) : 0;
+                        <div class="adm-breakdown-row is-link" role="button" tabindex="0"
+                             data-cat="@b.Name"
+                             title="Filter the table by this category"
+                             onclick="filterByCategory(this.dataset.cat)"
+                             onkeydown="if(event.key==='Enter')filterByCategory(this.dataset.cat)">
                             <div class="adm-breakdown-label">
                                 <span>@b.Name</span>
-                                <strong>@b.Count</strong>
+                                <strong>@b.Count <small>(@(share)%)</small></strong>
                             </div>
                             <div class="adm-breakdown-track">
                                 <div class="adm-breakdown-fill" style="width:@(pct)%;"></div>
                             </div>
                         </div>
                     }
+                    <p class="adm-hint adm-breakdown-hint">Click a category to filter the table.</p>
                 }
                 else
                 {
@@ -425,6 +509,168 @@
         </div>
 
     </div>
+
+    <!-- ==========================================
+         DATA QUALITY (CLIENT-SIDE ONLY)
+    =========================================== -->
+    <section class="aq-section" aria-labelledby="allergy-quality-title">
+        <header class="aq-head">
+            <div class="aq-head-text">
+                <h2 id="allergy-quality-title">Allergy quality check</h2>
+                <p>Find gaps in the active register and jump straight to the records that need fixing.</p>
+            </div>
+            <div class="aq-head-actions">
+                <span class="aq-summary" id="quality-summary" data-state="ok"><span class="aq-summary-text">All checks clear</span></span>
+                <button type="button" class="aq-btn" onclick="refreshAllergyQualityCheck()">
+                    <i class="fas fa-rotate"></i> Recheck register
+                </button>
+            </div>
+        </header>
+
+        <ul class="aq-list">
+            <li class="aq-row" data-state="@(noDescriptionCount > 0 ? "warn" : "ok")">
+                <span class="aq-row-icon"><i class="fas fa-align-left"></i></span>
+                <div class="aq-row-main">
+                    <strong class="aq-row-title">Missing descriptions</strong>
+                    <span class="aq-row-desc">Active records without a description</span>
+                </div>
+                <span class="aq-count" id="quality-missing-description">@noDescriptionCount</span>
+                <span class="aq-state"></span>
+                <button type="button" class="aq-link" onclick="reviewAllergiesWithoutDescriptions()">
+                    Review records <i class="fas fa-chevron-right"></i>
+                </button>
+            </li>
+
+            <li class="aq-row" data-state="@(uncategorizedCount > 0 ? "warn" : "ok")">
+                <span class="aq-row-icon"><i class="fas fa-folder-minus"></i></span>
+                <div class="aq-row-main">
+                    <strong class="aq-row-title">Uncategorized</strong>
+                    <span class="aq-row-desc">Active records that still need a category</span>
+                </div>
+                <span class="aq-count" id="quality-uncategorized">@uncategorizedCount</span>
+                <span class="aq-state"></span>
+                <button type="button" class="aq-link" onclick="reviewUncategorizedAllergies()">
+                    Review records <i class="fas fa-chevron-right"></i>
+                </button>
+            </li>
+
+            <li class="aq-row" data-state="ok">
+                <span class="aq-row-icon"><i class="fas fa-clone"></i></span>
+                <div class="aq-row-main">
+                    <strong class="aq-row-title">Possible duplicate names</strong>
+                    <span class="aq-row-desc">Names that appear more than once in active records</span>
+                </div>
+                <span class="aq-count" id="quality-duplicate-count">0</span>
+                <span class="aq-state"></span>
+                <button type="button" class="aq-link" id="quality-duplicates-toggle" onclick="toggleAllergyDuplicateDetails()">
+                    Check names <i class="fas fa-chevron-down"></i>
+                </button>
+            </li>
+        </ul>
+
+        <div class="aq-dupes" id="quality-duplicate-details" hidden aria-live="polite"></div>
+
+        <footer class="sec-foot">
+            <i class="fas fa-circle-info"></i>
+            These checks run on the records already loaded in this page. They do not change or save allergy data.
+        </footer>
+    </section>
+
+    <!-- ==========================================
+         REGISTER OVERVIEW (CLIENT-SIDE ONLY)
+    =========================================== -->
+    <section class="ao-section" aria-labelledby="allergy-insights-title">
+        <header class="ao-head">
+            <div class="ao-head-text">
+                <h2 id="allergy-insights-title">Allergy register insights</h2>
+                <p>Coverage, category spread and the records that may need attention.</p>
+            </div>
+            <div class="ao-head-actions">
+                <button type="button" class="ao-btn" onclick="downloadAllergyAuditReport()">
+                    <i class="fas fa-file-csv"></i> Download audit report
+                </button>
+                <button type="button" class="ao-btn ao-btn-primary" onclick="printAllergyInsights()">
+                    <i class="fas fa-print"></i> Print overview
+                </button>
+            </div>
+        </header>
+
+        <div class="ao-metrics">
+            <div class="ao-metric">
+                <div class="ao-metric-label"><i class="fas fa-list-check"></i> Total records</div>
+                <strong id="insight-total-records">0</strong>
+                <small>Active and archived</small>
+            </div>
+            <div class="ao-metric">
+                <div class="ao-metric-label"><i class="fas fa-layer-group"></i> Category coverage</div>
+                <strong id="insight-category-coverage">0%</strong>
+                <small id="insight-category-sub">Active records assigned to a category</small>
+                <span class="ao-meter"><span class="ao-meter-fill" id="insight-category-meter"></span></span>
+            </div>
+            <div class="ao-metric">
+                <div class="ao-metric-label"><i class="fas fa-file-circle-check"></i> Description coverage</div>
+                <strong id="insight-description-coverage">0%</strong>
+                <small id="insight-description-sub">Active records with descriptions</small>
+                <span class="ao-meter"><span class="ao-meter-fill" id="insight-description-meter"></span></span>
+            </div>
+            <div class="ao-metric">
+                <div class="ao-metric-label"><i class="fas fa-box-archive"></i> Archived records</div>
+                <strong id="insight-archived-records">0</strong>
+                <small>Not in the active register</small>
+            </div>
+        </div>
+
+        <div class="ao-body">
+            <div class="ao-col">
+                <div class="ao-col-head">
+                    <h3>Active category distribution</h3>
+                    <p>Select a category to filter the table above.</p>
+                </div>
+                <div id="allergy-insights-category-list" class="adm-insights-category-list" aria-live="polite"></div>
+                <div id="allergy-insights-category-empty" class="adm-insights-empty" hidden>No active allergy records to chart yet.</div>
+            </div>
+
+            <div class="ao-col">
+                <div class="ao-col-head">
+                    <h3>Review queue</h3>
+                    <p>Jump straight to records that may need attention.</p>
+                </div>
+
+                <button type="button" class="ao-queue-item" onclick="reviewAllergiesWithoutDescriptions()">
+                    <span class="ao-queue-icon"><i class="fas fa-align-left"></i></span>
+                    <span class="ao-queue-text"><strong>Missing descriptions</strong><small>Active records without supporting detail</small></span>
+                    <span class="ao-queue-count" id="insight-review-missing">0</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <button type="button" class="ao-queue-item" onclick="reviewUncategorizedAllergies()">
+                    <span class="ao-queue-icon"><i class="fas fa-folder-minus"></i></span>
+                    <span class="ao-queue-text"><strong>Uncategorized records</strong><small>Active records with no category</small></span>
+                    <span class="ao-queue-count" id="insight-review-uncategorized">0</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <button type="button" class="ao-queue-item" onclick="showAllergyDuplicateReview()">
+                    <span class="ao-queue-icon"><i class="fas fa-clone"></i></span>
+                    <span class="ao-queue-text"><strong>Possible duplicate names</strong><small>Review repeated names before changing anything</small></span>
+                    <span class="ao-queue-count" id="insight-review-duplicates">0</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+
+                <button type="button" class="ao-queue-item" onclick="showArchivedAllergies()">
+                    <span class="ao-queue-icon"><i class="fas fa-box-archive"></i></span>
+                    <span class="ao-queue-text"><strong>Archived register</strong><small>Records that can be reactivated</small></span>
+                    <span class="ao-queue-count" id="insight-review-archived">0</span>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <footer class="sec-foot">
+            <i class="fas fa-circle-info"></i>
+            Insights are calculated from the records already rendered on this page. They do not update database records.
+        </footer>
+    </section>
 
     <!-- ==========================================
          ADD ALLERGY MODAL
@@ -445,7 +691,9 @@
 
                 <div class="adm-form-group">
                     <label>Allergy Name</label>
-                    <input name="name" placeholder="e.g. Penicillin" required />
+                    <input name="name" id="add-name" placeholder="e.g. Penicillin" required
+                           oninput="checkDuplicateName(this, 'add-name-warn', null)" autocomplete="off" />
+                    <div class="adm-field-warn" id="add-name-warn" style="display:none;"></div>
                 </div>
 
                 <div class="adm-form-group">
@@ -494,7 +742,9 @@
 
                 <div class="adm-form-group">
                     <label>Allergy Name</label>
-                    <input name="name" id="edit-name" placeholder="e.g. Penicillin" required />
+                    <input name="name" id="edit-name" placeholder="e.g. Penicillin" required
+                           oninput="checkDuplicateName(this, 'edit-name-warn', document.getElementById('edit-id').value)" autocomplete="off" />
+                    <div class="adm-field-warn" id="edit-name-warn" style="display:none;"></div>
                 </div>
 
                 <div class="adm-form-group">
@@ -555,6 +805,44 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         NEW: ALLERGY DETAILS MODAL (read-only)
+    =========================================== -->
+    <div class="adm-modal-overlay" id="modal-details">
+        <div class="adm-modal">
+            <div class="adm-modal-title">
+                <span><i class="fas fa-circle-info adm-modal-icon"></i> Allergy Details</span>
+                <span class="adm-modal-close" onclick="closeModal('modal-details')"><i class="fas fa-xmark"></i></span>
+            </div>
+
+            <div class="adm-detail-list">
+                <div class="adm-detail-row">
+                    <span class="adm-detail-label">Name</span>
+                    <span class="adm-detail-value" id="det-name"></span>
+                </div>
+                <div class="adm-detail-row">
+                    <span class="adm-detail-label">Category</span>
+                    <span class="adm-detail-value" id="det-category"></span>
+                </div>
+                <div class="adm-detail-row">
+                    <span class="adm-detail-label">Status</span>
+                    <span class="adm-detail-value" id="det-status"></span>
+                </div>
+                <div class="adm-detail-row">
+                    <span class="adm-detail-label">Description</span>
+                    <span class="adm-detail-value" id="det-description"></span>
+                </div>
+            </div>
+
+            <div class="adm-modal-actions">
+                <button type="button" class="adm-btn-cancel" onclick="closeModal('modal-details')">Close</button>
+                <button type="button" class="adm-btn" id="det-edit-btn" onclick="editFromDetails()">
+                    <i class="fas fa-pen"></i> Edit
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 
@@ -562,16 +850,22 @@
     <script>
 
         /* ==========================================================
-           GLOBAL STATE
+            GLOBAL STATE
         ========================================================== */
 
         var allergyPages = { active: 1, archived: 1 };
         var categoryPages = { active: 1, archived: 1 };
         var categoryPageSize = 6;
 
+        // new state
+        var allergyFlags = { noDesc: false };
+        var sortState = { col: -1, dir: 1 };
+        var lastMatching = [];
+        var currentDetailRow = null;
+
 
         /* ==========================================================
-           MODALS
+            MODALS
         ========================================================== */
 
         function openModal(id) {
@@ -579,6 +873,15 @@
             if (!el) return;
             el.classList.add('is-open');
             document.body.style.overflow = 'hidden';
+
+            if (id === 'modal-add') {
+                var w = document.getElementById('add-name-warn');
+                if (w) w.style.display = 'none';
+            }
+
+            // focus the first field so you can start typing straight away
+            var first = el.querySelector('input:not([type=hidden]), select');
+            if (first) setTimeout(function() { first.focus(); }, 50);
         }
 
         function closeModal(id) {
@@ -607,15 +910,40 @@
             }
         });
 
+        /* keyboard shortcuts: "/" focuses search, "N" opens Add Allergy */
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+            var t = e.target;
+            var tag = (t.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select' || t.isContentEditable) return;
+
+            if (document.querySelector('.adm-modal-overlay.is-open')) return;
+
+            var pp = document.getElementById('ppOverlay');
+            if (pp && !pp.hidden) return;
+
+            if (e.key === '/') {
+                e.preventDefault();
+                document.getElementById('allergy-search').focus();
+            } else if (e.key === 'n' || e.key === 'N') {
+                e.preventDefault();
+                openModal('modal-add');
+            }
+        });
+
 
         /* ==========================================================
-           EDIT ALLERGY
+            EDIT ALLERGY
         ========================================================== */
 
         function openEditModalFromButton(btn) {
             document.getElementById('edit-id').value = btn.dataset.id;
             document.getElementById('edit-name').value = btn.dataset.name;
             document.getElementById('edit-description').value = btn.dataset.description || '';
+
+            var warn = document.getElementById('edit-name-warn');
+            if (warn) warn.style.display = 'none';
 
             var select = document.getElementById('edit-category');
             for (var i = 0; i < select.options.length; i++) {
@@ -630,7 +958,89 @@
 
 
         /* ==========================================================
-           EDIT CATEGORY
+            NEW: DUPLICATE NAME WARNING (soft, does not block saving)
+        ========================================================== */
+
+        function checkDuplicateName(input, warnId, excludeId) {
+            var warn = document.getElementById(warnId);
+            if (!warn) return;
+
+            var val = input.value.trim().toLowerCase();
+            if (!val) { warn.style.display = 'none'; return; }
+
+            var hit = null;
+
+            document.querySelectorAll('#allergy-tbody tr, #allergy-tbody-archived tr').forEach(function(r) {
+                if ((r.dataset.name || '') !== val) return;
+
+                var idInput = r.querySelector('input[name="id"]');
+                if (excludeId && idInput && idInput.value === String(excludeId)) return;
+
+                hit = r.parentElement.id === 'allergy-tbody' ? 'active' : 'archived';
+            });
+
+            if (hit === 'active') {
+                warn.textContent = 'An active allergy with this name already exists.';
+                warn.style.display = '';
+            } else if (hit === 'archived') {
+                warn.textContent = 'This name is in the Archived tab. Consider reactivating it instead.';
+                warn.style.display = '';
+            } else {
+                warn.style.display = 'none';
+            }
+        }
+
+
+        /* ==========================================================
+            NEW: ROW DETAILS MODAL
+        ========================================================== */
+
+        function openDetails(row) {
+            currentDetailRow = row;
+
+            var nameCell = row.children[0];
+            var name = nameCell.dataset.orig !== undefined ? nameCell.dataset.orig : nameCell.textContent.trim();
+            var category = row.children[1].textContent.trim();
+            var description = row.children[2].textContent.trim();
+            var isArchived = row.parentElement.id === 'allergy-tbody-archived';
+
+            document.getElementById('det-name').textContent = name;
+            document.getElementById('det-category').textContent = category;
+            document.getElementById('det-status').textContent = isArchived ? 'Archived' : 'Active';
+
+            var descEl = document.getElementById('det-description');
+            descEl.textContent = description || 'No description provided.';
+            descEl.classList.toggle('is-empty', !description);
+
+            document.getElementById('det-edit-btn').style.display =
+                row.querySelector('.adm-icon-btn-edit') ? '' : 'none';
+
+            openModal('modal-details');
+        }
+
+        function editFromDetails() {
+            if (!currentDetailRow) return;
+            var btn = currentDetailRow.querySelector('.adm-icon-btn-edit');
+            closeModal('modal-details');
+            if (btn) openEditModalFromButton(btn);
+        }
+
+        function bindRowClicks() {
+            ['allergy-tbody', 'allergy-tbody-archived'].forEach(function(id) {
+                var tb = document.getElementById(id);
+                if (!tb) return;
+
+                tb.addEventListener('click', function(e) {
+                    if (e.target.closest('button, form, a')) return;
+                    var row = e.target.closest('tr');
+                    if (row) openDetails(row);
+                });
+            });
+        }
+
+
+        /* ==========================================================
+            EDIT CATEGORY
         ========================================================== */
 
         function openEditCategoryModal(btn) {
@@ -641,7 +1051,7 @@
 
 
         /* ==========================================================
-           CATEGORY CHIP ACTIONS (click a category chip)
+            CATEGORY CHIP ACTIONS (click a category chip)
         ========================================================== */
 
         function openCategoryActions(nameEl, state) {
@@ -681,7 +1091,7 @@
 
 
         /* ==========================================================
-           ALLERGY TABS
+            ALLERGY TABS
         ========================================================== */
 
         function switchTab(tabBtn) {
@@ -711,6 +1121,8 @@
 
             document.getElementById('allergy-search').value = '';
             document.getElementById('allergy-cat-filter').value = '';
+            allergyFlags.noDesc = false;
+            syncNoDescToggle();
 
             allergyPages.active = 1;
             allergyPages.archived = 1;
@@ -720,7 +1132,7 @@
 
 
         /* ==========================================================
-           ALLERGY FILTER + PAGINATION
+            ALLERGY FILTER + PAGINATION
         ========================================================== */
 
         function getCurrentAllergyBody() {
@@ -749,6 +1161,31 @@
             renderAllergies();
         }
 
+        function highlightName(row, query) {
+            var cell = row.children[0];
+            if (!cell) return;
+
+            if (cell.dataset.orig === undefined) cell.dataset.orig = cell.textContent.trim();
+            var text = cell.dataset.orig;
+
+            var idx = query ? text.toLowerCase().indexOf(query) : -1;
+
+            if (idx < 0) {
+                if (cell.querySelector('mark')) cell.textContent = text;
+                return;
+            }
+
+            cell.textContent = '';
+            cell.appendChild(document.createTextNode(text.slice(0, idx)));
+
+            var m = document.createElement('mark');
+            m.className = 'adm-mark';
+            m.textContent = text.slice(idx, idx + query.length);
+            cell.appendChild(m);
+
+            cell.appendChild(document.createTextNode(text.slice(idx + query.length)));
+        }
+
         function renderAllergies() {
             var tbody = getCurrentAllergyBody();
             if (!tbody) return;
@@ -764,9 +1201,16 @@
                 var name = row.dataset.name || '';
                 var rowCategory = row.dataset.cat || '';
                 var nameMatch = name.includes(query);
-                var categoryMatch = !category || rowCategory === category;
-                return nameMatch && categoryMatch;
+                var categoryMatch = !category ||
+                    (category === '__none__' ? rowCategory === '' : rowCategory === category);
+                var descMatch = !allergyFlags.noDesc || row.dataset.nodesc === '1';
+                return nameMatch && categoryMatch && descMatch;
             });
+
+            lastMatching = matchingRows;
+
+            rows.forEach(function(row) { highlightName(row, ''); });
+            if (query) matchingRows.forEach(function(row) { highlightName(row, query); });
 
             var pageSizeValue = document.getElementById('allergy-page-size').value;
             var allResults = pageSizeValue === 'all';
@@ -792,6 +1236,7 @@
             });
 
             updateAllergyPagination(matchingRows.length, currentPage, totalPages, allResults, start, end);
+            updateFilterState();
         }
 
         function updateAllergyPagination(total, currentPage, totalPages, allResults, start, end) {
@@ -800,7 +1245,11 @@
 
             if (total === 0) {
                 if (pagination) pagination.style.display = 'none';
-                if (noResults) noResults.style.display = '';
+
+                // only say "no matching" when the tab actually has rows to match against
+                var body = getCurrentAllergyBody();
+                var hasRows = body && body.querySelectorAll('tr').length > 0;
+                if (noResults) noResults.style.display = hasRows ? '' : 'none';
                 return;
             }
 
@@ -839,12 +1288,192 @@
         function changePageSize() {
             allergyPages.active = 1;
             allergyPages.archived = 1;
+
+            try {
+                localStorage.setItem('allergyPageSize', document.getElementById('allergy-page-size').value);
+            } catch (e) { }
+
             renderAllergies();
         }
 
 
         /* ==========================================================
-           CATEGORY TABS
+            NEW: SORTING
+        ========================================================== */
+
+        function cellText(row, col) {
+            var c = row.children[col];
+            if (!c) return '';
+            return (c.dataset.orig !== undefined ? c.dataset.orig : c.textContent).trim();
+        }
+
+        function sortAllergies(th) {
+            var col = parseInt(th.dataset.col, 10);
+
+            sortState.dir = sortState.col === col ? -sortState.dir : 1;
+            sortState.col = col;
+
+            document.querySelectorAll('.adm-sortable').forEach(function(h) {
+                h.classList.remove('is-asc', 'is-desc');
+            });
+            th.classList.add(sortState.dir === 1 ? 'is-asc' : 'is-desc');
+
+            ['allergy-tbody', 'allergy-tbody-archived'].forEach(function(id) {
+                var tb = document.getElementById(id);
+                if (!tb) return;
+
+                var rows = Array.from(tb.querySelectorAll('tr'));
+                rows.sort(function(a, b) {
+                    var av = cellText(a, col);
+                    var bv = cellText(b, col);
+
+                    // blanks always go last
+                    if (!av && bv) return 1;
+                    if (av && !bv) return -1;
+
+                    return av.localeCompare(bv, undefined, { sensitivity: 'base', numeric: true }) * sortState.dir;
+                });
+                rows.forEach(function(r) { tb.appendChild(r); });
+            });
+
+            allergyPages.active = 1;
+            allergyPages.archived = 1;
+            renderAllergies();
+        }
+
+
+        /* ==========================================================
+            NEW: EXTRA FILTERS (category from breakdown, no-description toggle, clear)
+        ========================================================== */
+
+        function syncNoDescToggle() {
+            var btn = document.getElementById('flag-nodesc');
+            if (!btn) return;
+            btn.classList.toggle('is-on', allergyFlags.noDesc);
+            btn.setAttribute('aria-pressed', allergyFlags.noDesc ? 'true' : 'false');
+        }
+
+        function showActiveAllergyTab() {
+            var activeTabBtn = document.querySelector('.adm-tab[data-tbody="allergy-tbody"]');
+            if (activeTabBtn && getCurrentAllergyType() !== 'active') {
+                switchTab(activeTabBtn);
+            }
+        }
+
+        function scrollToAllergyTable() {
+            var el = document.getElementById('allergy-search');
+            if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function toggleNoDesc(forceOn) {
+            if (forceOn === true) {
+                showActiveAllergyTab();
+                allergyFlags.noDesc = true;
+            } else {
+                allergyFlags.noDesc = !allergyFlags.noDesc;
+            }
+
+            syncNoDescToggle();
+            allergyPages.active = 1;
+            allergyPages.archived = 1;
+            renderAllergies();
+
+            if (forceOn === true) scrollToAllergyTable();
+        }
+
+        function filterByCategory(name) {
+            if (!name) return;
+
+            showActiveAllergyTab();
+
+            var select = document.getElementById('allergy-cat-filter');
+            var value = null;
+
+            for (var i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === name) { value = name; break; }
+            }
+            if (value === null && name === 'Uncategorized') value = '__none__';
+            if (value === null) return;
+
+            select.value = value;
+            allergyPages.active = 1;
+            allergyPages.archived = 1;
+            renderAllergies();
+            scrollToAllergyTable();
+        }
+
+        function clearAllergyFilters() {
+            document.getElementById('allergy-search').value = '';
+            document.getElementById('allergy-cat-filter').value = '';
+            allergyFlags.noDesc = false;
+            syncNoDescToggle();
+
+            allergyPages.active = 1;
+            allergyPages.archived = 1;
+            renderAllergies();
+        }
+
+        function updateFilterState() {
+            var clearBtn = document.getElementById('clear-filters');
+            var exportBtn = document.getElementById('export-csv');
+
+            var hasFilter =
+                document.getElementById('allergy-search').value.trim() !== '' ||
+                document.getElementById('allergy-cat-filter').value !== '' ||
+                allergyFlags.noDesc;
+
+            if (clearBtn) clearBtn.style.display = hasFilter ? '' : 'none';
+            if (exportBtn) exportBtn.disabled = lastMatching.length === 0;
+        }
+
+
+        /* ==========================================================
+            NEW: EXPORT FILTERED LIST TO CSV
+        ========================================================== */
+
+        function csvCell(value) {
+            var s = String(value == null ? '' : value);
+
+            // stop spreadsheet apps treating text as a formula
+            var danger = ['=', '+', '-', '\u0040'];
+            if (s.length && danger.indexOf(s.charAt(0)) !== -1) s = "'" + s;
+
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+
+        function exportAllergiesCsv() {
+            if (!lastMatching.length) return;
+
+            var type = getCurrentAllergyType();
+            var status = type === 'archived' ? 'Archived' : 'Active';
+
+            var lines = [['Allergy Name', 'Category', 'Description', 'Status'].map(csvCell).join(',')];
+
+            lastMatching.forEach(function(row) {
+                lines.push([
+                    cellText(row, 0),
+                    cellText(row, 1),
+                    cellText(row, 2),
+                    status
+                ].map(csvCell).join(','));
+            });
+
+            var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'allergies-' + type + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            setTimeout(function() { URL.revokeObjectURL(url); }, 500);
+        }
+
+
+        /* ==========================================================
+            CATEGORY TABS
         ========================================================== */
 
         function switchCatTab(tabBtn) {
@@ -871,7 +1500,7 @@
 
 
         /* ==========================================================
-           CATEGORY FILTER + PAGINATION
+            CATEGORY FILTER + PAGINATION
         ========================================================== */
 
         function filterCatChips() {
@@ -932,10 +1561,319 @@
 
 
         /* ==========================================================
-           INITIALISE
+            INITIALISE
         ========================================================== */
 
+        function loadPrefs() {
+            try {
+                var saved = localStorage.getItem('allergyPageSize');
+                if (!saved) return;
+
+                var select = document.getElementById('allergy-page-size');
+                for (var i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === saved) {
+                        select.value = saved;
+                        break;
+                    }
+                }
+            } catch (e) { }
+        }
+
+        function setQualityState(countId, value) {
+            var el = document.getElementById(countId);
+            var row = el ? el.closest('.aq-row') : null;
+            if (row) row.dataset.state = value > 0 ? 'warn' : 'ok';
+        }
+
+        function refreshAllergyQualityCheck() {
+            var activeRows = Array.from(document.querySelectorAll('#allergy-tbody tr'));
+            var missingDescriptions = activeRows.filter(function(row) { return row.dataset.nodesc === '1'; }).length;
+            var uncategorized = activeRows.filter(function(row) { return !((row.dataset.cat || '').trim()); }).length;
+            var names = {};
+
+            activeRows.forEach(function(row) {
+                var name = (row.dataset.name || '').trim().toLocaleLowerCase();
+                if (!name) return;
+                if (!names[name]) names[name] = { label: row.children[0] ? row.children[0].textContent.trim() : name, count: 0 };
+                names[name].count++;
+            });
+
+            var duplicates = Object.keys(names).filter(function(name) { return names[name].count > 1; })
+                .map(function(name) { return names[name]; })
+                .sort(function(a, b) { return a.label.localeCompare(b.label); });
+
+            document.getElementById('quality-missing-description').textContent = missingDescriptions;
+            document.getElementById('quality-uncategorized').textContent = uncategorized;
+            document.getElementById('quality-duplicate-count').textContent = duplicates.length;
+            setQualityState('quality-missing-description', missingDescriptions);
+            setQualityState('quality-uncategorized', uncategorized);
+            setQualityState('quality-duplicate-count', duplicates.length);
+
+            var issueCount = (missingDescriptions > 0 ? 1 : 0) + (uncategorized > 0 ? 1 : 0) + (duplicates.length > 0 ? 1 : 0);
+            var summary = document.getElementById('quality-summary');
+            if (summary) {
+                summary.dataset.state = issueCount ? 'warn' : 'ok';
+                summary.querySelector('.aq-summary-text').textContent = issueCount
+                    ? issueCount + (issueCount === 1 ? ' check needs review' : ' checks need review')
+                    : 'All checks clear';
+            }
+
+            var detail = document.getElementById('quality-duplicate-details');
+            detail.dataset.duplicates = JSON.stringify(duplicates);
+            if (duplicates.length === 0) {
+                detail.innerHTML = '<div class="adm-quality-clean"><i class="fas fa-circle-check"></i><span>No repeated allergy names were found in the active register.</span></div>';
+            } else {
+                detail.innerHTML = '<strong>Names to review</strong><ul>' + duplicates.map(function(item) {
+                    return '<li><span></span>' + escapeQualityText(item.label) + ' <small>appears ' + item.count + ' times</small></li>';
+                }).join('') + '</ul>';
+            }
+        }
+
+        function escapeQualityText(value) {
+            return String(value).replace(/[&<>\"']/g, function(char) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[char];
+            });
+        }
+
+        function toggleAllergyDuplicateDetails() {
+            var detail = document.getElementById('quality-duplicate-details');
+            refreshAllergyQualityCheck();
+            detail.hidden = !detail.hidden;
+            var button = document.getElementById('quality-duplicates-toggle');
+            if (button) button.innerHTML = detail.hidden ? 'Check names <i class="fas fa-chevron-down"></i>' : 'Hide names <i class="fas fa-chevron-up"></i>';
+            if (!detail.hidden) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function reviewAllergiesWithoutDescriptions() {
+            showActiveAllergyTab();
+            clearAllergyFilters();
+            toggleNoDesc(true);
+        }
+
+        function reviewUncategorizedAllergies() {
+            showActiveAllergyTab();
+            clearAllergyFilters();
+            var select = document.getElementById('allergy-cat-filter');
+            select.value = '__none__';
+            allergyPages.active = 1;
+            renderAllergies();
+            scrollToAllergyTable();
+        }
+
+        function allergyInsightRows(bodyId) {
+            var body = document.getElementById(bodyId);
+            return body ? Array.from(body.querySelectorAll('tr')) : [];
+        }
+
+        function refreshAllergyInsights() {
+            var activeRows = allergyInsightRows('allergy-tbody');
+            var archivedRows = allergyInsightRows('allergy-tbody-archived');
+            var categorized = activeRows.filter(function(row) { return (row.dataset.cat || '').trim() !== ''; }).length;
+            var described = activeRows.filter(function(row) { return row.dataset.nodesc !== '1'; }).length;
+            var activeTotal = activeRows.length;
+            var categoryCounts = {};
+
+            activeRows.forEach(function(row) {
+                var category = (row.dataset.cat || '').trim() || 'Uncategorized';
+                categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+            });
+
+            var duplicateCount = 0;
+            var seenNames = {};
+            activeRows.forEach(function(row) {
+                var name = (row.dataset.name || '').trim().toLocaleLowerCase();
+                if (!name) return;
+                seenNames[name] = (seenNames[name] || 0) + 1;
+            });
+            duplicateCount = Object.keys(seenNames).filter(function(name) { return seenNames[name] > 1; }).length;
+
+            document.getElementById('insight-total-records').textContent = activeTotal + archivedRows.length;
+            document.getElementById('insight-category-coverage').textContent = (activeTotal ? Math.round(categorized / activeTotal * 100) : 0) + '%';
+            document.getElementById('insight-description-coverage').textContent = (activeTotal ? Math.round(described / activeTotal * 100) : 0) + '%';
+            document.getElementById('insight-description-sub').textContent = described + ' of ' + activeTotal + ' active records have descriptions';
+            document.getElementById('insight-category-sub').textContent = categorized + ' of ' + activeTotal + ' active records assigned to a category';
+            document.getElementById('insight-archived-records').textContent = archivedRows.length;
+                        var catPct = activeTotal ? Math.round(categorized / activeTotal * 100) : 0;
+            var descPct = activeTotal ? Math.round(described / activeTotal * 100) : 0;
+            document.getElementById('insight-category-meter').style.width = catPct + '%';
+            document.getElementById('insight-description-meter').style.width = descPct + '%';
+            document.getElementById('insight-review-missing').textContent = activeRows.filter(function(row) { return row.dataset.nodesc === '1'; }).length;
+            document.getElementById('insight-review-uncategorized').textContent = activeRows.filter(function(row) { return !(row.dataset.cat || '').trim(); }).length;
+            document.getElementById('insight-review-duplicates').textContent = duplicateCount;
+            document.getElementById('insight-review-archived').textContent = archivedRows.length;
+
+            var list = document.getElementById('allergy-insights-category-list');
+            var empty = document.getElementById('allergy-insights-category-empty');
+            list.textContent = '';
+            var entries = Object.keys(categoryCounts).map(function(name) { return { name: name, count: categoryCounts[name] }; })
+                .sort(function(a, b) { return b.count - a.count || a.name.localeCompare(b.name); });
+            empty.hidden = entries.length > 0;
+            entries.forEach(function(entry) {
+                var row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'adm-insights-category-row';
+                row.title = 'Filter active allergies by ' + entry.name;
+                row.addEventListener('click', function() { filterByCategory(entry.name); });
+
+                var label = document.createElement('span');
+                label.className = 'adm-insights-category-name';
+                label.textContent = entry.name;
+                var track = document.createElement('span');
+                track.className = 'adm-insights-track';
+                var fill = document.createElement('span');
+                fill.className = 'adm-insights-fill';
+                fill.style.width = (activeTotal ? entry.count / activeTotal * 100 : 0) + '%';
+                track.appendChild(fill);
+                var value = document.createElement('strong');
+                value.className = 'adm-insights-category-value';
+                value.textContent = entry.count + ' · ' + (activeTotal ? Math.round(entry.count / activeTotal * 100) : 0) + '%';
+                row.appendChild(label); row.appendChild(track); row.appendChild(value);
+                list.appendChild(row);
+            });
+        }
+
+        function showAllergyDuplicateReview() {
+            toggleAllergyDuplicateDetails();
+            var detail = document.getElementById('quality-duplicate-details');
+            if (detail) detail.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function showArchivedAllergies() {
+            var archivedTab = document.querySelector('.adm-tab[data-tbody="allergy-tbody-archived"]');
+            if (archivedTab) {
+                switchTab(archivedTab);
+                scrollToAllergyTable();
+            }
+        }
+
+        function downloadAllergyAuditReport() {
+            var lines = [['Allergy Name', 'Category', 'Description', 'Status', 'Review Note'].map(csvCell).join(',')];
+            [['allergy-tbody', 'Active'], ['allergy-tbody-archived', 'Archived']].forEach(function(config) {
+                allergyInsightRows(config[0]).forEach(function(row) {
+                    var name = cellText(row, 0);
+                    var category = cellText(row, 1);
+                    var description = cellText(row, 2);
+                    var issues = [];
+                    if (config[1] === 'Active' && row.dataset.nodesc === '1') issues.push('Missing description');
+                    if (config[1] === 'Active' && !(row.dataset.cat || '').trim()) issues.push('Uncategorized');
+                    lines.push([name, category, description, config[1], issues.join('; ') || 'No basic completeness issue detected'].map(csvCell).join(','));
+                });
+            });
+            var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'allergy-register-audit-' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(function() { URL.revokeObjectURL(url); }, 500);
+        }
+
+        function printAllergyInsights() {
+            var activeRows = allergyInsightRows('allergy-tbody');
+            var archivedRows = allergyInsightRows('allergy-tbody-archived');
+            var categorized = activeRows.filter(function(row) { return (row.dataset.cat || '').trim(); }).length;
+            var described = activeRows.filter(function(row) { return row.dataset.nodesc !== '1'; }).length;
+            var categories = {};
+            activeRows.forEach(function(row) {
+                var name = (row.dataset.cat || '').trim() || 'Uncategorized';
+                categories[name] = (categories[name] || 0) + 1;
+            });
+
+            var win = window.open('', '_blank', 'width=900,height=700');
+            if (!win) {
+                alert('Please allow pop-ups to print the allergy overview.');
+                return;
+            }
+
+            // Build the print document with DOM APIs. Keeping markup out of a long
+            // JavaScript string avoids Razor/HTML parser collisions in this view.
+            var doc = win.document;
+            doc.open();
+            doc.close();
+            doc.title = 'Allergy Register Overview';
+
+            var style = doc.createElement('style');
+            style.textContent = 'body{font:14px Arial,sans-serif;color:#18312f;padding:28px}h1{margin-bottom:4px}p{color:#526762}.stats{display:flex;gap:12px;flex-wrap:wrap;margin:22px 0}.stat{border:1px solid #d5e2df;border-radius:8px;padding:12px 16px;min-width:130px}.stat strong{display:block;font-size:24px;margin-top:6px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;border-bottom:1px solid #d5e2df;padding:10px}th{background:#eff7f5}@@media print{button{display:none}}';
+            doc.head.appendChild(style);
+
+            var heading = doc.createElement('h1');
+            heading.textContent = 'Allergy Register Overview';
+            doc.body.appendChild(heading);
+
+            var generated = doc.createElement('p');
+            generated.textContent = 'Generated locally on ' + new Date().toLocaleString() + '. Based on records rendered on the Manage Allergies page.';
+            doc.body.appendChild(generated);
+
+            var stats = doc.createElement('div');
+            stats.className = 'stats';
+            function addStat(label, value) {
+                var item = doc.createElement('div');
+                item.className = 'stat';
+                item.appendChild(doc.createTextNode(label));
+                var strong = doc.createElement('strong');
+                strong.textContent = value;
+                item.appendChild(strong);
+                stats.appendChild(item);
+            }
+            addStat('Total records', activeRows.length + archivedRows.length);
+            addStat('Active', activeRows.length);
+            addStat('Archived', archivedRows.length);
+            addStat('Category coverage', (activeRows.length ? Math.round(categorized / activeRows.length * 100) : 0) + '%');
+            addStat('Description coverage', (activeRows.length ? Math.round(described / activeRows.length * 100) : 0) + '%');
+            doc.body.appendChild(stats);
+
+            var subheading = doc.createElement('h2');
+            subheading.textContent = 'Active category distribution';
+            doc.body.appendChild(subheading);
+            var table = doc.createElement('table');
+            var thead = doc.createElement('thead');
+            var headerRow = doc.createElement('tr');
+            ['Category', 'Active records'].forEach(function(label) {
+                var th = doc.createElement('th');
+                th.textContent = label;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            var tbody = doc.createElement('tbody');
+            Object.keys(categories).sort(function(a, b) { return a.localeCompare(b); }).forEach(function(name) {
+                var row = doc.createElement('tr');
+                var categoryCell = doc.createElement('td');
+                categoryCell.textContent = name;
+                var countCell = doc.createElement('td');
+                countCell.textContent = categories[name];
+                row.appendChild(categoryCell);
+                row.appendChild(countCell);
+                tbody.appendChild(row);
+            });
+            table.appendChild(tbody);
+            doc.body.appendChild(table);
+
+            var note = doc.createElement('p');
+            note.textContent = 'Completeness indicators are administrative checks only and do not assess clinical suitability.';
+            doc.body.appendChild(note);
+            var printButton = doc.createElement('button');
+            printButton.textContent = 'Print this overview';
+            printButton.addEventListener('click', function() { win.print(); });
+            doc.body.appendChild(printButton);
+            win.focus();
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            refreshAllergyQualityCheck();
+            refreshAllergyInsights();
+            loadPrefs();
+            bindRowClicks();
+
+            // Esc inside the search box clears it
+            document.getElementById('allergy-search').addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && this.value) {
+                    this.value = '';
+                    filterActiveTable();
+                    e.stopPropagation();
+                }
+            });
+
             filterCatChips();
             renderAllergies();
         });
@@ -947,9 +1885,9 @@
 <style>
 
     /* ==========================================================
-           VARIABLES — purple stays fixed for allergies, everything
-           else matches the shared admin page look.
-        ========================================================== */
+                            VARIABLES: purple stays fixed for allergies, everything
+                            else matches the shared admin page look.
+                        ========================================================== */
 
     :root {
         --adm-paper: #F0F7F6;
@@ -966,6 +1904,8 @@
         --adm-teal-grad-end: #0A4F48;
         --adm-red: #B0463F;
         --adm-red-dim: #F7E8E7;
+        --adm-amber: #94650A;
+        --adm-amber-dim: #FFF3D6;
         --adm-purple: #6D4EA8;
         --adm-purple-dim: #EEE8F9;
         --adm-allergy-accent: var(--adm-purple);
@@ -1152,6 +2092,98 @@
         cursor: pointer;
     }
 
+    /* ==========================================================
+       INSIGHTS STRIP — ALLERGIES PURPLE THEME
+       ========================================================== */
+
+    .adm-insights {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+
+    .adm-insight {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-align: left;
+        font-family: 'Inter', sans-serif;
+        background: var(--adm-raised);
+        color: var(--adm-ink);
+        border: 1px solid transparent;
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        padding: 16px 18px;
+        cursor: pointer;
+        transition: transform .15s, border-color .15s, box-shadow .15s;
+        min-width: 0;
+    }
+
+        .adm-insight:hover:not(:disabled):not(.adm-insight-static) {
+            transform: translateY(-2px);
+            border-color: #c4b5fd;
+            box-shadow: 0 10px 28px rgba(124, 58, 237, 0.12);
+        }
+
+        .adm-insight:focus-visible {
+            outline: 2px solid #7c3aed;
+            outline-offset: 2px;
+        }
+
+        .adm-insight:disabled,
+        .adm-insight-static {
+            cursor: default;
+        }
+
+    .adm-insight-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        background: #ede9fe;
+        color: #6d28d9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .adm-insight.is-warn .adm-insight-icon {
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+    }
+
+    .adm-insight-body {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .adm-insight-label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #7c6a99;
+    }
+
+    .adm-insight-value {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 17px;
+        color: #5b21b6;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin: 2px 0 1px;
+    }
+
+    .adm-insight-sub {
+        font-size: 11.5px;
+        color: #8b7aa8;
+    }
+
     /* PANELS */
     .adm-panel {
         background: var(--adm-raised);
@@ -1203,7 +2235,7 @@
         align-items: start;
     }
 
-    /* CATEGORY CHIPS — fixed purple */
+    /* CATEGORY CHIPS: fixed purple */
     .adm-chips-container {
         margin-bottom: 12px;
         min-height: 54px;
@@ -1256,6 +2288,20 @@
         button.adm-chip-name:hover {
             text-decoration: underline;
         }
+
+    /* NEW: allergy count on each chip */
+    .adm-chip-count {
+        display: inline-block;
+        background: var(--adm-raised);
+        color: var(--adm-allergy-accent);
+        border-radius: 999px;
+        padding: 1px 7px;
+        margin-left: 6px;
+        font-size: 10.5px;
+        font-weight: 700;
+        line-height: 1.5;
+        text-decoration: none;
+    }
 
     .adm-chip-rm {
         background: transparent;
@@ -1393,6 +2439,81 @@
             min-width: 64px;
         }
 
+    /* NEW: toolbar toggle buttons */
+    .adm-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        padding: 10px 14px;
+        font-family: 'Inter', sans-serif;
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+
+        .adm-toggle:hover:not(:disabled) {
+            background: var(--adm-allergy-accent-dim);
+            color: var(--adm-allergy-accent);
+            border-color: var(--adm-allergy-accent-dim);
+        }
+
+        .adm-toggle.is-on {
+            background: var(--adm-allergy-accent-dim);
+            color: var(--adm-allergy-accent);
+            border-color: var(--adm-allergy-accent);
+        }
+
+        .adm-toggle:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+    .adm-toggle-clear:hover:not(:disabled) {
+        background: var(--adm-red-dim);
+        color: var(--adm-red);
+        border-color: var(--adm-red-dim);
+    }
+
+    /* NEW: keyboard hint */
+    .adm-kbd {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border: 1px solid var(--adm-line-strong);
+        border-bottom-width: 2px;
+        border-radius: 6px;
+        background: var(--adm-raised);
+        color: var(--adm-ink-faint);
+        font-family: 'Inter', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .adm-shortcuts-hint {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        align-items: center;
+        padding: 0 26px 18px;
+        color: var(--adm-ink-faint);
+        font-size: 11.5px;
+    }
+
+        .adm-shortcuts-hint span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
     /* TABLE */
     .adm-table-wrap {
         padding: 16px 0 6px;
@@ -1473,6 +2594,39 @@
             z-index: 5;
         }
 
+            /* NEW: sortable headers */
+            .adm-table th.adm-sortable {
+                cursor: pointer;
+                user-select: none;
+            }
+
+                .adm-table th.adm-sortable::after {
+                    content: '\2195';
+                    margin-left: 6px;
+                    opacity: .45;
+                }
+
+                .adm-table th.adm-sortable.is-asc::after {
+                    content: '\2191';
+                    opacity: 1;
+                    color: var(--adm-teal);
+                }
+
+                .adm-table th.adm-sortable.is-desc::after {
+                    content: '\2193';
+                    opacity: 1;
+                    color: var(--adm-teal);
+                }
+
+                .adm-table th.adm-sortable:hover {
+                    color: var(--adm-teal-deep);
+                }
+
+                .adm-table th.adm-sortable:focus-visible {
+                    outline: 2px solid var(--adm-teal);
+                    outline-offset: -2px;
+                }
+
     .adm-th-actions {
         text-align: left;
     }
@@ -1487,13 +2641,17 @@
         line-height: 1.45;
     }
 
-    .adm-table tbody tr:last-child td {
-        border-bottom: none;
+    .adm-table tbody tr {
+        cursor: pointer;
     }
 
-    .adm-table tbody tr:hover {
-        background: var(--adm-paper);
-    }
+        .adm-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .adm-table tbody tr:hover {
+            background: var(--adm-paper);
+        }
 
     .adm-td-strong {
         font-weight: 600;
@@ -1506,7 +2664,15 @@
         overflow-wrap: anywhere;
     }
 
-    /* BADGES — fixed purple */
+    /* NEW: search match highlight */
+    .adm-mark {
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+        border-radius: 4px;
+        padding: 0 2px;
+    }
+
+    /* BADGES: fixed purple */
     .adm-badge {
         display: inline-flex;
         align-items: center;
@@ -1691,7 +2857,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 26px 18px;
+        padding: 12px 26px 14px;
         border-top: 1px solid var(--adm-line);
     }
 
@@ -1707,7 +2873,7 @@
         gap: 10px;
     }
 
-    /* CATEGORY BREAKDOWN — fixed purple bars */
+    /* CATEGORY BREAKDOWN: fixed purple bars */
     .adm-breakdown {
         padding: 20px 26px 26px;
         display: flex;
@@ -1719,6 +2885,29 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
+    }
+
+        /* NEW: breakdown rows filter the table */
+        .adm-breakdown-row.is-link {
+            cursor: pointer;
+            border-radius: 10px;
+            padding: 6px 8px;
+            margin: -6px -8px;
+            transition: background .15s;
+        }
+
+            .adm-breakdown-row.is-link:hover {
+                background: var(--adm-paper);
+            }
+
+            .adm-breakdown-row.is-link:focus-visible {
+                outline: 2px solid var(--adm-allergy-accent);
+                outline-offset: 1px;
+            }
+
+    .adm-breakdown-hint {
+        margin: 2px 0 0;
+        font-size: 11.5px;
     }
 
     .adm-breakdown-label {
@@ -1738,6 +2927,11 @@
             font-weight: 700;
             flex-shrink: 0;
         }
+
+            .adm-breakdown-label strong small {
+                font-weight: 500;
+                font-size: 11px;
+            }
 
     .adm-breakdown-track {
         height: 8px;
@@ -1874,12 +3068,69 @@
                 box-shadow: 0 0 0 3px var(--adm-allergy-accent-dim);
             }
 
+    /* NEW: duplicate-name warning */
+    .adm-field-warn {
+        margin-top: 8px;
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
     .adm-modal-actions {
         display: flex;
         justify-content: flex-end;
         gap: 10px;
         margin-top: 6px;
     }
+
+    /* NEW: details modal */
+    .adm-detail-list {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 20px;
+        border: 1px solid var(--adm-line);
+        border-radius: var(--adm-radius-sm);
+        overflow: hidden;
+    }
+
+    .adm-detail-row {
+        display: flex;
+        gap: 16px;
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--adm-line);
+        font-size: 13px;
+    }
+
+        .adm-detail-row:last-child {
+            border-bottom: none;
+        }
+
+    .adm-detail-label {
+        width: 96px;
+        flex-shrink: 0;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .03em;
+        text-transform: uppercase;
+        color: var(--adm-ink-faint);
+        padding-top: 2px;
+    }
+
+    .adm-detail-value {
+        color: var(--adm-ink);
+        font-weight: 600;
+        overflow-wrap: anywhere;
+        line-height: 1.5;
+    }
+
+        .adm-detail-value.is-empty {
+            color: var(--adm-ink-faint);
+            font-weight: 500;
+            font-style: italic;
+        }
 
     /* ANIMATIONS */
     @@keyframes admGlowPulsePurple {
@@ -1889,6 +3140,16 @@
 
         50% {
             box-shadow: 0 0 10px 2px rgba(109, 78, 168, .45);
+        }
+    }
+
+    @@keyframes admGlowPulsePurpleDark {
+        0%, 100% {
+            box-shadow: 0 0 6px 0px rgba(179, 157, 235, .18);
+        }
+
+        50% {
+            box-shadow: 0 0 10px 2px rgba(179, 157, 235, .35);
         }
     }
 
@@ -1907,11 +3168,19 @@
         .adm-split {
             grid-template-columns: 1fr;
         }
+
+        .adm-insights {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
     @@media (max-width: 640px) {
         .adm-page {
             padding: 20px 16px 50px;
+        }
+
+        .adm-insights {
+            grid-template-columns: 1fr;
         }
 
         .adm-page-banner {
@@ -1942,6 +3211,10 @@
             gap: 12px;
         }
 
+        .adm-shortcuts-hint {
+            display: none;
+        }
+
         .adm-inline-form {
             flex-direction: column;
         }
@@ -1967,6 +3240,1052 @@
             font-size: 10px;
             padding: 4px 8px;
         }
+
+        .adm-detail-row {
+            flex-direction: column;
+            gap: 4px;
+        }
+    }
+
+
+    /* ==========================================================
+                            DARK MODE (html.rq-dark, same switch as the rest of the app)
+                        ========================================================== */
+
+    /* 1. Re-point the page's variables at the shared dark palette */
+    html.rq-dark {
+        --adm-paper: #141C18;
+        --adm-raised: #172019;
+        --adm-ink: #E8EEEB;
+        --adm-ink-soft: #A5B0AA;
+        --adm-ink-faint: #7F8B85;
+        --adm-line: #26302B;
+        --adm-line-strong: #34403A;
+        --adm-teal: #2CC4BA;
+        --adm-teal-deep: #5ED0C4;
+        --adm-teal-dim: #12302D;
+        --adm-teal-grad-start: #0F7F74;
+        --adm-teal-grad-end: #0A3A35;
+        --adm-red: #E1736B;
+        --adm-red-dim: #3A1B18;
+        --adm-amber: #E8B84A;
+        --adm-amber-dim: #3A2E12;
+        --adm-purple: #B39DEB;
+        --adm-purple-dim: #2A2142;
+        --adm-allergy-accent: #B39DEB;
+        --adm-allergy-accent-dim: #2A2142;
+        --adm-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+        --adm-shadow-sm: 0 3px 10px rgba(0, 0, 0, .3);
+    }
+
+        /* 2. Beat the shared catch-all (it matches "panel" and "tag" in class names) */
+        html.rq-dark .adm-page .adm-panel .adm-panel-head .adm-panel-tag {
+            background-color: var(--adm-teal-dim) !important;
+            color: var(--adm-teal-deep) !important;
+            box-shadow: none !important;
+            border-color: transparent !important;
+        }
+
+        html.rq-dark .adm-page .adm-panel .adm-panel-body {
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
+
+        /* 3. Beat the shared "color: inherit" rule for td / th / span / p / label */
+        html.rq-dark .adm-page .adm-table-scroll .adm-table th {
+            color: var(--adm-ink-faint);
+            background: var(--adm-paper);
+        }
+
+            html.rq-dark .adm-page .adm-table-scroll .adm-table th.adm-sortable:hover {
+                color: var(--adm-teal-deep);
+            }
+
+        html.rq-dark .adm-page .adm-table td.adm-td-muted {
+            color: var(--adm-ink-soft);
+        }
+
+        html.rq-dark .adm-page .adm-table tbody tr:hover {
+            background: #1B2620;
+        }
+
+        html.rq-dark .adm-page .adm-page-banner .adm-page-banner-left h1 {
+            color: #fff;
+        }
+
+        html.rq-dark .adm-page .adm-page-banner .adm-page-banner-left p {
+            color: rgba(255, 255, 255, .85);
+        }
+
+        html.rq-dark .adm-page .adm-mini-stat span.num {
+            color: #fff;
+        }
+
+        html.rq-dark .adm-page .adm-mini-stat span.label {
+            color: rgba(255, 255, 255, .75);
+        }
+
+        /* "Add Allergy" button on the banner: keep it light, with dark text */
+        html.rq-dark .adm-page .adm-page-banner .adm-btn.adm-btn-light {
+            background: #E8EEEB;
+            color: #0A3A35;
+        }
+
+        /* tabs */
+        html.rq-dark .adm-page .adm-tabs .adm-tab .adm-tab-count {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-tabs .adm-tab.is-active .adm-tab-count {
+            color: var(--adm-teal-deep);
+        }
+
+        /* "Show N rows" and pagination text */
+        html.rq-dark .adm-page .adm-toolbar .adm-show-control span {
+            color: var(--adm-ink-soft);
+        }
+
+        html.rq-dark .adm-page .adm-condition-pagination .adm-pagination-left span {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-condition-pagination .adm-page-info,
+        html.rq-dark .adm-page .adm-pagination .adm-page-info {
+            color: var(--adm-ink-soft);
+        }
+
+        /* hint + empty-state text */
+        html.rq-dark .adm-page .adm-chips-container .adm-hint,
+        html.rq-dark .adm-page .adm-breakdown .adm-hint {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-panel .adm-empty-state p {
+            color: var(--adm-ink-soft);
+        }
+
+        /* category chips: keep the purple text and a transparent border */
+        html.rq-dark .adm-page .adm-chips-row .adm-chip-form .adm-chip {
+            color: var(--adm-allergy-accent);
+            border-color: transparent;
+            animation-name: admGlowPulsePurpleDark;
+        }
+
+            html.rq-dark .adm-page .adm-chips-row .adm-chip-form .adm-chip.adm-chip-muted {
+                animation: none;
+            }
+
+            html.rq-dark .adm-page .adm-chips-row .adm-chip-form .adm-chip .adm-chip-count {
+                background: var(--adm-raised);
+                color: var(--adm-allergy-accent);
+            }
+
+        html.rq-dark .adm-page .adm-table .adm-badge {
+            animation-name: admGlowPulsePurpleDark;
+        }
+
+            html.rq-dark .adm-page .adm-table .adm-badge.adm-badge-muted {
+                animation: none;
+            }
+
+        /* 4. Search inputs: sit transparent inside their box */
+        html.rq-dark .adm-page .adm-search-box input {
+            background: transparent;
+            border: none;
+            color: var(--adm-ink);
+        }
+
+            html.rq-dark .adm-page .adm-search-box input:focus {
+                outline: none;
+            }
+
+        /* 5. Selects and form fields: match the shared field look, keep borders visible */
+        html.rq-dark .adm-page .adm-toolbar select,
+        html.rq-dark .adm-page .adm-show-control select,
+        html.rq-dark .adm-page .adm-inline-form input,
+        html.rq-dark .adm-page .adm-form-group input,
+        html.rq-dark .adm-page .adm-form-group select {
+            background-color: var(--adm-paper);
+            color: var(--adm-ink);
+            border-color: var(--adm-line-strong);
+        }
+
+            html.rq-dark .adm-page .adm-inline-form input:focus,
+            html.rq-dark .adm-page .adm-form-group input:focus,
+            html.rq-dark .adm-page .adm-form-group select:focus {
+                outline: none;
+                border-color: var(--adm-allergy-accent);
+            }
+
+        /* 6. Modals */
+        html.rq-dark .adm-page .adm-modal-overlay {
+            background: rgba(0, 0, 0, .65);
+        }
+
+        html.rq-dark .adm-page .adm-modal .adm-form-group label {
+            color: var(--adm-ink-soft);
+        }
+
+        html.rq-dark .adm-page .adm-modal .adm-modal-title .adm-modal-close {
+            color: var(--adm-ink-faint);
+        }
+
+            html.rq-dark .adm-page .adm-modal .adm-modal-title .adm-modal-close:hover {
+                background: var(--adm-paper);
+                color: var(--adm-ink);
+            }
+
+        /* 7. NEW elements */
+        html.rq-dark .adm-page .adm-insight .adm-insight-label {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-insight .adm-insight-value {
+            color: var(--adm-ink);
+        }
+
+        html.rq-dark .adm-page .adm-insight .adm-insight-sub {
+            color: var(--adm-ink-soft);
+        }
+
+        html.rq-dark .adm-page .adm-insight:hover:not(:disabled):not(.adm-insight-static) {
+            box-shadow: 0 10px 28px rgba(0, 0, 0, .5);
+        }
+
+        html.rq-dark .adm-page .adm-table td .adm-mark,
+        html.rq-dark .adm-page .adm-table td mark.adm-mark {
+            background: var(--adm-allergy-accent-dim);
+            color: var(--adm-allergy-accent);
+        }
+
+        html.rq-dark .adm-page .adm-shortcuts-hint span {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-kbd {
+            background: var(--adm-raised);
+            color: var(--adm-ink-faint);
+            border-color: var(--adm-line-strong);
+        }
+
+        html.rq-dark .adm-page .adm-toggle {
+            background: var(--adm-raised);
+            color: var(--adm-ink-soft);
+            border-color: var(--adm-line-strong);
+        }
+
+            html.rq-dark .adm-page .adm-toggle.is-on {
+                background: var(--adm-allergy-accent-dim);
+                color: var(--adm-allergy-accent);
+                border-color: var(--adm-allergy-accent);
+            }
+
+        html.rq-dark .adm-page .adm-field-warn {
+            background: var(--adm-amber-dim);
+            color: var(--adm-amber);
+        }
+
+        html.rq-dark .adm-page .adm-modal .adm-detail-label {
+            color: var(--adm-ink-faint);
+        }
+
+        html.rq-dark .adm-page .adm-modal .adm-detail-value {
+            color: var(--adm-ink);
+        }
+
+            html.rq-dark .adm-page .adm-modal .adm-detail-value.is-empty {
+                color: var(--adm-ink-faint);
+            }
+
+        html.rq-dark .adm-page .adm-breakdown-row.is-link:hover {
+            background: #1B2620;
+        }
+
+
+    /* ==========================================================
+           DATA QUALITY + REGISTER OVERVIEW (redesign)
+           Uses the page's existing tokens, so light and dark mode follow the rest of the page.
+           ========================================================== */
+
+    .aq-section,
+    .ao-section {
+        background: var(--adm-raised);
+        color: var(--adm-ink);
+        border-radius: var(--adm-radius);
+        box-shadow: var(--adm-shadow);
+        margin: 0 0 22px;
+        overflow: hidden;
+    }
+
+    /* ---------- headers ---------- */
+    .aq-head,
+    .ao-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 20px 26px;
+        border-bottom: 1px solid var(--adm-line);
+    }
+
+        .aq-head h2,
+        .ao-head h2 {
+            margin: 0 0 4px;
+            font: 700 16px/1.3 'Poppins', sans-serif;
+            color: var(--adm-ink);
+        }
+
+        .aq-head p,
+        .ao-head p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--adm-ink-soft);
+        }
+
+    .aq-head-actions,
+    .ao-head-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* ---------- buttons ---------- */
+    .aq-btn,
+    .ao-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 9px 15px;
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        background: var(--adm-raised);
+        color: var(--adm-ink);
+        font: 600 12.5px 'Inter', sans-serif;
+        cursor: pointer;
+        transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+    }
+
+        .aq-btn:hover,
+        .ao-btn:hover {
+            background: var(--adm-paper);
+            border-color: var(--adm-teal);
+            color: var(--adm-teal-deep);
+        }
+
+    .ao-btn-primary {
+        border-color: transparent;
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(10, 90, 80, .22);
+    }
+
+        .ao-btn-primary:hover {
+            background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 10px 22px rgba(10, 90, 80, .28);
+        }
+
+    .aq-btn:focus-visible,
+    .ao-btn:focus-visible,
+    .aq-link:focus-visible,
+    .ao-queue-item:focus-visible,
+    .adm-insights-category-row:focus-visible {
+        outline: 2px solid var(--adm-allergy-accent);
+        outline-offset: 2px;
+    }
+
+    /* ---------- overall status pill (top right of the quality check) ---------- */
+    .aq-summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+        .aq-summary::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .aq-summary[data-state="ok"] {
+            background: var(--adm-teal-dim);
+            color: var(--adm-teal-deep);
+        }
+
+        .aq-summary[data-state="warn"] {
+            background: var(--adm-amber-dim);
+            color: var(--adm-amber);
+        }
+
+    /* ---------- quality check rows ---------- */
+    .aq-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .aq-row {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) 56px 118px 156px;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 26px;
+        border-bottom: 1px solid var(--adm-line);
+        transition: background .15s;
+    }
+
+        .aq-row:last-child {
+            border-bottom: 0;
+        }
+
+        .aq-row:hover {
+            background: var(--adm-paper);
+        }
+
+    .aq-row-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        font-size: 15px;
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal);
+    }
+
+    .aq-row[data-state="warn"] .aq-row-icon {
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+    }
+
+    .aq-row-main {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+    }
+
+    .aq-row-title {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--adm-ink);
+    }
+
+    .aq-row-desc {
+        font-size: 12.5px;
+        color: var(--adm-ink-soft);
+    }
+
+    .aq-count {
+        font: 700 22px/1 'Poppins', sans-serif;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        color: var(--adm-ink);
+    }
+
+    .aq-row[data-state="warn"] .aq-count {
+        color: var(--adm-amber);
+    }
+
+    .aq-state {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        justify-self: start;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+        .aq-state::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+    .aq-row[data-state="ok"] .aq-state {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
+
+        .aq-row[data-state="ok"] .aq-state::after {
+            content: "Clear";
+        }
+
+    .aq-row[data-state="warn"] .aq-state {
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+    }
+
+        .aq-row[data-state="warn"] .aq-state::after {
+            content: "Needs review";
+        }
+
+    .aq-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--adm-line-strong);
+        border-radius: var(--adm-radius-sm);
+        background: var(--adm-raised);
+        color: var(--adm-ink-soft);
+        font: 600 12px 'Inter', sans-serif;
+        cursor: pointer;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+
+        .aq-link i {
+            font-size: 10px;
+        }
+
+        .aq-link:hover {
+            background: var(--adm-allergy-accent-dim);
+            border-color: var(--adm-allergy-accent-dim);
+            color: var(--adm-allergy-accent);
+        }
+
+    /* ---------- duplicate names detail ---------- */
+    .aq-dupes {
+        margin: 0;
+        padding: 16px 26px 18px;
+        border-top: 1px solid var(--adm-line);
+        background: var(--adm-paper);
+        font-size: 13px;
+        color: var(--adm-ink);
+    }
+
+        .aq-dupes[hidden] {
+            display: none;
+        }
+
+        .aq-dupes > strong {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 12.5px;
+        }
+
+        .aq-dupes ul {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 24px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .aq-dupes li {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+            padding: 8px 12px;
+            border: 1px solid var(--adm-line);
+            border-radius: 10px;
+            background: var(--adm-raised);
+        }
+
+            .aq-dupes li span {
+                width: 6px;
+                height: 6px;
+                flex-shrink: 0;
+                border-radius: 50%;
+                background: var(--adm-amber);
+            }
+
+            .aq-dupes li small {
+                margin-left: auto;
+                white-space: nowrap;
+                color: var(--adm-ink-faint);
+            }
+
+        .aq-dupes .adm-quality-clean {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-weight: 600;
+            color: var(--adm-teal-deep);
+        }
+
+    /* ---------- shared footer note ---------- */
+    .sec-foot {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 13px 26px;
+        border-top: 1px solid var(--adm-line);
+        background: var(--adm-paper);
+        font-size: 12px;
+        color: var(--adm-ink-faint);
+    }
+
+    /* ---------- overview: metric strip ---------- */
+    .ao-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        border-bottom: 1px solid var(--adm-line);
+    }
+
+    .ao-metric {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+        padding: 20px 26px;
+        border-right: 1px solid var(--adm-line);
+    }
+
+        .ao-metric:last-child {
+            border-right: 0;
+        }
+
+    .ao-metric-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--adm-ink-soft);
+    }
+
+        .ao-metric-label i {
+            color: var(--adm-allergy-accent);
+            font-size: 12px;
+        }
+
+    .ao-metric strong {
+        font: 700 28px/1.15 'Poppins', sans-serif;
+        font-variant-numeric: tabular-nums;
+        color: var(--adm-ink);
+    }
+
+    .ao-metric small {
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--adm-ink-faint);
+    }
+
+    .ao-meter {
+        display: block;
+        height: 6px;
+        margin-top: auto;
+        padding-top: 0;
+        border-radius: 99px;
+        background: var(--adm-line);
+        overflow: hidden;
+    }
+
+    .ao-meter-fill {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: 99px;
+        background: var(--adm-allergy-accent);
+        transition: width .4s ease;
+    }
+
+    /* ---------- overview: body ---------- */
+    .ao-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    }
+
+    .ao-col {
+        min-width: 0;
+        padding: 22px 26px 24px;
+    }
+
+        .ao-col + .ao-col {
+            border-left: 1px solid var(--adm-line);
+        }
+
+    .ao-col-head {
+        margin-bottom: 16px;
+    }
+
+        .ao-col-head h3 {
+            margin: 0 0 3px;
+            font: 700 14.5px 'Poppins', sans-serif;
+            color: var(--adm-ink);
+        }
+
+        .ao-col-head p {
+            margin: 0;
+            font-size: 12.5px;
+            color: var(--adm-ink-soft);
+        }
+
+    /* category rows (generated by refreshAllergyInsights; class names unchanged) */
+    .ao-col .adm-insights-category-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .ao-col .adm-insights-category-row {
+        display: grid;
+        grid-template-columns: minmax(100px, .9fr) minmax(60px, 1.4fr) auto;
+        align-items: center;
+        gap: 14px;
+        width: calc(100% + 20px);
+        margin: 0 -10px;
+        padding: 9px 10px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+        .ao-col .adm-insights-category-row:hover {
+            background: var(--adm-paper);
+        }
+
+    .ao-col .adm-insights-category-name {
+        overflow: hidden;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--adm-ink);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ao-col .adm-insights-track {
+        display: block;
+        height: 8px;
+        border-radius: 99px;
+        background: var(--adm-line);
+        overflow: hidden;
+    }
+
+    .ao-col .adm-insights-fill {
+        display: block;
+        height: 100%;
+        border-radius: 99px;
+        background: var(--adm-allergy-accent);
+        opacity: .9;
+        transition: width .4s ease;
+    }
+
+    .ao-col .adm-insights-category-value {
+        font-size: 12px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        color: var(--adm-ink-soft);
+    }
+
+    .ao-col .adm-insights-empty {
+        padding: 24px 10px;
+        text-align: center;
+        font-size: 12.5px;
+        color: var(--adm-ink-faint);
+    }
+
+        .ao-col .adm-insights-empty[hidden] {
+            display: none;
+        }
+
+    /* review queue */
+    .ao-queue-item {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr) auto 12px;
+        align-items: center;
+        gap: 14px;
+        width: calc(100% + 20px);
+        margin: 0 -10px;
+        padding: 13px 10px;
+        border: 0;
+        border-top: 1px solid var(--adm-line);
+        background: transparent;
+        color: var(--adm-ink);
+        text-align: left;
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+        .ao-queue-item:hover {
+            background: var(--adm-paper);
+        }
+
+        .ao-queue-item > i {
+            font-size: 10px;
+            color: var(--adm-ink-faint);
+        }
+
+    .ao-queue-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+        font-size: 13px;
+    }
+
+    .ao-queue-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+        .ao-queue-text strong {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .ao-queue-text small {
+            font-size: 12px;
+            color: var(--adm-ink-faint);
+        }
+
+    .ao-queue-count {
+        min-width: 30px;
+        padding: 4px 9px;
+        border-radius: 8px;
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ao-queue-item:hover .ao-queue-text strong {
+        color: var(--adm-allergy-accent);
+    }
+
+    /* ---------- responsive ---------- */
+    @@media (max-width: 1100px) {
+        .ao-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .ao-metric:nth-child(2n) {
+            border-right: 0;
+        }
+
+        .ao-metric:nth-child(-n+2) {
+            border-bottom: 1px solid var(--adm-line);
+        }
+    }
+
+    @@media (max-width: 900px) {
+        .ao-body {
+            grid-template-columns: 1fr;
+        }
+
+        .ao-col + .ao-col {
+            border-left: 0;
+            border-top: 1px solid var(--adm-line);
+        }
+    }
+
+    @@media (max-width: 760px) {
+        .aq-row {
+            grid-template-columns: 40px minmax(0, 1fr) auto;
+            grid-template-areas: "icon main count" ". state action";
+            row-gap: 12px;
+            padding: 16px 18px;
+        }
+
+        .aq-row-icon {
+            grid-area: icon;
+        }
+
+        .aq-row-main {
+            grid-area: main;
+        }
+
+        .aq-count {
+            grid-area: count;
+        }
+
+        .aq-state {
+            grid-area: state;
+        }
+
+        .aq-link {
+            grid-area: action;
+            justify-self: end;
+            width: auto;
+        }
+
+        .aq-head,
+        .ao-head {
+            padding: 18px;
+        }
+
+        .aq-dupes {
+            padding: 16px 18px;
+        }
+
+            .aq-dupes ul {
+                grid-template-columns: 1fr;
+            }
+
+        .ao-col,
+        .ao-metric,
+        .sec-foot {
+            padding-left: 18px;
+            padding-right: 18px;
+        }
+    }
+
+    @@media (max-width: 520px) {
+        .ao-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .ao-metric {
+            border-right: 0;
+            border-bottom: 1px solid var(--adm-line);
+        }
+
+            .ao-metric:last-child {
+                border-bottom: 0;
+            }
+
+        .ao-head-actions,
+        .aq-head-actions {
+            width: 100%;
+        }
+
+        .ao-btn,
+        .aq-btn {
+            flex: 1;
+        }
+
+        .ao-col .adm-insights-category-row {
+            grid-template-columns: minmax(80px, .9fr) minmax(40px, 1fr) auto;
+            gap: 8px;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .ao-meter-fill,
+        .ao-col .adm-insights-fill {
+            transition: none;
+        }
+    }
+
+    /* ---------- dark mode ----------
+           The tokens already flip under html.rq-dark. These rules only re-assert text colors
+           on span / small / p elements, because the shared dark-mode rule sets them to "inherit". */
+    html.rq-dark .adm-page .aq-section span.aq-row-desc,
+    html.rq-dark .adm-page .ao-section .ao-metric-label,
+    html.rq-dark .adm-page .ao-section .ao-col-head p,
+    html.rq-dark .adm-page .aq-head p,
+    html.rq-dark .adm-page .ao-head p {
+        color: var(--adm-ink-soft);
+    }
+
+    html.rq-dark .adm-page .aq-section span.aq-count {
+        color: var(--adm-ink);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row[data-state="warn"] span.aq-count {
+        color: var(--adm-amber);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row[data-state="ok"] span.aq-state,
+    html.rq-dark .adm-page .aq-section span.aq-summary[data-state="ok"] {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal-deep);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row[data-state="warn"] span.aq-state,
+    html.rq-dark .adm-page .aq-section span.aq-summary[data-state="warn"] {
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row-icon {
+        background: var(--adm-teal-dim);
+        color: var(--adm-teal);
+    }
+
+    html.rq-dark .adm-page .aq-section .aq-row[data-state="warn"] .aq-row-icon {
+        background: var(--adm-amber-dim);
+        color: var(--adm-amber);
+    }
+
+    html.rq-dark .adm-page .aq-dupes li small,
+    html.rq-dark .adm-page .ao-metric small,
+    html.rq-dark .adm-page .ao-queue-text small,
+    html.rq-dark .adm-page .sec-foot {
+        color: var(--adm-ink-faint);
+    }
+
+    html.rq-dark .adm-page .aq-dupes,
+    html.rq-dark .adm-page .sec-foot {
+        background: var(--adm-paper);
+    }
+
+        html.rq-dark .adm-page .aq-dupes li {
+            background: var(--adm-raised);
+            border-color: var(--adm-line-strong);
+        }
+
+    html.rq-dark .adm-page .ao-section span.ao-queue-count,
+    html.rq-dark .adm-page .ao-section span.ao-queue-icon {
+        background: var(--adm-allergy-accent-dim);
+        color: var(--adm-allergy-accent);
+    }
+
+    html.rq-dark .adm-page .ao-section .adm-insights-category-name {
+        color: var(--adm-ink);
+    }
+
+    html.rq-dark .adm-page .ao-section .adm-insights-category-value {
+        color: var(--adm-ink-soft);
+    }
+
+    html.rq-dark .adm-page .aq-btn,
+    html.rq-dark .adm-page .ao-btn:not(.ao-btn-primary),
+    html.rq-dark .adm-page .aq-link {
+        background: var(--adm-raised);
+        color: var(--adm-ink);
+        border-color: var(--adm-line-strong);
+    }
+
+        html.rq-dark .adm-page .aq-link:hover {
+            background: var(--adm-allergy-accent-dim);
+            color: var(--adm-allergy-accent);
+        }
+
+    html.rq-dark .adm-page .ao-btn-primary {
+        background: linear-gradient(125deg, var(--adm-teal-grad-start), var(--adm-teal-grad-end));
+        color: #fff;
+    }
+
+    html.rq-dark .adm-page .aq-row:hover,
+    html.rq-dark .adm-page .ao-queue-item:hover,
+    html.rq-dark .adm-page .ao-col .adm-insights-category-row:hover {
+        background: #1B2620;
     }
 
 </style>

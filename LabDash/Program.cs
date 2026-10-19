@@ -43,6 +43,7 @@ builder.Services.AddScoped<IRazorEmailRenderer, RazorEmailRenderer>();
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
+builder.Services.AddScoped<HealthEntryService>();
 var app = builder.Build();
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 QuestPDF.Settings.UseSystemFonts = true;
