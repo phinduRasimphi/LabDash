@@ -1019,6 +1019,7 @@ namespace LabDash.Controllers
 
         // =========================================================
         // TECHNICIAN DASHBOARD SUMMARY
+        // Replace your existing DashboardSummary action with this.
         // =========================================================
 
         [HttpGet]
@@ -1029,18 +1030,11 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Challenge();
 
+            var techId = technician.Id;
             var now = DateTime.Now;
             var nearDeadline = now.AddMinutes(30);
 
-            // =========================================================
-            // 1. TESTS WAITING TO BE SELECTED
-            // =========================================================
-            //
-            // Test must:
-            // - still be Submitted
-            // - have a received sample
-            // - not already be assigned
-            //
+            // 1. WAITING TO BE SELECTED (shared pool, unchanged)
             var waitingToBeSelected =
                 await _context.TestRequestItems
                     .CountAsync(x =>
@@ -1049,69 +1043,46 @@ namespace LabDash.Controllers
                         x.TestRequest != null &&
                         _context.Samples.Any(s =>
                             s.TestRequestId == x.RequestId &&
-                            s.IsReceived)
-                    );
+                            s.IsReceived));
 
-
-            // =========================================================
-            // 2. TESTS SELECTED BY CURRENT TECHNICIAN
-            // =========================================================
-            //
-            // These are tests currently being processed.
-            //
+            // 2. SELECTED BY ME / IN PROGRESS (unchanged)
             var selectedByTechnician =
                 await _context.TestRequestItems
                     .CountAsync(x =>
-                        x.AssignedTechnicianId == technician.Id &&
-                        x.Status == "In Progress"
-                    );
+                        x.AssignedTechnicianId == techId &&
+                        x.Status == "In Progress");
 
-
-            // =========================================================
-            // 3. TESTS WAITING FOR VERIFICATION
-            // =========================================================
-            //
-            // Completed by this technician but not yet verified.
-            //
+            // 3. READY FOR ME TO VERIFY
+            // FIX: this used to count results I captured myself
+            // (AssignedTechnicianId == me), which I am NOT allowed to
+            // verify. It now uses exactly the same rules as
+            // VerificationController.Index.
             var waitingForVerification =
-                await _context.TestRequestItems
-                    .CountAsync(x =>
-                        x.AssignedTechnicianId == technician.Id &&
-                        x.Status == "Completed"
-                    );
+                await _context.TestResults
+                    .CountAsync(r =>
+                        r.Status == "Completed" &&
+                        r.VerifiedByTechnicianId == null &&
+                        r.CapturedByTechnicianId != techId &&
+                        r.TestRequestItem != null &&
+                        r.TestRequestItem.Status == "Completed");
 
-
-            // =========================================================
-            // 4. TESTS WAITING FOR REVIEW
-            // =========================================================
-            //
-            // These are tests that were sent back after verification.
-            //
+            // 4. RETURNED TO ME FOR REVIEW
+            // FIX: this used to count every returned test in the lab.
+            // It now counts only the ones assigned to me, exactly like
+            // ToBeReviewedController.Index.
             var waitingForReview =
                 await _context.TestRequestItems
                     .CountAsync(x =>
-                        x.Status == "To Be Reviewed"
-                    );
+                        x.Status == "To Be Reviewed" &&
+                        x.AssignedTechnicianId == techId);
 
-
-            // =========================================================
-            // 5. URGENT / STAT TESTS
-            // =========================================================
-            //
-            // A STAT test is included when it is currently actionable:
-            //
-            // - waiting to be selected
-            // - in progress
-            // - waiting for verification
-            // - waiting for review
-            //
+            // 5. URGENT / STAT (same four buckets as the queue)
             var urgent =
                 await _context.TestRequestItems
                     .CountAsync(x =>
                         x.TestRequest != null &&
                         x.TestRequest.Urgency == "STAT" &&
                         (
-                            // Waiting to be selected
                             (
                                 x.Status == "Submitted" &&
                                 x.AssignedTechnicianId == null &&
@@ -1119,137 +1090,75 @@ namespace LabDash.Controllers
                                     s.TestRequestId == x.RequestId &&
                                     s.IsReceived)
                             )
-
                             ||
-
-                            // Selected by current technician
                             (
                                 x.Status == "In Progress" &&
-                                x.AssignedTechnicianId == technician.Id
+                                x.AssignedTechnicianId == techId
                             )
-
                             ||
-
-                            // Waiting for verification
                             (
                                 x.Status == "Completed" &&
-                                x.AssignedTechnicianId == technician.Id
+                                _context.TestResults.Any(r =>
+                                    r.TestRequestItemId == x.TestRequestItemId &&
+                                    r.Status == "Completed" &&
+                                    r.VerifiedByTechnicianId == null &&
+                                    r.CapturedByTechnicianId != techId)
                             )
-
                             ||
+                            (
+                                x.Status == "To Be Reviewed" &&
+                                x.AssignedTechnicianId == techId
+                            )
+                        ));
 
-                            // Waiting for review
-                            x.Status == "To Be Reviewed"
-                        )
-                    );
-
-
-            // =========================================================
-            // 6. OVERDUE TESTS
-            // =========================================================
-            //
-            // Turnaround time is calculated from StartDateTime.
-            //
+            // 6. OVERDUE (unchanged)
             var overdue =
                 await _context.TestRequestItems
                     .CountAsync(x =>
-                        x.AssignedTechnicianId == technician.Id &&
+                        x.AssignedTechnicianId == techId &&
                         x.Status == "In Progress" &&
                         x.StartDateTime.HasValue &&
                         x.TestType != null &&
                         x.TestType.TurnaroundTimeMinutes > 0 &&
                         x.StartDateTime.Value.AddMinutes(
-                            x.TestType.TurnaroundTimeMinutes
-                        ) < now
-                    );
+                            x.TestType.TurnaroundTimeMinutes) < now);
 
-
-            // =========================================================
-            // 7. TESTS NEARING TURNAROUND LIMIT
-            // =========================================================
-            //
-            // Due within the next 30 minutes.
-            //
+            // 7. NEAR DEADLINE (unchanged)
             var nearDeadlineCount =
                 await _context.TestRequestItems
                     .CountAsync(x =>
-                        x.AssignedTechnicianId == technician.Id &&
+                        x.AssignedTechnicianId == techId &&
                         x.Status == "In Progress" &&
                         x.StartDateTime.HasValue &&
                         x.TestType != null &&
                         x.TestType.TurnaroundTimeMinutes > 0 &&
-
                         x.StartDateTime.Value.AddMinutes(
-                            x.TestType.TurnaroundTimeMinutes
-                        ) >= now &&
-
+                            x.TestType.TurnaroundTimeMinutes) >= now &&
                         x.StartDateTime.Value.AddMinutes(
-                            x.TestType.TurnaroundTimeMinutes
-                        ) <= nearDeadline
-                    );
+                            x.TestType.TurnaroundTimeMinutes) <= nearDeadline);
 
-
-            // =========================================================
-            // 8. VERIFIED TESTS
-            // =========================================================
-            //
-            // Kept as an additional dashboard statistic.
-            //
+            // 8. VERIFIED (unchanged)
             var verified =
                 await _context.TestRequestItems
-                    .CountAsync(x =>
-                        x.Status == "Verified"
-                    );
-
-
-            // =========================================================
-            // RETURN DASHBOARD DATA
-            // =========================================================
+                    .CountAsync(x => x.Status == "Verified");
 
             return Json(new
             {
                 waitingToBeSelected = waitingToBeSelected,
-
                 selectedByTechnician = selectedByTechnician,
-
                 waitingForVerification = waitingForVerification,
-
                 waitingForReview = waitingForReview,
-
                 urgent = urgent,
-
                 overdue = overdue,
-
                 nearDeadline = nearDeadlineCount,
-
                 verified = verified
             });
         }
 
 
         // =========================================================
-        // DASHBOARD CATEGORIES
-        // =========================================================
-
-        [HttpGet]
-        public async Task<IActionResult> DashboardCategories()
-        {
-            var categories =
-                await _context.TestTypes
-                    .Where(x =>
-                        x.Category != null &&
-                        x.Category != "")
-                    .Select(x => x.Category)
-                    .Distinct()
-                    .OrderBy(x => x)
-                    .ToListAsync();
-
-            return Json(categories);
-        }
-
-
-        // =========================================================
         // TECHNICIAN DASHBOARD QUEUE
+        // Replace your existing DashboardQueue action with this.
         // =========================================================
 
         [HttpGet]
@@ -1265,12 +1174,8 @@ namespace LabDash.Controllers
             if (technician == null)
                 return Unauthorized();
 
+            var techId = technician.Id;
             var now = DateTime.Now;
-
-
-            // =========================================================
-            // BASE DASHBOARD QUEUE
-            // =========================================================
 
             var query =
                 _context.TestRequestItems
@@ -1282,15 +1187,11 @@ namespace LabDash.Controllers
 
                     .Where(x =>
                         x.TestRequest != null &&
-
                         (
-                            // =================================================
                             // WAITING TO BE SELECTED
-                            // =================================================
                             (
                                 x.Status == "Submitted" &&
                                 x.AssignedTechnicianId == null &&
-
                                 _context.Samples.Any(s =>
                                     s.TestRequestId == x.RequestId &&
                                     s.IsReceived)
@@ -1298,51 +1199,41 @@ namespace LabDash.Controllers
 
                             ||
 
-                            // =================================================
-                            // SELECTED BY CURRENT TECHNICIAN
-                            // =================================================
+                            // IN PROGRESS (mine)
                             (
                                 x.Status == "In Progress" &&
-                                x.AssignedTechnicianId == technician.Id
+                                x.AssignedTechnicianId == techId
                             )
 
                             ||
 
-                            // =================================================
-                            // WAITING FOR VERIFICATION
-                            // =================================================
+                            // FIX: READY FOR ME TO VERIFY
+                            // (captured by someone else, same rules as
+                            // VerificationController.Index)
                             (
                                 x.Status == "Completed" &&
-                                x.AssignedTechnicianId == technician.Id
+                                _context.TestResults.Any(r =>
+                                    r.TestRequestItemId == x.TestRequestItemId &&
+                                    r.Status == "Completed" &&
+                                    r.VerifiedByTechnicianId == null &&
+                                    r.CapturedByTechnicianId != techId)
                             )
 
                             ||
 
-                            // =================================================
-                            // WAITING FOR REVIEW
-                            // =================================================
+                            // FIX: RETURNED TO ME FOR REVIEW (mine only)
                             (
-                                x.Status == "To Be Reviewed"
+                                x.Status == "To Be Reviewed" &&
+                                x.AssignedTechnicianId == techId
                             )
-                        )
-                    )
+                        ))
                     .AsQueryable();
-
-
-            // =========================================================
-            // URGENCY FILTER
-            // =========================================================
 
             if (!string.IsNullOrWhiteSpace(urgency))
             {
                 query = query.Where(x =>
                     x.TestRequest!.Urgency == urgency);
             }
-
-
-            // =========================================================
-            // CATEGORY FILTER
-            // =========================================================
 
             if (!string.IsNullOrWhiteSpace(category))
             {
@@ -1351,11 +1242,6 @@ namespace LabDash.Controllers
                     x.TestType.Category == category);
             }
 
-
-            // =========================================================
-            // REQUEST NUMBER FILTER
-            // =========================================================
-
             if (!string.IsNullOrWhiteSpace(requestNumber))
             {
                 query = query.Where(x =>
@@ -1363,11 +1249,6 @@ namespace LabDash.Controllers
                         .ToString()
                         .Contains(requestNumber));
             }
-
-
-            // =========================================================
-            // LOAD TESTS
-            // =========================================================
 
             var tests =
                 await query
@@ -1378,25 +1259,16 @@ namespace LabDash.Controllers
                                 ? 2
                                 : x.TestRequest.Urgency == "Priority"
                                     ? 3
-                                    : 4
-                    )
-                    .ThenBy(x =>
-                        x.TestRequest!.RequestDate)
-                    .ThenBy(x =>
-                        x.TestRequestItemId)
+                                    : 4)
+                    .ThenBy(x => x.TestRequest!.RequestDate)
+                    .ThenBy(x => x.TestRequestItemId)
                     .ToListAsync();
-
-
-            // =========================================================
-            // BUILD DASHBOARD RESULT
-            // =========================================================
 
             var result = tests
                 .Select(x =>
                 {
                     DateTime? dueDateTime = null;
 
-                    // Turnaround applies to tests currently in progress.
                     if (
                         x.Status == "In Progress" &&
                         x.StartDateTime.HasValue &&
@@ -1408,29 +1280,14 @@ namespace LabDash.Controllers
                                 x.TestType.TurnaroundTimeMinutes);
                     }
 
-
-                    // =====================================================
-                    // OVERDUE
-                    // =====================================================
-
                     bool isOverdue =
                         dueDateTime.HasValue &&
                         dueDateTime.Value < now;
-
-
-                    // =====================================================
-                    // NEARING LIMIT
-                    // =====================================================
 
                     bool isNearDeadline =
                         dueDateTime.HasValue &&
                         dueDateTime.Value >= now &&
                         dueDateTime.Value <= now.AddMinutes(30);
-
-
-                    // =====================================================
-                    // TIME REMAINING
-                    // =====================================================
 
                     int? minutesRemaining = null;
 
@@ -1438,14 +1295,8 @@ namespace LabDash.Controllers
                     {
                         minutesRemaining =
                             (int)Math.Ceiling(
-                                (dueDateTime.Value - now)
-                                    .TotalMinutes);
+                                (dueDateTime.Value - now).TotalMinutes);
                     }
-
-
-                    // =====================================================
-                    // STATUS DISPLAY
-                    // =====================================================
 
                     string statusDisplay;
 
@@ -1460,11 +1311,11 @@ namespace LabDash.Controllers
                             break;
 
                         case "Completed":
-                            statusDisplay = "Waiting for Verification";
+                            statusDisplay = "Ready for You to Verify";
                             break;
 
                         case "To Be Reviewed":
-                            statusDisplay = "Waiting for Review";
+                            statusDisplay = "Returned to You";
                             break;
 
                         case "Verified":
@@ -1475,11 +1326,6 @@ namespace LabDash.Controllers
                             statusDisplay = x.Status;
                             break;
                     }
-
-
-                    // =====================================================
-                    // RETURN DASHBOARD ITEM
-                    // =====================================================
 
                     return new
                     {
@@ -1495,30 +1341,24 @@ namespace LabDash.Controllers
                                 : "Unknown Patient",
 
                         testName =
-                            x.TestType?.Name ??
-                            "Unknown Test",
+                            x.TestType?.Name ?? "Unknown Test",
 
                         category =
-                            x.TestType?.Category ??
-                            "Uncategorised",
+                            x.TestType?.Category ?? "Uncategorised",
 
                         urgency =
-                            x.TestRequest?.Urgency ??
-                            "Routine",
+                            x.TestRequest?.Urgency ?? "Routine",
 
                         status = x.Status,
 
                         statusDisplay = statusDisplay,
 
                         assigned =
-                            x.AssignedTechnicianId ==
-                            technician.Id,
+                            x.AssignedTechnicianId == techId,
 
-                        startTime =
-                            x.StartDateTime,
+                        startTime = x.StartDateTime,
 
-                        dueTime =
-                            dueDateTime,
+                        dueTime = dueDateTime,
 
                         dueDisplay =
                             dueDateTime.HasValue
@@ -1537,67 +1377,38 @@ namespace LabDash.Controllers
                                 ? x.TestType.TurnaroundTimeMinutes
                                 : 0,
 
-                        actionId =
-                            x.TestRequestItemId
+                        actionId = x.TestRequestItemId
                     };
                 })
                 .ToList();
-
-
-            // =========================================================
-            // DUE-TIME FILTER
-            // =========================================================
 
             if (!string.IsNullOrWhiteSpace(due))
             {
                 switch (due.ToLower())
                 {
                     case "overdue":
-
-                        result = result
-                            .Where(x => x.overdue)
-                            .ToList();
-
+                        result = result.Where(x => x.overdue).ToList();
                         break;
-
 
                     case "near":
-
-                        result = result
-                            .Where(x => x.nearDeadline)
-                            .ToList();
-
+                        result = result.Where(x => x.nearDeadline).ToList();
                         break;
-
 
                     case "ontime":
-
                         result = result
-                            .Where(x =>
-                                !x.overdue &&
-                                !x.nearDeadline)
+                            .Where(x => !x.overdue && !x.nearDeadline)
                             .ToList();
-
                         break;
 
-
                     case "today":
-
                         result = result
                             .Where(x =>
                                 x.dueTime.HasValue &&
-                                x.dueTime.Value.Date ==
-                                now.Date)
+                                x.dueTime.Value.Date == now.Date)
                             .ToList();
-
                         break;
                 }
             }
-
-
-            // =========================================================
-            // RETURN QUEUE
-            // =========================================================
 
             return Json(result);
         }
