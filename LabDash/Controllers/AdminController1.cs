@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LabDash.Helpers;
+using LabDash.Services;
+using QuestPDF.Fluent;
 using System.Security.Claims;
 
 namespace LabDash.Controllers
@@ -14,15 +16,18 @@ namespace LabDash.Controllers
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
         private readonly SignInManager<LabUser> _signInManager;
+        private readonly IWebHostEnvironment _env;
 
         public AdminController(
             LabDbContext context,
             UserManager<LabUser> userManager,
-            SignInManager<LabUser> signInManager)
+            SignInManager<LabUser> signInManager,
+            IWebHostEnvironment env)
         {
             _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
+            _env = env;
         }
 
         private void SetSidebarData(string activePage)
@@ -290,7 +295,25 @@ namespace LabDash.Controllers
 
             return RedirectToAction(nameof(Conditions));
         }
+        [HttpPost]
+        public IActionResult ReactivateCondition(int id)
+        {
+            var condition = _context.MedicalConditions.Find(id);
 
+            if (condition != null)
+            {
+                condition.IsActive = true;
+
+                AddAuditLog("Reactivated", "Medical Conditions",
+                    $"Reactivated condition '{condition.ConditionName}'.");
+
+                _context.SaveChanges();
+
+                TempData["Success"] = "Condition reactivated.";
+            }
+
+            return RedirectToAction(nameof(Conditions));
+        }
         // ==========================================================
         // CATEGORIES
         // ==========================================================
@@ -693,7 +716,119 @@ namespace LabDash.Controllers
 
             return RedirectToAction(nameof(Medications));
         }
+        // ==========================================================
+        // PDF REPORTS (Allergies, Conditions, Medications)
+        // ==========================================================
 
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> DownloadAllergiesPdf(
+            string status = "active", string category = "", string q = "", bool noDesc = false)
+        {
+            var data = await _context.Allergies.Include(x => x.Category).ToListAsync();
+
+            var rows = data.Select(x => new RegisterReportRow
+            {
+                Name = x.AllergyName,
+                Category = x.Category?.Name ?? "",
+                Description = x.Description ?? "",
+                Status = x.IsActive ? "Active" : "Archived"
+            });
+
+            return await BuildRegisterPdf(
+                rows, status, category, q, noDesc,
+                "Allergy Register Report",
+                "All allergies maintained in the system, grouped by category.",
+                "allergies",
+                "allergy-register-report");
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> DownloadConditionsPdf(
+            string status = "active", string category = "", string q = "", bool noDesc = false)
+        {
+            var data = await _context.MedicalConditions.Include(x => x.Category).ToListAsync();
+
+            var rows = data.Select(x => new RegisterReportRow
+            {
+                Name = x.ConditionName,
+                Category = x.Category?.Name ?? "",
+                Description = x.Description ?? "",
+                Status = x.IsActive ? "Active" : "Archived"
+            });
+
+            return await BuildRegisterPdf(
+                rows, status, category, q, noDesc,
+                "Medical Condition Register Report",
+                "All medical conditions maintained in the system, grouped by category.",
+                "medical conditions",
+                "condition-register-report");
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> DownloadMedicationsPdf(
+            string status = "active", string category = "", string q = "", bool noDesc = false)
+        {
+            var data = await _context.Medications.Include(x => x.Category).ToListAsync();
+
+            var rows = data.Select(x => new RegisterReportRow
+            {
+                Name = x.MedicationName,
+                Category = x.Category?.Name ?? "",
+                Description = x.Description ?? "",
+                Status = x.IsActive ? "Active" : "Archived"
+            });
+
+            return await BuildRegisterPdf(
+                rows, status, category, q, noDesc,
+                "Medication Register Report",
+                "All medications maintained in the system, grouped by category.",
+                "medications",
+                "medication-register-report");
+        }
+
+        private async Task<IActionResult> BuildRegisterPdf(
+            IEnumerable<RegisterReportRow> allRows,
+            string status, string category, string q, bool noDesc,
+            string title, string subtitle, string noun, string fileStem)
+        {
+            status = (status ?? "active").ToLowerInvariant();
+            if (status != "archived" && status != "all") status = "active";
+
+            var query = (q ?? "").Trim();
+
+            // same filters the admin had on screen
+            var rows = allRows.Where(r =>
+                (status == "all" || (status == "active" ? r.Status == "Active" : r.Status == "Archived")) &&
+                (query == "" || r.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrEmpty(category) ||
+                    (category == "__none__" ? r.Category == "" : r.Category == category)) &&
+                (!noDesc || string.IsNullOrWhiteSpace(r.Description))
+            ).ToList();
+
+            // filters are printed on the report so the reader knows what it represents
+            var filters = new List<string>
+    {
+        "Status: " + (status == "archived" ? "Archived" : status == "all" ? "Active and archived" : "Active")
+    };
+            if (!string.IsNullOrEmpty(category))
+                filters.Add("Category: " + (category == "__none__" ? "Uncategorised" : category));
+            if (query != "") filters.Add($"Search: \"{query}\"");
+            if (noDesc) filters.Add("Missing description only");
+
+            // logo: load it exactly the way your patient Reports action does
+            var logoPath = Path.Combine(_env.WebRootPath, "images", "labdash-logo.png");
+            byte[]? logo = System.IO.File.Exists(logoPath)
+                ? await System.IO.File.ReadAllBytesAsync(logoPath)
+                : null;
+            var doc = new AdminRegisterReportDocument(
+                title, subtitle, noun, rows, filters, DateTime.Now, GetCurrentUserName(), logo);
+
+            return File(doc.GeneratePdf(), "application/pdf",
+                $"{fileStem}-{DateTime.Now:yyyy-MM-dd}.pdf");
+        }
         // ==========================================================
         // AUDIT LOG
         // ==========================================================
@@ -1198,6 +1333,12 @@ namespace LabDash.Controllers
             TempData["SuccessMessage"] = "Your profile has been updated successfully.";
 
             return RedirectToAction(nameof(AdminProfile));
+
+
+           
+
+
+
         }
     }
-}
+}                  

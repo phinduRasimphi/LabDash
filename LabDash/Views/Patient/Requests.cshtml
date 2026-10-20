@@ -3565,6 +3565,120 @@
             display: none !important;
         }
     }
+    /* ==========================================================
+           SMOOTH SCROLLING FIXES
+        ========================================================== */
+
+    /* 1. Urgent glow: fade a ring instead of animating a big shadow */
+    .rq-card-urgent {
+        animation: none;
+    }
+
+        .rq-card-urgent::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            box-shadow: inset 0 0 0 2px rgba(176, 70, 63, .55);
+            animation: rqUrgentPulse 2.4s ease-in-out infinite;
+        }
+
+    @@keyframes rqUrgentPulse {
+        0%, 100% {
+            opacity: .2;
+        }
+
+        50% {
+            opacity: 1;
+        }
+    }
+
+    /* 2. Active step dot: grow and fade a ring (transform + opacity only) */
+    .rq-step.rq-active .rq-step-dot {
+        position: relative;
+        animation: none;
+    }
+
+        .rq-step.rq-active .rq-step-dot::after {
+            content: "";
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            background: var(--rq-teal);
+            opacity: 0;
+            animation: rqPing 1.8s ease-out infinite;
+        }
+
+    @@keyframes rqPing {
+        0% {
+            transform: scale(.8);
+            opacity: .45;
+        }
+
+        100% {
+            transform: scale(2);
+            opacity: 0;
+        }
+    }
+
+    /* 3. Tickets no longer lift on hover (it forced a repaint of the big shadow) */
+    .rq-card {
+        transition: box-shadow .2s ease;
+    }
+
+        .rq-card:hover {
+            transform: none;
+        }
+
+    /* 4. Ignore the mouse while scrolling so tickets under the pointer stop redrawing */
+    .rq-wrap.rq-scrolling .rq-list {
+        pointer-events: none;
+    }
+    /* 1. Stop the infinite animations (static versions look nearly the same) */
+    .rq-card-urgent::after {
+        animation: none;
+        opacity: .7;
+    }
+
+    .rq-step.rq-active .rq-step-dot::after {
+        animation: none;
+        display: none;
+    }
+
+    .rq-step.rq-active .rq-step-dot {
+        box-shadow: 0 0 0 4px var(--rq-teal-dim);
+    }
+
+    /* 2. Skip rendering cards that are off-screen */
+    .rq-card {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 260px;
+    }
+
+        .rq-card.rq-kfocus {
+            outline-offset: -2px;
+        }
+    /* paint containment would clip an outer outline */
+
+    /* 3. No hover shadow transition, so the pointer-events hack isn't needed */
+    .rq-card {
+        transition: none;
+    }
+
+        .rq-card:hover {
+            box-shadow: var(--rq-shadow-sm);
+        }
+
+    /* Never change the toolbar's height while scrolling */
+    .rq-sticky.rq-stuck:not(.rq-chips-open) .rq-chips-row {
+        display: block !important;
+    }
+
+    .rq-chips-toggle {
+        display: none !important;
+    }
+
 </style>
 
 <script>
@@ -4039,12 +4153,13 @@
             if (progressBar) { progressBar.style.transform = 'scaleX(' + p + ')'; }
             if (dock) { dock.classList.toggle('rq-show', r.top < -260); }
         }
-        var ticking = false;
-        document.addEventListener('scroll', function() {
-            if (ticking) { return; }
-            ticking = true;
-            requestAnimationFrame(function() { onScroll(); ticking = false; });
-        }, true);
+           var ticking = false;
+document.addEventListener('scroll', function(e) {
+    if (e.target && e.target.tagName === 'TEXTAREA') { return; }
+    if (ticking) { return; }
+    ticking = true;
+    requestAnimationFrame(function() { onScroll(); ticking = false; });
+}, { capture: true, passive: true });
         window.addEventListener('resize', onScroll);
         onScroll();
 

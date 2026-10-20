@@ -1,37 +1,52 @@
 ﻿@model LabDash.Models.ReportViewModel
+@using LabDash.Models
+@using LabDash.Helpers
 
 @{
     Layout = "~/Views/Shared/_SystemLayout.cshtml";
     ViewData["Title"] = "Reports";
     ViewData["ActivePage"] = "Reports";
 
-    var totalResults = Model.FilteredResults?.Count ?? 0;
+    var results = Model.FilteredResults ?? new List<TestResultViewModel>();
+    var reportType = ReportTypes.Normalize(Model.ReportType);
+    var isAttention = reportType == ReportTypes.AbnormalResults;
+    var isTrend = reportType == ReportTypes.HealthTrend;
 
-    var abnormalResults = Model.FilteredResults?.Count(r => r.IsAbnormal) ?? 0;
-
+    var totalResults = results.Count;
+    var abnormalResults = results.Count(r => r.IsAbnormal);
     var normalResults = totalResults - abnormalResults;
-
-    var categories = Model.FilteredResults?
-        .Select(r => r.Category)
-        .Where(c => !string.IsNullOrWhiteSpace(c))
-        .Distinct()
-        .Count() ?? 0;
-
-    var requests = Model.FilteredResults?
-        .Select(r => r.RequestID)
-        .Distinct()
-        .Count() ?? 0;
+    var categories = results.Select(r => ReportHelper.CategoryName(r)).Distinct().Count();
+    var requests = results.Select(r => r.RequestID).Distinct().Count();
 
     var abnormalPercentage = totalResults > 0
         ? (double)abnormalResults / totalResults * 100
         : 0;
+
+    // Same ordering and filtering the PDF uses: category, test name, date
+    var previewRows = ReportHelper
+        .OrderForReport(isAttention ? results.Where(r => r.IsAbnormal) : results)
+        .ToList();
+
+    var trends = isTrend ? ReportHelper.BuildTrends(results) : new List<TestTrend>();
+
+    var periodText = Model.FromDate.ToString("dd MMM yyyy") + " - " + Model.ToDate.ToString("dd MMM yyyy");
+    var inputValid = ViewData.ModelState.IsValid;
+
+    var previewTitle = isTrend
+        ? "Trend Summary for Selected Period"
+        : isAttention
+            ? "Abnormal Results for Selected Period"
+            : "Results for Selected Period";
 }
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 
 <div class="rp-wrap">
 
     <!-- =========================================================
      HERO
-========================================================== -->
+    ========================================================== -->
 
     <section class="rp-hero">
 
@@ -61,128 +76,77 @@
 
         </div>
 
-
         <div class="rp-hero-side">
 
             <div class="rp-hero-stat">
-
                 <strong>@totalResults</strong>
-
                 <span>Results Available</span>
-
             </div>
 
             <div class="rp-hero-divider"></div>
 
             <div class="rp-hero-stat">
-
                 <strong>@requests</strong>
-
                 <span>Test Requests</span>
-
             </div>
 
         </div>
 
     </section>
 
-
-
     <!-- =========================================================
      SUMMARY
-========================================================== -->
+    ========================================================== -->
 
     <section class="rp-stats">
 
         <div class="rp-stat">
-
-            <div class="rp-stat-icon rp-teal">
-                <i class="fas fa-vials"></i>
-            </div>
-
+            <div class="rp-stat-icon rp-teal"><i class="fas fa-vials"></i></div>
             <div>
-
                 <span>Total Results</span>
-
                 <strong>@totalResults</strong>
-
                 <small>Selected period</small>
-
             </div>
-
         </div>
 
-
         <div class="rp-stat">
-
-            <div class="rp-stat-icon rp-green">
-                <i class="fas fa-circle-check"></i>
-            </div>
-
+            <div class="rp-stat-icon rp-green"><i class="fas fa-circle-check"></i></div>
             <div>
-
                 <span>Normal</span>
-
                 <strong>@normalResults</strong>
-
                 <small>Within reference range</small>
-
             </div>
-
         </div>
 
-
         <div class="rp-stat">
-
-            <div class="rp-stat-icon rp-red">
-                <i class="fas fa-triangle-exclamation"></i>
-            </div>
-
+            <div class="rp-stat-icon rp-red"><i class="fas fa-triangle-exclamation"></i></div>
             <div>
-
                 <span>Needs Attention</span>
-
                 <strong>@abnormalResults</strong>
-
                 <small>@abnormalPercentage.ToString("0")% of results</small>
-
             </div>
-
         </div>
 
-
         <div class="rp-stat">
-
-            <div class="rp-stat-icon rp-purple">
-                <i class="fas fa-layer-group"></i>
-            </div>
-
+            <div class="rp-stat-icon rp-purple"><i class="fas fa-layer-group"></i></div>
             <div>
-
                 <span>Categories</span>
-
                 <strong>@categories</strong>
-
                 <small>Test categories</small>
-
             </div>
-
         </div>
 
     </section>
 
-
-
     <!-- =========================================================
      GENERATE REPORT
-========================================================== -->
+    ========================================================== -->
 
     <section class="rp-builder">
 
         <div class="rp-builder-head">
 
             <div>
-
                 <span class="rp-section-label">
                     <i class="fas fa-wand-magic-sparkles"></i>
                     Report Builder
@@ -191,251 +155,137 @@
                 <h2>Generate a New Report</h2>
 
                 <p>
-                    Select the period and information you want included
-                    in your medical report.
+                    Select the period and the type of report. Use Update preview to
+                    check what will be included before you generate the PDF.
                 </p>
-
             </div>
 
             <div class="rp-builder-badge">
-
                 <i class="fas fa-file-pdf"></i>
-
                 PDF
-
             </div>
 
         </div>
 
+        <form asp-action="Reports" asp-fragment="rpPreview" method="post" class="rp-form">
 
-        <form asp-action="Reports"
-              method="post"
-              class="rp-form">
-
-            @Html.AntiForgeryToken()
-
+            <div asp-validation-summary="All" class="rp-alert"></div>
 
             <!-- DATE RANGE -->
 
             <div class="rp-form-section">
 
                 <div class="rp-form-title">
-
                     <span>1</span>
-
                     <div>
-
                         <strong>Select Date Range</strong>
-
-                        <small>
-                            Define which laboratory results should be included.
-                        </small>
-
+                        <small>Define which laboratory results should be included.</small>
                     </div>
-
                 </div>
-
 
                 <div class="rp-date-grid">
 
                     <div class="rp-field">
-
-                        <label asp-for="FromDate">
-                            From Date
-                        </label>
-
+                        <label asp-for="FromDate">From Date</label>
                         <div class="rp-input-wrap">
-
                             <i class="fas fa-calendar-days"></i>
-
-                            <input asp-for="FromDate"
-                                   type="date"
-                                   class="rp-input" />
-
+                            <input asp-for="FromDate" type="date" class="rp-input" />
                         </div>
-
                     </div>
-
 
                     <div class="rp-date-arrow">
-
                         <i class="fas fa-arrow-right"></i>
-
                     </div>
 
-
                     <div class="rp-field">
-
-                        <label asp-for="ToDate">
-                            To Date
-                        </label>
-
+                        <label asp-for="ToDate">To Date</label>
                         <div class="rp-input-wrap">
-
                             <i class="fas fa-calendar-days"></i>
-
-                            <input asp-for="ToDate"
-                                   type="date"
-                                   class="rp-input" />
-
+                            <input asp-for="ToDate" type="date" class="rp-input" />
                         </div>
-
                     </div>
 
                 </div>
 
             </div>
-
-
 
             <!-- REPORT TYPE -->
 
             <div class="rp-form-section">
 
                 <div class="rp-form-title">
-
                     <span>2</span>
-
                     <div>
-
                         <strong>Choose Report Type</strong>
-
-                        <small>
-                            Select the format of information you want to review.
-                        </small>
-
+                        <small>Select the format of information you want to review.</small>
                     </div>
-
                 </div>
-
 
                 <div class="rp-type-grid">
 
-
                     <label class="rp-type-card">
-
-                        <input type="radio"
-                               name="ReportType"
-                               value="AllResults"
-                               checked />
-
-                        <div class="rp-type-check">
-                            <i class="fas fa-check"></i>
-                        </div>
-
-                        <div class="rp-type-icon">
-                            <i class="fas fa-list-check"></i>
-                        </div>
-
+                        <input type="radio" name="ReportType" value="@ReportTypes.AllResults" checked="@(reportType == ReportTypes.AllResults)" />
+                        <div class="rp-type-check"><i class="fas fa-check"></i></div>
+                        <div class="rp-type-icon"><i class="fas fa-list-check"></i></div>
                         <div>
-
                             <strong>Complete Results</strong>
-
-                            <p>
-                                All laboratory results grouped by
-                                their test category.
-                            </p>
-
+                            <p>Every result grouped by test category, with totals for each category.</p>
                         </div>
-
                     </label>
 
-
                     <label class="rp-type-card">
-
-                        <input type="radio"
-                               name="ReportType"
-                               value="HealthTrend" />
-
-                        <div class="rp-type-check">
-                            <i class="fas fa-check"></i>
-                        </div>
-
-                        <div class="rp-type-icon rp-purple-bg">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-
+                        <input type="radio" name="ReportType" value="@ReportTypes.HealthTrend" checked="@(reportType == ReportTypes.HealthTrend)" />
+                        <div class="rp-type-check"><i class="fas fa-check"></i></div>
+                        <div class="rp-type-icon rp-purple-bg"><i class="fas fa-chart-line"></i></div>
                         <div>
-
                             <strong>Health Trend</strong>
-
-                            <p>
-                                Review available results across the
-                                selected period.
-                            </p>
-
+                            <p>A chart and reading history for each test, showing how your results changed.</p>
                         </div>
-
                     </label>
 
-
                     <label class="rp-type-card">
-
-                        <input type="radio"
-                               name="ReportType"
-                               value="AbnormalResults" />
-
-                        <div class="rp-type-check">
-                            <i class="fas fa-check"></i>
-                        </div>
-
-                        <div class="rp-type-icon rp-red-bg">
-                            <i class="fas fa-triangle-exclamation"></i>
-                        </div>
-
+                        <input type="radio" name="ReportType" value="@ReportTypes.AbnormalResults" checked="@(reportType == ReportTypes.AbnormalResults)" />
+                        <div class="rp-type-check"><i class="fas fa-check"></i></div>
+                        <div class="rp-type-icon rp-red-bg"><i class="fas fa-triangle-exclamation"></i></div>
                         <div>
-
                             <strong>Attention Report</strong>
-
-                            <p>
-                                Focus on laboratory values marked
-                                as abnormal.
-                            </p>
-
+                            <p>Only results outside their reference range, flagged High or Low.</p>
                         </div>
-
                     </label>
 
                 </div>
 
             </div>
 
-
-
             <!-- GENERATE -->
 
             <div class="rp-generate">
 
                 <div class="rp-generate-info">
-
                     <div class="rp-generate-icon">
-
                         <i class="fas fa-file-pdf"></i>
-
                     </div>
-
                     <div>
-
                         <strong>Ready to generate?</strong>
-
                         <span>
-                            Your report will use the selected
-                            date range and available patient results.
+                            The PDF uses the date range and report type selected above.
                         </span>
-
                     </div>
-
                 </div>
 
+                <div class="rp-generate-actions">
 
-                <button type="submit"
-                        class="rp-generate-btn">
+                    <button type="submit" class="rp-preview-btn">
+                        <i class="fas fa-eye"></i>
+                        Update preview
+                    </button>
 
-                    <i class="fas fa-file-arrow-down"></i>
+                    <button type="submit" asp-action="DownloadReportPdf" class="rp-generate-btn">
+                        <i class="fas fa-file-arrow-down"></i>
+                        Generate PDF Report
+                    </button>
 
-                    Generate PDF Report
-
-                </button>
+                </div>
 
             </div>
 
@@ -443,238 +293,217 @@
 
     </section>
 
-
-
     <!-- =========================================================
      RESULTS PREVIEW
-========================================================== -->
-    @if (Model.FilteredResults != null &&
-         Model.FilteredResults.Any())
+    ========================================================== -->
+    @if (totalResults > 0)
     {
-
-        <section class="rp-results">
+        <section class="rp-results" id="rpPreview">
 
             <div class="rp-results-head">
 
                 <div>
-
                     <span class="rp-section-label">
                         <i class="fas fa-table-list"></i>
                         Report Preview
                     </span>
 
-                    <h2>Results for Selected Period</h2>
-
+                    <h2>@previewTitle</h2>
+                    <p class="rp-results-period">@periodText</p>
                 </div>
 
-
                 <div class="rp-result-count">
-
-                    <strong>@totalResults</strong>
-
-                    <span>Entries</span>
-
+                    <strong>@(isAttention ? abnormalResults : totalResults)</strong>
+                    <span>@(isAttention ? "Abnormal" : "Entries")</span>
                 </div>
 
             </div>
-
-
-
-            <!-- RESULT SUMMARY BAR -->
 
             <div class="rp-result-summary">
 
                 <div>
-
                     <span class="rp-summary-dot rp-green-dot"></span>
-
                     <span>Normal</span>
-
                     <strong>@normalResults</strong>
-
                 </div>
 
                 <div>
-
                     <span class="rp-summary-dot rp-red-dot"></span>
-
                     <span>Abnormal</span>
-
                     <strong>@abnormalResults</strong>
-
                 </div>
 
                 <div>
-
                     <span class="rp-summary-dot rp-teal-dot"></span>
-
                     <span>Requests</span>
-
                     <strong>@requests</strong>
-
                 </div>
 
             </div>
 
+            @if (isTrend)
+            {
+                <div class="rp-table-wrap">
 
+                    <table class="rp-table">
 
-            <div class="rp-table-wrap">
-
-                <table class="rp-table">
-
-                    <thead>
-
-                        <tr>
-
-                            <th>Request</th>
-
-                            <th>Test</th>
-
-                            <th>Category</th>
-
-                            <th>Result</th>
-
-                            <th>Date</th>
-
-                            <th>Status</th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                        @foreach (var r in Model.FilteredResults)
-                        {
-
+                        <thead>
                             <tr>
-
-                                <td>
-
-                                    <span class="rp-request">
-                                        #@r.RequestID
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <div class="rp-test">
-
-                                        <div class="rp-test-icon">
-                                            <i class="fas fa-vial"></i>
-                                        </div>
-
-                                        <div>
-
-                                            <strong>
-                                                @r.TestName
-                                            </strong>
-
-                                            <small>
-                                                Laboratory test
-                                            </small>
-
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-
-                                <td>
-
-                                    <span class="rp-category">
-                                        @r.Category
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <strong class="rp-result-value @(r.IsAbnormal ? "rp-abnormal" : "")">
-
-                                        @r.ResultValue
-
-                                    </strong>
-
-                                    <span class="rp-unit">
-                                        @r.Unit
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    <span class="rp-date">
-
-                                        <i class="far fa-calendar"></i>
-
-                                        @r.ResultDate.ToString("dd MMM yyyy")
-
-                                    </span>
-
-                                </td>
-
-
-                                <td>
-
-                                    @if (r.IsAbnormal)
-                                    {
-
-                                        <span class="rp-status rp-status-abnormal">
-
-                                            <i class="fas fa-triangle-exclamation"></i>
-
-                                            Abnormal
-
-                                        </span>
-
-                                    }
-                                    else
-                                    {
-
-                                        <span class="rp-status rp-status-normal">
-
-                                            <i class="fas fa-check"></i>
-
-                                            Normal
-
-                                        </span>
-
-                                    }
-
-                                </td>
-
+                                <th>Test</th>
+                                <th>Category</th>
+                                <th>Readings</th>
+                                <th>First</th>
+                                <th>Latest</th>
+                                <th>Change</th>
+                                <th>Trend</th>
                             </tr>
+                        </thead>
 
-                        }
+                        <tbody>
+                            @foreach (var t in trends)
+                            {
+                                var dirIcon = t.DirectionKey == "up" ? "fa-arrow-trend-up"
+                                    : t.DirectionKey == "down" ? "fa-arrow-trend-down"
+                                    : t.DirectionKey == "flat" ? "fa-minus"
+                                    : "fa-ellipsis";
 
-                    </tbody>
+                                <tr>
+                                    <td>
+                                        <div class="rp-test">
+                                            <div class="rp-test-icon"><i class="fas fa-vial"></i></div>
+                                            <div><strong>@t.TestName</strong></div>
+                                        </div>
+                                    </td>
+                                    <td><span class="rp-category">@t.Category</span></td>
+                                    <td>@t.Readings.Count</td>
+                                    <td>@t.FirstText</td>
+                                    <td><strong class="rp-result-value @(t.AbnormalCount > 0 ? "rp-abnormal" : "")">@t.LatestText</strong></td>
+                                    <td>@t.ChangeText</td>
+                                    <td><span class="rp-trend rp-trend-@t.DirectionKey"><i class="fas @dirIcon"></i> @t.Direction</span></td>
+                                </tr>
+                            }
+                        </tbody>
 
-                </table>
+                    </table>
 
-            </div>
+                </div>
+
+                <p class="rp-preview-note">
+                    The PDF also includes a chart and the full reading history for every test.
+                </p>
+            }
+            else if (previewRows.Count == 0)
+            {
+                <div class="rp-allclear">
+                    <i class="fas fa-circle-check"></i>
+                    <div>
+                        <strong>No abnormal results found</strong>
+                        <p>All @totalResults results in this period were within their reference ranges.</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                foreach (var grp in previewRows.GroupBy(r => ReportHelper.CategoryName(r)))
+                {
+                    var grpAbnormal = grp.Count(r => r.IsAbnormal);
+
+                    <div class="rp-cat">
+
+                        <div class="rp-cat-head">
+                            <h3>@grp.Key</h3>
+                            <span>@grp.Count() result@(grp.Count() == 1 ? "" : "s")@(isAttention ? "" : ", " + grpAbnormal + " abnormal")</span>
+                        </div>
+
+                        <div class="rp-table-wrap">
+
+                            <table class="rp-table">
+
+                                <thead>
+                                    <tr>
+                                        <th>Test</th>
+                                        <th>Request</th>
+                                        <th>Result</th>
+                                        <th>Reference range</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    @foreach (var r in grp)
+                                    {
+                                        var flag = ReportHelper.Flag(r);
+                                        var range = ReportHelper.RangeText(r);
+
+                                        <tr>
+
+                                            <td>
+                                                <div class="rp-test">
+                                                    <div class="rp-test-icon"><i class="fas fa-vial"></i></div>
+                                                    <div><strong>@r.TestName</strong></div>
+                                                </div>
+                                            </td>
+
+                                            <td><span class="rp-request">#@r.RequestID</span></td>
+
+                                            <td>
+                                                <strong class="rp-result-value @(r.IsAbnormal ? "rp-abnormal" : "")">@r.ResultValue</strong>
+                                                <span class="rp-unit">@r.Unit</span>
+                                            </td>
+
+                                            <td>
+                                                <span class="rp-range">@(range == "-" ? "-" : range + " " + r.Unit)</span>
+                                            </td>
+
+                                            <td>
+                                                <span class="rp-date">
+                                                    <i class="far fa-calendar"></i>
+                                                    @r.ResultDate.ToString("dd MMM yyyy")
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                @if (r.IsAbnormal)
+                                                {
+                                                    <span class="rp-status rp-status-abnormal">
+                                                        <i class="fas fa-triangle-exclamation"></i>
+                                                        @flag
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="rp-status rp-status-normal">
+                                                        <i class="fas fa-check"></i>
+                                                        Normal
+                                                    </span>
+                                                }
+                                            </td>
+
+                                        </tr>
+                                    }
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+                }
+            }
 
         </section>
-
     }
-    else
+    else if (inputValid)
     {
-
         <!-- =====================================================
          EMPTY STATE
-    ====================================================== -->
+        ====================================================== -->
 
-        <section class="rp-empty">
+        <section class="rp-empty" id="rpPreview">
 
             <div class="rp-empty-icon">
-
                 <i class="fas fa-file-circle-xmark"></i>
-
             </div>
 
             <div>
@@ -684,104 +513,60 @@
                     Nothing to Preview
                 </span>
 
-                <h2>No results found for this period</h2>
+                <h2>No records found for the selected date range</h2>
 
                 <p>
-                    Select a date range containing laboratory results
-                    and generate the report again. Once results are
-                    available, they will appear here before you
-                    generate the PDF.
+                    There are no released laboratory results between @periodText.
+                    Choose a wider date range and update the preview. If you generate the PDF
+                    anyway, it will state that no records were found.
                 </p>
 
             </div>
 
         </section>
-
     }
-
-
 
     <!-- =========================================================
      REPORT INFORMATION
-========================================================== -->
+    ========================================================== -->
 
     <section class="rp-info-grid">
 
         <div class="rp-info-card">
-
-            <div class="rp-info-icon">
-                <i class="fas fa-lock"></i>
-            </div>
-
+            <div class="rp-info-icon"><i class="fas fa-lock"></i></div>
             <div>
-
                 <strong>Secure Reports</strong>
-
-                <p>
-                    Reports contain patient medical information and
-                    should be handled securely.
-                </p>
-
+                <p>Reports contain patient medical information and should be handled securely.</p>
             </div>
-
         </div>
 
-
         <div class="rp-info-card">
-
-            <div class="rp-info-icon">
-                <i class="fas fa-filter-circle-dollar"></i>
-            </div>
-
+            <div class="rp-info-icon"><i class="fas fa-filter"></i></div>
             <div>
-
-                <strong>Filtered Results</strong>
-
-                <p>
-                    Only laboratory results matching your selected
-                    reporting period are included.
-                </p>
-
+                <strong>Released Results Only</strong>
+                <p>Only results your doctor has released, within your selected period, are included.</p>
             </div>
-
         </div>
 
-
         <div class="rp-info-card">
-
-            <div class="rp-info-icon">
-                <i class="fas fa-file-pdf"></i>
-            </div>
-
+            <div class="rp-info-icon"><i class="fas fa-file-pdf"></i></div>
             <div>
-
                 <strong>PDF Format</strong>
-
-                <p>
-                    Generated reports are designed for easy
-                    viewing, printing and sharing.
-                </p>
-
+                <p>Reports are formatted for printing and sharing, with page numbers on every page.</p>
             </div>
-
         </div>
 
     </section>
 
-
-
     <!-- =========================================================
      FOOTER
-========================================================== -->
+    ========================================================== -->
 
     <footer class="rp-footer">
 
         <span>
-
             <i class="fas fa-shield-halved"></i>
-
             Laboratory Information Management System
-
         </span>
 
         <span>Patient Reports</span>
@@ -793,6 +578,7 @@
     </footer>
 
 </div>
+
 
 <style>
 
@@ -2016,4 +1802,198 @@
                                              html.rq-dark .rp-request {
                                              background: var(--rp-teal-light);
                                              }
+
+    /* =========================================================
+    REPORTS: ADDITIONS
+    Paste at the END of the existing <style> block in Reports.cshtml
+    (the @@media escapes are for Razor; keep them as written)
+    ========================================================= */
+
+    /* Validation summary: hidden when there is nothing to show */
+    .rp-alert {
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    border-radius: 11px;
+    color: var(--rp-red);
+    background: var(--rp-red-light);
+    font-size: 14px;
+    font-weight: 600;
+    }
+
+    .rp-alert.validation-summary-valid {
+    display: none;
+    }
+
+    .rp-alert ul {
+    margin: 0;
+    padding-left: 18px;
+    }
+
+    /* Two buttons next to each other: preview + generate */
+    .rp-generate-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    }
+
+    .rp-preview-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 20px;
+    border: 1px solid var(--rp-line-strong);
+    border-radius: 10px;
+    color: var(--rp-soft);
+    background: var(--rp-white);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color .2s ease, color .2s ease;
+    }
+
+    .rp-preview-btn:hover {
+    border-color: var(--rp-teal);
+    color: var(--rp-teal-deep);
+    }
+
+    .rp-preview-btn:focus-visible,
+    .rp-generate-btn:focus-visible,
+    .rp-type-card:has(input:focus-visible) {
+    outline: 2px solid var(--rp-teal);
+    outline-offset: 2px;
+    }
+
+    /* Preview header period line */
+    .rp-results-period {
+    margin: 0;
+    color: var(--rp-faint);
+    font-size: 13px;
+    }
+
+    /* One block per test category in the preview */
+    .rp-cat + .rp-cat {
+    border-top: 1px solid var(--rp-line);
+    }
+
+    .rp-cat-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 16px 26px 12px;
+    border-left: 4px solid var(--rp-teal);
+    background: var(--rp-paper);
+    }
+
+    .rp-cat-head h3 {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    font-size: 16px;
+    }
+
+    .rp-cat-head span {
+    color: var(--rp-faint);
+    font-size: 13px;
+    font-weight: 600;
+    }
+
+    .rp-range {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--rp-faint);
+    }
+
+    /* Trend column in the trend preview */
+    .rp-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    color: var(--rp-soft);
+    background: var(--rp-paper);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    }
+
+    .rp-trend-up,
+    .rp-trend-down {
+    color: var(--rp-purple);
+    background: var(--rp-purple-light);
+    }
+
+    .rp-preview-note {
+    margin: 0;
+    padding: 14px 26px;
+    color: var(--rp-faint);
+    font-size: 13px;
+    }
+
+    /* Attention report with nothing abnormal */
+    .rp-allclear {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 26px;
+    }
+
+    .rp-allclear > i {
+    margin-top: 3px;
+    color: var(--rp-green);
+    font-size: 22px;
+    }
+
+    .rp-allclear strong {
+    display: block;
+    font-size: 16px;
+    }
+
+    .rp-allclear p {
+    margin: 4px 0 0;
+    color: var(--rp-soft);
+    font-size: 14px;
+    }
+
+    /* Dark mode for the new pieces (variables already switch with html.rq-dark) */
+    html.rq-dark .rp-preview-btn {
+    background: #2A3A32;
+    }
+
+    html.rq-dark .rp-preview-btn:hover {
+    background: #2F4138;
+    }
+
+    html.rq-dark .rp-cat-head {
+    background: #141C18;
+    }
+
+    html.rq-dark .rp-trend {
+    background: #2A3A32;
+    }
+
+    html.rq-dark .rp-trend-up,
+    html.rq-dark .rp-trend-down {
+    background: var(--rp-purple-light);
+    }
+
+    @@media (max-width: 750px) {
+
+    .rp-generate-actions {
+    width: 100%;
+    }
+
+    .rp-generate-actions button {
+    flex: 1 1 100%;
+    justify-content: center;
+    }
+
+    .rp-cat-head {
+    padding: 14px 18px 10px;
+    }
+
+    }
 </style>
