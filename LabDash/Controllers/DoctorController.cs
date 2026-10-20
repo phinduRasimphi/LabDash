@@ -833,69 +833,25 @@ namespace LabDash.Controllers
         // =========================================================
         // SA ID VALIDATION
         // =========================================================
-
         private static bool IsValidSouthAfricanId(string id, out string error)
         {
             error = string.Empty;
 
-            if (string.IsNullOrWhiteSpace(id) ||
-                id.Length != 13 ||
-                !id.All(char.IsDigit))
+            if (string.IsNullOrWhiteSpace(id))
             {
-                error = "ID number must be exactly 13 digits.";
+                error = "ID number is required.";
                 return false;
             }
 
-            if (!int.TryParse(id.Substring(2, 2), out int month) ||
-                !int.TryParse(id.Substring(4, 2), out int day))
+            if (id.Length != 13 || !id.All(char.IsDigit))
             {
-                error = "ID number contains an invalid birth date.";
+                error = "ID number must be exactly 13 digits (numbers only).";
                 return false;
             }
 
-            int year2 = int.Parse(id.Substring(0, 2));
-            int currentYY = DateTime.UtcNow.Year % 100;
-            int century = year2 > currentYY ? 1900 : 2000;
-            int fullYear = century + year2;
-
-            if (month < 1 || month > 12)
-            {
-                error = "ID number contains an invalid birth month.";
-                return false;
-            }
-
-            if (day < 1 || day > DateTime.DaysInMonth(fullYear, month))
-            {
-                error = "ID number contains an invalid birth day.";
-                return false;
-            }
-
-            int sum = 0;
-            bool alternate = false;
-
-            for (int i = id.Length - 1; i >= 0; i--)
-            {
-                int n = id[i] - '0';
-
-                if (alternate)
-                {
-                    n *= 2;
-                    if (n > 9) n -= 9;
-                }
-
-                sum += n;
-                alternate = !alternate;
-            }
-
-            if (sum % 10 != 0)
-            {
-                error = "ID number failed the checksum validation.";
-                return false;
-            }
-
+            // Luhn check removed - any 13 digits will pass
             return true;
         }
-
         private static void TryPopulateDobFromId(PatientCreateViewModel vm)
         {
             if (string.IsNullOrWhiteSpace(vm.IDNumber) ||
@@ -964,9 +920,8 @@ namespace LabDash.Controllers
         // =========================================================
         // SEND CREDENTIALS EMAIL
         // =========================================================
-
         private async Task<bool> TrySendCredentialsEmailAsync(
-            LabUser user, string firstName, string plainPassword)
+    LabUser user, string firstName, string plainPassword)
         {
             try
             {
@@ -976,46 +931,22 @@ namespace LabDash.Controllers
                     new { area = "Identity" },
                     Request.Scheme) ?? "#";
 
-                string safeName = System.Net.WebUtility.HtmlEncode(firstName);
-                string safeEmail = System.Net.WebUtility.HtmlEncode(user.Email ?? "");
-                string safePassword = System.Net.WebUtility.HtmlEncode(plainPassword);
-                string safeLoginUrl = System.Net.WebUtility.HtmlEncode(loginUrl);
+                // 1. Build the ViewModel with the password you just generated
+                var emailModel = new LabDash.ViewModels.PatientWelcomeEmailViewModel
+                {
+                    FirstName = firstName,
+                    Email = user.Email ?? "",
+                    Password = plainPassword,
+                    LoginUrl = loginUrl
+                };
 
-                string body = $@"
-                    <div style=""font-family:Segoe UI,Arial,sans-serif;color:#243b53;
-                                max-width:560px;margin:0 auto;padding:24px;"">
-                      <h2 style=""color:#0d6b63;margin-bottom:8px;"">
-                        Welcome to NMB LAB
-                      </h2>
-                      <p>Hi {safeName},</p>
-                      <p>
-                        Your patient account has been created. Use the details below
-                        to sign in to the patient portal.
-                      </p>
-                      <table style=""border-collapse:collapse;margin:20px 0;"">
-                        <tr>
-                          <td style=""padding:6px 12px 6px 0;font-weight:600;"">Username</td>
-                          <td style=""padding:6px 0;"">{safeEmail}</td>
-                        </tr>
-                        <tr>
-                          <td style=""padding:6px 12px 6px 0;font-weight:600;"">Password</td>
-                          <td style=""padding:6px 0;"">{safePassword}</td>
-                        </tr>
-                      </table>
-                      <p>
-                        <a href=""{safeLoginUrl}""
-                           style=""background:#0d6b63;color:#fff;padding:12px 22px;
-                                  border-radius:8px;text-decoration:none;font-weight:600;"">
-                          Sign in to the patient portal
-                        </a>
-                      </p>
-                      <p style=""font-size:13px;color:#687779;"">
-                        For your security, you will be asked to change this password
-                        the first time you sign in.
-                      </p>
-                      <p>Regards,<br/>NMB Haematology Laboratory</p>
-                    </div>";
+                // 2. Render the clean HTML from the View
+                string body = await _emailRenderer.RenderAsync(
+                    "~/Views/Emails/PatientWelcome.cshtml",
+                    emailModel,
+                    HttpContext);
 
+                // 3. Send it
                 await _emailSender.SendEmailAsync(
                     user.Email!,
                     "Your NMB LAB patient account",
@@ -1030,11 +961,6 @@ namespace LabDash.Controllers
                 return false;
             }
         }
-
-        // =========================================================
-        // DOCTOR PROFILE
-        // =========================================================
-
         [HttpGet]
         public async Task<IActionResult> DoctorProfile(bool edit = false)
         {

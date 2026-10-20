@@ -5382,7 +5382,7 @@ if (User.IsInRole("Admin"))
 
 
     }
-  else if (User.IsInRole("Lab_Technician"))
+      else if (User.IsInRole("Lab_Technician"))
 {
     @* ViewData["Title"] = "Laboratory Technician Dashboard"; *@
 
@@ -5543,7 +5543,7 @@ if (User.IsInRole("Admin"))
                 <div class="db-flow-node">
                     <div class="db-flow-circle n-green"><i class="fa-solid fa-circle-check"></i></div>
                     <div class="db-flow-count" id="flowVerified">0</div>
-                    <div class="db-flow-label">Waiting Verification</div>
+                    <div class="db-flow-label">Ready to Verify</div>
                 </div>
 
                 <div class="db-flow-line"><span class="db-flow-line-fill"></span></div>
@@ -5551,7 +5551,7 @@ if (User.IsInRole("Admin"))
                 <div class="db-flow-node">
                     <div class="db-flow-circle n-purple"><i class="fa-solid fa-file-medical"></i></div>
                     <div class="db-flow-count" id="flowReview">0</div>
-                    <div class="db-flow-label">Waiting Review</div>
+                    <div class="db-flow-label">Returned to You</div>
                 </div>
 
             </div>
@@ -5590,47 +5590,47 @@ if (User.IsInRole("Admin"))
 
         <div class="db-grid db-grid-4">
 
-            <div class="db-stat">
+            <a asp-controller="AvailableTests" asp-action="InProgress" class="db-stat db-stat-link">
                 <div class="db-stat-icon c-teal"><i class="fa-solid fa-vials"></i></div>
                 <div class="db-stat-body">
                     <div class="num counter" id="inProgressCount">0</div>
                     <h5>Selected tests</h5>
                     <small>Currently assigned to you</small>
                 </div>
-            </div>
+            </a>
 
-            <div class="db-stat">
+            <a asp-controller="AvailableTests" asp-action="Index" class="db-stat db-stat-link">
                 <div class="db-stat-icon c-blue"><i class="fa-solid fa-hourglass-half"></i></div>
                 <div class="db-stat-body">
                     <div class="num counter" id="availableCount">0</div>
                     <h5>Waiting selection</h5>
                     <small>Samples received and awaiting technician</small>
                 </div>
-            </div>
+            </a>
 
-            <div class="db-stat">
+            <a asp-controller="Verification" asp-action="Index" class="db-stat db-stat-link">
                 <div class="db-stat-icon c-green"><i class="fa-solid fa-circle-check"></i></div>
                 <div class="db-stat-body">
                     <div class="num counter" id="verifiedCount">0</div>
-                    <h5>Waiting verification</h5>
-                    <small>Results waiting for validation</small>
+                    <h5>Ready for you to verify</h5>
+                    <small>Results captured by other technicians</small>
                 </div>
-            </div>
+            </a>
 
-            <div class="db-stat">
+            <a asp-controller="ToBeReviewed" asp-action="Index" class="db-stat db-stat-link">
                 <div class="db-stat-icon c-purple"><i class="fa-solid fa-file-medical"></i></div>
                 <div class="db-stat-body">
                     <div class="num counter" id="reviewCount">0</div>
-                    <h5>Waiting review</h5>
-                    <small>Returned after verification</small>
+                    <h5>Returned to you</h5>
+                    <small>Sent back by a verifier for correction</small>
                 </div>
-            </div>
+            </a>
 
         </div>
 
         <div class="db-grid db-grid-4 db-grid-mt">
 
-            <div class="db-stat db-stat-urgent db-stat-crit">
+            <div class="db-stat db-stat-link db-stat-urgent db-stat-crit" role="button" tabindex="0" data-urgency="STAT">
                 <div class="db-stat-icon c-red"><i class="fa-solid fa-bolt"></i></div>
                 <div class="db-stat-body">
                     <div class="num counter" id="urgentCount">0</div>
@@ -5639,7 +5639,7 @@ if (User.IsInRole("Admin"))
                 </div>
             </div>
 
-            <div class="db-stat db-stat-urgent">
+            <div class="db-stat db-stat-link db-stat-urgent" role="button" tabindex="0" data-due="overdue">
                 <div class="db-stat-icon c-orange"><i class="fa-solid fa-hourglass-end"></i></div>
                 <div class="db-stat-body">
                     <div class="num counter" id="overdueCount">0</div>
@@ -5648,7 +5648,7 @@ if (User.IsInRole("Admin"))
                 </div>
             </div>
 
-            <div class="db-stat">
+            <div class="db-stat db-stat-link" role="button" tabindex="0" data-due="near">
                 <div class="db-stat-icon c-gold"><i class="fa-solid fa-stopwatch"></i></div>
                 <div class="db-stat-body">
                     <div class="num counter" id="nearDeadlineCount">0</div>
@@ -5657,14 +5657,14 @@ if (User.IsInRole("Admin"))
                 </div>
             </div>
 
-            <div class="db-stat">
+            <a asp-controller="AvailableTests" asp-action="Completed" class="db-stat db-stat-link">
                 <div class="db-stat-icon c-teal-deep"><i class="fa-solid fa-award"></i></div>
                 <div class="db-stat-body">
                     <div class="num counter" id="completedCount">0</div>
                     <h5>Verified tests</h5>
                     <small>Laboratory results verified</small>
                 </div>
-            </div>
+            </a>
 
         </div>
 
@@ -5706,6 +5706,17 @@ if (User.IsInRole("Admin"))
                 <div class="db-action-icon"><i class="fa-solid fa-circle-check"></i></div>
                 <h5>Verification</h5>
                 <p>Verify captured laboratory results.</p>
+                <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
+            </a>
+
+        </div>
+
+        <div class="db-grid db-grid-4 db-grid-mt">
+
+            <a asp-controller="ToBeReviewed" asp-action="Index" class="db-action">
+                <div class="db-action-icon"><i class="fa-solid fa-rotate-left"></i></div>
+                <h5>To be reviewed</h5>
+                <p>Correct results a verifier returned to you.</p>
                 <span class="db-action-go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
 
@@ -5862,8 +5873,11 @@ if (User.IsInRole("Admin"))
             const ROUTES = {
                 available:    '@Url.Action("Index", "AvailableTests")',
                 inProgress:   '@Url.Action("InProgress", "AvailableTests")',
+                process:      '@Url.Action("ProcessTest", "AvailableTests")',
                 verification: '@Url.Action("Index", "Verification")',
-                process:      '@Url.Action("ProcessTest", "AvailableTests")'
+                verify:       '@Url.Action("Verify", "Verification")',
+                review:       '@Url.Action("Index", "ToBeReviewed")',
+                reviewItem:   '@Url.Action("Review", "ToBeReviewed")'
             };
 
             const API = {
@@ -6050,11 +6064,12 @@ if (User.IsInRole("Admin"))
                     cta: "Show near deadline", act: { type: "filter", due: "near" }
                 });
 
+                // FIX: returned results are corrected on the To Be Reviewed page, not the Verification queue
                 if (rev > 0) out.push({
                     id: "review:" + rev, level: "warning", icon: "file-medical",
-                    title: tnPlural(rev, "result") + " returned for review",
+                    title: tnPlural(rev, "result") + " returned to you for review",
                     text: tnNames(review) || "A verifier returned results for correction.",
-                    cta: "Open verification", act: { type: "link", href: ROUTES.verification }
+                    cta: "Open review list", act: { type: "link", href: ROUTES.review }
                 });
 
                 if (wait > 0) out.push({
@@ -6066,8 +6081,8 @@ if (User.IsInRole("Admin"))
 
                 if (ver > 0) out.push({
                     id: "verify:" + ver, level: "info", icon: "circle-check",
-                    title: tnPlural(ver, "result") + " waiting for verification",
-                    text: "Captured results are ready to be validated.",
+                    title: tnPlural(ver, "result") + " ready for you to verify",
+                    text: "Results captured by other technicians are waiting for validation.",
                     cta: "Open verification", act: { type: "link", href: ROUTES.verification }
                 });
 
@@ -6128,10 +6143,19 @@ if (User.IsInRole("Admin"))
                         cta: "Show STAT tests", act: { type: "filter", urgency: "STAT" }
                     });
 
+                    // FIX: link to the To Be Reviewed list
                     if (d("waitingForReview") > 0) tnPushEvent({
                         level: "warning", icon: "rotate-left",
-                        title: d("waitingForReview") === 1 ? "A result was returned for review" : d("waitingForReview") + " results were returned for review",
+                        title: d("waitingForReview") === 1 ? "A result was returned to you for review" : d("waitingForReview") + " results were returned to you for review",
                         text: "A verifier asked for a correction.",
+                        cta: "Open review list", act: { type: "link", href: ROUTES.review }
+                    });
+
+                    // NEW: results from other technicians that are ready for you to verify
+                    if (d("waitingForVerification") > 0) tnPushEvent({
+                        level: "info", icon: "circle-check",
+                        title: d("waitingForVerification") === 1 ? "1 new result ready to verify" : d("waitingForVerification") + " new results ready to verify",
+                        text: "Captured by another technician.",
                         cta: "Open verification", act: { type: "link", href: ROUTES.verification }
                     });
 
@@ -6451,7 +6475,8 @@ if (User.IsInRole("Admin"))
                     if (rev > 0) parts.push(rev + " returned for review");
                     cls = "warn";
                     html = "<strong>Keep an eye on your queue</strong> &middot; " + parts.join(", ");
-                    act = near > 0 ? "near" : "all";
+                    // FIX: if only returned results are pending, go straight to the review list
+                    act = near > 0 ? "near" : "review";
                 }
 
                 el.className = "db-health " + cls;
@@ -6466,7 +6491,25 @@ if (User.IsInRole("Admin"))
                 if (act === "stat") tnRun({ type: "filter", urgency: "STAT" });
                 else if (act === "overdue") tnRun({ type: "filter", due: "overdue" });
                 else if (act === "near") tnRun({ type: "filter", due: "near" });
+                else if (act === "review") tnRun({ type: "link", href: ROUTES.review });
                 else tnRun({ type: "filter" });
+            });
+
+            // Stat tiles that filter the work queue (STAT / overdue / near deadline)
+            document.querySelectorAll(".db-stat[data-urgency], .db-stat[data-due]").forEach(function (el) {
+
+                const go = function () {
+                    tnRun({ type: "filter", urgency: el.dataset.urgency || "", due: el.dataset.due || "" });
+                };
+
+                el.addEventListener("click", go);
+
+                el.addEventListener("keydown", function (e) {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        go();
+                    }
+                });
             });
 
             // =========================================================
@@ -6636,11 +6679,13 @@ if (User.IsInRole("Admin"))
                     else if (test.status === "In Progress") {
                         action = '<a href="' + ROUTES.process + '?id=' + encodeURIComponent(test.id) + '" class="db-table-action"><i class="fa-solid fa-flask"></i> Process</a>';
                     }
+                    // FIX: open the specific Verify page for this test
                     else if (test.status === "Completed") {
-                        action = '<a href="' + ROUTES.verification + '" class="db-table-action"><i class="fa-solid fa-circle-check"></i> Verify</a>';
+                        action = '<a href="' + ROUTES.verify + '?id=' + encodeURIComponent(test.id) + '" class="db-table-action"><i class="fa-solid fa-circle-check"></i> Verify</a>';
                     }
+                    // FIX: open the ToBeReviewed/Review page for this test (not the Verification queue)
                     else if (test.status === "To Be Reviewed") {
-                        action = '<a href="' + ROUTES.verification + '" class="db-table-action"><i class="fa-solid fa-file-medical"></i> Review</a>';
+                        action = '<a href="' + ROUTES.reviewItem + '?id=' + encodeURIComponent(test.id) + '" class="db-table-action"><i class="fa-solid fa-file-medical"></i> Review</a>';
                     }
 
                     return `
@@ -6991,6 +7036,9 @@ if (User.IsInRole("Admin"))
 
             .db-stat { position: relative; display: flex; align-items: center; gap: 18px; min-height: 144px; padding: 24px; border-radius: 24px; background: #fff; border: 1px solid #e8eeee; border-top: 3px solid var(--teal); box-shadow: 0 8px 26px rgba(15, 70, 64, .06); transition: transform .2s ease, box-shadow .2s ease; }
             .db-stat:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(15, 70, 64, .10); }
+            .db-stat-link { text-decoration: none; color: inherit; cursor: pointer; }
+            .db-stat-link:hover { text-decoration: none; color: inherit; border-color: var(--teal); }
+            .db-stat-link:focus-visible { outline: 3px solid rgba(0,143,131,.35); outline-offset: 2px; }
             .db-stat-urgent { border-top-color: var(--orange); }
             .db-stat-crit { border-top-color: var(--red); }
             .db-stat-icon { width: 54px; height: 54px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 16px; font-size: 20px; }
@@ -7129,6 +7177,8 @@ if (User.IsInRole("Admin"))
 
     }
 }
+
+
 
     
     else if (User.IsInRole("Lab_Manager"))
