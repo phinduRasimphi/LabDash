@@ -1235,24 +1235,23 @@ namespace LabDash.Controllers
             }
             _audit.Log("Consent Granted", "Consent", $"Patient '{patient.Name} {patient.Surname}' granted Dr. {doctorUser?.FirstName} {doctorUser?.LastName} access to {validItemIds.Count} test item(s).");
 
-            _audit.Log("Consent Granted", "Consent", $"Patient '{patient.Name} {patient.Surname}' granted Dr. {doctorUser?.FirstName} {doctorUser?.LastName} access to {validItemIds.Count} test item(s).");
+
 
             await _context.SaveChangesAsync();
             // ----------------------------------------------------------
             // In-app notification to the doctor
             // ----------------------------------------------------------
+            string patientName = $"{patient.Name} {patient.Surname}".Trim();
+            int sharedCount = validItemIds.Distinct().Count();
+            string linkUrl = Url.Action("PatientSharedResults", "Doctor", new { patientId = patient.PatientID }, Request.Scheme) ?? "";
 
             // In-app notification
             try
             {
-                string patientName = $"{patient.Name} {patient.Surname}".Trim();
-
-                string linkUrl = Url.Action("PatientSharedResults", "Doctor", new { patientId = patient.PatientID }, Request.Scheme);
-
                 await _notifications.SendToUserAsync(
                     recipientUserId: doctorUser!.Id,
                     title: "New patient shared results with you",
-                    message: $"{patientName} has granted you access to {validItemIds.Distinct().Count()} test result item(s).",
+                    message: $"{patientName} has granted you access to {sharedCount} test result item(s).",
                     type: "consent",
                     linkUrl: linkUrl,
                     relatedConsentId: consent.ConsentID,
@@ -1264,27 +1263,28 @@ namespace LabDash.Controllers
                 _logger.LogWarning(ex, "Consent granted but the in-app notification failed.");
             }
 
-            // Notify doctor by email
-            // E-mail the doctor
+            // Email
             if (doctorUser != null && !string.IsNullOrWhiteSpace(doctorUser.Email))
             {
-                var subject = "A patient has granted you access to test results";
-                var body = $"<p>Dear Dr. {doctorUser.LastName},</p>" +
-                           $"<p><strong>{patient.Name} {patient.Surname}</strong> has granted you " +
-                           $"access to {validItemIds.Count} test result item(s) via the LabDash patient portal.</p>" +
-                           "<p>You can view them by logging into the Doctor Portal.</p>" +
-                           "<p>This access can be revoked by the patient at any time.</p>";
-
                 try
                 {
-                    await _emailSender.SendEmailAsync(doctorUser.Email, subject, body);
+                    var html = EmailTemplates.ConsentGranted(
+                        doctorLastName: doctorUser.LastName,
+                        patientName: patientName,
+                        itemCount: sharedCount,
+                        grantedOn: DateTime.Now,
+                        portalUrl: linkUrl);
+
+                    await _emailSender.SendEmailAsync(
+                        doctorUser.Email,
+                        "A patient has shared test results with you",
+                        html);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Consent granted but the notification email failed to send.");
                 }
             }
-
             TempData["SuccessMessage"] = "Access granted and the doctor has been notified.";
             return RedirectToAction(nameof(Consent));
         }
@@ -1338,45 +1338,24 @@ namespace LabDash.Controllers
                 }
 
                 // ==========================================================
-                // 4. EMAIL NOTIFICATION
+                // EMAIL NOTIFICATION
                 // ==========================================================
                 if (consent.Doctor != null && !string.IsNullOrWhiteSpace(consent.Doctor.Email))
                 {
-                    var subject = "Patient has revoked access to their test results";
-                    // Email notification
-                    if (consent.Doctor != null && !string.IsNullOrWhiteSpace(consent.Doctor.Email))
-                    {
-                        //var subject = "Patient has revoked access to their test results";
-                        var body = $"<p>Dear Dr. {System.Net.WebUtility.HtmlEncode(consent.Doctor.LastName)},</p>" +
-                                   $"<p><strong>{System.Net.WebUtility.HtmlEncode(patientName)}</strong> " +
-                                   "has revoked your access to their test results via the LabDash patient portal.</p>" +
-                                   "<p>You will no longer be able to view these results.</p>";
-
-                        //var body =
-                        //    $"<p>Dear Dr. {System.Net.WebUtility.HtmlEncode(consent.Doctor.LastName)},</p>" +
-                        //    $"<p><strong>{System.Net.WebUtility.HtmlEncode(patientName)}</strong> " +
-                        //    "has revoked your access to their test results via the LabDash patient portal.</p>" +
-                        //    "<p>You will no longer be able to view these results.</p>";
-                        try
-                        {
-                            await _emailSender.SendEmailAsync(consent.Doctor.Email, subject, body);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Access was revoked, but the email failed to send.");
-                        }
-                    }
-
                     try
                     {
-                        await _emailSender.SendEmailAsync(consent.Doctor.Email, subject, body);
+                        var html = EmailTemplates.ConsentRevoked(consent.Doctor.LastName, patientName);
+
+                        await _emailSender.SendEmailAsync(
+                            consent.Doctor.Email,
+                            "Patient has revoked access to their test results",
+                            html);
                     }
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Access was revoked, but the email failed to send.");
                     }
                 }
-
                 _audit.Log("Consent Revoked", "Consent", $"Patient '{patient.Name} {patient.Surname}' revoked all access for consent #{consentId}.");
                 TempData["SuccessMessage"] = "Access revoked and the doctor has been notified.";
             }
@@ -1410,8 +1389,7 @@ namespace LabDash.Controllers
                 _context.ConsentItemAccesses.Remove(access);
                 _audit.Log("Consent Revoked", "Consent", $"Patient '{patient.Name} {patient.Surname}' revoked access to one test (access #{consentItemAccessId}).");
                 await _context.SaveChangesAsync();
-                _audit.Log("Consent Revoked", "Consent", $"Patient '{patient.Name} {patient.Surname}' revoked access to one test (access #{consentItemAccessId}).");
-                await _context.SaveChangesAsync();
+                
 
                 var remaining = await _context.ConsentItemAccesses.AnyAsync(a => a.ConsentID == consent.ConsentID);
 
