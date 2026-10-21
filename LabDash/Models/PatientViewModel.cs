@@ -1,4 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using LabDash.Models;
+
 
 namespace LabDash.Models
 {
@@ -292,7 +294,7 @@ namespace LabDash.Models
     }
 
     // ── 6. Reports ───────────────────────────────────────────
-    public class ReportViewModel
+    public class ReportViewModel : IValidatableObject
     {
         [Required]
         [DataType(DataType.Date)]
@@ -302,9 +304,54 @@ namespace LabDash.Models
         [DataType(DataType.Date)]
         public DateTime ToDate { get; set; }
 
-        // Populated after POST filter
+        // AllResults | HealthTrend | AbnormalResults
+        public string ReportType { get; set; } = ReportTypes.AllResults;
+
+        // Every released result in the selected period (not filtered by report type)
         public List<TestResultViewModel> FilteredResults { get; set; } = new();
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (ToDate.Date < FromDate.Date)
+            {
+                yield return new ValidationResult(
+                    "The 'To' date cannot be earlier than the 'From' date.",
+                    new[] { nameof(ToDate) });
+            }
+        }
     }
+
+    public static class ReportTypes
+    {
+        public const string AllResults = "AllResults";
+        public const string HealthTrend = "HealthTrend";
+        public const string AbnormalResults = "AbnormalResults";
+
+        // Never trust the posted value
+        public static string Normalize(string? value) => value switch
+        {
+            HealthTrend => HealthTrend,
+            AbnormalResults => AbnormalResults,
+            _ => AllResults
+        };
+
+        public static string Title(string type) => type switch
+        {
+            HealthTrend => "Health Trend Report",
+            AbnormalResults => "Abnormal Results Report",
+            _ => "Laboratory Results Report"
+        };
+
+        public static string FileSlug(string type) => type switch
+        {
+            HealthTrend => "health-trend-report",
+            AbnormalResults => "abnormal-results-report",
+            _ => "laboratory-results-report"
+        };
+    }
+
+
+
 
     // ── 7. Dashboard (combines everything) ───────────────────
     public class DashboardViewModel
@@ -316,4 +363,15 @@ namespace LabDash.Models
         public int AbnormalCount { get; set; }
         public List<TestRequestViewModel> RecentRequests { get; set; } = new();
     }
+
+
+
 }
+
+
+
+
+
+
+    
+

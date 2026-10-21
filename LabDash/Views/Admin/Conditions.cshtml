@@ -26,9 +26,6 @@
     var emptyCategoryCount = Model.Categories.Count(c => countFor(c.Name) == 0);
 }
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
 <div class="adm-page">
 
     @if (TempData["Success"] != null)
@@ -315,6 +312,9 @@
 
                 <button type="button" class="adm-toggle" id="export-csv" onclick="exportConditionsCsv()" title="Download the filtered list as CSV">
                     <i class="fas fa-file-arrow-down"></i> Export
+                </button>
+                <button type="button" class="adm-toggle" id="export-pdf" onclick="exportConditionsPdf()" title="Download a formatted PDF report of the current list">
+                    <i class="fas fa-file-pdf"></i> PDF report
                 </button>
             </div>
 
@@ -1664,6 +1664,14 @@
             setTimeout(function() { URL.revokeObjectURL(url); }, 500);
         }
 
+      function exportConditionsPdf() {
+    var url = '@Url.Action("DownloadConditionsPdf")' +
+        '?status=' + encodeURIComponent(getCurrentConditionType()) +
+        '&category=' + encodeURIComponent(document.getElementById('cond-cat-filter').value) +
+        '&q=' + encodeURIComponent(document.getElementById('cond-search').value.trim()) +
+        '&noDesc=' + (conditionFlags.noDesc ? 'true' : 'false');
+    window.location.href = url;
+}
 
         /* ==========================================================
            CATEGORY TABS
@@ -2109,8 +2117,11 @@
 }
 
 
-<style>
-
+@section Head {
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
     /* ==========================================================
                VARIABLES
             ========================================================== */
@@ -3856,7 +3867,48 @@
             background: #1B2620;
         }
 
+        /* ---- Insight cards: dark mode ---- */
+        html.rq-dark .adm-page .adm-insights .adm-insight {
+            background: var(--adm-raised) !important;
+            border: 1px solid var(--adm-line-strong) !important;
+            box-shadow: var(--adm-shadow-sm) !important;
+        }
 
+            html.rq-dark .adm-page .adm-insights .adm-insight:hover:not(:disabled):not(.adm-insight-static) {
+                border-color: var(--adm-red) !important;
+                box-shadow: 0 10px 28px rgba(0, 0, 0, .5) !important;
+            }
+
+            html.rq-dark .adm-page .adm-insights .adm-insight:focus-visible {
+                outline-color: var(--adm-red);
+            }
+
+            /* icon tile: translucent red tint + coloured icon (instead of pale pink + white) */
+            html.rq-dark .adm-page .adm-insights .adm-insight .adm-insight-icon {
+                background: rgba(225, 115, 107, .14) !important;
+                border: 1px solid rgba(225, 115, 107, .30) !important;
+                color: var(--adm-red) !important;
+            }
+
+                html.rq-dark .adm-page .adm-insights .adm-insight .adm-insight-icon i {
+                    color: inherit !important;
+                }
+
+            /* warning cards: a touch stronger so they stand out from the "all good" ones */
+            html.rq-dark .adm-page .adm-insights .adm-insight.is-warn {
+                border-color: rgba(225, 115, 107, .45) !important;
+            }
+
+                html.rq-dark .adm-page .adm-insights .adm-insight.is-warn .adm-insight-icon {
+                    background: rgba(225, 115, 107, .24) !important;
+                    border-color: rgba(225, 115, 107, .55) !important;
+                    color: #F0948D !important;
+                }
+
+            /* disabled cards (count is 0) shouldn't look greyed-out/broken */
+            html.rq-dark .adm-page .adm-insights .adm-insight:disabled {
+                opacity: 1;
+            }
     /* ==========================================================
                DATA QUALITY + REGISTER OVERVIEW
                Uses the page's existing tokens, so light and dark mode follow the rest of the page.
@@ -4643,5 +4695,71 @@
     html.rq-dark .adm-page .ao-col .adm-insights-category-row:hover {
         background: #1B2620;
     }
+  
+    /* ==========================================================
+       DARK MODE: insight cards + category colours (reusable)
+       Set --ins-accent / --ins-accent-rgb to the page's accent.
+    ========================================================== */
+
+    html.rq-dark .adm-page {
+        /* red (Conditions). For a purple page try: #B79CF5 and 183, 156, 245 */
+        --ins-accent: #E1736B;
+        --ins-accent-rgb: 225, 115, 107;
+    }
+
+        html.rq-dark .adm-page .adm-insights .adm-insight {
+            background: var(--adm-raised, #172019) !important;
+            border: 1px solid var(--adm-line-strong, #34403A) !important;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, .3) !important;
+        }
+
+            html.rq-dark .adm-page .adm-insights .adm-insight:hover:not(:disabled):not(.adm-insight-static) {
+                border-color: var(--ins-accent) !important;
+                box-shadow: 0 10px 28px rgba(0, 0, 0, .5) !important;
+            }
+
+            html.rq-dark .adm-page .adm-insights .adm-insight:focus-visible {
+                outline-color: var(--ins-accent);
+            }
+
+            /* icon tile: translucent tint + coloured icon (not pale pink + white) */
+            html.rq-dark .adm-page .adm-insights .adm-insight .adm-insight-icon {
+                background: rgba(var(--ins-accent-rgb), .14) !important;
+                border: 1px solid rgba(var(--ins-accent-rgb), .30) !important;
+                color: var(--ins-accent) !important;
+            }
+
+                html.rq-dark .adm-page .adm-insights .adm-insight .adm-insight-icon i {
+                    color: inherit !important;
+                }
+
+            /* warning cards: slightly stronger */
+            html.rq-dark .adm-page .adm-insights .adm-insight.is-warn {
+                border-color: rgba(var(--ins-accent-rgb), .45) !important;
+            }
+
+                html.rq-dark .adm-page .adm-insights .adm-insight.is-warn .adm-insight-icon {
+                    background: rgba(var(--ins-accent-rgb), .24) !important;
+                    border-color: rgba(var(--ins-accent-rgb), .55) !important;
+                }
+
+        /* text inside the cards */
+        html.rq-dark .adm-page .adm-insight .adm-insight-label {
+            color: var(--adm-ink-faint, #7F8B85);
+        }
+
+        html.rq-dark .adm-page .adm-insight .adm-insight-value {
+            color: var(--adm-ink, #E8EEEB);
+        }
+
+        html.rq-dark .adm-page .adm-insight .adm-insight-sub {
+            color: var(--adm-ink-soft, #A5B0AA);
+        }
+
+        /* disabled cards (count is 0) shouldn't look dimmed */
+        html.rq-dark .adm-page .adm-insights .adm-insight:disabled {
+            opacity: 1;
+        }
 
 </style>
+}

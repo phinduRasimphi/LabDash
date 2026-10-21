@@ -26,8 +26,7 @@
     var emptyCategoryCount = Model.Categories.Count(c => countFor(c.Name) == 0);
 }
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 
 <div class="adm-page">
 
@@ -311,6 +310,10 @@
                 <button type="button" class="adm-toggle" id="export-csv" onclick="exportAllergiesCsv()" title="Download the filtered list as CSV">
                     <i class="fas fa-file-arrow-down"></i> Export
                 </button>
+                <button type="button" class="adm-toggle" id="export-pdf" onclick="exportAllergiesPdf()" title="Download a formatted PDF report of the current list">
+                    <i class="fas fa-file-pdf"></i> PDF report
+                </button>
+
             </div>
 
             <div class="adm-table-wrap">
@@ -1471,7 +1474,14 @@
             setTimeout(function() { URL.revokeObjectURL(url); }, 500);
         }
 
-
+        function exportAllergiesPdf() {
+            var url = '@Url.Action("DownloadAllergiesPdf")' +
+                '?status=' + encodeURIComponent(getCurrentAllergyType()) +
+                '&category=' + encodeURIComponent(document.getElementById('allergy-cat-filter').value) +
+                '&q=' + encodeURIComponent(document.getElementById('allergy-search').value.trim()) +
+                '&noDesc=' + (allergyFlags.noDesc ? 'true' : 'false');
+            window.location.href = url;
+        }
         /* ==========================================================
             CATEGORY TABS
         ========================================================== */
@@ -1881,9 +1891,11 @@
     </script>
 }
 
-
+@section Head {
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-
     /* ==========================================================
                             VARIABLES: purple stays fixed for allergies, everything
                             else matches the shared admin page look.
@@ -4288,4 +4300,51 @@
         background: #1B2620;
     }
 
-</style>
+      /* ==========================================================
+   DARK MODE: insight cards (Allergies, purple)
+========================================================== */
+
+html.rq-dark .adm-page .adm-insights .adm-insight {
+    background: var(--adm-raised) !important;
+    border: 1px solid var(--adm-line-strong) !important;
+    box-shadow: var(--adm-shadow-sm) !important;
+}
+
+html.rq-dark .adm-page .adm-insights .adm-insight:hover:not(:disabled):not(.adm-insight-static) {
+    border-color: var(--adm-allergy-accent) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .5) !important;
+}
+
+html.rq-dark .adm-page .adm-insights .adm-insight:focus-visible {
+    outline-color: var(--adm-allergy-accent);
+}
+
+/* icon tile: translucent purple tint + purple icon (instead of pale lavender + white) */
+html.rq-dark .adm-page .adm-insights .adm-insight .adm-insight-icon {
+    background: rgba(179, 157, 235, .14) !important;
+    border: 1px solid rgba(179, 157, 235, .30) !important;
+    color: var(--adm-allergy-accent) !important;
+}
+
+html.rq-dark .adm-page .adm-insights .adm-insight .adm-insight-icon i {
+    color: inherit !important;
+}
+
+/* warning cards: this page uses amber for warnings, so keep that in dark mode */
+html.rq-dark .adm-page .adm-insights .adm-insight.is-warn {
+    border-color: rgba(232, 184, 74, .40) !important;
+}
+
+html.rq-dark .adm-page .adm-insights .adm-insight.is-warn .adm-insight-icon {
+    background: rgba(232, 184, 74, .16) !important;
+    border-color: rgba(232, 184, 74, .45) !important;
+    color: var(--adm-amber) !important;
+}
+
+/* disabled cards (count is 0) shouldn't look dimmed */
+html.rq-dark .adm-page .adm-insights .adm-insight:disabled {
+    opacity: 1;
+}
+
+    </style>
+}
