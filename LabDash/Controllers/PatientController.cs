@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using System.Globalization;
 using System.Security.Claims;
 
 namespace LabDash.Controllers
@@ -39,7 +38,7 @@ namespace LabDash.Controllers
             ILogger<PatientController> logger,
             IAuditService audit, IWebHostEnvironment env)
 
-            IAuditService audit)
+        //IAuditService audit)
         {
             _context = context;
             _userManager = userManager;
@@ -1344,29 +1343,29 @@ namespace LabDash.Controllers
                 if (consent.Doctor != null && !string.IsNullOrWhiteSpace(consent.Doctor.Email))
                 {
                     var subject = "Patient has revoked access to their test results";
-                // Email notification
-                if (consent.Doctor != null && !string.IsNullOrWhiteSpace(consent.Doctor.Email))
-                {
-                    var subject = "Patient has revoked access to their test results";
-                    var body = $"<p>Dear Dr. {System.Net.WebUtility.HtmlEncode(consent.Doctor.LastName)},</p>" +
-                               $"<p><strong>{System.Net.WebUtility.HtmlEncode(patientName)}</strong> " +
-                               "has revoked your access to their test results via the LabDash patient portal.</p>" +
-                               "<p>You will no longer be able to view these results.</p>";
+                    // Email notification
+                    if (consent.Doctor != null && !string.IsNullOrWhiteSpace(consent.Doctor.Email))
+                    {
+                        //var subject = "Patient has revoked access to their test results";
+                        var body = $"<p>Dear Dr. {System.Net.WebUtility.HtmlEncode(consent.Doctor.LastName)},</p>" +
+                                   $"<p><strong>{System.Net.WebUtility.HtmlEncode(patientName)}</strong> " +
+                                   "has revoked your access to their test results via the LabDash patient portal.</p>" +
+                                   "<p>You will no longer be able to view these results.</p>";
 
-                    var body =
-                        $"<p>Dear Dr. {System.Net.WebUtility.HtmlEncode(consent.Doctor.LastName)},</p>" +
-                        $"<p><strong>{System.Net.WebUtility.HtmlEncode(patientName)}</strong> " +
-                        "has revoked your access to their test results via the LabDash patient portal.</p>" +
-                        "<p>You will no longer be able to view these results.</p>";
-                    try
-                    {
-                        await _emailSender.SendEmailAsync(consent.Doctor.Email, subject, body);
+                        //var body =
+                        //    $"<p>Dear Dr. {System.Net.WebUtility.HtmlEncode(consent.Doctor.LastName)},</p>" +
+                        //    $"<p><strong>{System.Net.WebUtility.HtmlEncode(patientName)}</strong> " +
+                        //    "has revoked your access to their test results via the LabDash patient portal.</p>" +
+                        //    "<p>You will no longer be able to view these results.</p>";
+                        try
+                        {
+                            await _emailSender.SendEmailAsync(consent.Doctor.Email, subject, body);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Access was revoked, but the email failed to send.");
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Access was revoked, but the email failed to send.");
-                    }
-                }
 
                     try
                     {
@@ -1483,13 +1482,13 @@ namespace LabDash.Controllers
                 })
                 .ToListAsync();
 
-            var requests =
-                await _context.TestRequests
-                    .Where(r => r.PatientId == patientId)
-                    .Include(r => r.TestRequestItems)
-                        .ThenInclude(i => i.TestType)
-                    .OrderByDescending(r => r.RequestDate)
-                    .ToListAsync();
+            //var requests =
+            //    await _context.TestRequests
+            //        .Where(r => r.PatientId == patientId)
+            //        .Include(r => r.TestRequestItems)
+            //            .ThenInclude(i => i.TestType)
+            //        .OrderByDescending(r => r.RequestDate)
+            //        .ToListAsync();
             var requests = await _context.TestRequests
                 .Where(r => r.PatientId == patientId && r.Status != null && r.Status.Contains("Release"))
                 .Include(r => r.TestRequestItems).ThenInclude(i => i.TestType)
@@ -1547,9 +1546,9 @@ namespace LabDash.Controllers
                 ToDate = to,
                 ReportType = ReportTypes.AllResults,
                 FilteredResults = ConvertResults(InRange(all, from, to))
-                FromDate = DateTime.Today.AddMonths(-1),
-                ToDate = DateTime.Today,
-                FilteredResults = ConvertResults(results)
+                //FromDate = DateTime.Today.AddMonths(-1),
+                //ToDate = DateTime.Today,
+                //FilteredResults = ConvertResults(results)
             };
 
             return View(model);
@@ -1637,23 +1636,21 @@ namespace LabDash.Controllers
 
             return File(pdf, "application/pdf", fileName);
         }
-            if (!ModelState.IsValid) return View(model);
+        //if (!ModelState.IsValid) return View(model);
 
         // ============================================================
         // HELPER - results captured inside the date range
         // ============================================================
 
         private static List<TestResult> InRange(
-            List<TestResult> results,
-            DateTime from,
-            DateTime to)
+    List<TestResult> results,
+    DateTime from,
+    DateTime to)
         {
             return results
                 .Where(r =>
                     r.DateCaptured.Date >= from.Date &&
                     r.DateCaptured.Date <= to.Date)
-            results = results
-                .Where(r => r.DateCaptured.Date >= model.FromDate.Date && r.DateCaptured.Date <= model.ToDate.Date)
                 .ToList();
         }
 
@@ -2186,11 +2183,6 @@ namespace LabDash.Controllers
                 fileName
             );
         }
-
-    }
-
-
-
 
     }
 }
