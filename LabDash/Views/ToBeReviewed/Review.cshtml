@@ -9,10 +9,11 @@
     var patient = ViewBag.Patient as Patient;
     var verification = ViewBag.Verification as TestVerification;
 
+    // Every time this test was returned for review, newest first.
+    var returnHistory = ViewBag.ReturnHistory as List<TestVerification>
+                        ?? new List<TestVerification>();
+
     var patientName = $"{patient?.Name} {patient?.Surname}".Trim();
-    var initials = !string.IsNullOrWhiteSpace(patient?.Name)
-        ? patient.Name.Substring(0, 1).ToUpper()
-        : "P";
 
     var referenceRange = test?.TestType?.ReferenceRangeLow != null
         && test?.TestType?.ReferenceRangeHigh != null
@@ -27,7 +28,13 @@
         ? referenceRange
         : Model.ReferenceRange;
 
-    var isAbnormal = Model.IsAbnormal;
+    // On first load (GET) the model holds the PREVIOUS result, so the new-result fields start blank.
+    // After a failed validation (POST) the model holds what the user just typed, so we keep it.
+    var isPost = Context.Request.Method == "POST";
+    var newValue = isPost ? Model.ResultValue : "";
+    var newComments = isPost ? Model.Comments : "";
+
+    var latestReturn = returnHistory.FirstOrDefault();
 }
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -46,7 +53,7 @@
 
         <div>
             <h1>Review Test Result</h1>
-            <p>Check the verifier's feedback, correct the result and resubmit it.</p>
+            <p>Check the verifier's feedback, capture a new result and resubmit it.</p>
         </div>
 
         <div class="heading-test">
@@ -250,30 +257,19 @@
                     <div class="test-detail">
                         <span><i class="fa-solid fa-circle-check"></i> Current Status</span>
                         <strong>
-                            <span class="status-pill completed">
-                                <i class="fa-solid fa-circle-check"></i>
-                                Completed
+                            <span class="status-pill returned">
+                                <i class="fa-solid fa-rotate-left"></i>
+                                Returned for review
                             </span>
                         </strong>
                     </div>
 
                     <div class="test-detail">
-                        <span><i class="fa-solid fa-triangle-exclamation"></i> Result Classification</span>
+                        <span><i class="fa-solid fa-rotate-left"></i> Times Returned</span>
                         <strong>
-                            @if (isAbnormal)
-                            {
-                                <span class="status-pill abnormal">
-                                    <i class="fa-solid fa-triangle-exclamation"></i>
-                                    Abnormal
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="status-pill normal">
-                                    <i class="fa-solid fa-circle-check"></i>
-                                    Within Range
-                                </span>
-                            }
+                            @(returnHistory.Count > 0
+                                ? returnHistory.Count
+                                : (test?.ReviewReturnCount ?? 0))
                         </strong>
                     </div>
 
@@ -290,41 +286,19 @@
                     </strong>
                 </div>
 
-                <!-- CURRENT RESULT -->
-
-                <div class="current-result">
-                    <div class="current-result-heading">
-                        <i class="fa-solid fa-file-waveform"></i>
-                        Previously Captured Result
-                    </div>
-
-                    <div class="current-result-value">
-                        <span>Result Value</span>
-                        <strong>@(Model.ResultValue ?? "Not recorded")</strong>
-                    </div>
-
-                    @if (!string.IsNullOrWhiteSpace(Model.Comments))
-                    {
-                        <div class="current-result-comments">
-                            <span>Laboratory Comments</span>
-                            <p>@Model.Comments</p>
-                        </div>
-                    }
-                </div>
-
             </div>
         </section>
 
     </div>
 
-    <!-- VERIFICATION FEEDBACK -->
+    <!-- VERIFICATION FEEDBACK (latest return) -->
 
     <section class="information-card feedback-card">
 
         <div class="card-header">
             <span>
                 <i class="fa-solid fa-rotate-left"></i>
-                Verification Feedback
+                Latest Verification Feedback
             </span>
 
             <span class="returned-badge">Returned for Correction</span>
@@ -337,7 +311,9 @@
                 <div>
                     <span>Returned By</span>
                     <strong>
-                        @(verification?.VerifiedByTechnicianId?.ToString()
+                        @(ViewBag.VerifierName as string
+                            ?? latestReturn?.VerifiedByTechnician?.FullName
+                            ?? verification?.VerifiedByTechnician?.FullName
                             ?? "Not available")
                     </strong>
                 </div>
@@ -347,7 +323,9 @@
                     <strong>
                         @(verification != null
                             ? verification.VerificationDate.ToString("dd MMM yyyy HH:mm")
-                            : "Not available")
+                            : latestReturn != null
+                                ? latestReturn.VerificationDate.ToString("dd MMM yyyy HH:mm")
+                                : "Not available")
                     </strong>
                 </div>
 
@@ -356,29 +334,31 @@
             <div class="feedback-reason">
                 <span>Reason for Return</span>
                 <p>
-                    @(string.IsNullOrWhiteSpace(verification?.VerificationNotes)
-                        ? "No verification comments were recorded."
-                        : verification.VerificationNotes)
+                    @(!string.IsNullOrWhiteSpace(verification?.VerificationNotes)
+                        ? verification.VerificationNotes
+                        : !string.IsNullOrWhiteSpace(latestReturn?.VerificationNotes)
+                            ? latestReturn.VerificationNotes
+                            : "No verification comments were recorded.")
                 </p>
             </div>
 
         </div>
     </section>
 
-    <!-- UPDATE RESULT -->
+    <!-- RESULT HISTORY + CAPTURE NEW RESULT -->
 
     <section class="information-card result-card">
 
         <div class="card-header">
             <span>
                 <i class="fa-solid fa-pen-to-square"></i>
-                Update Laboratory Result
+                Capture New Result
             </span>
 
-            <span class="header-subtitle">Correct and resubmit the result</span>
+            <span class="header-subtitle">Compare with every previous result, then resubmit</span>
         </div>
 
-        <form asp-action="Review" method="post" class="result-form">
+        <form asp-action="Review" method="post" class="result-form" id="reviewForm">
 
             <input asp-for="ResultId" type="hidden" />
             <input asp-for="TestRequestItemId" type="hidden" />
@@ -386,22 +366,142 @@
             <div asp-validation-summary="ModelOnly"
                  class="validation-summary"></div>
 
+            <!-- RESULT HISTORY (read-only): every attempt that was returned -->
+
+            <div class="history-heading">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                Result history
+                <span class="previous-tag">
+                    @returnHistory.Count @(returnHistory.Count == 1 ? "previous result" : "previous results")
+                </span>
+            </div>
+
+            @if (!returnHistory.Any())
+            {
+                <div class="previous-result">
+                    <em class="history-empty">No previous results have been recorded for this test.</em>
+                </div>
+            }
+            else
+            {
+                <div class="history-list @(returnHistory.Count > 3 ? "scrollable" : "")">
+
+                    @for (var i = 0; i < returnHistory.Count; i++)
+                    {
+                        var h = returnHistory[i];
+                        var attemptNumber = returnHistory.Count - i;
+                        var isLatest = i == 0;
+                        var hasValue = !string.IsNullOrWhiteSpace(h.PreviousResultValue);
+
+                        <div class="previous-result @(isLatest ? "latest" : "")">
+
+                            <div class="previous-result-heading">
+                                <i class="fa-solid fa-flask"></i>
+                                Attempt @attemptNumber
+
+                                @if (isLatest)
+                                {
+                                    <span class="previous-tag">Latest</span>
+                                }
+
+                                <span class="previous-tag muted-tag">
+                                    Returned @h.VerificationDate.ToString("dd MMM yyyy HH:mm")
+                                </span>
+                            </div>
+
+                            <div class="previous-result-body">
+
+                                <div class="previous-value">
+                                    <span>Result value</span>
+                                    <strong>
+                                        @(hasValue ? h.PreviousResultValue : "Not recorded")
+                                        @if (hasValue)
+                                        {
+                                            <small>@displayUnits</small>
+                                        }
+                                    </strong>
+                                </div>
+
+                                <div class="previous-class">
+                                    <span>Classification</span>
+                                    @if (!hasValue)
+                                    {
+                                        <strong class="previous-range">Not recorded</strong>
+                                    }
+                                    else if (h.PreviousIsAbnormal == true)
+                                    {
+                                        <span class="status-pill abnormal">
+                                            <i class="fa-solid fa-triangle-exclamation"></i>
+                                            Abnormal
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-pill normal">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                            Within Range
+                                        </span>
+                                    }
+                                </div>
+
+                                <div class="previous-class">
+                                    <span>Reference range</span>
+                                    <strong class="previous-range">@displayReferenceRange</strong>
+                                </div>
+
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(h.PreviousComments))
+                            {
+                                <div class="previous-comments">
+                                    <span>Laboratory comments</span>
+                                    <p>@h.PreviousComments</p>
+                                </div>
+                            }
+
+                            <div class="previous-comments return-reason">
+                                <span>
+                                    Returned by @(h.VerifiedByTechnician?.FullName ?? "Verifier")
+                                </span>
+                                <p>
+                                    @(string.IsNullOrWhiteSpace(h.VerificationNotes)
+                                        ? "No verification comments were recorded."
+                                        : h.VerificationNotes)
+                                </p>
+                            </div>
+
+                        </div>
+                    }
+
+                </div>
+            }
+
+            <!-- NEW RESULT (editable) -->
+
+            <div class="new-result-heading">
+                <i class="fa-solid fa-circle-plus"></i>
+                New result
+            </div>
+
             <div class="result-grid">
 
                 <div class="form-field full-width">
-                    <label asp-for="ResultValue">Result Value</label>
+                    <label for="ResultValue">New result value</label>
 
                     <div class="input-wrapper">
                         <i class="fa-solid fa-flask"></i>
-                        <input asp-for="ResultValue"
+                        <input id="ResultValue"
+                               name="ResultValue"
+                               value="@newValue"
                                type="text"
                                inputmode="decimal"
                                autocomplete="off"
                                maxlength="20"
                                class="form-control"
-                               placeholder="Enter a numeric value, e.g. 12.5"
+                               placeholder="Enter the new numeric value, e.g. 12.5"
                                data-numeric-only="true"
                                data-val="true"
+                               data-val-required="Please enter the new result value."
                                data-val-regex="Result value must be a number (digits and one decimal point only)."
                                data-val-regex-pattern="^[0-9]+([.][0-9]+)?$" />
                     </div>
@@ -447,12 +547,13 @@
                 </div>
 
                 <div class="form-field full-width">
-                    <label asp-for="Comments">Laboratory Comments</label>
+                    <label for="Comments">New laboratory comments</label>
 
-                    <textarea asp-for="Comments"
+                    <textarea id="Comments"
+                              name="Comments"
                               class="form-control result-textarea"
                               rows="4"
-                              placeholder="Enter any relevant laboratory comments..."></textarea>
+                              placeholder="Describe the correction made or add any relevant comments...">@newComments</textarea>
 
                     <span asp-validation-for="Comments"
                           class="validation-error"></span>
@@ -477,13 +578,58 @@
         </form>
     </section>
 
+    <!-- CONFIRM RESUBMIT MODAL -->
+
+    <div class="confirm-overlay" id="confirmOverlay" hidden>
+        <div class="confirm-modal"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="confirmTitle"
+             aria-describedby="confirmText">
+
+            <div class="confirm-icon">
+                <i class="fa-solid fa-paper-plane"></i>
+            </div>
+
+            <h3 id="confirmTitle">Submit these results?</h3>
+
+            <p id="confirmText">
+                The corrected result will be saved and sent back to the
+                verification queue. You won't be able to edit it afterwards.
+            </p>
+
+            <div class="confirm-summary">
+                <div>
+                    <span>New result value</span>
+                    <strong id="confirmValue">—</strong>
+                </div>
+                <div>
+                    <span>Comments</span>
+                    <strong id="confirmComments">—</strong>
+                </div>
+            </div>
+
+            <div class="confirm-actions">
+                <button type="button" class="cancel-button" id="confirmNo">
+                    <i class="fa-solid fa-xmark"></i>
+                    No, go back
+                </button>
+
+                <button type="button" class="submit-button" id="confirmYes">
+                    <i class="fa-solid fa-check"></i>
+                    Yes, submit
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
     <script>
-        (function () {
+        (function() {
             var input = document.querySelector('[data-numeric-only="true"]');
             if (!input) return;
 
@@ -495,18 +641,18 @@
                 var firstDot = value.indexOf('.');
                 if (firstDot !== -1) {
                     value = value.slice(0, firstDot + 1) +
-                            value.slice(firstDot + 1).replace(/\./g, '');
+                        value.slice(firstDot + 1).replace(/\./g, '');
                 }
                 return value;
             }
 
-            input.addEventListener('input', function () {
+            input.addEventListener('input', function() {
                 var cleaned = sanitise(input.value);
                 if (input.value !== cleaned) input.value = cleaned;
             });
 
             // Also clean up pasted text
-            input.addEventListener('paste', function (e) {
+            input.addEventListener('paste', function(e) {
                 e.preventDefault();
                 var text = (e.clipboardData || window.clipboardData).getData('text');
                 var cleaned = sanitise(text);
@@ -514,6 +660,77 @@
                 input.value = sanitise(
                     input.value.slice(0, start) + cleaned + input.value.slice(end)
                 );
+            });
+        })();
+    </script>
+
+    <script>
+        (function () {
+            var form = document.getElementById('reviewForm');
+            var overlay = document.getElementById('confirmOverlay');
+            if (!form || !overlay) return;
+
+            var yes = document.getElementById('confirmYes');
+            var no = document.getElementById('confirmNo');
+            var valueEl = document.getElementById('confirmValue');
+            var commentsEl = document.getElementById('confirmComments');
+            var valueInput = document.getElementById('ResultValue');
+            var commentsInput = document.getElementById('Comments');
+            var units = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(displayUnits));
+
+            var confirmed = false;
+            var lastFocus = null;
+
+            function isValid() {
+                // Use the built-in jQuery validation when it is loaded
+                if (window.jQuery && jQuery.fn.valid) {
+                    return jQuery(form).valid();
+                }
+                return /^[0-9]+([.][0-9]+)?$/.test(valueInput.value.trim());
+            }
+
+            function openModal() {
+                lastFocus = document.activeElement;
+
+                valueEl.textContent = valueInput.value.trim() + ' ' + units;
+                commentsEl.textContent = commentsInput.value.trim() || 'No comments added';
+
+                overlay.hidden = false;
+                document.body.style.overflow = 'hidden';
+                no.focus();
+            }
+
+            function closeModal() {
+                overlay.hidden = true;
+                document.body.style.overflow = '';
+                if (lastFocus) lastFocus.focus();
+            }
+
+            // Intercept every submit (button click AND the Enter key)
+            form.addEventListener('submit', function (e) {
+                if (confirmed) return;          // already confirmed, let it post
+
+                e.preventDefault();
+                if (isValid()) openModal();
+            });
+
+            yes.addEventListener('click', function () {
+                confirmed = true;
+                yes.disabled = true;            // stop double-clicks
+                no.disabled = true;
+                form.submit();                  // native submit, skips the handler above
+            });
+
+            no.addEventListener('click', closeModal);
+
+            // Click outside the box to close
+            overlay.addEventListener('mousedown', function (e) {
+                if (e.target === overlay) closeModal();
+            });
+
+            // Escape closes it
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !overlay.hidden) closeModal();
             });
         })();
     </script>
@@ -612,21 +829,21 @@
         border-left: 1px solid rgba(255, 255, 255, .28);
     }
 
-    .heading-test span {
-        display: block;
-        margin-bottom: 4px;
-        color: rgba(255, 255, 255, .78);
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: .5px;
-        text-transform: uppercase;
-    }
+        .heading-test span {
+            display: block;
+            margin-bottom: 4px;
+            color: rgba(255, 255, 255, .78);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
 
-    .heading-test strong {
-        color: #fff;
-        font-size: 18px;
-        font-weight: 700;
-    }
+        .heading-test strong {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+        }
 
     /* ---------- MAIN TWO-COLUMN LAYOUT ---------- */
 
@@ -669,17 +886,17 @@
         font-weight: 700;
     }
 
-    .review-page .card-header > span:first-child {
-        display: inline-flex;
-        align-items: center;
-        gap: 11px;
-    }
+        .review-page .card-header > span:first-child {
+            display: inline-flex;
+            align-items: center;
+            gap: 11px;
+        }
 
-    .review-page .card-header > span:first-child > i {
-        flex-shrink: 0;
-        color: var(--teal);
-        font-size: 16px;
-    }
+            .review-page .card-header > span:first-child > i {
+                flex-shrink: 0;
+                color: var(--teal);
+                font-size: 16px;
+            }
 
     .review-page .card-body {
         padding: 22px 26px 26px;
@@ -754,17 +971,17 @@
         font-size: 13px;
     }
 
-    .patient-detail-row span {
-        color: var(--muted);
-        flex-shrink: 0;
-    }
+        .patient-detail-row span {
+            color: var(--muted);
+            flex-shrink: 0;
+        }
 
-    .patient-detail-row strong {
-        max-width: 65%;
-        text-align: right;
-        font-weight: 600;
-        overflow-wrap: anywhere;
-    }
+        .patient-detail-row strong {
+            max-width: 65%;
+            text-align: right;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
 
     /* ---------- SECTION LABELS ---------- */
 
@@ -779,9 +996,9 @@
         font-weight: 700;
     }
 
-    .section-label i {
-        color: var(--teal);
-    }
+        .section-label i {
+            color: var(--teal);
+        }
 
     /* ---------- CLINICAL INFORMATION ---------- */
 
@@ -797,23 +1014,23 @@
         border-radius: 14px;
     }
 
-    .clinical-item.allergy {
-        color: #a23a3a;
-        background: var(--red-bg);
-        border-color: var(--red-border);
-    }
+        .clinical-item.allergy {
+            color: #a23a3a;
+            background: var(--red-bg);
+            border-color: var(--red-border);
+        }
 
-    .clinical-item.condition {
-        color: #8c6108;
-        background: var(--gold-bg);
-        border-color: #f5dfaa;
-    }
+        .clinical-item.condition {
+            color: #8c6108;
+            background: var(--gold-bg);
+            border-color: #f5dfaa;
+        }
 
-    .clinical-item.medication {
-        color: var(--teal-dark);
-        background: var(--teal-light);
-        border-color: var(--teal-border);
-    }
+        .clinical-item.medication {
+            color: var(--teal-dark);
+            background: var(--teal-light);
+            border-color: var(--teal-border);
+        }
 
     .clinical-item-heading {
         display: flex;
@@ -928,27 +1145,27 @@
         border-radius: 14px;
     }
 
-    .test-detail > span {
-        display: block;
-        margin-bottom: 5px;
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 600;
-    }
+        .test-detail > span {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 600;
+        }
 
-    .test-detail > span i {
-        margin-right: 4px;
-        color: var(--teal);
-    }
+            .test-detail > span i {
+                margin-right: 4px;
+                color: var(--teal);
+            }
 
-    .test-detail > strong {
-        display: block;
-        color: var(--text);
-        font-size: 13px;
-        font-weight: 700;
-        line-height: 1.5;
-        overflow-wrap: anywhere;
-    }
+        .test-detail > strong {
+            display: block;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
 
     .status-pill {
         display: inline-flex;
@@ -961,16 +1178,20 @@
         white-space: nowrap;
     }
 
-    .status-pill.completed,
-    .status-pill.normal {
-        color: var(--success);
-        background: var(--success-bg);
-    }
+        .status-pill.normal {
+            color: var(--success);
+            background: var(--success-bg);
+        }
 
-    .status-pill.abnormal {
-        color: var(--red);
-        background: var(--red-bg);
-    }
+        .status-pill.returned {
+            color: var(--gold);
+            background: var(--gold-bg);
+        }
+
+        .status-pill.abnormal {
+            color: var(--red);
+            background: var(--red-bg);
+        }
 
     .configured-range {
         padding: 14px 16px;
@@ -980,78 +1201,29 @@
         border-radius: 14px;
     }
 
-    .configured-range > span,
-    .current-result-value > span,
-    .current-result-comments > span {
-        display: block;
-        margin-bottom: 5px;
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 600;
-    }
+        .configured-range > span {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 600;
+        }
 
-    .configured-range > strong {
-        color: var(--teal-deep);
-        font-family: "Inter", sans-serif;
-        font-size: 17px;
-        font-weight: 700;
-        overflow-wrap: anywhere;
-    }
+        .configured-range > strong {
+            color: var(--teal-deep);
+            font-family: "Inter", sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
 
-    .configured-range small {
-        margin-left: 5px;
-        color: var(--muted);
-        font-family: "Inter", sans-serif;
-        font-size: 12px;
-        font-weight: 500;
-    }
-
-    /* ---------- PREVIOUS RESULT ---------- */
-
-    .current-result {
-        margin-top: 16px;
-        padding: 16px;
-        background: #fff;
-        border: 1px solid var(--border);
-        border-radius: 14px;
-    }
-
-    .current-result-heading {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        margin-bottom: 14px;
-        color: var(--teal-deep);
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .current-result-heading i {
-        color: var(--teal);
-    }
-
-    .current-result-value strong {
-        color: var(--teal-dark);
-        font-family: "Inter", sans-serif;
-        font-size: 26px;
-        font-weight: 800;
-        letter-spacing: -.5px;
-        overflow-wrap: anywhere;
-    }
-
-    .current-result-comments {
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid var(--border);
-    }
-
-    .current-result-comments p {
-        margin: 0;
-        color: #3f605d;
-        font-size: 13px;
-        line-height: 1.7;
-        overflow-wrap: anywhere;
-    }
+        .configured-range small {
+            margin-left: 5px;
+            color: var(--muted);
+            font-family: "Inter", sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+        }
 
     /* ---------- VERIFICATION FEEDBACK ---------- */
 
@@ -1081,29 +1253,29 @@
         margin-bottom: 16px;
     }
 
-    .feedback-meta > div {
-        padding: 14px 16px;
-        background: var(--teal-soft);
-        border: 1px solid var(--teal-border);
-        border-radius: 14px;
-    }
+        .feedback-meta > div {
+            padding: 14px 16px;
+            background: var(--teal-soft);
+            border: 1px solid var(--teal-border);
+            border-radius: 14px;
+        }
 
-    .feedback-meta span,
-    .feedback-reason > span {
-        display: block;
-        margin-bottom: 6px;
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: .4px;
-        text-transform: uppercase;
-    }
+        .feedback-meta span,
+        .feedback-reason > span {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .4px;
+            text-transform: uppercase;
+        }
 
-    .feedback-meta strong {
-        font-size: 14px;
-        font-weight: 700;
-        overflow-wrap: anywhere;
-    }
+        .feedback-meta strong {
+            font-size: 14px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
 
     .feedback-reason {
         padding: 16px 18px;
@@ -1113,17 +1285,17 @@
         border-radius: 14px;
     }
 
-    .feedback-reason > span {
-        color: #765300;
-    }
+        .feedback-reason > span {
+            color: #765300;
+        }
 
-    .feedback-reason p {
-        margin: 0;
-        color: #6f5a2d;
-        font-size: 13px;
-        line-height: 1.7;
-        overflow-wrap: anywhere;
-    }
+        .feedback-reason p {
+            margin: 0;
+            color: #6f5a2d;
+            font-size: 13px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
 
     /* ---------- RESULT FORM ---------- */
 
@@ -1137,6 +1309,160 @@
     .result-form {
         padding: 24px 26px 28px;
     }
+
+    /* ---------- RESULT HISTORY (read-only) ---------- */
+
+    .history-heading {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-bottom: 14px;
+        color: var(--teal-deep);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+        .history-heading i {
+            color: var(--teal);
+        }
+
+    .history-list {
+        margin-bottom: 26px;
+    }
+
+        .history-list.scrollable {
+            max-height: 480px;
+            padding-right: 6px;
+            overflow-y: auto;
+        }
+
+    .history-empty {
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .previous-result {
+        margin-bottom: 14px;
+        padding: 18px 20px;
+        background: #fafbfb;
+        border: 1px solid var(--border);
+        border-left: 4px solid #d9c89a;
+        border-radius: 14px;
+    }
+
+    .history-list .previous-result:last-child {
+        margin-bottom: 0;
+    }
+
+    .previous-result.latest {
+        background: #fffaf0;
+        border-left-color: #c58a00;
+    }
+
+    .previous-result-heading {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-bottom: 14px;
+        color: #765300;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .previous-tag {
+        padding: 3px 10px;
+        color: var(--gold);
+        background: var(--gold-bg);
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+        .previous-tag.muted-tag {
+            color: var(--muted);
+            background: #eef2f2;
+            font-weight: 600;
+        }
+
+    .previous-result-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+    }
+
+    .previous-value > span,
+    .previous-class > span,
+    .previous-comments > span {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .previous-value strong {
+        color: #6f5a2d;
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -.5px;
+        overflow-wrap: anywhere;
+    }
+
+    .previous-value small {
+        margin-left: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0;
+    }
+
+    .previous-range {
+        font-size: 14px;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+
+    .previous-comments {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+    }
+
+        .previous-comments p {
+            margin: 0;
+            color: #3f605d;
+            font-size: 13px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+    .return-reason > span {
+        color: #765300;
+    }
+
+    .return-reason p {
+        color: #6f5a2d;
+    }
+
+    /* ---------- NEW RESULT ---------- */
+
+    .new-result-heading {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 16px;
+        padding-top: 4px;
+        color: var(--teal-deep);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+        .new-result-heading i {
+            color: var(--teal);
+        }
 
     .result-grid {
         display: grid;
@@ -1162,7 +1488,7 @@
         font-weight: 600;
     }
 
-    /* soft, tinted inputs like the search bar in the admin panel */
+    /* soft, tinted inputs */
     .input-wrapper {
         display: flex;
         align-items: center;
@@ -1174,10 +1500,10 @@
         transition: border-color .15s, box-shadow .15s, background .15s;
     }
 
-    .input-wrapper > i {
-        color: var(--teal);
-        flex-shrink: 0;
-    }
+        .input-wrapper > i {
+            color: var(--teal);
+            flex-shrink: 0;
+        }
 
     .review-page .form-control {
         width: 100%;
@@ -1194,9 +1520,9 @@
         transition: border-color .15s, box-shadow .15s, background .15s;
     }
 
-    .review-page .form-control::placeholder {
-        color: #8aa09e;
-    }
+        .review-page .form-control::placeholder {
+            color: #8aa09e;
+        }
 
     .review-page .input-wrapper .form-control {
         padding-left: 0;
@@ -1291,12 +1617,11 @@
         border: 1px solid var(--teal-border);
     }
 
-    .cancel-button:hover {
-        color: var(--teal-dark);
-        background: var(--teal-soft);
-    }
+        .cancel-button:hover {
+            color: var(--teal-dark);
+            background: var(--teal-soft);
+        }
 
-    /* gradient button with soft teal shadow, like "Add Category" */
     .submit-button {
         color: #fff;
         background: var(--btn-gradient);
@@ -1304,17 +1629,130 @@
         box-shadow: 0 8px 18px rgba(10, 93, 85, .28);
     }
 
-    .submit-button:hover {
-        color: #fff;
-        box-shadow: 0 10px 22px rgba(10, 93, 85, .36);
-        transform: translateY(-1px);
+        .submit-button:hover {
+            color: #fff;
+            box-shadow: 0 10px 22px rgba(10, 93, 85, .36);
+            transform: translateY(-1px);
+        }
+
+        .cancel-button:focus-visible,
+        .submit-button:focus-visible {
+            outline: 3px solid rgba(15, 148, 136, .35);
+            outline-offset: 2px;
+        }
+
+    /* ---------- CONFIRM MODAL ---------- */
+
+    .confirm-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(10, 40, 37, .55);
+        backdrop-filter: blur(3px);
     }
 
-    .cancel-button:focus-visible,
-    .submit-button:focus-visible {
-        outline: 3px solid rgba(15, 148, 136, .35);
-        outline-offset: 2px;
+        .confirm-overlay[hidden] {
+            display: none;
+        }
+
+    .confirm-modal {
+        width: 100%;
+        max-width: 460px;
+        padding: 30px 28px 24px;
+        text-align: center;
+        background: #fff;
+        border-radius: 22px;
+        box-shadow: 0 24px 60px rgba(10, 60, 55, .35);
+        animation: confirmIn .18s ease-out;
     }
+
+    @@keyframes confirmIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px) scale(.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    .confirm-icon {
+        width: 58px;
+        height: 58px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--teal-dark);
+        background: var(--teal-light);
+        border-radius: 50%;
+        font-size: 22px;
+    }
+
+    .confirm-modal h3 {
+        margin: 0 0 8px;
+        color: var(--text);
+        font-family: "Inter", sans-serif;
+        font-size: 20px;
+        font-weight: 700;
+    }
+
+    .confirm-modal p {
+        margin: 0 0 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .confirm-summary {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 22px;
+        padding: 14px 16px;
+        text-align: left;
+        background: var(--teal-soft);
+        border: 1px solid var(--teal-border);
+        border-radius: 14px;
+    }
+
+        .confirm-summary span {
+            display: block;
+            margin-bottom: 3px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .confirm-summary strong {
+            display: block;
+            color: var(--teal-deep);
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+    .confirm-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+        .confirm-actions .cancel-button,
+        .confirm-actions .submit-button {
+            flex: 1;
+        }
+
+        .confirm-actions button:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+        }
 
     /* ---------- RESPONSIVE ---------- */
 
@@ -1341,12 +1779,16 @@
             grid-template-columns: minmax(0, 1fr);
         }
 
-        .information-grid > .information-card {
-            height: auto;
-        }
+            .information-grid > .information-card {
+                height: auto;
+            }
 
         .heading-test {
             display: none;
+        }
+
+        .previous-result-body {
+            grid-template-columns: minmax(0, 1fr);
         }
     }
 
@@ -1360,9 +1802,9 @@
             border-radius: 20px;
         }
 
-        .review-heading h1 {
-            font-size: 19px;
-        }
+            .review-heading h1 {
+                font-size: 19px;
+            }
 
         .review-page .card-header {
             padding: 14px 16px;
@@ -1409,6 +1851,10 @@
         .cancel-button,
         .submit-button {
             width: 100%;
+        }
+
+        .confirm-actions {
+            flex-direction: column-reverse;
         }
     }
 </style>

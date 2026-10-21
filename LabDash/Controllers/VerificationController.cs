@@ -137,6 +137,68 @@ namespace LabDash.Controllers
                     v.TestRequestItemId == id &&
                     v.Status == TestStatus.ToBeRevised);
 
+
+            // ========================================================
+            // RETURNED-FOR-REVIEW HISTORY
+            // Every time this test was returned, newest first.
+            // Each record holds the reason and a snapshot of the
+            // result as it was when it was returned.
+            // ========================================================
+
+            var returnHistory =
+                await _context.TestVerifications
+
+                    .Include(v => v.VerifiedByTechnician)
+
+                    .Where(v =>
+                        v.TestRequestItemId == id &&
+                        v.Status == "To Be Reviewed"
+                    )
+
+                    .OrderByDescending(v => v.VerificationDate)
+
+                    .ToListAsync();
+
+
+            // Technician names, keyed by technician id (as a string)
+            var verifierNames = returnHistory
+
+                .Where(v =>
+                    !string.IsNullOrEmpty(v.VerifiedByTechnicianId) &&
+                    v.VerifiedByTechnician != null)
+
+                .GroupBy(v => v.VerifiedByTechnicianId!)
+
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.First().VerifiedByTechnician!.FullName
+                );
+
+
+
+            // ========================================================
+            // SEND DATA TO VIEW
+            // ========================================================
+
+            ViewBag.TestItem =
+                item;
+
+            ViewBag.Patient =
+                item.TestRequest?.Patient;
+
+            ViewBag.Result =
+                result;
+
+            ViewBag.ReviewReturnCount =
+                returnHistory.Count;
+
+            ViewBag.ReturnHistory =
+                returnHistory;
+
+            ViewBag.VerifierNames =
+                verifierNames;
+
+
             ViewBag.TestItem = item;
             ViewBag.Patient = item.TestRequest?.Patient;
             ViewBag.Result = result;
@@ -231,6 +293,22 @@ namespace LabDash.Controllers
                 Status = verification.Status,
                 VerificationNotes = verification.VerificationNotes
             };
+
+
+            // --------------------------------------------------------
+            // SNAPSHOT THE RESULT AS IT IS NOW (before the technician
+            // corrects it), so the Verify page can later show
+            // "before review" vs "after review".
+            // --------------------------------------------------------
+
+            if (verification.Status == "To Be Reviewed")
+            {
+                history.PreviousResultValue = result.ResultValue;
+                history.PreviousComments = result.Comments;
+                history.PreviousIsAbnormal = result.IsAbnormal;
+            }
+
+
             _context.TestVerifications.Add(history);
 
             // --------------------------------------------------------
