@@ -33,7 +33,7 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // INDEX
+        // INDEX — doctor's results list (verified only)
         // GET: /TestResult?abnormalOnly=true&search=kamogelo
         // =========================================================
 
@@ -46,7 +46,9 @@ namespace LabDash.Controllers
                 .Include(r => r.TestRequestItem).ThenInclude(i => i.TestType)
                 .Include(r => r.TestRequestItem).ThenInclude(i => i.TestRequest).ThenInclude(tr => tr.Patient)
                 .Include(r => r.VerifiedByTechnician)
-                .Where(r => r.TestRequestItem.TestRequest.RequestingDoctorId == doctor.Id);
+                .Where(r =>
+                    r.TestRequestItem.TestRequest.RequestingDoctorId == doctor.Id &&
+                    r.Status == TestStatus.Verified);   // verified only
 
             if (abnormalOnly)
                 query = query.Where(r => r.IsAbnormal);
@@ -67,7 +69,6 @@ namespace LabDash.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Group by the actual Patient entity
             var grouped = results
                 .GroupBy(r => r.TestRequestItem.TestRequest.Patient)
                 .OrderBy(g => g.Key.Surname)
@@ -81,7 +82,7 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // ALERTS
+        // ALERTS — abnormal results (verified only)
         // GET: /TestResult/Alerts?from=2026-09-16&to=2026-09-21
         // =========================================================
 
@@ -106,6 +107,7 @@ namespace LabDash.Controllers
                 .Include(r => r.VerifiedByTechnician)
                 .Where(r =>
                     r.IsAbnormal &&
+                    r.Status == TestStatus.Verified &&     // verified only
                     r.TestRequestItem.TestRequest.RequestingDoctorId == doctor.Id &&
                     r.DateCaptured >= fromDate &&
                     r.DateCaptured <= toInclusive)
@@ -121,7 +123,7 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // REQUEST
+        // REQUEST — results for a single request (verified only)
         // GET: /TestResult/Request/5
         // =========================================================
 
@@ -134,8 +136,10 @@ namespace LabDash.Controllers
                 .Include(r => r.TestRequestItem).ThenInclude(i => i.TestType)
                 .Include(r => r.TestRequestItem).ThenInclude(i => i.TestRequest).ThenInclude(tr => tr.Patient)
                 .Include(r => r.VerifiedByTechnician)
-                .Where(r => r.TestRequestItem.TestRequest.RequestId == id &&
-                            r.TestRequestItem.TestRequest.RequestingDoctorId == doctor.Id)
+                .Where(r =>
+                    r.TestRequestItem.TestRequest.RequestId == id &&
+                    r.TestRequestItem.TestRequest.RequestingDoctorId == doctor.Id &&
+                    r.Status == TestStatus.Verified)        // verified only
                 .OrderBy(r => r.TestRequestItem.TestType.Name)
                 .AsNoTracking()
                 .ToListAsync();
@@ -144,28 +148,9 @@ namespace LabDash.Controllers
 
             var request = results[0].TestRequestItem.TestRequest;
 
-            // AUTO-PROMOTE
-            if (request.Status != "Completed" &&
-                request.Status != "Released by doctor" &&
-                request.Status != "AppointmentScheduled")
-            {
-                var items = await _context.TestRequestItems
-                    .Where(i => i.RequestId == request.RequestId)
-                    .ToListAsync();
-
-                if (items.Any() && items.All(i => i.Status == "Completed"))
-                {
-                    var trackedRequest = await _context.TestRequests
-                        .FirstOrDefaultAsync(r => r.RequestId == request.RequestId);
-
-                    if (trackedRequest != null)
-                    {
-                        trackedRequest.Status = "Completed";
-                        await _context.SaveChangesAsync();
-                        request.Status = "Completed";
-                    }
-                }
-            }
+            // NOTE: AUTO-PROMOTE block removed.
+            // The request's status is promoted to "Completed" only by
+            // VerificationController.Verify when every item is verified.
 
             ViewBag.RequestId = id;
             ViewBag.PatientName = $"{request.Patient.Name} {request.Patient.Surname}";
@@ -180,7 +165,7 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // SCHEDULE APPOINTMENT
+        // SCHEDULE APPOINTMENT — all items must be Verified
         // POST: /TestResult/ScheduleAppointment
         // =========================================================
 
@@ -203,7 +188,17 @@ namespace LabDash.Controllers
 
             if (request == null) return NotFound();
 
-            if (request.Status != "Completed")
+            // Verified-before-appointment gate
+            if (request.TestRequestItems == null ||
+                !request.TestRequestItems.Any() ||
+                request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
+            {
+                TempData["Error"] = "All tests must be verified before scheduling an appointment.";
+                return RedirectToAction(nameof(Request), new { id = requestId });
+            }
+
+            if (request.Status != TestRequestStatus.Completed &&
+                request.Status != TestRequestStatus.AppointmentScheduled)
             {
                 TempData["Error"] = "Only completed results can have an appointment scheduled.";
                 return RedirectToAction(nameof(Request), new { id = requestId });
@@ -224,7 +219,7 @@ namespace LabDash.Controllers
             request.AppointmentDate = appointmentDate;
             request.AppointmentLocation = appointmentLocation.Trim();
             request.AppointmentNote = appointmentNote?.Trim();
-            request.Status = "AppointmentScheduled";
+            request.Status = TestRequestStatus.AppointmentScheduled;
 
             await _context.SaveChangesAsync();
 
@@ -249,7 +244,7 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // RELEASE RESULTS
+        // RELEASE RESULTS — all items must be Verified
         // POST: /TestResult/ReleaseResults
         // =========================================================
 
@@ -268,13 +263,23 @@ namespace LabDash.Controllers
 
             if (request == null) return NotFound();
 
-            if (request.Status != "Completed" && request.Status != "AppointmentScheduled")
+            // Verified-before-release gate
+            if (request.TestRequestItems == null ||
+                !request.TestRequestItems.Any() ||
+                request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
+            {
+                TempData["Error"] = "All tests must be verified before releasing.";
+                return RedirectToAction(nameof(Request), new { id = requestId });
+            }
+
+            if (request.Status != TestRequestStatus.Completed &&
+                request.Status != TestRequestStatus.AppointmentScheduled)
             {
                 TempData["Error"] = "Results can only be released from 'Completed' or 'AppointmentScheduled' status.";
                 return RedirectToAction(nameof(Request), new { id = requestId });
             }
 
-            request.Status = "Released by doctor";
+            request.Status = TestRequestStatus.ReleasedByDoctor;
             request.ReleaseNote = releaseNote?.Trim();
             request.ReleaseDate = DateTime.Now;
 
@@ -298,7 +303,7 @@ namespace LabDash.Controllers
         }
 
         // =========================================================
-        // SEND RESULTS AS PDF
+        // SEND RESULTS AS PDF — all items Verified; verified rows only
         // POST: /TestResult/SendResultsPdf
         // =========================================================
 
@@ -319,9 +324,18 @@ namespace LabDash.Controllers
 
             if (request == null) return NotFound();
 
-            if (request.Status != "Completed" &&
-                request.Status != "AppointmentScheduled" &&
-                request.Status != "Released by doctor")
+            // Verified-before-send gate
+            if (request.TestRequestItems == null ||
+                !request.TestRequestItems.Any() ||
+                request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
+            {
+                TempData["Error"] = "All tests must be verified before sending results as PDF.";
+                return RedirectToAction(nameof(Request), new { id = requestId });
+            }
+
+            if (request.Status != TestRequestStatus.Completed &&
+                request.Status != TestRequestStatus.AppointmentScheduled &&
+                request.Status != TestRequestStatus.ReleasedByDoctor)
             {
                 TempData["Error"] = "Results must be completed before sending as PDF.";
                 return RedirectToAction(nameof(Request), new { id = requestId });
@@ -337,19 +351,22 @@ namespace LabDash.Controllers
                     : null,
                 GeneratedAt = DateTime.Now,
                 Rows = request.TestRequestItems
-                    .SelectMany(i => i.TestResults.Select(r => new VerifiedResultRow
-                    {
-                        TestName = i.TestType?.Name ?? "Test",
-                        ResultValue = r.ResultValue,
-                        Units = r.Units,
-                        ReferenceRange = r.ReferenceRange,
-                        IsAbnormal = r.IsAbnormal,
-                        Comments = r.Comments,
-                        VerifiedByFullName = r.VerifiedByTechnician != null
-                            ? $"{r.VerifiedByTechnician.FirstName} {r.VerifiedByTechnician.LastName}"
-                            : null,
-                        VerificationDate = r.VerificationDate
-                    }))
+                    .Where(i => i.Status == TestStatus.Verified)               // verified items only
+                    .SelectMany(i => i.TestResults
+                        .Where(r => r.Status == TestStatus.Verified)           // verified results only
+                        .Select(r => new VerifiedResultRow
+                        {
+                            TestName = i.TestType?.Name ?? "Test",
+                            ResultValue = r.ResultValue,
+                            Units = r.Units,
+                            ReferenceRange = r.ReferenceRange,
+                            IsAbnormal = r.IsAbnormal,
+                            Comments = r.Comments,
+                            VerifiedByFullName = r.VerifiedByTechnician != null
+                                ? $"{r.VerifiedByTechnician.FirstName} {r.VerifiedByTechnician.LastName}"
+                                : null,
+                            VerificationDate = r.VerificationDate
+                        }))
                     .ToList()
             };
 
@@ -364,7 +381,7 @@ namespace LabDash.Controllers
                     <strong>Request Number:</strong> TR-{request.RequestId}<br/>
                     <strong>Tests:</strong> {data.Rows.Count}
                 </p>
-                <p>If you have any questions, please contact NMB LAB.</p>";
+                <p>If you have any questions, please contact LAB DASH.</p>";
 
             await _attachmentSender.SendEmailWithAttachmentAsync(
                 request.Patient.Email,

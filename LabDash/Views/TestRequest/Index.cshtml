@@ -365,6 +365,11 @@
         color: #a44848;
     }
 
+    .status-appointment {
+        background: #eef4ff;
+        color: #29579a;
+    }
+
     .status-default {
         background: #eef2f1;
         color: #63736f;
@@ -374,7 +379,6 @@
         padding: 13px;
     }
 
-    /* PROGRESS BAR */
     .prog-track {
         display: flex;
         gap: 6px;
@@ -384,7 +388,7 @@
 
     .prog-step {
         flex: 1;
-        min-width: 84px;
+        min-width: 68px;
         text-align: center;
         padding: 7px 6px;
         font-size: 8px;
@@ -445,7 +449,6 @@
         color: #b44444;
     }
 
-    /* NEW 2-COLUMN GRID */
     .request-two-col {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -717,7 +720,6 @@
             color: #0d6b63;
         }
 
-    /* ACTION BUTTONS */
     .req-actions {
         display: flex;
         gap: 8px;
@@ -813,7 +815,6 @@
         font-size: 11px;
     }
 
-    /* CANCEL MODAL */
     .modal-backdrop-c {
         position: fixed;
         inset: 0;
@@ -953,7 +954,6 @@
         </div>
     </div>
 
-
     @if (TempData["Error"] != null)
     {
         <div class="folder-error">
@@ -961,7 +961,6 @@
             <span>@TempData["Error"]</span>
         </div>
     }
-
 
     <!-- FOLDERS -->
     <div class="patient-folder-grid">
@@ -994,7 +993,6 @@
 
                     <div class="folder-tab"></div>
 
-                    <!-- PATIENT HEADER -->
                     <div class="patient-folder-header">
                         <div class="patient-avatar">
                             @initials.ToUpper()
@@ -1012,7 +1010,6 @@
                         </div>
                     </div>
 
-                    <!-- PATIENT SUMMARY -->
                     <div class="patient-summary">
                         <div class="summary-box">
                             <span class="summary-label">Requests</span>
@@ -1028,7 +1025,6 @@
                         </div>
                     </div>
 
-                    <!-- REQUESTS -->
                     <div class="request-area">
 
                         <div class="request-area-heading">
@@ -1056,6 +1052,7 @@
                                 "samplesreceived" => "status-samples",
                                 "inprogress" => "status-progress",
                                 "completed" => "status-completed",
+                                "appointmentscheduled" => "status-appointment",
                                 "releasedbydoctor" => "status-released",
                                 "cancelled" => "status-cancelled",
                                 _ => "status-default"
@@ -1075,19 +1072,31 @@
                             bool stepSubmitted = true;
                             bool stepReceived = status != "Submitted" && status != "Cancelled";
                             bool stepInProgress = status == "In Progress"
-                            || status == "Completed"
-                            || status == "Released by doctor";
+                                               || status == "Completed"
+                                               || status == "AppointmentScheduled"
+                                               || status == "Released by doctor";
                             bool stepCompleted = status == "Completed"
-                            || status == "Released by doctor";
+                                               || status == "AppointmentScheduled"
+                                               || status == "Released by doctor";
+                            bool stepVerified = status == "Completed"
+                                               || status == "AppointmentScheduled"
+                                               || status == "Released by doctor";
                             bool stepReleased = status == "Released by doctor";
 
+                            var allItemsVerified =
+                                request.TestRequestItems != null &&
+                                request.TestRequestItems.Count > 0 &&
+                                ((IEnumerable<dynamic>)request.TestRequestItems)
+                                    .All((Func<dynamic, bool>)(i => (string)i.Status == "Verified"));
+
                             bool canViewResults =
-                            status == "Completed" ||
-                            status == "Released by doctor";
+                                allItemsVerified &&
+                                (status == "Completed"
+                                 || status == "AppointmentScheduled"
+                                 || status == "Released by doctor");
 
                             <div class="request-card">
 
-                                <!-- REQUEST HEADER -->
                                 <div class="request-header">
                                     <div class="request-header-left">
                                         <div class="request-icon">
@@ -1113,10 +1122,8 @@
                                     </div>
                                 </div>
 
-                                <!-- REQUEST BODY -->
                                 <div class="request-body">
 
-                                    <!-- PROGRESS BAR -->
                                     @if (status != "Cancelled")
                                     {
                                         <div class="prog-track">
@@ -1124,13 +1131,14 @@
                                             <div class="prog-step @(stepReceived ? "done" : "")">Received</div>
                                             <div class="prog-step @(stepInProgress ? "done" : "")">In Progress</div>
                                             <div class="prog-step @(stepCompleted ? "done" : "")">Completed</div>
+                                            <div class="prog-step @(stepVerified ? "done" : "")">Verified</div>
                                             <div class="prog-step @(stepReleased ? "done" : "")">Released</div>
                                         </div>
                                     }
                                     else
                                     {
                                         <div style="background:#fff6f5;border:1px solid #f5c9c6;border-radius:10px;
-                                                                                    padding:10px 12px;margin-bottom:12px;color:#b42318;font-size:10px;">
+                                            padding:10px 12px;margin-bottom:12px;color:#b42318;font-size:10px;">
                                             <i class="fas fa-ban"></i>
                                             <strong>Cancelled</strong>
                                             @if (!string.IsNullOrWhiteSpace((string)request.CancellationReason))
@@ -1142,7 +1150,6 @@
                                         </div>
                                     }
 
-                                    <!-- REQUEST INFO -->
                                     <div class="request-info-grid">
                                         <div class="request-info">
                                             <span class="request-info-label">Request Date</span>
@@ -1165,10 +1172,8 @@
                                         </div>
                                     </div>
 
-                                    <!-- ⚡ TWO COLUMN: TESTS + SAMPLES | TIMELINE -->
                                     <div class="request-two-col">
 
-                                        <!-- LEFT: TESTS + SAMPLES -->
                                         <div class="request-col">
 
                                             <div class="detail-section">
@@ -1193,7 +1198,7 @@
                                                                 </div>
 
                                                                 @if (item.TestType != null &&
-                                                                                                            !string.IsNullOrWhiteSpace(item.TestType.Category))
+                                                                     !string.IsNullOrWhiteSpace(item.TestType.Category))
                                                                 {
                                                                     <span class="test-category">
                                                                         @item.TestType.Category
@@ -1223,7 +1228,7 @@
                                                         @foreach (var item in request.TestRequestItems)
                                                         {
                                                             if (item.TestType != null &&
-                                                            !string.IsNullOrWhiteSpace(item.TestType.RequiredSampleType))
+                                                                !string.IsNullOrWhiteSpace(item.TestType.RequiredSampleType))
                                                             {
                                                                 <span class="sample-pill">
                                                                     <i class="fas fa-vial"></i>
@@ -1235,46 +1240,46 @@
                                                 </div>
                                             }
 
-                                    </div>
-
-                                    <!-- RIGHT: TIMELINE -->
-                                    <div class="request-col">
-
-                                        <div class="detail-section">
-                                            <div class="detail-section-title">
-                                                <i class="fas fa-clock-rotate-left"></i>
-                                                Status Timeline
-                                            </div>
-
-                                            <div class="status-timeline">
-
-                                                <div class="timeline-item @(request.SubmittedDate != null ? "done" : "")">
-                                                    <span class="timeline-dot"></span>
-                                                    <div class="timeline-content">
-                                                        <span class="timeline-label">Submitted by Doctor</span>
-                                                        <span class="timeline-time">
-                                                            @(request.SubmittedDate != null
-                                                                                                                ? Convert.ToDateTime(request.SubmittedDate).ToString("dd MMM HH:mm")
-                                                                                                                : "Pending")
-                                                                                                                        </span>
-                                                                                                                    </div>
-                                                                                                                </div>
-
-                                                <div class="timeline-item @(request.DateTimeReceived != null ? "done" : "")">
-                                                    <span class="timeline-dot"></span>
-                                                    <div class="timeline-content">
-                                                        <span class="timeline-label">Samples Received</span>
-                                                        <span class="timeline-time">
-                                                            @(request.DateTimeReceived != null
-                                                                                                                ? Convert.ToDateTime(request.DateTimeReceived).ToString("dd MMM HH:mm")
-                                                                                                                : "Pending")
-                                                </span>
-                                            </div>
                                         </div>
 
-                                        @{
+                                        <div class="request-col">
+
+                                            <div class="detail-section">
+                                                <div class="detail-section-title">
+                                                    <i class="fas fa-clock-rotate-left"></i>
+                                                    Status Timeline
+                                                </div>
+
+                                                <div class="status-timeline">
+
+                                                    <div class="timeline-item @(request.SubmittedDate != null ? "done" : "")">
+                                                        <span class="timeline-dot"></span>
+                                                        <div class="timeline-content">
+                                                            <span class="timeline-label">Submitted by Doctor</span>
+                                                            <span class="timeline-time">
+                                                                @(request.SubmittedDate != null
+                                                                    ? Convert.ToDateTime(request.SubmittedDate).ToString("dd MMM HH:mm")
+                                                                    : "Pending")
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="timeline-item @(request.DateTimeReceived != null ? "done" : "")">
+                                                        <span class="timeline-dot"></span>
+                                                        <div class="timeline-content">
+                                                            <span class="timeline-label">Samples Received</span>
+                                                            <span class="timeline-time">
+                                                                @(request.DateTimeReceived != null
+                                                                    ? Convert.ToDateTime(request.DateTimeReceived).ToString("dd MMM HH:mm")
+                                                                    : "Pending")
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    @{
                                                         DateTime? earliestStart = null;
                                                         DateTime? latestCompletion = null;
+                                                        DateTime? earliestVerification = null;
 
                                                         if (request.TestRequestItems != null)
                                                         {
@@ -1285,52 +1290,78 @@
                                                                     var sd = (DateTime)it.StartDateTime;
                                                                     if (earliestStart == null || sd < earliestStart) earliestStart = sd;
                                                                 }
+
                                                                 if (it.CompletionDateTime != null)
                                                                 {
                                                                     var cd = (DateTime)it.CompletionDateTime;
                                                                     if (latestCompletion == null || cd > latestCompletion) latestCompletion = cd;
                                                                 }
+
+                                                                if (it.TestResults != null)
+                                                                {
+                                                                    foreach (var r in it.TestResults)
+                                                                    {
+                                                                        if (r.VerificationDate != null)
+                                                                        {
+                                                                            var vd = (DateTime)r.VerificationDate;
+                                                                            if (earliestVerification == null || vd < earliestVerification)
+                                                                                earliestVerification = vd;
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
 
-                                                <div class="timeline-item @(earliestStart != null ? "done" : "")">
-                                                    <span class="timeline-dot"></span>
-                                                    <div class="timeline-content">
-                                                        <span class="timeline-label">In Progress</span>
-                                                        <span class="timeline-time">
-                                                            @(earliestStart != null
-                                                                                                                ? earliestStart.Value.ToString("dd MMM HH:mm")
-                                                                                                                : "Pending")
-                                                                                                                        </span>
-                                                                                                                    </div>
-                                                                                                                </div>
+                                                    <div class="timeline-item @(earliestStart != null ? "done" : "")">
+                                                        <span class="timeline-dot"></span>
+                                                        <div class="timeline-content">
+                                                            <span class="timeline-label">In Progress</span>
+                                                            <span class="timeline-time">
+                                                                @(earliestStart != null
+                                                                    ? earliestStart.Value.ToString("dd MMM HH:mm")
+                                                                    : "Pending")
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
-                                                <div class="timeline-item @(latestCompletion != null ? "done" : "")">
-                                                    <span class="timeline-dot"></span>
-                                                    <div class="timeline-content">
-                                                        <span class="timeline-label">Completed — All Results Captured</span>
-                                                        <span class="timeline-time">
-                                                            @(latestCompletion != null
-                                                                                                                ? latestCompletion.Value.ToString("dd MMM HH:mm")
-                                                                                                                : "Pending")
-                                                                                                                        </span>
-                                                                                                                    </div>
-                                                                                                                </div>
+                                                    <div class="timeline-item @(latestCompletion != null ? "done" : "")">
+                                                        <span class="timeline-dot"></span>
+                                                        <div class="timeline-content">
+                                                            <span class="timeline-label">Completed — Results Captured</span>
+                                                            <span class="timeline-time">
+                                                                @(latestCompletion != null
+                                                                    ? latestCompletion.Value.ToString("dd MMM HH:mm")
+                                                                    : "Pending")
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
-                                                <div class="timeline-item @(request.ReleaseDate != null ? "done" : "")">
-                                                    <span class="timeline-dot"></span>
-                                                    <div class="timeline-content">
-                                                        <span class="timeline-label">Released by Doctor</span>
-                                                        <span class="timeline-time">
-                                                            @(request.ReleaseDate != null
-                                                                                                                ? Convert.ToDateTime(request.ReleaseDate).ToString("dd MMM HH:mm")
-                                                                                                                : "Pending")
-                                                </span>
-                                            </div>
-                                        </div>
+                                                    <div class="timeline-item @(earliestVerification != null ? "done" : "")">
+                                                        <span class="timeline-dot"></span>
+                                                        <div class="timeline-content">
+                                                            <span class="timeline-label">Verified — All Results Approved</span>
+                                                            <span class="timeline-time">
+                                                                @(earliestVerification != null
+                                                                    ? earliestVerification.Value.ToString("dd MMM HH:mm")
+                                                                    : "Pending")
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
-                                        @if (status == "Cancelled")
+                                                    <div class="timeline-item @(request.ReleaseDate != null ? "done" : "")">
+                                                        <span class="timeline-dot"></span>
+                                                        <div class="timeline-content">
+                                                            <span class="timeline-label">Released by Doctor</span>
+                                                            <span class="timeline-time">
+                                                                @(request.ReleaseDate != null
+                                                                    ? Convert.ToDateTime(request.ReleaseDate).ToString("dd MMM HH:mm")
+                                                                    : "Pending")
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    @if (status == "Cancelled")
                                                     {
                                                         <div class="timeline-item cancelled">
                                                             <span class="timeline-dot"></span>
@@ -1339,12 +1370,12 @@
                                                                 <span class="timeline-time">
                                                                     Reason:
                                                                     @(string.IsNullOrWhiteSpace((string)request.CancellationReason)
-                                                                                                                        ? "Not recorded"
-                                                                                                                        : (string)request.CancellationReason)
-                                                </span>
-                                            </div>
-                                        </div>
-                                                                                }
+                                                                        ? "Not recorded"
+                                                                        : (string)request.CancellationReason)
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    }
 
                                                 </div>
                                             </div>
@@ -1352,8 +1383,7 @@
                                         </div>
 
                                     </div>
-                                    <!-- /TWO COLUMN -->
-                                    <!-- DOCTOR + CLINICAL NOTES (full width) -->
+
                                     <div class="detail-section" style="margin-top:6px;">
                                         <div class="detail-section-title">
                                             <i class="fas fa-user-doctor"></i>
@@ -1369,9 +1399,9 @@
                                                     @if (request.RequestingDoctor != null)
                                                     {
                                                         @(request.RequestingDoctor.UserName
-                                                                                                ?? request.RequestingDoctor.Email
-                                                                                                ?? "Doctor")
-                                                                                }
+                                                            ?? request.RequestingDoctor.Email
+                                                            ?? "Doctor")
+                                                    }
                                                     else
                                                     {
                                                         <span>Not recorded</span>
@@ -1398,7 +1428,6 @@
                                         }
                                     </div>
 
-                                    <!-- ACTION BUTTONS -->
                                     <div class="req-actions">
 
                                         @if (canViewResults)
@@ -1413,10 +1442,10 @@
                                             <button type="button"
                                                     class="btn btn-primary"
                                                     disabled
-                                                    title="Results will be available once all tests are Completed.">
+                                                    title="Results will be available once all tests are Verified.">
                                                 <i class="fas fa-lock"></i> View Results
                                             </button>
-                                            <span class="btn-hint">Available once all tests are Completed.</span>
+                                            <span class="btn-hint">Available once all tests are Verified.</span>
                                         }
 
                                         @if (status == "Submitted" || status == "Samples Received")

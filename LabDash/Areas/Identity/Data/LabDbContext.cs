@@ -245,7 +245,47 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .HasForeignKey(v => v.TestRequestItemId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // ============================================================
+        // TEST RESULT — technician foreign keys
+        // ============================================================
 
+        builder.Entity<TestResult>()
+            .HasOne(r => r.CapturedByTechnician)
+            .WithMany()
+            .HasForeignKey(r => r.CapturedByTechnicianId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<TestResult>()
+            .HasOne(r => r.VerifiedByTechnician)
+            .WithMany()
+            .HasForeignKey(r => r.VerifiedByTechnicianId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ============================================================
+        // INDEXES — verified-before-release query paths
+        // ============================================================
+
+        builder.Entity<TestResult>()
+            .HasIndex(r => new { r.Status, r.TestRequestItemId });
+
+        builder.Entity<TestRequestItem>()
+            .HasIndex(i => new { i.RequestId, i.Status });
+
+        builder.Entity<TestRequest>()
+            .HasIndex(t => new { t.RequestingDoctorId, t.Status });
+
+        // ============================================================
+        // TEST REVIEW HISTORY (if you use it for full review history)
+        // ============================================================
+
+        builder.Entity<TestReviewHistory>()
+            .HasOne(h => h.TestRequestItem)
+            .WithMany()
+            .HasForeignKey(h => h.TestRequestItemId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<TestReviewHistory>()
+            .HasIndex(h => new { h.TestRequestItemId, h.ReviewedAt });
         // ============================================================
         // TEST TYPE REFERENCE RANGES
         // ============================================================

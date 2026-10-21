@@ -14,6 +14,35 @@
     var testType = test?.TestType;
 
     // ============================================================
+    // RETURN HISTORY
+    // Supplied by the controller as ViewBag.ReturnHistory: every earlier
+    // TestVerification for this test item that was returned for review.
+    // Each one carries a snapshot of the result as it was when returned:
+    //   PreviousResultValue, PreviousComments, PreviousIsAbnormal.
+    // Optional ViewBag.VerifierNames: Dictionary<string,string> mapping
+    // VerifiedByTechnicianId.ToString() -> technician name.
+    // ============================================================
+
+    var returnHistory = (ViewBag.ReturnHistory as IEnumerable<TestVerification>
+                            ?? Enumerable.Empty<TestVerification>())
+                        .OrderByDescending(v => v.VerificationDate)
+                        .ToList();
+
+    var verifierNames = ViewBag.VerifierNames as Dictionary<string, string>;
+
+    Func<TestVerification, string> verifierLabel = v =>
+    {
+        var id = v.VerifiedByTechnicianId?.ToString();
+        if (id != null && verifierNames != null && verifierNames.TryGetValue(id, out var name))
+        {
+            return name;
+        }
+        return id != null ? $"Technician #{id}" : "Not available";
+    };
+
+    var latestReturn = returnHistory.FirstOrDefault();
+
+    // ============================================================
     // REFERENCE RANGE
     // ============================================================
 
@@ -99,18 +128,39 @@
 
     string abnormalClass = isAbnormal ? "abnormal" : "";
 
-    // Direction of the abnormality (Low / High) when it can be calculated
     string abnormalDirection = "";
     if (isAbnormal && hasReferenceRange && validNumericResult)
     {
         abnormalDirection = numericResult < referenceLow ? "Below" : "Above";
     }
 
+    // Classifies any stored value against the configured range (null = cannot tell)
+    Func<string, bool?> isAbnormalValue = raw =>
+    {
+        if (!hasReferenceRange || string.IsNullOrWhiteSpace(raw)) return null;
+
+        var cleaned = raw.Trim().Replace(',', '.');
+
+        if (decimal.TryParse(cleaned,
+                NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
+                CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed < referenceLow || parsed > referenceHigh;
+        }
+
+        return null;
+    };
+
     // ============================================================
     // STATUS
     // ============================================================
 
     string currentStatus = result?.Status ?? "Unknown";
+
+    // A result counts as "previously returned" if there is a recorded return,
+    // or it is currently sitting in the To Be Reviewed status.
+    bool wasReturned = returnHistory.Any() || currentStatus == "To Be Reviewed";
+    bool awaitingCorrection = currentStatus == "To Be Reviewed";
 
     // ============================================================
     // DISPLAY VALUES
@@ -181,6 +231,7 @@
         --warning: #c98500;
         --warning-dark: #805b13;
         --warning-soft: #fff3d9;
+        --warning-line: #f0dfb7;
 
         --success: #198754;
         --success-soft: #eaf7ef;
@@ -191,11 +242,9 @@
         --shadow-soft: 0 8px 28px rgba(15, 70, 64, .07);
     }
 
-
     * {
         box-sizing: border-box;
     }
-
 
     body {
         background: #f1f5f5;
@@ -206,7 +255,6 @@
     button, input, textarea {
         font-family: 'Inter', 'Segoe UI', sans-serif;
     }
-
 
     .verify-page {
         max-width: 1500px;
@@ -390,31 +438,361 @@
         font-size: 12.5px;
     }
 
-    .review-banner {
-        background: var(--warning-soft);
-        border: 1px solid #f0dfb7;
-        border-left: 6px solid var(--warning);
-        border-radius: 14px;
-        padding: 13px 17px;
+
+    /* =========================================================
+       PREVIOUSLY RETURNED FOR REVIEW
+       ========================================================= */
+
+    .returned-panel {
         margin-bottom: 20px;
+        background: var(--warning-soft);
+        border: 1px solid var(--warning-line);
+        border-left: 7px solid var(--warning);
+        border-radius: 16px;
+        padding: 18px 20px;
+        box-shadow: 0 6px 20px rgba(201, 133, 0, .10);
     }
 
-        .review-banner strong {
+    .returned-panel-top {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .returned-panel-icon {
+        width: 46px;
+        height: 46px;
+        min-width: 46px;
+        border-radius: 13px;
+        background: var(--warning);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+    }
+
+    .returned-panel-title {
+        flex: 1;
+        min-width: 0;
+    }
+
+        .returned-panel-title strong {
             display: block;
+            color: var(--warning-dark);
+            font-size: 15.5px;
+            font-weight: 700;
+        }
+
+        .returned-panel-title span {
+            color: #6e5b35;
+            font-size: 12.5px;
+        }
+
+    .returned-count {
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: white;
+        border: 1px solid var(--warning-line);
+        color: var(--warning-dark);
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .returned-meta {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+        .returned-meta > div {
+            background: white;
+            border: 1px solid var(--warning-line);
+            border-radius: 12px;
+            padding: 10px 13px;
+        }
+
+        .returned-meta span {
+            display: block;
+            margin-bottom: 3px;
+            color: #8a6d2d;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .returned-meta strong {
+            color: #4d3b10;
+            font-size: 13px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+    .returned-reason {
+        background: white;
+        border: 1px solid var(--warning-line);
+        border-left: 4px solid var(--warning);
+        border-radius: 12px;
+        padding: 13px 15px;
+    }
+
+        .returned-reason span {
+            display: block;
+            margin-bottom: 5px;
+            color: #8a6d2d;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .returned-reason p {
+            margin: 0;
+            color: #4d3b10;
+            font-size: 13.5px;
+            line-height: 1.65;
+            overflow-wrap: anywhere;
+        }
+
+    .returned-state {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        font-size: 12.5px;
+        font-weight: 600;
+    }
+
+        .returned-state.resubmitted {
+            color: var(--success);
+        }
+
+        .returned-state.waiting {
+            color: var(--warning-dark);
+        }
+
+    .returned-history {
+        margin-top: 14px;
+        border-top: 1px dashed var(--warning-line);
+        padding-top: 12px;
+    }
+
+        .returned-history summary {
+            cursor: pointer;
+            color: var(--warning-dark);
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+    .returned-history-item {
+        margin-top: 10px;
+        padding: 11px 14px;
+        background: white;
+        border: 1px solid var(--warning-line);
+        border-radius: 12px;
+    }
+
+        .returned-history-item header {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 5px;
+            color: #8a6d2d;
+            font-size: 11.5px;
+            font-weight: 600;
+        }
+
+        .returned-history-item p {
+            margin: 0;
+            color: #4d3b10;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+
+
+    /* ---------- BEFORE vs AFTER REVIEW ---------- */
+
+    .returned-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .return-case {
+        margin-top: 12px;
+        padding: 14px 16px;
+        background: rgba(255,255,255,.55);
+        border: 1px solid var(--warning-line);
+        border-radius: 14px;
+    }
+
+        .return-case > summary {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin: -2px 0 12px;
+            list-style: none;
             color: var(--warning-dark);
             font-size: 13px;
             font-weight: 700;
-            margin-bottom: 2px;
         }
 
-        .review-banner span {
-            color: #6e5b35;
+            .return-case > summary::-webkit-details-marker {
+                display: none;
+            }
+
+        .return-case:not([open]) > summary {
+            margin-bottom: 0;
+        }
+
+    .return-case-tag {
+        margin-left: 8px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: var(--warning);
+        color: white;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .return-case-date {
+        color: #8a6d2d;
+        font-size: 11.5px;
+        font-weight: 600;
+    }
+
+    .compare-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        gap: 12px;
+        align-items: stretch;
+        margin-top: 12px;
+    }
+
+    .compare-box {
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: white;
+        border: 1px solid var(--line);
+    }
+
+        .compare-box.before {
+            border-left: 4px solid var(--warning);
+        }
+
+        .compare-box.after {
+            border-left: 4px solid var(--teal);
+            background: #f6fbfa;
+        }
+
+    .compare-label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .compare-box.before .compare-label {
+        color: var(--warning-dark);
+    }
+
+    .compare-box.after .compare-label {
+        color: var(--teal-dark);
+    }
+
+    .compare-value {
+        margin-bottom: 8px;
+        color: var(--ink);
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -.5px;
+        overflow-wrap: anywhere;
+    }
+
+        .compare-value small {
+            margin-left: 6px;
+            color: var(--muted);
             font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0;
         }
 
+    .compare-box.before .compare-value {
+        color: #6f5a2d;
+    }
+
+    .compare-box.after .compare-value {
+        color: var(--teal-dark);
+    }
+
+    .compare-pending {
+        color: var(--muted) !important;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0;
+    }
+
+    .compare-comments {
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+    }
+
+        .compare-comments span {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .compare-comments p {
+            margin: 0;
+            color: #3f605d;
+            font-size: 13px;
+            line-height: 1.65;
+            overflow-wrap: anywhere;
+        }
+
+    .compare-captured {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 11.5px;
+    }
+
+    .compare-arrow {
+        display: flex;
+        align-items: center;
+        color: var(--warning);
+        font-size: 18px;
+    }
+
+    @@media (max-width: 700px) {
+        .compare-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .compare-arrow {
+            justify-content: center;
+            transform: rotate(90deg);
+        }
+    }
 
     /* =========================================================
-       LAYOUT + CARDS (white header, teal icon, bold dark title)
+       LAYOUT + CARDS
        ========================================================= */
 
     .main-info-grid {
@@ -781,7 +1159,6 @@
         margin-bottom: 20px;
     }
 
-        /* Whole card turns red when the result is abnormal */
         .result-card.abnormal {
             border: 2px solid var(--danger);
             box-shadow: 0 10px 30px rgba(214, 40, 57, .16);
@@ -909,7 +1286,6 @@
             border-bottom: none;
         }
 
-        /* Result row turns red when abnormal */
         .result-table tr.row-abnormal th {
             background: #fbd9dd;
             color: var(--danger-dark);
@@ -928,11 +1304,6 @@
         .result-value.abnormal {
             color: var(--danger);
         }
-
-    .unit-abnormal {
-        color: var(--danger);
-        font-weight: 700;
-    }
 
 
     /* =========================================================
@@ -1003,6 +1374,19 @@
         border-radius: 999px;
         background: var(--success-soft);
         color: var(--success);
+        font-size: 10.5px;
+        font-weight: 700;
+    }
+
+    .returned-badge-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-left: 8px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: var(--warning-soft);
+        color: var(--warning-dark);
         font-size: 10.5px;
         font-weight: 700;
     }
@@ -1213,11 +1597,122 @@
 
 
     /* =========================================================
+       CONFIRMATION POPUP
+       ========================================================= */
+
+    .confirm-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(8, 40, 37, .55);
+        backdrop-filter: blur(3px);
+    }
+
+        .confirm-overlay.open {
+            display: flex;
+            animation: confirmFade .15s ease;
+        }
+
+    .confirm-dialog {
+        width: 100%;
+        max-width: 440px;
+        padding: 30px 28px 24px;
+        background: #fff;
+        border-radius: 22px;
+        text-align: center;
+        box-shadow: 0 24px 60px rgba(8, 40, 37, .3);
+        animation: confirmPop .18s ease;
+    }
+
+        .confirm-dialog h3 {
+            margin: 0 0 8px;
+            color: var(--ink);
+            font-size: 19px;
+            font-weight: 700;
+        }
+
+        .confirm-dialog p {
+            margin: 0;
+            color: var(--ink-soft);
+            font-size: 13.5px;
+            line-height: 1.6;
+        }
+
+    .confirm-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+    }
+
+        .confirm-icon.verify {
+            background: var(--pill-bg);
+            color: var(--teal-dark);
+        }
+
+        .confirm-icon.return {
+            background: var(--warning-soft);
+            color: var(--warning);
+        }
+
+    .confirm-warning {
+        margin-top: 14px;
+        padding: 10px 13px;
+        background: var(--danger-soft);
+        border: 1px solid var(--danger-line);
+        border-left: 4px solid var(--danger);
+        border-radius: 12px;
+        color: var(--danger-dark);
+        font-size: 12.5px;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .confirm-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 22px;
+    }
+
+        .confirm-actions .btn {
+            flex: 1;
+            border-radius: 12px;
+            padding: 11px 18px;
+            font-size: 13.5px;
+            font-weight: 600;
+        }
+
+            .confirm-actions .btn:disabled {
+                opacity: .5;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+    @@keyframes confirmFade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @@keyframes confirmPop {
+        from { opacity: 0; transform: translateY(8px) scale(.97); }
+        to { opacity: 1; transform: none; }
+    }
+
+
+    /* =========================================================
        RESPONSIVE
        ========================================================= */
 
     @@media (max-width: 1000px) {
-
         .main-info-grid {
             grid-template-columns: 1fr;
         }
@@ -1248,7 +1743,8 @@
 
         .sample-highlight,
         .test-detail-grid,
-        .result-summary {
+        .result-summary,
+        .returned-meta {
             grid-template-columns: 1fr;
         }
 
@@ -1262,6 +1758,10 @@
 
         .abnormal-banner-value {
             display: none;
+        }
+
+        .returned-panel-top {
+            align-items: flex-start;
         }
 
         .info-row {
@@ -1318,6 +1818,242 @@
         </div>
 
     </div>
+
+
+    <!-- =========================================================
+         PREVIOUSLY RETURNED FOR REVIEW: before vs after
+         ========================================================= -->
+    @if (wasReturned)
+    {
+        <div class="returned-panel">
+
+            <div class="returned-panel-top">
+
+                <div class="returned-panel-icon">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </div>
+
+                <div class="returned-panel-title">
+                    <strong>
+                        @(awaitingCorrection
+                            ? "This result was returned for review"
+                            : "This result was previously returned for review")
+                    </strong>
+                    <span>
+                        @(awaitingCorrection
+                            ? "It is still waiting for the technician to correct and resubmit it."
+                            : "Compare the result before review with the corrected result, and check the reason it was returned.")
+                    </span>
+                </div>
+
+                @if (returnHistory.Count > 0)
+                {
+                    <span class="returned-count">
+                        Returned @returnHistory.Count @(returnHistory.Count == 1 ? "time" : "times")
+                    </span>
+                }
+
+            </div>
+
+            @if (!returnHistory.Any())
+            {
+                <div class="returned-reason">
+                    <span>Reason it was returned</span>
+                    <p>No return reason was recorded for this result.</p>
+                </div>
+            }
+
+            @for (int i = 0; i < returnHistory.Count; i++)
+            {
+                var ret = returnHistory[i];
+                var newer = i > 0 ? returnHistory[i - 1] : null;
+                bool isLatest = i == 0;
+                int returnNumber = returnHistory.Count - i;
+
+                // BEFORE = snapshot saved when this return happened
+                string beforeValue = ret.PreviousResultValue;
+                string beforeComments = ret.PreviousComments;
+                bool? beforeAbnormal = isAbnormalValue(beforeValue) ?? ret.PreviousIsAbnormal;
+
+                // AFTER = the current result (latest return) or the snapshot taken at the next return
+                bool afterPending = isLatest && awaitingCorrection;
+                string afterValue = isLatest ? result?.ResultValue : newer?.PreviousResultValue;
+                string afterComments = isLatest ? result?.Comments : newer?.PreviousComments;
+                bool? afterAbnormal = isLatest
+                    ? (bool?)isAbnormal
+                    : (isAbnormalValue(afterValue) ?? newer?.PreviousIsAbnormal);
+
+                <details class="return-case" open="@isLatest">
+
+                    <summary>
+                        <span class="return-case-title">
+                            Return @returnNumber of @returnHistory.Count
+                            @if (isLatest)
+                            {
+                                <span class="return-case-tag">Latest</span>
+                            }
+                        </span>
+                        <span class="return-case-date">@ret.VerificationDate.ToString("dd MMM yyyy HH:mm")</span>
+                    </summary>
+
+                    <div class="returned-meta">
+
+                        <div>
+                            <span>Returned by</span>
+                            <strong>@verifierLabel(ret)</strong>
+                        </div>
+
+                        <div>
+                            <span>Date returned</span>
+                            <strong>@ret.VerificationDate.ToString("dd MMM yyyy HH:mm")</strong>
+                        </div>
+
+                    </div>
+
+                    <div class="returned-reason">
+                        <span>Reason it was returned</span>
+                        <p>
+                            @(string.IsNullOrWhiteSpace(ret.VerificationNotes)
+                                ? "No reason was recorded."
+                                : ret.VerificationNotes)
+                        </p>
+                    </div>
+
+                    <div class="compare-grid">
+
+                        <!-- BEFORE REVIEW -->
+                        <div class="compare-box before">
+
+                            <div class="compare-label">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                Result before review
+                            </div>
+
+                            <div class="compare-value">
+                                @(string.IsNullOrWhiteSpace(beforeValue) ? "Not recorded" : beforeValue)
+                                @if (!string.IsNullOrWhiteSpace(beforeValue) && !string.IsNullOrWhiteSpace(configuredUnit))
+                                {
+                                    <small>@configuredUnit</small>
+                                }
+                            </div>
+
+                            @if (beforeAbnormal == true)
+                            {
+                                <span class="status-badge status-abnormal">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Abnormal
+                                </span>
+                            }
+                            else if (beforeAbnormal == false)
+                            {
+                                <span class="status-badge status-within">
+                                    <i class="fa-solid fa-circle-check"></i> Within Range
+                                </span>
+                            }
+
+                            <div class="compare-comments">
+                                <span>Laboratory comments</span>
+                                @if (!string.IsNullOrWhiteSpace(beforeComments))
+                                {
+                                    <p>@beforeComments</p>
+                                }
+                                else
+                                {
+                                    <p class="empty-text">No comments captured.</p>
+                                }
+                            </div>
+
+                        </div>
+
+                        <div class="compare-arrow">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </div>
+
+                        <!-- AFTER REVIEW -->
+                        <div class="compare-box after">
+
+                            <div class="compare-label">
+                                <i class="fa-solid fa-circle-check"></i>
+                                @(isLatest ? "Corrected result after review" : "Result after this return")
+                            </div>
+
+                            @if (afterPending)
+                            {
+                                <div class="compare-value compare-pending">
+                                    <i class="fa-solid fa-hourglass-half"></i>
+                                    Waiting for corrected result
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="compare-value">
+                                    @(string.IsNullOrWhiteSpace(afterValue) ? "Not recorded" : afterValue)
+                                    @if (!string.IsNullOrWhiteSpace(afterValue) && !string.IsNullOrWhiteSpace(configuredUnit))
+                                    {
+                                        <small>@configuredUnit</small>
+                                    }
+                                </div>
+
+                                @if (afterAbnormal == true)
+                                {
+                                    <span class="status-badge status-abnormal">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> Abnormal
+                                    </span>
+                                }
+                                else if (afterAbnormal == false)
+                                {
+                                    <span class="status-badge status-within">
+                                        <i class="fa-solid fa-circle-check"></i> Within Range
+                                    </span>
+                                }
+
+                                <div class="compare-comments">
+                                    <span>Laboratory comments</span>
+                                    @if (!string.IsNullOrWhiteSpace(afterComments))
+                                    {
+                                        <p>@afterComments</p>
+                                    }
+                                    else
+                                    {
+                                        <p class="empty-text">No comments captured.</p>
+                                    }
+                                </div>
+
+                                @if (isLatest && result != null)
+                                {
+                                    <div class="compare-captured">
+                                        Captured @result.DateCaptured.ToString("dd MMM yyyy HH:mm")
+                                        @if (!string.IsNullOrWhiteSpace(result.CapturedByTechnician?.FullName))
+                                        {
+                                            @:by @result.CapturedByTechnician.FullName
+                                        }
+                                    </div>
+                                }
+                            }
+
+                        </div>
+
+                    </div>
+
+                </details>
+            }
+
+            @if (awaitingCorrection)
+            {
+                <div class="returned-state waiting">
+                    <i class="fa-solid fa-hourglass-half"></i>
+                    Waiting for the corrected result
+                </div>
+            }
+            else
+            {
+                <div class="returned-state resubmitted">
+                    <i class="fa-solid fa-circle-check"></i>
+                    Resubmitted. The corrected result is shown below.
+                </div>
+            }
+
+        </div>
+    }
 
 
     <!-- =========================================================
@@ -1385,27 +2121,6 @@
                 </span>
 
             </div>
-
-        </div>
-    }
-
-
-    <!-- =========================================================
-         RETURNED FOR REVIEW
-         ========================================================= -->
-    @if (currentStatus == "To Be Reviewed")
-    {
-        <div class="review-banner">
-
-            <strong>
-                <i class="fa-solid fa-rotate-left"></i>
-                Result Returned For Review
-            </strong>
-
-            <span>
-                This result was previously returned for correction.
-                The value displayed below is the latest captured result.
-            </span>
 
         </div>
     }
@@ -1835,6 +2550,14 @@
                                     </span>
                                 }
 
+                                @if (wasReturned && !awaitingCorrection)
+                                {
+                                    <span class="returned-badge-inline">
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                        Corrected after return
+                                    </span>
+                                }
+
                             </td>
 
                         </tr>
@@ -1966,6 +2689,16 @@
                 the patient's medical conditions, allergies, medication
                 and doctor's clinical notes before approving the result.
 
+                @if (wasReturned && latestReturn != null)
+                {
+                    <br />
+
+                    <strong>
+                        This result was returned before. Compare it with the result
+                        before review and confirm the correction fixes the reason given.
+                    </strong>
+                }
+
                 @if (isAbnormal)
                 {
                     <br />
@@ -1996,7 +2729,7 @@
 
         <div class="card-body-custom">
 
-            <form asp-action="Verify" method="post">
+            <form id="verifyForm" asp-action="Verify" method="post">
 
                 <input asp-for="TestRequestItemId" type="hidden" />
 
@@ -2109,18 +2842,16 @@
                         Back
                     </a>
 
-                    <button type="submit"
-                            name="Status"
-                            value="To Be Reviewed"
-                            class="btn btn-return">
+                    <button type="button"
+                            class="btn btn-return js-decision-btn"
+                            data-status="To Be Reviewed">
                         <i class="fa-solid fa-rotate-left me-1"></i>
                         Return For Review
                     </button>
 
-                    <button type="submit"
-                            name="Status"
-                            value="Verified"
-                            class="btn btn-verify">
+                    <button type="button"
+                            class="btn btn-verify js-decision-btn"
+                            data-status="Verified">
                         <i class="fa-solid fa-check-double me-1"></i>
                         Verify Result
                     </button>
@@ -2131,6 +2862,31 @@
 
         </div>
 
+    </div>
+
+
+    <!-- =========================================================
+         CONFIRMATION POPUP
+         ========================================================= -->
+
+    <div class="confirm-overlay" id="confirmOverlay" aria-hidden="true">
+        <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+
+            <div class="confirm-icon verify" id="confirmIcon">
+                <i class="fa-solid fa-check-double" id="confirmIconGlyph"></i>
+            </div>
+
+            <h3 id="confirmTitle">Are you sure?</h3>
+            <p id="confirmMessage"></p>
+
+            <div class="confirm-warning" id="confirmWarning" style="display:none;"></div>
+
+            <div class="confirm-actions">
+                <button type="button" class="btn btn-back" id="confirmCancel">Cancel</button>
+                <button type="button" class="btn btn-verify" id="confirmOk">Confirm</button>
+            </div>
+
+        </div>
     </div>
 
 </div>
@@ -2144,13 +2900,115 @@
 
         document.addEventListener("DOMContentLoaded", function () {
 
-            const notes = document.getElementById("VerificationNotes");
+            const form      = document.getElementById("verifyForm");
+            const notes     = document.getElementById("VerificationNotes");
+            const overlay   = document.getElementById("confirmOverlay");
+            const title     = document.getElementById("confirmTitle");
+            const message   = document.getElementById("confirmMessage");
+            const warning   = document.getElementById("confirmWarning");
+            const icon      = document.getElementById("confirmIcon");
+            const iconGlyph = document.getElementById("confirmIconGlyph");
+            const btnOk     = document.getElementById("confirmOk");
+            const btnCancel = document.getElementById("confirmCancel");
 
-            if (notes) {
-                notes.focus();
+            let pendingStatus = null;
+            let submitting = false;
+
+            if (notes) notes.focus();
+
+            function openConfirm(status) {
+
+                pendingStatus = status;
+
+                const hasNotes = notes && notes.value.trim().length > 0;
+                const isVerify = status === "Verified";
+
+                warning.style.display = "none";
+                btnOk.disabled = false;
+
+                if (isVerify) {
+
+                    title.textContent   = "Verify this result?";
+                    message.textContent = "You are confirming that the laboratory result has been reviewed and is correct. It will be marked as Verified.";
+
+                    icon.className = "confirm-icon verify";
+                    iconGlyph.className = "fa-solid fa-check-double";
+
+                    btnOk.className = "btn btn-verify";
+                    btnOk.textContent = "Yes, Verify Result";
+
+                } else {
+
+                    title.textContent   = "Return this result for review?";
+                    message.textContent = "The result will be sent back to the technician to be corrected and resubmitted.";
+
+                    icon.className = "confirm-icon return";
+                    iconGlyph.className = "fa-solid fa-rotate-left";
+
+                    btnOk.className = "btn btn-return";
+                    btnOk.textContent = "Yes, Return For Review";
+
+                    // A reason is required when returning
+                    if (!hasNotes) {
+                        warning.textContent = "Please close this popup and enter the reason for returning this result in the Verification Notes.";
+                        warning.style.display = "block";
+                        btnOk.disabled = true;
+                    }
+                }
+
+                overlay.classList.add("open");
+                overlay.setAttribute("aria-hidden", "false");
+                (btnOk.disabled ? btnCancel : btnOk).focus();
             }
+
+            function closeConfirm() {
+                overlay.classList.remove("open");
+                overlay.setAttribute("aria-hidden", "true");
+                pendingStatus = null;
+            }
+
+            // Open the popup instead of submitting
+            document.querySelectorAll(".js-decision-btn").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    openConfirm(btn.getAttribute("data-status"));
+                });
+            });
+
+            // Confirm -> submit with the chosen Status
+            btnOk.addEventListener("click", function () {
+
+                if (submitting || !pendingStatus) return;
+                submitting = true;
+
+                const hidden = document.createElement("input");
+                hidden.type  = "hidden";
+                hidden.name  = "Status";
+                hidden.value = pendingStatus;
+                form.appendChild(hidden);
+
+                btnOk.disabled = true;
+                btnOk.textContent = "Submitting...";
+
+                form.submit();
+            });
+
+            // Cancel / click outside / Escape
+            btnCancel.addEventListener("click", function () {
+                closeConfirm();
+                if (notes) notes.focus();
+            });
+
+            overlay.addEventListener("click", function (e) {
+                if (e.target === overlay) closeConfirm();
+            });
+
+            document.addEventListener("keydown", function (e) {
+                if (e.key === "Escape" && overlay.classList.contains("open")) {
+                    closeConfirm();
+                }
+            });
 
         });
 
     </script>
-} 
+}

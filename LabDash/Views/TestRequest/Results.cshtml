@@ -9,8 +9,9 @@
     var items = Model.TestRequestItems?.OrderBy(i => i.TestType?.Name).ToList()
                 ?? new List<LabDash.Models.TestRequestItem>();
 
-    bool allCompleted = items.Any() && items.All(i => i.Status == "Completed");
+    bool allVerified = items.Any() && items.All(i => i.Status == "Verified");
     bool isReleased = Model.Status == "Released by doctor";
+
     int abnormalCount = items.Count(i =>
         i.TestResults != null && i.TestResults.Any(r => r.IsAbnormal));
     int totalTests = items.Count;
@@ -166,7 +167,7 @@
                 animation: pulse 1.6s ease-in-out infinite;
             }
 
-    /* ============ INTERACTIVE SUMMARY CARDS ============ */
+    /* ============ SUMMARY CARDS ============ */
     .summary-strip {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -314,7 +315,7 @@
         font-size: 14px;
     }
 
-    /* ============ FORMAL PATIENT / DOCTOR INFO ============ */
+    /* ============ INFO COLUMNS ============ */
     .info-columns {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -363,7 +364,7 @@
             word-break: break-word;
         }
 
-    /* ============ WARNING ============ */
+    /* ============ BANNERS ============ */
     .warn-banner {
         background: linear-gradient(135deg, #fff6f6 0%, #fde8e8 100%);
         border: 1px solid #f5c9c6;
@@ -393,7 +394,6 @@
             animation: pulse 1.8s ease-in-out infinite;
         }
 
-    /* ============ RELEASED ============ */
     .released-note {
         background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
         border: 1px solid #a7f3d0;
@@ -828,7 +828,7 @@
         </div>
     </div>
 
-    <!-- ========== INTERACTIVE SUMMARY CARDS ========== -->
+    <!-- ========== SUMMARY ========== -->
     <div class="summary-strip">
         <div class="summary-tile active" data-filter="all" onclick="filterResults('all', this)">
             <div class="summary-icon teal"><i class="fas fa-vial"></i></div>
@@ -863,7 +863,7 @@
         </div>
     </div>
 
-    <!-- ========== FORMAL PATIENT & DOCTOR INFORMATION ========== -->
+    <!-- ========== PATIENT & DOCTOR ========== -->
     @if (patient != null)
     {
         <div class="results-card">
@@ -873,8 +873,6 @@
             </h2>
 
             <div class="info-columns">
-
-                <!-- PATIENT -->
                 <div>
                     <div class="info-block-title">
                         <i class="fas fa-user"></i> Patient Details
@@ -902,7 +900,6 @@
                     </div>
                 </div>
 
-                <!-- DOCTOR -->
                 <div>
                     <div class="info-block-title">
                         <i class="fas fa-user-doctor"></i> Referring Doctor
@@ -1053,12 +1050,15 @@
                     <i class="fas fa-arrow-left"></i> Back to Track
                 </a>
 
-                <a asp-action="ResultsPdf"
-                   asp-route-requestId="@Model.RequestId"
-                   class="btn btn-pdf"
-                   target="_blank">
-                    <i class="fas fa-file-pdf"></i> Download PDF
-                </a>
+                @if (allVerified)
+                {
+                    <a asp-action="ResultsPdf"
+                       asp-route-requestId="@Model.RequestId"
+                       class="btn btn-pdf"
+                       target="_blank">
+                        <i class="fas fa-file-pdf"></i> Download PDF
+                    </a>
+                }
             </div>
 
             <div class="actions-right">
@@ -1068,7 +1068,7 @@
                         <i class="fas fa-check-circle"></i> Released to Patient
                     </span>
                 }
-                else if (allCompleted)
+                else if (allVerified)
                 {
                     <button type="button" class="btn btn-release" onclick="openReleaseModal()">
                         <i class="fas fa-paper-plane"></i> Release to Patient
@@ -1081,7 +1081,7 @@
 </div>
 
 <!-- ========== RELEASE MODAL ========== -->
-@if (allCompleted && !isReleased)
+@if (allVerified && !isReleased)
 {
     <div class="modal-overlay" id="releaseModal">
         <div class="modal-box">
@@ -1154,11 +1154,9 @@
 <!-- ========== FILTER SCRIPT ========== -->
 <script>
     function filterResults(filter, tile) {
-        // Highlight the active tile
         document.querySelectorAll('.summary-tile').forEach(t => t.classList.remove('active'));
         tile.classList.add('active');
 
-        // Show / hide table rows
         var rows = document.querySelectorAll('#resultsTable tbody tr.result-row');
 
         rows.forEach(function (row) {
@@ -1176,7 +1174,6 @@
 
             row.classList.toggle('hidden-row', !show);
 
-            // Also hide its comment row if the parent is hidden
             var next = row.nextElementSibling;
             if (next && next.classList.contains('comment-row')) {
                 next.classList.toggle('hidden-row', !show);

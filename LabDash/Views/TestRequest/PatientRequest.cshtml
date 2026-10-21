@@ -125,6 +125,11 @@
             color: #2e7d32;
         }
 
+        .status.AppointmentScheduled {
+            background: #eef4ff;
+            color: #29579a;
+        }
+
         .status.Released {
             background: #e0f2f1;
             color: #00695c;
@@ -144,7 +149,7 @@
 
     .prog-step {
         flex: 1;
-        min-width: 110px;
+        min-width: 86px;
         text-align: center;
         padding: 10px 8px;
         font-size: 10px;
@@ -255,9 +260,9 @@
             color: #666;
         }
 
-            .item-row .item-status.Completed {
-                background: #e8f5e9;
-                color: #2e7d32;
+            .item-row .item-status.Submitted {
+                background: #f0f0f0;
+                color: #666;
             }
 
             .item-row .item-status.InProgress {
@@ -265,9 +270,19 @@
                 color: #8a6d00;
             }
 
-            .item-row .item-status.SamplesReceived {
-                background: #f3e5f5;
-                color: #6a1b9a;
+            .item-row .item-status.Completed {
+                background: #e8f5e9;
+                color: #2e7d32;
+            }
+
+            .item-row .item-status.Verified {
+                background: #e0f2f1;
+                color: #00695c;
+            }
+
+            .item-row .item-status.ToBeReviewed {
+                background: #fff0f0;
+                color: #b42318;
             }
 
     .req-actions {
@@ -451,6 +466,7 @@
                 "Samples Received" => "SamplesReceived",
                 "In Progress" => "InProgress",
                 "Completed" => "Completed",
+                "AppointmentScheduled" => "AppointmentScheduled",
                 "Released by doctor" => "Released",
                 "Cancelled" => "Cancelled",
                 _ => "Submitted"
@@ -459,15 +475,27 @@
             bool stepSubmitted = true;
             bool stepReceived = request.Status != "Submitted" && request.Status != "Cancelled";
             bool stepInProgress = request.Status == "In Progress"
-            || request.Status == "Completed"
-            || request.Status == "Released by doctor";
+                               || request.Status == "Completed"
+                               || request.Status == "AppointmentScheduled"
+                               || request.Status == "Released by doctor";
             bool stepCompleted = request.Status == "Completed"
-            || request.Status == "Released by doctor";
+                               || request.Status == "AppointmentScheduled"
+                               || request.Status == "Released by doctor";
+            bool stepVerified = request.Status == "Completed"
+                               || request.Status == "AppointmentScheduled"
+                               || request.Status == "Released by doctor";
             bool stepReleased = request.Status == "Released by doctor";
 
+            var allItemsVerified =
+                request.TestRequestItems != null &&
+                request.TestRequestItems.Count > 0 &&
+                request.TestRequestItems.All(i => i.Status == "Verified");
+
             bool canViewResults =
-            request.Status == "Completed" ||
-            request.Status == "Released by doctor";
+                allItemsVerified &&
+                (request.Status == "Completed"
+                 || request.Status == "AppointmentScheduled"
+                 || request.Status == "Released by doctor");
 
             <div class="req-card">
 
@@ -494,13 +522,14 @@
                             <div class="prog-step @(stepReceived ? "done" : "")">Received</div>
                             <div class="prog-step @(stepInProgress ? "done" : "")">In Progress</div>
                             <div class="prog-step @(stepCompleted ? "done" : "")">Completed</div>
+                            <div class="prog-step @(stepVerified ? "done" : "")">Verified</div>
                             <div class="prog-step @(stepReleased ? "done" : "")">Released</div>
                         </div>
                     }
                     else
                     {
                         <div style="background:#fff6f5;border:1px solid #f5c9c6;border-radius:12px;
-                                                padding:14px 16px;margin-bottom:20px;color:#b42318;font-size:13px;">
+                            padding:14px 16px;margin-bottom:20px;color:#b42318;font-size:13px;">
                             <i class="fas fa-ban"></i>
                             <strong>Cancelled</strong>
                             @if (!string.IsNullOrWhiteSpace(request.CancellationReason))
@@ -572,9 +601,11 @@
                             {
                                 string itemStatusClass = item.Status switch
                                 {
-                                    "Samples Received" => "SamplesReceived",
+                                    "Submitted" => "Submitted",
                                     "In Progress" => "InProgress",
                                     "Completed" => "Completed",
+                                    "Verified" => "Verified",
+                                    "To Be Reviewed" => "ToBeReviewed",
                                     _ => ""
                                 };
 
@@ -602,8 +633,8 @@
                             @foreach (var b in request.SampleBarcodes.Split(','))
                             {
                                 <span style="background:#f0f7f6;border:1px solid #cde8e4;color:#0d6b63;
-                                                             font-family:'Courier New',monospace;font-size:12px;
-                                                             padding:5px 11px;border-radius:8px;">
+                                    font-family:'Courier New',monospace;font-size:12px;
+                                    padding:5px 11px;border-radius:8px;">
                                     @b.Trim()
                                 </span>
                             }
@@ -624,10 +655,10 @@
                         else
                         {
                             <button type="button" class="btn btn-primary" disabled
-                                    title="Results will be available once all tests are Completed.">
+                                    title="Results will be available once all tests are Verified.">
                                 <i class="fas fa-lock"></i> View Results
                             </button>
-                            <span class="btn-hint">Available once all tests are Completed.</span>
+                            <span class="btn-hint">Available once all tests are Verified.</span>
                         }
 
                         @if (request.Status == "Submitted" || request.Status == "Samples Received")

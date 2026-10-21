@@ -14,7 +14,7 @@ namespace LabDash.Models
 
         [ForeignKey(nameof(TestRequestItemId))]
         public virtual TestRequestItem? TestRequestItem { get; set; }
-
+        public DateTime ReviewedAt { get; set; }
         [Required]
         public DateTime ReturnedAt { get; set; } = DateTime.Now;
 
