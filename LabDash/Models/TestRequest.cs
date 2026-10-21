@@ -9,45 +9,50 @@ namespace LabDash.Models
         [Key]
         public int RequestId { get; set; }
 
-        // Patient
+        // ---------------- Patient ----------------
         [Required]
         public int PatientId { get; set; }
 
         [ForeignKey(nameof(PatientId))]
-        public virtual Patient Patient { get; set; }
+        public virtual Patient Patient { get; set; } = null!;
 
-        // Doctor who created the request
+        // ---------------- Doctor ----------------
         [Required]
-        public string RequestingDoctorId { get; set; }
+        public string RequestingDoctorId { get; set; } = "";
 
         [ForeignKey(nameof(RequestingDoctorId))]
-        public virtual LabUser RequestingDoctor { get; set; }
+        public virtual LabUser RequestingDoctor { get; set; } = null!;
 
-        // Request Details
+        // ---------------- Details ----------------
         [Required]
-        public DateTime RequestDate { get; set; } = DateTime.Now;
+        public DateTime RequestDate { get; set; } = DateTime.Today;
 
         [Required]
-        public string Urgency { get; set; }
+        [StringLength(20)]
+        public string Urgency { get; set; } = "Routine";     // Routine | Urgent | STAT
 
+        [StringLength(2000)]
         public string? ClinicalNotes { get; set; }
 
-       
         [Required]
-        public string Status { get; set; }
+        [StringLength(50)]
+        public string Status { get; set; } = TestRequestStatus.Submitted;
 
-       
-        public DateTime? DateTimeReceived { get; set; }
+        // ---------------- Timestamps ----------------
+        public DateTime? SubmittedDate { get; set; }          // when doctor submitted
+        public DateTime? DateTimeReceived { get; set; }       // when lab received samples
 
-       
-        public DateTime? SubmittedDate { get; set; }
-
-      
+        // ---------------- Cancellation ----------------
+        [StringLength(1000)]
         public string? CancellationReason { get; set; }
-        
+        public DateTime? CancelledDate { get; set; }
+
+        // ---------------- Release ----------------
+        [StringLength(2000)]
         public string? ReleaseNote { get; set; }
         public DateTime? ReleaseDate { get; set; }
-        // ================= APPOINTMENT =================
+
+        // ---------------- Appointment ----------------
         public DateTime? AppointmentDate { get; set; }
 
         [StringLength(200)]
@@ -56,17 +61,41 @@ namespace LabDash.Models
         [StringLength(500)]
         public string? AppointmentNote { get; set; }
 
+        // ---------------- Samples / barcodes ----------------
         [StringLength(500)]
         public string? SampleBarcodes { get; set; }
+
         public DateTime? ResultsEmailedAt { get; set; }
-        public virtual ICollection<Sample> Samples { get; set; }
-            = new List<Sample>();
 
-        public virtual ICollection<SampleReceive> SampleReceives { get; set; }
-            = new List<SampleReceive>();
+        public virtual ICollection<Sample> Samples { get; set; } = new List<Sample>();
+        public virtual ICollection<SampleReceive> SampleReceives { get; set; } = new List<SampleReceive>();
+        public virtual ICollection<TestRequestItem> TestRequestItems { get; set; } = new List<TestRequestItem>();
 
-        
-        public virtual ICollection<TestRequestItem> TestRequestItems { get; set; }
-            = new List<TestRequestItem>();
+      
+
+        [NotMapped]
+        public bool AllItemsVerified =>
+            TestRequestItems != null &&
+            TestRequestItems.Count > 0 &&
+            TestRequestItems.All(i => i.Status == TestStatus.Verified);
+
+        [NotMapped]
+        public bool AllItemsCompleted =>
+            TestRequestItems != null &&
+            TestRequestItems.Count > 0 &&
+            TestRequestItems.All(i =>
+                i.Status == TestStatus.Completed ||
+                i.Status == TestStatus.Verified);
+
+        [NotMapped]
+        public bool CanBeReleased =>
+            AllItemsVerified &&
+            Status != TestRequestStatus.Cancelled &&
+            Status != TestRequestStatus.ReleasedByDoctor;
+
+        [NotMapped]
+        public bool CanBeCancelled =>
+            Status == TestRequestStatus.Submitted ||
+            Status == TestRequestStatus.SamplesReceived;
     }
 }

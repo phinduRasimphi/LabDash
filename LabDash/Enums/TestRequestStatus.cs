@@ -1,11 +1,21 @@
-﻿namespace LabDash.Enums
+﻿namespace LabDash.Models
 {
-    public enum TestRequestStatus
+    public enum TestItemStatus
+    {
+        Submitted,
+        InProgress,
+        Completed,
+        Verified,
+        ToBeRevised
+    }
+
+    public enum RequestStatus
     {
         Submitted,
         SamplesReceived,
         InProgress,
         Completed,
+        AppointmentScheduled,
         ReleasedByDoctor,
         Cancelled
     }

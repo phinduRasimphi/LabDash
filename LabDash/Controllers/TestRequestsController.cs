@@ -44,6 +44,8 @@ namespace LabDash.Controllers
                 .Include(tr => tr.RequestingDoctor)
                 .Include(tr => tr.TestRequestItems)
                     .ThenInclude(tri => tri.TestType)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestResults)   // ← ADDED
                 .ToListAsync();
 
             var folders = allRequests
@@ -67,9 +69,7 @@ namespace LabDash.Controllers
         public async Task<IActionResult> UnlockFolder(int patientId, string idNumber)
         {
             var patient = await _context.Patients.FindAsync(patientId);
-
-            if (patient == null)
-                return NotFound();
+            if (patient == null) return NotFound();
 
             if (patient.IDNumber != idNumber?.Trim())
             {
@@ -82,6 +82,8 @@ namespace LabDash.Controllers
                 .Include(tr => tr.RequestingDoctor)
                 .Include(tr => tr.TestRequestItems)
                     .ThenInclude(tri => tri.TestType)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestResults)   // ← ADDED
                 .Where(r => r.PatientId == patientId)
                 .OrderByDescending(r => r.RequestDate)
                 .ToListAsync();
@@ -97,8 +99,7 @@ namespace LabDash.Controllers
         {
             if (patientId == null)
             {
-                TempData["Error"] =
-                    "No patient selected. Please search for a patient first.";
+                TempData["Error"] = "No patient selected. Please search for a patient first.";
                 return RedirectToAction("ManagePatients", "Doctor");
             }
 
@@ -302,7 +303,7 @@ namespace LabDash.Controllers
                 RequestDate = DateTime.Today,
                 Urgency = urgency,
                 ClinicalNotes = clinicalNotes,
-                Status = "Submitted",
+                Status = TestRequestStatus.Submitted,
                 SubmittedDate = DateTime.Now,
                 SampleBarcodes = string.Join(",", cleanBarcodes)
             };
@@ -316,7 +317,7 @@ namespace LabDash.Controllers
                 {
                     RequestId = testRequest.RequestId,
                     TestTypeId = selectedTestTypeIds[i],
-                    Status = "Submitted",
+                    Status = TestStatus.Submitted,
                     AssignedTechnicianId = null,
                     StartDateTime = null,
                     CompletionDateTime = null
@@ -407,6 +408,13 @@ namespace LabDash.Controllers
 
             if (request == null) return NotFound();
 
+            // Only Submitted requests can be edited (samples not yet received / tests not started)
+            if (request.Status != TestRequestStatus.Submitted)
+            {
+                TempData["Error"] = "Only requests with status 'Submitted' can be edited.";
+                return RedirectToAction(nameof(Index));
+            }
+
             ViewBag.RequestId = request.RequestId;
             ViewBag.PatientName = $"{request.Patient.Name} {request.Patient.Surname}";
             ViewBag.PatientIDNumber = request.Patient.IDNumber;
@@ -451,6 +459,12 @@ namespace LabDash.Controllers
 
             if (request == null) return NotFound();
 
+            if (request.Status != TestRequestStatus.Submitted)
+            {
+                TempData["Error"] = "Only requests with status 'Submitted' can be edited.";
+                return RedirectToAction(nameof(Index));
+            }
+
             if (selectedTestTypeIds == null || selectedTestTypeIds.Length == 0)
             {
                 TempData["Error"] = "Select at least one test type.";
@@ -485,7 +499,7 @@ namespace LabDash.Controllers
                 {
                     RequestId = request.RequestId,
                     TestTypeId = type.Id,
-                    Status = "Submitted"
+                    Status = TestStatus.Submitted
                 });
             }
 
@@ -527,10 +541,11 @@ namespace LabDash.Controllers
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
             if (request == null) return NotFound();
-
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
 
-            if (request.Status != "Submitted" && request.Status != "Samples Received")
+            // Cancellable only while Submitted or Samples Received
+            if (request.Status != TestRequestStatus.Submitted &&
+                request.Status != TestRequestStatus.SamplesReceived)
             {
                 TempData["Error"] = "This request can no longer be cancelled.";
                 return RedirectToAction(nameof(Index));
@@ -542,11 +557,11 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            request.Status = "Cancelled";
+            request.Status = TestRequestStatus.Cancelled;
             request.CancellationReason = cancellationReason;
+            request.CancelledDate = DateTime.Now;
             await _context.SaveChangesAsync();
 
-            // Notify patient — decorated cancellation email
             if (request.Patient != null && !string.IsNullOrWhiteSpace(request.Patient.Email))
             {
                 var emailModel = new TestRequestCancelledEmailViewModel
@@ -585,7 +600,6 @@ namespace LabDash.Controllers
         public async Task<IActionResult> Track()
         {
             var doctor = await _userManager.GetUserAsync(User);
-
             if (doctor == null) return Forbid();
 
             var allRequests = await _context.TestRequests
@@ -593,6 +607,8 @@ namespace LabDash.Controllers
                 .Include(tr => tr.RequestingDoctor)
                 .Include(tr => tr.TestRequestItems)
                     .ThenInclude(tri => tri.TestType)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestResults)   // ← ADDED
                 .Where(r => r.RequestingDoctorId == doctor.Id)
                 .OrderByDescending(r => r.RequestDate)
                 .ToListAsync();
@@ -608,18 +624,18 @@ namespace LabDash.Controllers
                 .ToList();
 
             ViewBag.TotalRequests = allRequests.Count;
-            ViewBag.StatusSubmitted = allRequests.Count(r => r.Status == "Submitted");
-            ViewBag.StatusReceived = allRequests.Count(r => r.Status == "Samples Received");
-            ViewBag.StatusInProgress = allRequests.Count(r => r.Status == "In Progress");
-            ViewBag.StatusCompleted = allRequests.Count(r => r.Status == "Completed");
-            ViewBag.StatusReleased = allRequests.Count(r => r.Status == "Released by doctor");
-            ViewBag.StatusCancelled = allRequests.Count(r => r.Status == "Cancelled");
+            ViewBag.StatusSubmitted = allRequests.Count(r => r.Status == TestRequestStatus.Submitted);
+            ViewBag.StatusReceived = allRequests.Count(r => r.Status == TestRequestStatus.SamplesReceived);
+            ViewBag.StatusInProgress = allRequests.Count(r => r.Status == TestRequestStatus.InProgress);
+            ViewBag.StatusCompleted = allRequests.Count(r => r.Status == TestRequestStatus.Completed);
+            ViewBag.StatusReleased = allRequests.Count(r => r.Status == TestRequestStatus.ReleasedByDoctor);
+            ViewBag.StatusCancelled = allRequests.Count(r => r.Status == TestRequestStatus.Cancelled);
 
             return View(folders);
         }
 
         // =============================================================
-        // RELEASE REQUEST
+        // RELEASE REQUEST — only when ALL items Verified
         // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -635,15 +651,16 @@ namespace LabDash.Controllers
             if (request == null) return NotFound();
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
 
+            // Verified-before-release gate
             if (request.TestRequestItems == null ||
                 !request.TestRequestItems.Any() ||
-                request.TestRequestItems.Any(i => i.Status != "Completed"))
+                request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
             {
-                TempData["Error"] = "All tests must be completed before releasing.";
+                TempData["Error"] = "All tests must be verified before releasing.";
                 return RedirectToAction(nameof(Index));
             }
 
-            request.Status = "Released by doctor";
+            request.Status = TestRequestStatus.ReleasedByDoctor;
             request.ReleaseDate = DateTime.Now;
 
             await _context.SaveChangesAsync();
@@ -661,6 +678,7 @@ namespace LabDash.Controllers
                 .Include(tr => tr.Patient)
                 .Include(tr => tr.RequestingDoctor)
                 .Include(tr => tr.TestRequestItems).ThenInclude(tri => tri.TestType)
+                .Include(tr => tr.TestRequestItems).ThenInclude(tri => tri.TestResults)   // ← ADDED
                 .FirstOrDefaultAsync(tr => tr.RequestId == id);
 
             if (request == null) return NotFound();
@@ -669,7 +687,7 @@ namespace LabDash.Controllers
         }
 
         // =============================================================
-        // PATIENT RESULTS
+        // PATIENT RESULTS — verified-before-view gate
         // =============================================================
         [HttpGet]
         public async Task<IActionResult> PatientResults(int requestId)
@@ -687,12 +705,19 @@ namespace LabDash.Controllers
                 .Include(tr => tr.RequestingDoctor)
                 .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestType)
                 .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestResults).ThenInclude(r => r.CapturedByTechnician)
+                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestResults).ThenInclude(r => r.VerifiedByTechnician)
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
             if (request == null) return NotFound();
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
 
-            bool canView = request.Status == "Completed" || request.Status == "Released by doctor";
+            var allVerified = request.TestRequestItems.Count > 0 &&
+                              request.TestRequestItems.All(i => i.Status == TestStatus.Verified);
+
+            bool canView = allVerified &&
+                          (request.Status == TestRequestStatus.Completed ||
+                           request.Status == TestRequestStatus.AppointmentScheduled ||
+                           request.Status == TestRequestStatus.ReleasedByDoctor);
 
             if (!canView)
             {
@@ -723,11 +748,12 @@ namespace LabDash.Controllers
             if (request == null) return NotFound();
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
 
+            // Verified-before-release gate
             if (request.TestRequestItems == null ||
                 !request.TestRequestItems.Any() ||
-                request.TestRequestItems.Any(i => i.Status != "Completed"))
+                request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
             {
-                TempData["Error"] = "All tests must be completed before releasing.";
+                TempData["Error"] = "All tests must be verified before releasing.";
                 return RedirectToAction(nameof(PatientResults), new { requestId });
             }
 
@@ -752,7 +778,7 @@ namespace LabDash.Controllers
             }
             catch { }
 
-            request.Status = "Released by doctor";
+            request.Status = TestRequestStatus.ReleasedByDoctor;
             request.ReleaseDate = DateTime.Now;
             request.ReleaseNote = note;
 
@@ -790,6 +816,18 @@ namespace LabDash.Controllers
 
             if (request == null) return NotFound();
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
+
+            // Verified-before-PDF gate
+            var verifiedItems = request.TestRequestItems
+                .Where(i => i.Status == TestStatus.Verified)
+                .ToList();
+
+            if (verifiedItems.Count == 0 ||
+                request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
+            {
+                TempData["Error"] = "All tests must be verified before generating the report.";
+                return RedirectToAction(nameof(ViewRequest), new { id = requestId });
+            }
 
             var patient = request.Patient;
 
@@ -871,9 +909,12 @@ namespace LabDash.Controllers
                                 header.Cell().Background("#f3faf9").Padding(8).Text("Flag").FontSize(9).Bold().FontColor("#0d6b63");
                             });
 
-                            foreach (var item in request.TestRequestItems.OrderBy(i => i.TestType?.Name))
+                            foreach (var item in verifiedItems.OrderBy(i => i.TestType?.Name))
                             {
-                                var result = item.TestResults?.OrderByDescending(r => r.DateCaptured).FirstOrDefault();
+                                var result = item.TestResults?
+                                    .Where(r => r.Status == TestStatus.Verified)
+                                    .OrderByDescending(r => r.DateCaptured)
+                                    .FirstOrDefault();
 
                                 bool abnormal = result?.IsAbnormal ?? false;
                                 string flagText = result == null ? "Pending" : result.IsAbnormal ? "ABNORMAL" : "Normal";

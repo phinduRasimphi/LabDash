@@ -1367,14 +1367,7 @@ namespace LabDash.Controllers
                         }
                     }
 
-                    try
-                    {
-                        await _emailSender.SendEmailAsync(consent.Doctor.Email, subject, body);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Access was revoked, but the email failed to send.");
-                    }
+                   
                 }
 
                 _audit.Log("Consent Revoked", "Consent", $"Patient '{patient.Name} {patient.Surname}' revoked all access for consent #{consentId}.");
