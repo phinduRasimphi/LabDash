@@ -1,12 +1,18 @@
-﻿using LabDash.Areas.Identity.Data;
+﻿
+using LabDash.Areas.Identity.Data;
 using LabDash.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace LabDash.Controllers
 {
@@ -15,15 +21,17 @@ namespace LabDash.Controllers
     {
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
+        private readonly IWebHostEnvironment _environment;
 
         public ReportsController(
             LabDbContext context,
-            UserManager<LabUser> userManager)
+            UserManager<LabUser> userManager,
+            IWebHostEnvironment environment)
         {
             _context = context;
             _userManager = userManager;
+            _environment = environment;
         }
-
 
         [HttpGet]
         public IActionResult Index()
@@ -60,22 +68,16 @@ namespace LabDash.Controllers
 
             if (technician == null)
             {
-                TempData["Error"] = "Technician account could not be found.";
+                TempData["Error"] =
+                    "Technician account could not be found.";
+
                 return View("Index", model);
             }
 
             var fromDate = model.FromDate.Date;
             var toDateExclusive = model.ToDate.Date.AddDays(1);
 
-            // =====================================================
-            // LOAD ALL FINISHED TESTS FOR THIS TECHNICIAN
-            // =====================================================
-            // A finished test can be:
-            //   Completed       - waiting for verification
-            //   Verified        - verified by another technician
-            //   To Be Reviewed  - returned for review
-            // =====================================================
-
+            // Load completed tests assigned to the logged-in technician.
             var completedTests = await _context.TestRequestItems
                 .Include(x => x.TestType)
                 .Include(x => x.TestRequest)
@@ -102,11 +104,23 @@ namespace LabDash.Controllers
                 return View("Index", model);
             }
 
-            QuestPDF.Settings.License =
-                LicenseType.Community;
+            QuestPDF.Settings.License = LicenseType.Community;
 
             var technicianName =
                 $"{technician.FirstName} {technician.LastName}".Trim();
+
+            // Locate the logo in wwwroot/images.
+            var logoPath = Path.Combine(
+                _environment.WebRootPath ?? string.Empty,
+                "images",
+                "labdash-logo-light.png");
+
+            byte[]? logoBytes = null;
+
+            if (System.IO.File.Exists(logoPath))
+            {
+                logoBytes = await System.IO.File.ReadAllBytesAsync(logoPath);
+            }
 
             var document = Document.Create(container =>
             {
@@ -115,26 +129,55 @@ namespace LabDash.Controllers
                     page.Size(PageSizes.A4);
                     page.Margin(35);
 
-                    page.DefaultTextStyle(x =>
-                        x.FontSize(9));
+                    page.DefaultTextStyle(style =>
+                        style.FontSize(9));
 
+                    // =================================================
+                    // HEADER: LOGO + LABDASH BRANDING
+                    // =================================================
                     page.Header()
                         .Column(column =>
                         {
                             column.Item()
-                                .Text("LABDASH")
-                                .FontSize(22)
-                                .Bold()
-                                .FontColor("#008f83");
+                                .Row(row =>
+                                {
+                                    if (logoBytes != null)
+                                    {
+                                        row.ConstantItem(65)
+                                            .Height(55)
+                                            .AlignMiddle()
+                                            .Image(logoBytes)
+                                            .FitArea();
+                                    }
+
+                                    row.RelativeItem()
+                                        .AlignMiddle()
+                                        .Column(brand =>
+                                        {
+                                            brand.Item()
+                                                .Text("LabDash")
+                                                .FontSize(24)
+                                                .Bold()
+                                                .FontColor("#008f83");
+
+                                            brand.Item()
+                                                .Text(
+                                                    "LABORATORY MANAGEMENT SYSTEM")
+                                                .FontSize(8)
+                                                .FontColor("#006f67");
+                                        });
+                                });
 
                             column.Item()
+                                .PaddingTop(12)
                                 .Text("Technician Completed Tests Report")
                                 .FontSize(16)
-                                .Bold();
+                                .Bold()
+                                .FontColor("#173a3a");
 
                             column.Item()
-                                .Text(
-                                    $"Technician: {technicianName}")
+                                .PaddingTop(5)
+                                .Text($"Technician: {technicianName}")
                                 .FontSize(10);
 
                             column.Item()
@@ -148,6 +191,9 @@ namespace LabDash.Controllers
                                 .LineColor("#008f83");
                         });
 
+                    // =================================================
+                    // REPORT CONTENT
+                    // =================================================
                     page.Content()
                         .PaddingTop(20)
                         .Column(column =>
@@ -168,13 +214,15 @@ namespace LabDash.Controllers
                                 .FontSize(14)
                                 .FontColor("#005c55");
 
-                            foreach (var categoryGroup in completedTests
+                            var categoryGroups = completedTests
                                 .GroupBy(x =>
                                     string.IsNullOrWhiteSpace(
                                         x.TestType?.Category)
                                         ? "Uncategorised"
                                         : x.TestType.Category)
-                                .OrderBy(x => x.Key))
+                                .OrderBy(group => group.Key);
+
+                            foreach (var categoryGroup in categoryGroups)
                             {
                                 column.Item()
                                     .PaddingTop(15)
@@ -194,6 +242,7 @@ namespace LabDash.Controllers
                                             columns.RelativeColumn(1.5f);
                                         });
 
+                                        // Table header
                                         table.Header(header =>
                                         {
                                             header.Cell()
@@ -257,6 +306,9 @@ namespace LabDash.Controllers
                             }
                         });
 
+                    // =================================================
+                    // FOOTER
+                    // =================================================
                     page.Footer()
                         .AlignCenter()
                         .Text(text =>
