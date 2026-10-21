@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace LabDash.Controllers
 {
@@ -100,6 +101,7 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            // Latest verification record (used for the "Latest Verification Feedback" card)
             var verification = await _context.TestVerifications
                 .Include(x => x.VerifiedByTechnician)
                 .Where(x =>
@@ -107,9 +109,21 @@ namespace LabDash.Controllers
                 .OrderByDescending(x => x.VerificationDate)
                 .FirstOrDefaultAsync();
 
+            // Every time this test was returned for review, newest first.
+            // Each row holds the reason plus a snapshot of the result
+            // as it was when it was returned.
+            var returnHistory = await _context.TestVerifications
+                .Include(x => x.VerifiedByTechnician)
+                .Where(x =>
+                    x.TestRequestItemId == id &&
+                    x.Status == "To Be Reviewed")
+                .OrderByDescending(x => x.VerificationDate)
+                .ToListAsync();
+
             ViewBag.TestItem = item;
             ViewBag.Patient = item.TestRequest?.Patient;
             ViewBag.Verification = verification;
+            ViewBag.ReturnHistory = returnHistory;
 
             return View(result);
         }
@@ -181,11 +195,30 @@ namespace LabDash.Controllers
             }
 
             // -----------------------------------------------------
+            // SERVER-SIDE VALIDATION OF THE NEW VALUE
+            // (the browser check can be bypassed)
+            // Redirecting to the GET action reloads the result
+            // history automatically.
+            // -----------------------------------------------------
+            if (string.IsNullOrWhiteSpace(model.ResultValue) ||
+                !Regex.IsMatch(model.ResultValue, @"^[0-9]+([.][0-9]+)?$"))
+            {
+                TempData["Error"] =
+                    "Result value must be a number (digits and one decimal point only).";
+
+                return RedirectToAction(
+                    nameof(Review),
+                    new { id = item.TestRequestItemId });
+            }
+
+            // -----------------------------------------------------
             // UPDATE THE CORRECTED RESULT
+            // Units and ReferenceRange are read-only on the form and
+            // are not posted, so they are intentionally left unchanged.
+            // The previous attempt is already preserved in the
+            // TestVerification snapshot created when it was returned.
             // -----------------------------------------------------
             result.ResultValue = model.ResultValue;
-            result.Units = model.Units;
-            result.ReferenceRange = model.ReferenceRange;
             result.Comments = model.Comments;
             result.DateCaptured = DateTime.Now;
 
@@ -206,8 +239,7 @@ namespace LabDash.Controllers
             TempData["Success"] =
                 "Result corrected successfully and returned to the verification queue.";
 
-            // IMPORTANT:
-            // Send technician to Verification queue.
+            // Send technician to the Verification queue.
             return RedirectToAction(
                 "Index",
                 "Verification");

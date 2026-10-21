@@ -1369,7 +1369,7 @@ namespace LabDash.Controllers
 
                     try
                     {
-                        await _emailSender.SendEmailAsync(consent.Doctor.Email, subject, body);
+                        await _emailSender.SendEmailAsync(consent.Doctor.Email, subject, "body.");
                     }
                     catch (Exception ex)
                     {

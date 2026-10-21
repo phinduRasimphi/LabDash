@@ -22,5 +22,9 @@ namespace LabDash.Models
         public string Status { get; set; }
 
         public string? VerificationNotes { get; set; }
+
+        public string? PreviousResultValue { get; set; }
+        public string? PreviousComments { get; set; }
+        public bool? PreviousIsAbnormal { get; set; }
     }
 }
