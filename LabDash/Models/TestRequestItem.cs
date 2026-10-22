@@ -28,6 +28,9 @@ namespace LabDash.Models
             = new List<TestResult>();
 
         public int ReviewReturnCount { get; set; } = 0;
+
+        public int? TestReviewHistoryId { get; set; }
+
         public ICollection<TestReviewHistory> ReviewHistory { get; set; }
     = new List<TestReviewHistory>();
     }
