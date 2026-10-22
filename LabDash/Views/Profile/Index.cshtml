@@ -135,7 +135,11 @@
 
                         <div class="p-input-wrap">
                             <i class="fa-solid fa-user"></i>
-                            <input asp-for="FirstName" class="p-input" placeholder="Enter your first name" />
+                            <input asp-for="FirstName"
+                                   class="p-input"
+                                   maxlength="50"
+                                   autocomplete="given-name"
+                                   placeholder="Enter your first name" />
                         </div>
 
                         <span asp-validation-for="FirstName" class="p-field-error"></span>
@@ -146,7 +150,11 @@
 
                         <div class="p-input-wrap">
                             <i class="fa-solid fa-user"></i>
-                            <input asp-for="LastName" class="p-input" placeholder="Enter your last name" />
+                            <input asp-for="LastName"
+                                   class="p-input"
+                                   maxlength="50"
+                                   autocomplete="family-name"
+                                   placeholder="Enter your last name" />
                         </div>
 
                         <span asp-validation-for="LastName" class="p-field-error"></span>
@@ -173,7 +181,13 @@
 
                         <div class="p-input-wrap">
                             <i class="fa-solid fa-mobile-screen"></i>
-                            <input asp-for="PhoneNumber" class="p-input" placeholder="Enter your phone number" />
+                            <input asp-for="PhoneNumber"
+                                   type="tel"
+                                   class="p-input"
+                                   maxlength="10"
+                                   inputmode="numeric"
+                                   autocomplete="tel"
+                                   placeholder="e.g. 0821234567" />
                         </div>
 
                         <span asp-validation-for="PhoneNumber" class="p-field-error"></span>
@@ -928,6 +942,27 @@
 
     document.addEventListener("DOMContentLoaded", function() {
 
+        /* ---------- first name + last name: letters only ---------- */
+
+        ["FirstName", "LastName"].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener("input", function () {
+                this.value = this.value.replace(/[^A-Za-z]/g, "");
+            });
+        });
+
+
+        /* ---------- phone: digits only, max 10 ---------- */
+
+        var phone = document.getElementById("PhoneNumber");
+        if (phone) {
+            phone.addEventListener("input", function () {
+                this.value = this.value.replace(/\D/g, "").slice(0, 10);
+            });
+        }
+
+
         /* ---------- show / hide password ---------- */
 
         document.querySelectorAll("[data-toggle-pw]").forEach(function(btn) {
@@ -969,7 +1004,7 @@
             };
 
             Object.keys(checks).forEach(function(key) {
-                const li = rules.querySelector(`[data-rule="${key}"]`);
+                const li = rules.querySelector('[data-rule="' + key + '"]');
                 if (li) li.classList.toggle("met", checks[key]);
             });
 

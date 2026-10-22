@@ -227,10 +227,10 @@
             </div>
         </div>
     }
-    else
+        else
     {
         <!-- ============ EDIT MODE ============ -->
-        <form asp-action="DoctorProfile" method="post">
+        <form asp-action="DoctorProfile" method="post" id="doctorProfileForm">
 
             @Html.AntiForgeryToken()
 
@@ -257,6 +257,9 @@
                                        class="p-input"
                                        placeholder="Enter your first name"
                                        maxlength="100"
+                                       pattern="[A-Za-z]+"
+                                       title="First name can only contain letters."
+                                       autocomplete="given-name"
                                        required />
                             </div>
                             <span class="p-field-error">@Html.ValidationMessage("FirstName")</span>
@@ -272,6 +275,9 @@
                                        class="p-input"
                                        placeholder="Enter your last name"
                                        maxlength="100"
+                                       pattern="[A-Za-z]+"
+                                       title="Last name can only contain letters."
+                                       autocomplete="family-name"
                                        required />
                             </div>
                             <span class="p-field-error">@Html.ValidationMessage("LastName")</span>
@@ -301,10 +307,15 @@
                                 <i class="fa-solid fa-mobile-screen"></i>
                                 <input id="PhoneNumb"
                                        name="PhoneNumb"
+                                       type="tel"
                                        value="@Model.PhoneNumb"
                                        class="p-input"
-                                       placeholder="Enter your phone number"
-                                       maxlength="20"
+                                       placeholder="e.g. 0821234567"
+                                       maxlength="10"
+                                       inputmode="numeric"
+                                       pattern="0[0-9]{9}"
+                                       title="Phone number must be 10 digits and start with 0."
+                                       autocomplete="tel"
                                        required />
                             </div>
                             <span class="p-field-error">@Html.ValidationMessage("PhoneNumb")</span>
@@ -313,31 +324,31 @@
 
                     <div class="p-grid-2">
                         <div class="p-field">
-                            <label for="HPCSANumber">HPCSA Number</label>
-                            <div class="p-input-wrap">
+                            <label>
+                                HPCSA Number
+                                <i class="fa-solid fa-lock p-lock-icon"></i>
+                            </label>
+                            <div class="p-input-wrap p-input-wrap-locked">
                                 <i class="fa-solid fa-id-badge"></i>
-                                <input id="HPCSANumber"
-                                       name="HPCSANumber"
-                                       value="@Model.HPCSANumber"
-                                       class="p-input"
-                                       maxlength="50"
-                                       required />
+                                <input class="p-input p-input-locked"
+                                       value="@(string.IsNullOrWhiteSpace(Model.HPCSANumber) ? "Not set" : Model.HPCSANumber)"
+                                       readonly
+                                       tabindex="-1" />
                             </div>
-                            <span class="p-field-error">@Html.ValidationMessage("HPCSANumber")</span>
                         </div>
 
                         <div class="p-field">
-                            <label for="EmployeeNumber">Employee Number</label>
-                            <div class="p-input-wrap">
+                            <label>
+                                Employee Number
+                                <i class="fa-solid fa-lock p-lock-icon"></i>
+                            </label>
+                            <div class="p-input-wrap p-input-wrap-locked">
                                 <i class="fa-solid fa-id-card"></i>
-                                <input id="EmployeeNumber"
-                                       name="EmployeeNumber"
-                                       value="@Model.EmployeeNumber"
-                                       class="p-input"
-                                       maxlength="50"
-                                       required />
+                                <input class="p-input p-input-locked"
+                                       value="@(string.IsNullOrWhiteSpace(Model.EmployeeNumber) ? "Not set" : Model.EmployeeNumber)"
+                                       readonly
+                                       tabindex="-1" />
                             </div>
-                            <span class="p-field-error">@Html.ValidationMessage("EmployeeNumber")</span>
                         </div>
                     </div>
 
@@ -400,6 +411,125 @@
         </form>
     }
 
+    <!-- =========================================================
+         CHANGE PASSWORD
+         ========================================================= -->
+    <div class="p-panel p-section-panel" id="change-password">
+
+        <div class="p-panel-head">
+            <span>
+                <i class="fa-solid fa-lock"></i>
+                Change Password
+            </span>
+
+            <span class="p-panel-tag">Security</span>
+        </div>
+
+        <div class="p-panel-body">
+
+            <div class="p-info-note">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>
+                    Use this to change the password you use to sign in to LabDash.
+                    Your new password must meet the requirements below.
+                </span>
+            </div>
+
+            <form asp-controller="Account"
+                  asp-action="ChangePassword"
+                  method="post"
+                  id="changePasswordForm">
+
+                @Html.AntiForgeryToken()
+
+                <div class="p-field p-field-spaced">
+                    <label for="CurrentPassword">Current Password</label>
+
+                    <div class="p-input-wrap">
+                        <i class="fa-solid fa-key"></i>
+                        <input id="CurrentPassword"
+                               name="CurrentPassword"
+                               type="password"
+                               class="p-input"
+                               autocomplete="current-password"
+                               placeholder="Enter your current password"
+                               required />
+                        <button type="button"
+                                class="p-eye"
+                                data-toggle-pw="CurrentPassword"
+                                title="Show / hide password">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-grid-2">
+                    <div class="p-field">
+                        <label for="NewPassword">New Password</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-lock"></i>
+                            <input id="NewPassword"
+                                   name="NewPassword"
+                                   type="password"
+                                   class="p-input"
+                                   autocomplete="new-password"
+                                   placeholder="Enter a new password"
+                                   required />
+                            <button type="button"
+                                    class="p-eye"
+                                    data-toggle-pw="NewPassword"
+                                    title="Show / hide password">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+
+                        <div class="p-strength" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span>
+                        </div>
+                        <div class="p-strength-label" id="pwStrengthLabel">Enter a password to see its strength</div>
+                    </div>
+
+                    <div class="p-field">
+                        <label for="ConfirmPassword">Confirm New Password</label>
+
+                        <div class="p-input-wrap">
+                            <i class="fa-solid fa-lock"></i>
+                            <input id="ConfirmPassword"
+                                   name="ConfirmPassword"
+                                   type="password"
+                                   class="p-input"
+                                   autocomplete="new-password"
+                                   placeholder="Re-enter the new password"
+                                   required />
+                            <button type="button"
+                                    class="p-eye"
+                                    data-toggle-pw="ConfirmPassword"
+                                    title="Show / hide password">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+
+                        <div class="p-strength-label" id="pwMatchLabel"></div>
+                    </div>
+                </div>
+
+                <ul class="p-pw-rules" id="pwRules">
+                    <li data-rule="len"><i class="fa-solid fa-circle"></i> At least 8 characters</li>
+                    <li data-rule="upper"><i class="fa-solid fa-circle"></i> One uppercase letter</li>
+                    <li data-rule="lower"><i class="fa-solid fa-circle"></i> One lowercase letter</li>
+                    <li data-rule="num"><i class="fa-solid fa-circle"></i> One number</li>
+                    <li data-rule="sym"><i class="fa-solid fa-circle"></i> One special character</li>
+                </ul>
+
+                <button type="submit" class="p-submit">
+                    <i class="fas fa-key"></i>
+                    Change Password
+                </button>
+            </form>
+
+        </div>
+    </div>
 
 
 
@@ -1012,4 +1142,250 @@
         min-height: 16px;
     }
 
-    .p-strength
+            .p-strength-label.ok {
+            color: var(--p-teal-deep);
+            font-weight: 600;
+        }
+
+        .p-strength-label.bad {
+            color: var(--p-danger);
+            font-weight: 600;
+        }
+
+    .p-pw-rules {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 22px;
+        margin: 22px 0 0;
+        padding: 14px 16px;
+        background: var(--p-paper);
+        border-radius: var(--p-radius-sm);
+        font-size: 12.5px;
+        color: var(--p-ink-soft);
+    }
+
+        .p-pw-rules li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .p-pw-rules i {
+            font-size: 7px;
+            color: var(--p-ink-faint);
+            width: 11px;
+            text-align: center;
+        }
+
+        .p-pw-rules li.met {
+            color: var(--p-teal-deep);
+            font-weight: 600;
+        }
+
+            .p-pw-rules li.met i {
+                color: var(--p-teal);
+                font-size: 11px;
+            }
+
+                .p-pw-rules li.met i::before {
+                    content: "\f00c";
+                }
+
+    /* ===== SUBMIT + FOOTER ===== */
+
+    .p-submit {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 28px;
+        padding: 15px;
+        border: none;
+        border-radius: var(--p-radius-sm);
+        background: linear-gradient(120deg, var(--p-teal-grad-start), var(--p-teal-grad-end));
+        color: #fff;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 14.5px;
+        cursor: pointer;
+        box-shadow: 0 10px 24px rgba(10, 90, 80, 0.22);
+        transition: transform .2s, box-shadow .2s;
+    }
+
+        .p-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 28px rgba(10, 90, 80, 0.28);
+        }
+
+    .p-footer {
+        margin-top: 40px;
+        text-align: center;
+    }
+
+        .p-footer hr {
+            border: none;
+            border-top: 1px solid var(--p-line);
+            margin-bottom: 22px;
+        }
+
+    .p-footer-content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        color: var(--p-ink-faint);
+        font-size: 13px;
+    }
+
+        .p-footer-content i {
+            color: var(--p-teal);
+        }
+
+    .p-footer-divider {
+        color: var(--p-line-strong);
+    }
+
+    /* ===== RESPONSIVE ===== */
+
+    @@media (max-width: 900px) {
+        .p-banner {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .p-banner-cta {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .p-wrap {
+            padding: 20px 16px 50px;
+        }
+
+        .p-grid-2 {
+            grid-template-columns: 1fr;
+        }
+
+        .p-panel-body {
+            padding: 22px 18px 26px;
+        }
+
+        .p-status-strip {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .p-banner-left {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .p-form-actions {
+            flex-direction: column-reverse;
+        }
+    }
+
+</style>
+
+
+@section Scripts {
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+            /* ---------- first name + last name: letters only ---------- */
+
+            ["FirstName", "LastName"].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener("input", function () {
+                    this.value = this.value.replace(/[^A-Za-z]/g, "");
+                });
+            });
+
+            /* ---------- phone: digits only, max 10 ---------- */
+
+            var phone = document.getElementById("PhoneNumb");
+            if (phone) {
+                phone.addEventListener("input", function () {
+                    this.value = this.value.replace(/\D/g, "").slice(0, 10);
+                });
+            }
+
+            /* ---------- show / hide password ---------- */
+
+            document.querySelectorAll("[data-toggle-pw]").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    const input = document.getElementById(this.dataset.togglePw);
+                    if (!input) return;
+
+                    const show = input.type === "password";
+                    input.type = show ? "text" : "password";
+
+                    const icon = this.querySelector("i");
+                    icon.classList.toggle("fa-eye", !show);
+                    icon.classList.toggle("fa-eye-slash", show);
+                });
+            });
+
+            /* ---------- password strength, rules and match ---------- */
+
+            const newPw = document.getElementById("NewPassword");
+            const confirmPw = document.getElementById("ConfirmPassword");
+            const meter = document.querySelector(".p-strength");
+            const strengthLabel = document.getElementById("pwStrengthLabel");
+            const matchLabel = document.getElementById("pwMatchLabel");
+            const rules = document.getElementById("pwRules");
+
+            function evaluate() {
+
+                if (!newPw || !meter) return;
+
+                const v = newPw.value;
+
+                const checks = {
+                    len: v.length >= 8,
+                    upper: /[A-Z]/.test(v),
+                    lower: /[a-z]/.test(v),
+                    num: /\d/.test(v),
+                    sym: /[^A-Za-z0-9]/.test(v)
+                };
+
+                Object.keys(checks).forEach(function (key) {
+                    const li = rules.querySelector('[data-rule="' + key + '"]');
+                    if (li) li.classList.toggle("met", checks[key]);
+                });
+
+                const score = Object.values(checks).filter(Boolean).length;
+                const level = v.length === 0 ? 0 : score <= 2 ? 1 : score === 3 ? 2 : score === 4 ? 3 : 4;
+                const names = ["", "Weak", "Fair", "Good", "Strong"];
+
+                meter.dataset.level = level;
+                strengthLabel.textContent = v.length === 0
+                    ? "Enter a password to see its strength"
+                    : "Strength: " + names[level];
+
+                if (confirmPw && confirmPw.value.length > 0) {
+                    const same = confirmPw.value === v;
+                    matchLabel.textContent = same ? "Passwords match" : "Passwords do not match";
+                    matchLabel.className = "p-strength-label " + (same ? "ok" : "bad");
+                } else if (matchLabel) {
+                    matchLabel.textContent = "";
+                }
+            }
+
+            if (newPw) newPw.addEventListener("input", evaluate);
+            if (confirmPw) confirmPw.addEventListener("input", evaluate);
+
+            evaluate();
+        });
+    </script>
+
+}
