@@ -103,7 +103,6 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .IsUnique()
             .HasFilter("[EmployeeNumber] IS NOT NULL AND [EmployeeNumber] <> ''");
 
-
         // ============================================================
         // PATIENT
         // ============================================================
@@ -280,7 +279,7 @@ public class LabDbContext : IdentityDbContext<LabUser>
 
         builder.Entity<TestReviewHistory>()
             .HasOne(h => h.TestRequestItem)
-            .WithMany()
+              .WithMany(i => i.ReviewHistory)
             .HasForeignKey(h => h.TestRequestItemId)
             .OnDelete(DeleteBehavior.NoAction);
 

@@ -734,7 +734,7 @@ namespace LabDash.Controllers
                 })
                 .ToList();
 
-            vm.MedicalConditionCategories = GetCategories(vm.MedicalConditionOptions);
+            vm.MedicalConditionCategories = await GetCategoryNamesAsync("MedicalCondition", vm.MedicalConditionOptions);
 
             var allergies = await _context.Allergies
                 .AsNoTracking()
@@ -752,7 +752,7 @@ namespace LabDash.Controllers
                 })
                 .ToList();
 
-            vm.AllergyCategories = GetCategories(vm.AllergyOptions);
+            vm.AllergyCategories = await GetCategoryNamesAsync("Allergy", vm.AllergyOptions);
 
             var medications = await _context.Medications
                 .AsNoTracking()
@@ -770,17 +770,24 @@ namespace LabDash.Controllers
                 })
                 .ToList();
 
-            vm.MedicationCategories = GetCategories(vm.MedicationOptions);
+            vm.MedicationCategories = await GetCategoryNamesAsync("Medication", vm.MedicationOptions);
         }
 
-        private static List<string> GetCategories(IEnumerable<MedicalOption> options)
+        private async Task<List<string>> GetCategoryNamesAsync(
+    string type, IEnumerable<MedicalOption> options)
         {
-            return options
-                .Select(x => x.Category)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x!.Trim())
+            var fromTable = await _context.Categories
+                .AsNoTracking()
+                .Where(c => c.Type == type && c.IsActive)
+                .Select(c => c.Name)
+                .ToListAsync();
+
+            return fromTable
+                .Concat(options.Select(o => o.Category))
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x)
+                .OrderBy(n => n)
                 .ToList();
         }
 
