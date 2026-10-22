@@ -30,20 +30,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     const allValidatedFields = requiredFields.concat(optionalValidatedFields);
 
     // -----------------------------------------------------------
-    //  Address dropdown references (moved to the TOP so they exist
-    //  before we try to disable them)
-    // -----------------------------------------------------------
-    const provinceSelect = document.getElementById("Province");
-    const citySelect = document.getElementById("City");
-    const suburbSelect = document.getElementById("Suburb");
-    const postalCodeSelect = document.getElementById("PostalCode");
-
-    // Disable dependent dropdowns on page load (do NOT use HTML disabled)
-    if (citySelect) citySelect.disabled = true;
-    if (suburbSelect) suburbSelect.disabled = true;
-    if (postalCodeSelect) postalCodeSelect.disabled = true;
-
-    // -----------------------------------------------------------
     //  Field state helpers
     // -----------------------------------------------------------
 
@@ -79,7 +65,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     // -----------------------------------------------------------
 
     const validators = {
-
         name: function (value) {
             if (!value) return "This field is required.";
             if (value.length < 2) return "Must be at least 2 characters.";
@@ -88,7 +73,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 return "Only letters, spaces, apostrophes and hyphens are allowed.";
             return null;
         },
-
         email: function (value) {
             if (!value) return "Email address is required.";
             const re = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
@@ -96,7 +80,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 return "Enter a valid email address (e.g. name@example.com).";
             return null;
         },
-
         cellphone: function (value) {
             if (!value) return "Cellphone number is required.";
             if (!/^\d+$/.test(value))
@@ -107,7 +90,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 return "Must be a valid SA mobile number (starts with 06, 07 or 08).";
             return null;
         },
-
         said: function (value) {
             if (!value) return "SA ID number is required.";
             if (!/^\d+$/.test(value))
@@ -116,7 +98,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 return "SA ID number must be exactly 13 digits.";
             return null;
         },
-
         dob: function (value) {
             if (!value) return "Date of birth is required.";
             const dob = new Date(value);
@@ -128,12 +109,10 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (age > 120) return "Please enter a realistic date of birth.";
             return null;
         },
-
         select: function (value) {
             if (!value) return "Please make a selection.";
             return null;
         },
-
         address: function (value) {
             if (!value) return "Address Line 1 is required.";
             if (value.length < 3) return "Address is too short.";
@@ -392,6 +371,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     //  ADDRESS CASCADE — Province → City → Suburb → Postal Code
     // =========================================================
 
+    const provinceSelect = document.getElementById("Province");
+    const citySelect = document.getElementById("City");
+    const suburbSelect = document.getElementById("Suburb");
+    const postalCodeSelect = document.getElementById("PostalCode");
+
     async function fetchOptions(url, select, placeholder, selectedValue) {
         select.innerHTML = "";
         const firstOption = document.createElement("option");
@@ -400,16 +384,13 @@ document.addEventListener("DOMContentLoaded", async function () {
         select.appendChild(firstOption);
 
         try {
-            const response = await fetch(url);
-
-            console.log("[fetchOptions] URL:", url);
-            console.log("[fetchOptions] Status:", response.status);
-            console.log("[fetchOptions] Content-Type:", response.headers.get("content-type"));
+            const response = await fetch(url, {
+                headers: { "Accept": "application/json" }
+            });
 
             if (!response.ok) throw new Error("HTTP error " + response.status);
 
             const values = await response.json();
-            console.log("[fetchOptions] Data:", values);
 
             values.forEach(value => {
                 const option = document.createElement("option");
@@ -419,7 +400,12 @@ document.addEventListener("DOMContentLoaded", async function () {
                 select.appendChild(option);
             });
 
-            select.disabled = !(values && values.length > 0);
+            if (values && values.length > 0) {
+                select.disabled = false;
+            } else {
+                select.disabled = true;
+            }
+
             return values;
         } catch (error) {
             console.error("fetchOptions ERROR:", error);
@@ -438,66 +424,73 @@ document.addEventListener("DOMContentLoaded", async function () {
         select.disabled = true;
     }
 
-    async function loadCities(province, selectedCity) {
-        clearSelect(suburbSelect, "Select Suburb");
-        clearSelect(postalCodeSelect, "Select Postal Code");
-        if (!province) {
-            clearSelect(citySelect, "Select City / Town");
-            return;
-        }
-        await fetchOptions(
-            `/Doctor/GetCities?province=${encodeURIComponent(province)}`,
-            citySelect,
-            "Select City / Town",
-            selectedCity
-        );
-    }
-
-    async function loadSuburbs(province, city, selectedSuburb) {
-        clearSelect(postalCodeSelect, "Select Postal Code");
-        if (!province || !city) {
-            clearSelect(suburbSelect, "Select Suburb");
-            return;
-        }
-        await fetchOptions(
-            `/Doctor/GetSuburbs?province=${encodeURIComponent(province)}&city=${encodeURIComponent(city)}`,
-            suburbSelect,
-            "Select Suburb",
-            selectedSuburb
-        );
-    }
-
-    async function loadPostalCodes(province, city, suburb, selectedPostalCode) {
-        if (!province || !city || !suburb) {
-            clearSelect(postalCodeSelect, "Select Postal Code");
-            return;
-        }
-        await fetchOptions(
-            `/Doctor/GetPostalCodes?province=${encodeURIComponent(province)}&city=${encodeURIComponent(city)}&suburb=${encodeURIComponent(suburb)}`,
-            postalCodeSelect,
-            "Select Postal Code",
-            selectedPostalCode
-        );
-    }
-
     if (provinceSelect && citySelect && suburbSelect && postalCodeSelect) {
+
+        // PROVINCE CHANGED
         provinceSelect.addEventListener("change", async function () {
-            await loadCities(provinceSelect.value, null);
+            const province = provinceSelect.value;
+
+            clearSelect(suburbSelect, "Select Suburb");
+            clearSelect(postalCodeSelect, "Select Postal Code");
+
+            if (!province) {
+                clearSelect(citySelect, "Select City / Town");
+                return;
+            }
+
+            citySelect.disabled = false;
+            // Use the dynamic URL defined in the Razor view
+            await fetchOptions(
+                `${window.labDashUrls.getCities}?province=${encodeURIComponent(province)}`,
+                citySelect,
+                "Select City / Town",
+                null
+            );
             validateField(provinceSelect);
             refreshSubmitState();
         });
 
+        // CITY CHANGED
         citySelect.addEventListener("change", async function () {
-            await loadSuburbs(provinceSelect.value, citySelect.value, null);
+            const province = provinceSelect.value;
+            const city = citySelect.value;
+
+            clearSelect(postalCodeSelect, "Select Postal Code");
+
+            if (!city) {
+                clearSelect(suburbSelect, "Select Suburb");
+                return;
+            }
+
+            suburbSelect.disabled = false;
+            // Use the dynamic URL
+            await fetchOptions(
+                `${window.labDashUrls.getSuburbs}?province=${encodeURIComponent(province)}&city=${encodeURIComponent(city)}`,
+                suburbSelect,
+                "Select Suburb",
+                null
+            );
             validateField(citySelect);
             refreshSubmitState();
         });
 
+        // SUBURB CHANGED
         suburbSelect.addEventListener("change", async function () {
-            await loadPostalCodes(
-                provinceSelect.value,
-                citySelect.value,
-                suburbSelect.value,
+            const province = provinceSelect.value;
+            const city = citySelect.value;
+            const suburb = suburbSelect.value;
+
+            if (!suburb) {
+                clearSelect(postalCodeSelect, "Select Postal Code");
+                return;
+            }
+
+            postalCodeSelect.disabled = false;
+            // Use the dynamic URL
+            await fetchOptions(
+                `${window.labDashUrls.getPostalCodes}?province=${encodeURIComponent(province)}&city=${encodeURIComponent(city)}&suburb=${encodeURIComponent(suburb)}`,
+                postalCodeSelect,
+                "Select Postal Code",
                 null
             );
             validateField(suburbSelect);
