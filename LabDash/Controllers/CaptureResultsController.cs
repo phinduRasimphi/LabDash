@@ -246,6 +246,31 @@ namespace LabDash.Controllers
                 return View(result);
             }
 
+            // ============================================================
+            // IN-APP NOTIFICATION FOR DOCTOR
+            // ============================================================
+            try
+            {
+                var patientName = item.TestRequest.Patient.Name;
+                var testName = item.TestType?.Name ?? "Lab Test";
+                var statusMsg = isAbnormal ? "ABNORMAL result" : "result";
+
+                await _notificationService.SendToRoleAsync(
+                    roleName: "Doctor",
+                    title: "New Lab Result Available",
+                    message: $"{testName} {statusMsg} captured for {patientName}.",
+                    type: "TestResult",
+                    linkUrl: Url.Action("PatientSharedResults", "Doctor", new { patientId = item.TestRequest.Patient.PatientID }),
+                    relatedPatientId: item.TestRequest.Patient.PatientID,
+                    actorUserId: technician.Id
+                );
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't stop the technician from progressing
+                _logger.LogError(ex, "Failed to send doctor notification for result capture.");
+            }
+
             TempData["Success"] = isAbnormal
                 ? "Laboratory result saved successfully and flagged as abnormal."
                 : "Laboratory result saved successfully and sent for verification.";
@@ -465,6 +490,30 @@ namespace LabDash.Controllers
                 ViewBag.Patient = item.TestRequest?.Patient;
 
                 return View(model);
+            }
+
+            // ============================================================
+            // IN-APP NOTIFICATION FOR DOCTOR (EDIT)
+            // ============================================================
+            try
+            {
+                var patientName = item.TestRequest?.Patient?.Name ?? "Patient";
+                var testName = item.TestType?.Name ?? "Lab Test";
+                var statusMsg = isAbnormal ? "ABNORMAL result" : "result";
+
+                await _notificationService.SendToRoleAsync(
+                    roleName: "Doctor",
+                    title: "Lab Result Updated",
+                    message: $"{testName} {statusMsg} updated for {patientName}.",
+                    type: "TestResult",
+                    linkUrl: Url.Action("PatientSharedResults", "Doctor", new { patientId = item.TestRequest?.Patient?.PatientID }),
+                    relatedPatientId: item.TestRequest?.Patient?.PatientID,
+                    actorUserId: technician.Id
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send doctor notification for result edit.");
             }
 
             TempData["Success"] = isAbnormal

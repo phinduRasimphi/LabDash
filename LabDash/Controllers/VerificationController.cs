@@ -327,9 +327,10 @@ namespace LabDash.Controllers
             // --------------------------------------------------------
             // NOTIFY DOCTOR (Email + In-App Notification)
             // --------------------------------------------------------
+
+            // 1. Send Email if everything is verified
             if (allVerified && item.TestRequest.ResultsEmailedAt == null)
             {
-                // 1. Send Email with PDF
                 var sent = await _notificationService.SendVerifiedResultsAsync(item.RequestId);
 
                 if (sent)
@@ -341,8 +342,12 @@ namespace LabDash.Controllers
                 {
                     TempData["Warning"] = "Result verified, but the email to the doctor could not be sent.";
                 }
+            }
 
-                // 2. Send In-App Notification
+            // 2. Send In-App Notification 
+            // (Triggers if ALL verified OR if this specific verified result is ABNORMAL)
+            if (verification.Status == TestStatus.Verified && (allVerified || result.IsAbnormal))
+            {
                 try
                 {
                     var doctorId = item.TestRequest.RequestingDoctorId;
@@ -350,11 +355,31 @@ namespace LabDash.Controllers
                         ? $"{item.TestRequest.Patient.Name} {item.TestRequest.Patient.Surname}"
                         : "the patient";
 
+                    var testName = item.TestType?.Name ?? "Test";
+
+                    string title;
+                    string message;
+                    string type;
+
+                    if (allVerified)
+                    {
+                        title = "All Lab Results Ready";
+                        message = $"All test results for {patientName} (TR-{item.RequestId}) have been verified and are ready for your review.";
+                        type = "results-verified";
+                    }
+                    else
+                    {
+                        // It's an individual abnormal result
+                        title = " Abnormal Result Verified";
+                        message = $"An abnormal {testName} result for {patientName} has been verified.";
+                        type = "abnormal-verified";
+                    }
+
                     await _appNotifications.SendToUserAsync(
                         recipientUserId: doctorId,
-                        title: "Lab Results Ready",
-                        message: $"All test results for {patientName} (TR-{item.RequestId}) have been verified and are ready for your review.",
-                        type: "results-verified",
+                        title: title,
+                        message: message,
+                        type: type,
                         linkUrl: Url.Action("PatientResults", "TestRequest", new { requestId = item.RequestId }, Request.Scheme),
                         relatedPatientId: item.TestRequest.PatientId,
                         actorUserId: _userManager.GetUserId(User)
