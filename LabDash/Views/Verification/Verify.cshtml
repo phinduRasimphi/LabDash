@@ -15,9 +15,10 @@
 
     // ============================================================
     // RETURN HISTORY
-    // Supplied by the controller as ViewBag.ReturnHistory: every earlier
-    // TestVerification for this test item that was returned for review.
-    // Each one carries a snapshot of the result as it was when returned:
+    // Supplied by the controller as ViewBag.ReturnHistory: EVERY earlier
+    // TestVerification for this test item that was returned for review
+    // (not only the latest one). Each one carries a snapshot of the result
+    // as it was when returned:
     //   PreviousResultValue, PreviousComments, PreviousIsAbnormal.
     // Optional ViewBag.VerifierNames: Dictionary<string,string> mapping
     // VerifiedByTechnicianId.ToString() -> technician name.
@@ -25,7 +26,7 @@
 
     var returnHistory = (ViewBag.ReturnHistory as IEnumerable<TestVerification>
                             ?? Enumerable.Empty<TestVerification>())
-                        .OrderByDescending(v => v.VerificationDate)
+                        .OrderBy(v => v.VerificationDate)
                         .ToList();
 
     var verifierNames = ViewBag.VerifierNames as Dictionary<string, string>;
@@ -39,8 +40,6 @@
         }
         return id != null ? $"Technician #{id}" : "Not available";
     };
-
-    var latestReturn = returnHistory.FirstOrDefault();
 
     // ============================================================
     // REFERENCE RANGE
@@ -161,6 +160,46 @@
     // or it is currently sitting in the To Be Reviewed status.
     bool wasReturned = returnHistory.Any() || currentStatus == "To Be Reviewed";
     bool awaitingCorrection = currentStatus == "To Be Reviewed";
+
+    // ============================================================
+    // RESULT VERSIONS: EVERY RESULT THAT WAS EVER CAPTURED
+    // Version 1 = original capture, then each correction.
+    // Every returned version comes from the snapshot saved when it was returned;
+    // the last version is the current result (unless it is still waiting for
+    // a correction, in which case the returned version is the latest one).
+    // ============================================================
+
+    var versions = new List<(int No, string Value, string Comments, bool? Abnormal, TestVerification Ret, bool IsCurrent)>();
+
+    for (int i = 0; i < returnHistory.Count; i++)
+    {
+        var r = returnHistory[i];
+
+        versions.Add((
+            i + 1,
+            r.PreviousResultValue,
+            r.PreviousComments,
+            isAbnormalValue(r.PreviousResultValue) ?? r.PreviousIsAbnormal,
+            r,
+            false));
+    }
+
+    if (wasReturned)
+    {
+        if (!awaitingCorrection)
+        {
+            // Corrected result, now waiting for the verifier's decision
+            versions.Add((versions.Count + 1, result?.ResultValue, result?.Comments, (bool?)isAbnormal, null, true));
+        }
+        else if (versions.Count == 0)
+        {
+            // Returned, but no snapshot was recorded: show what is on file
+            versions.Add((1, result?.ResultValue, result?.Comments, (bool?)isAbnormal, null, false));
+        }
+    }
+
+    var versionsNewestFirst = versions.OrderByDescending(v => v.No).ToList();
+    int totalVersions = versions.Count + (awaitingCorrection ? 1 : 0);
 
     // ============================================================
     // DISPLAY VALUES
@@ -440,7 +479,7 @@
 
 
     /* =========================================================
-       PREVIOUSLY RETURNED FOR REVIEW
+       RESULT HISTORY (every result ever captured)
        ========================================================= */
 
     .returned-panel {
@@ -457,7 +496,7 @@
         display: flex;
         align-items: center;
         gap: 14px;
-        margin-bottom: 14px;
+        margin-bottom: 16px;
     }
 
     .returned-panel-icon {
@@ -501,21 +540,201 @@
         white-space: nowrap;
     }
 
-    .returned-meta {
+    .history-heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0 10px;
+        color: var(--warning-dark);
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+    }
+
+    /* at-a-glance table */
+
+    .history-table-wrap {
+        background: white;
+        border: 1px solid var(--warning-line);
+        border-radius: 12px;
+        overflow-x: auto;
+        margin-bottom: 18px;
+    }
+
+    .history-table {
+        width: 100%;
+        min-width: 560px;
+        border-collapse: collapse;
+    }
+
+        .history-table th {
+            padding: 10px 14px;
+            background: #fbf3df;
+            color: #8a6d2d;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-align: left;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--warning-line);
+        }
+
+        .history-table td {
+            padding: 11px 14px;
+            color: #4d3b10;
+            font-size: 13px;
+            border-bottom: 1px solid #f6ebcf;
+            vertical-align: middle;
+        }
+
+        .history-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .history-table tr.is-current td {
+            background: #f6fbfa;
+        }
+
+        .history-table tr.is-pending td {
+            background: #fffaf0;
+            color: var(--muted);
+            font-style: italic;
+        }
+
+    .history-value {
+        font-size: 15px;
+        font-weight: 800;
+    }
+
+        .history-value.abnormal {
+            color: var(--danger);
+        }
+
+    /* version cards */
+
+    .version-list {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .version-card {
+        padding: 16px 18px;
+        background: white;
+        border: 1px solid var(--warning-line);
+        border-left: 5px solid var(--warning);
+        border-radius: 14px;
+    }
+
+        .version-card.current {
+            background: #f6fbfa;
+            border-color: var(--field-line);
+            border-left-color: var(--teal);
+        }
+
+        .version-card.pending {
+            background: #fffaf0;
+            border-style: dashed;
+        }
+
+    .version-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 10px;
+        flex-wrap: wrap;
         margin-bottom: 12px;
     }
 
-        .returned-meta > div {
-            background: white;
-            border: 1px solid var(--warning-line);
-            border-radius: 12px;
-            padding: 10px 13px;
+    .version-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex-wrap: wrap;
+        color: var(--warning-dark);
+        font-size: 13.5px;
+        font-weight: 700;
+    }
+
+    .version-card.current .version-title {
+        color: var(--teal-dark);
+    }
+
+    .version-tag {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .03em;
+        color: white;
+        background: var(--warning);
+    }
+
+        .version-tag.current {
+            background: var(--teal);
         }
 
-        .returned-meta span {
+        .version-tag.pending {
+            background: #9aa8aa;
+        }
+
+    .version-date {
+        color: #8a6d2d;
+        font-size: 11.5px;
+        font-weight: 600;
+    }
+
+    .version-body {
+        display: grid;
+        grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+    }
+
+    .version-value {
+        color: #6f5a2d;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -.5px;
+        overflow-wrap: anywhere;
+        margin-bottom: 8px;
+    }
+
+        .version-value small {
+            margin-left: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0;
+        }
+
+        .version-value.abnormal {
+            color: var(--danger);
+        }
+
+    .version-card.current .version-value {
+        color: var(--teal-dark);
+    }
+
+        .version-card.current .version-value.abnormal {
+            color: var(--danger);
+        }
+
+    .version-pending-text {
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .version-field {
+        margin-bottom: 10px;
+    }
+
+        .version-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .version-field > span {
             display: block;
             margin-bottom: 3px;
             color: #8a6d2d;
@@ -525,44 +744,27 @@
             text-transform: uppercase;
         }
 
-        .returned-meta strong {
-            color: #4d3b10;
-            font-size: 13px;
-            font-weight: 700;
-            overflow-wrap: anywhere;
-        }
-
-    .returned-reason {
-        background: white;
-        border: 1px solid var(--warning-line);
-        border-left: 4px solid var(--warning);
-        border-radius: 12px;
-        padding: 13px 15px;
-    }
-
-        .returned-reason span {
-            display: block;
-            margin-bottom: 5px;
-            color: #8a6d2d;
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: .06em;
-            text-transform: uppercase;
-        }
-
-        .returned-reason p {
+        .version-field > p {
             margin: 0;
             color: #4d3b10;
-            font-size: 13.5px;
-            line-height: 1.65;
+            font-size: 13px;
+            line-height: 1.6;
             overflow-wrap: anywhere;
         }
+
+    .version-reason {
+        padding: 10px 13px;
+        background: var(--warning-soft);
+        border: 1px solid var(--warning-line);
+        border-left: 4px solid var(--warning);
+        border-radius: 10px;
+    }
 
     .returned-state {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-top: 12px;
+        margin-top: 14px;
         font-size: 12.5px;
         font-weight: 600;
     }
@@ -575,221 +777,12 @@
             color: var(--warning-dark);
         }
 
-    .returned-history {
-        margin-top: 14px;
-        border-top: 1px dashed var(--warning-line);
-        padding-top: 12px;
-    }
-
-        .returned-history summary {
-            cursor: pointer;
-            color: var(--warning-dark);
-            font-size: 12.5px;
-            font-weight: 700;
-        }
-
-    .returned-history-item {
-        margin-top: 10px;
-        padding: 11px 14px;
-        background: white;
-        border: 1px solid var(--warning-line);
-        border-radius: 12px;
-    }
-
-        .returned-history-item header {
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 5px;
-            color: #8a6d2d;
-            font-size: 11.5px;
-            font-weight: 600;
-        }
-
-        .returned-history-item p {
-            margin: 0;
-            color: #4d3b10;
-            font-size: 13px;
-            line-height: 1.6;
-            overflow-wrap: anywhere;
-        }
-
-
-
-    /* ---------- BEFORE vs AFTER REVIEW ---------- */
-
-    .returned-meta {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .return-case {
-        margin-top: 12px;
-        padding: 14px 16px;
-        background: rgba(255,255,255,.55);
-        border: 1px solid var(--warning-line);
-        border-radius: 14px;
-    }
-
-        .return-case > summary {
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            margin: -2px 0 12px;
-            list-style: none;
-            color: var(--warning-dark);
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-            .return-case > summary::-webkit-details-marker {
-                display: none;
-            }
-
-        .return-case:not([open]) > summary {
-            margin-bottom: 0;
-        }
-
-    .return-case-tag {
-        margin-left: 8px;
-        padding: 3px 10px;
-        border-radius: 999px;
-        background: var(--warning);
-        color: white;
-        font-size: 10px;
-        font-weight: 700;
-    }
-
-    .return-case-date {
-        color: #8a6d2d;
-        font-size: 11.5px;
-        font-weight: 600;
-    }
-
-    .compare-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-        gap: 12px;
-        align-items: stretch;
-        margin-top: 12px;
-    }
-
-    .compare-box {
-        padding: 14px 16px;
-        border-radius: 14px;
-        background: white;
-        border: 1px solid var(--line);
-    }
-
-        .compare-box.before {
-            border-left: 4px solid var(--warning);
-        }
-
-        .compare-box.after {
-            border-left: 4px solid var(--teal);
-            background: #f6fbfa;
-        }
-
-    .compare-label {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        margin-bottom: 8px;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: .04em;
-        text-transform: uppercase;
-    }
-
-    .compare-box.before .compare-label {
-        color: var(--warning-dark);
-    }
-
-    .compare-box.after .compare-label {
-        color: var(--teal-dark);
-    }
-
-    .compare-value {
-        margin-bottom: 8px;
-        color: var(--ink);
-        font-size: 26px;
-        font-weight: 800;
-        letter-spacing: -.5px;
-        overflow-wrap: anywhere;
-    }
-
-        .compare-value small {
-            margin-left: 6px;
-            color: var(--muted);
-            font-size: 12px;
-            font-weight: 500;
-            letter-spacing: 0;
-        }
-
-    .compare-box.before .compare-value {
-        color: #6f5a2d;
-    }
-
-    .compare-box.after .compare-value {
-        color: var(--teal-dark);
-    }
-
-    .compare-pending {
-        color: var(--muted) !important;
-        font-size: 15px;
-        font-weight: 600;
-        letter-spacing: 0;
-    }
-
-    .compare-comments {
-        margin-top: 12px;
-        padding-top: 10px;
-        border-top: 1px solid var(--line);
-    }
-
-        .compare-comments span {
-            display: block;
-            margin-bottom: 4px;
-            color: var(--muted);
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: .06em;
-            text-transform: uppercase;
-        }
-
-        .compare-comments p {
-            margin: 0;
-            color: #3f605d;
-            font-size: 13px;
-            line-height: 1.65;
-            overflow-wrap: anywhere;
-        }
-
-    .compare-captured {
-        margin-top: 10px;
-        color: var(--muted);
-        font-size: 11.5px;
-    }
-
-    .compare-arrow {
-        display: flex;
-        align-items: center;
-        color: var(--warning);
-        font-size: 18px;
-    }
-
     @@media (max-width: 700px) {
-        .compare-grid {
+        .version-body {
             grid-template-columns: minmax(0, 1fr);
         }
-
-        .compare-arrow {
-            justify-content: center;
-            transform: rotate(90deg);
-        }
     }
+
 
     /* =========================================================
        LAYOUT + CARDS
@@ -1743,8 +1736,7 @@
 
         .sample-highlight,
         .test-detail-grid,
-        .result-summary,
-        .returned-meta {
+        .result-summary {
             grid-template-columns: 1fr;
         }
 
@@ -1821,7 +1813,7 @@
 
 
     <!-- =========================================================
-         PREVIOUSLY RETURNED FOR REVIEW: before vs after
+         RESULT HISTORY: EVERY RESULT CAPTURED FOR THIS TEST
          ========================================================= -->
     @if (wasReturned)
     {
@@ -1830,7 +1822,7 @@
             <div class="returned-panel-top">
 
                 <div class="returned-panel-icon">
-                    <i class="fa-solid fa-rotate-left"></i>
+                    <i class="fa-solid fa-clock-rotate-left"></i>
                 </div>
 
                 <div class="returned-panel-title">
@@ -1841,176 +1833,235 @@
                     </strong>
                     <span>
                         @(awaitingCorrection
-                            ? "It is still waiting for the technician to correct and resubmit it."
-                            : "Compare the result before review with the corrected result, and check the reason it was returned.")
+                            ? "It is still waiting for the technician to correct and resubmit it. Every result captured so far is listed below."
+                            : "Every result captured for this test is listed below, from the original capture to the current corrected result.")
                     </span>
                 </div>
 
-                @if (returnHistory.Count > 0)
-                {
-                    <span class="returned-count">
-                        Returned @returnHistory.Count @(returnHistory.Count == 1 ? "time" : "times")
-                    </span>
-                }
+                <span class="returned-count">
+                    @totalVersions @(totalVersions == 1 ? "result" : "results") captured
+                    @if (returnHistory.Count > 0)
+                    {
+                        @:&middot; returned @returnHistory.Count @(returnHistory.Count == 1 ? "time" : "times")
+                    }
+                </span>
 
             </div>
 
-            @if (!returnHistory.Any())
-            {
-                <div class="returned-reason">
-                    <span>Reason it was returned</span>
-                    <p>No return reason was recorded for this result.</p>
-                </div>
-            }
 
-            @for (int i = 0; i < returnHistory.Count; i++)
-            {
-                var ret = returnHistory[i];
-                var newer = i > 0 ? returnHistory[i - 1] : null;
-                bool isLatest = i == 0;
-                int returnNumber = returnHistory.Count - i;
+            <!-- ---------- AT A GLANCE: ALL RESULTS ---------- -->
 
-                // BEFORE = snapshot saved when this return happened
-                string beforeValue = ret.PreviousResultValue;
-                string beforeComments = ret.PreviousComments;
-                bool? beforeAbnormal = isAbnormalValue(beforeValue) ?? ret.PreviousIsAbnormal;
+            <div class="history-heading">
+                <i class="fa-solid fa-list-ol"></i>
+                All results at a glance
+            </div>
 
-                // AFTER = the current result (latest return) or the snapshot taken at the next return
-                bool afterPending = isLatest && awaitingCorrection;
-                string afterValue = isLatest ? result?.ResultValue : newer?.PreviousResultValue;
-                string afterComments = isLatest ? result?.Comments : newer?.PreviousComments;
-                bool? afterAbnormal = isLatest
-                    ? (bool?)isAbnormal
-                    : (isAbnormalValue(afterValue) ?? newer?.PreviousIsAbnormal);
+            <div class="history-table-wrap">
+                <table class="history-table">
 
-                <details class="return-case" open="@isLatest">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Result</th>
+                            <th>Classification</th>
+                            <th>Outcome</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
 
-                    <summary>
-                        <span class="return-case-title">
-                            Return @returnNumber of @returnHistory.Count
-                            @if (isLatest)
-                            {
-                                <span class="return-case-tag">Latest</span>
-                            }
-                        </span>
-                        <span class="return-case-date">@ret.VerificationDate.ToString("dd MMM yyyy HH:mm")</span>
-                    </summary>
+                    <tbody>
 
-                    <div class="returned-meta">
+                        @if (awaitingCorrection)
+                        {
+                            <tr class="is-pending">
+                                <td>@totalVersions</td>
+                                <td colspan="2">Corrected result not captured yet</td>
+                                <td>Waiting for correction</td>
+                                <td>-</td>
+                            </tr>
+                        }
 
-                        <div>
-                            <span>Returned by</span>
-                            <strong>@verifierLabel(ret)</strong>
+                        @foreach (var v in versionsNewestFirst)
+                        {
+                            <tr class="@(v.IsCurrent ? "is-current" : "")">
+
+                                <td>@v.No</td>
+
+                                <td>
+                                    <span class="history-value @(v.Abnormal == true ? "abnormal" : "")">
+                                        @(string.IsNullOrWhiteSpace(v.Value) ? "Not recorded" : v.Value)
+                                    </span>
+                                    @if (!string.IsNullOrWhiteSpace(v.Value) && !string.IsNullOrWhiteSpace(configuredUnit))
+                                    {
+                                        <small>@configuredUnit</small>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (v.Abnormal == true)
+                                    {
+                                        <span class="status-badge status-abnormal">
+                                            <i class="fa-solid fa-triangle-exclamation"></i> Abnormal
+                                        </span>
+                                    }
+                                    else if (v.Abnormal == false)
+                                    {
+                                        <span class="status-badge status-within">
+                                            <i class="fa-solid fa-circle-check"></i> Within Range
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="empty-text">Unknown</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (v.IsCurrent)
+                                    {
+                                        <span class="status-badge status-completed">
+                                            <i class="fa-solid fa-hourglass-half"></i> Awaiting your decision
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-badge status-review">
+                                            <i class="fa-solid fa-rotate-left"></i> Returned for review
+                                        </span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (v.Ret != null)
+                                    {
+                                        @:Returned @v.Ret.VerificationDate.ToString("dd MMM yyyy HH:mm")
+                                    }
+                                    else if (v.IsCurrent && result != null)
+                                    {
+                                        @:Captured @result.DateCaptured.ToString("dd MMM yyyy HH:mm")
+                                    }
+                                    else
+                                    {
+                                        @:-
+                                    }
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+            </div>
+
+
+            <!-- ---------- FULL DETAIL FOR EVERY RESULT ---------- -->
+
+            <div class="history-heading">
+                <i class="fa-solid fa-layer-group"></i>
+                Details of every result (newest first)
+            </div>
+
+            <div class="version-list">
+
+                @if (awaitingCorrection)
+                {
+                    <div class="version-card pending">
+
+                        <div class="version-top">
+                            <div class="version-title">
+                                Result @totalVersions of @totalVersions
+                                <span class="version-tag pending">Pending</span>
+                            </div>
                         </div>
 
-                        <div>
-                            <span>Date returned</span>
-                            <strong>@ret.VerificationDate.ToString("dd MMM yyyy HH:mm")</strong>
+                        <div class="version-pending-text">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                            Waiting for the technician to capture the corrected result.
                         </div>
 
                     </div>
+                }
 
-                    <div class="returned-reason">
-                        <span>Reason it was returned</span>
-                        <p>
-                            @(string.IsNullOrWhiteSpace(ret.VerificationNotes)
-                                ? "No reason was recorded."
-                                : ret.VerificationNotes)
-                        </p>
-                    </div>
+                @foreach (var v in versionsNewestFirst)
+                {
+                    <div class="version-card @(v.IsCurrent ? "current" : "")">
 
-                    <div class="compare-grid">
+                        <div class="version-top">
 
-                        <!-- BEFORE REVIEW -->
-                        <div class="compare-box before">
+                            <div class="version-title">
+                                Result @v.No of @totalVersions
 
-                            <div class="compare-label">
-                                <i class="fa-solid fa-clock-rotate-left"></i>
-                                Result before review
-                            </div>
-
-                            <div class="compare-value">
-                                @(string.IsNullOrWhiteSpace(beforeValue) ? "Not recorded" : beforeValue)
-                                @if (!string.IsNullOrWhiteSpace(beforeValue) && !string.IsNullOrWhiteSpace(configuredUnit))
+                                @if (v.No == 1)
                                 {
-                                    <small>@configuredUnit</small>
-                                }
-                            </div>
-
-                            @if (beforeAbnormal == true)
-                            {
-                                <span class="status-badge status-abnormal">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> Abnormal
-                                </span>
-                            }
-                            else if (beforeAbnormal == false)
-                            {
-                                <span class="status-badge status-within">
-                                    <i class="fa-solid fa-circle-check"></i> Within Range
-                                </span>
-                            }
-
-                            <div class="compare-comments">
-                                <span>Laboratory comments</span>
-                                @if (!string.IsNullOrWhiteSpace(beforeComments))
-                                {
-                                    <p>@beforeComments</p>
+                                    <span class="version-tag @(v.IsCurrent ? "current" : "")">Original capture</span>
                                 }
                                 else
                                 {
-                                    <p class="empty-text">No comments captured.</p>
+                                    <span class="version-tag @(v.IsCurrent ? "current" : "")">Correction @(v.No - 1)</span>
+                                }
+
+                                @if (v.IsCurrent)
+                                {
+                                    <span class="version-tag current">Current</span>
                                 }
                             </div>
 
-                        </div>
-
-                        <div class="compare-arrow">
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </div>
-
-                        <!-- AFTER REVIEW -->
-                        <div class="compare-box after">
-
-                            <div class="compare-label">
-                                <i class="fa-solid fa-circle-check"></i>
-                                @(isLatest ? "Corrected result after review" : "Result after this return")
-                            </div>
-
-                            @if (afterPending)
+                            @if (v.Ret != null)
                             {
-                                <div class="compare-value compare-pending">
-                                    <i class="fa-solid fa-hourglass-half"></i>
-                                    Waiting for corrected result
-                                </div>
+                                <span class="version-date">
+                                    Returned @v.Ret.VerificationDate.ToString("dd MMM yyyy HH:mm")
+                                </span>
                             }
-                            else
+                            else if (v.IsCurrent && result != null)
                             {
-                                <div class="compare-value">
-                                    @(string.IsNullOrWhiteSpace(afterValue) ? "Not recorded" : afterValue)
-                                    @if (!string.IsNullOrWhiteSpace(afterValue) && !string.IsNullOrWhiteSpace(configuredUnit))
+                                <span class="version-date">
+                                    Captured @result.DateCaptured.ToString("dd MMM yyyy HH:mm")
+                                    @if (!string.IsNullOrWhiteSpace(result.CapturedByTechnician?.FullName))
+                                    {
+                                        @:by @result.CapturedByTechnician.FullName
+                                    }
+                                </span>
+                            }
+
+                        </div>
+
+                        <div class="version-body">
+
+                            <div>
+
+                                <div class="result-main-label">Result value</div>
+
+                                <div class="version-value @(v.Abnormal == true ? "abnormal" : "")">
+                                    @(string.IsNullOrWhiteSpace(v.Value) ? "Not recorded" : v.Value)
+                                    @if (!string.IsNullOrWhiteSpace(v.Value) && !string.IsNullOrWhiteSpace(configuredUnit))
                                     {
                                         <small>@configuredUnit</small>
                                     }
                                 </div>
 
-                                @if (afterAbnormal == true)
+                                @if (v.Abnormal == true)
                                 {
                                     <span class="status-badge status-abnormal">
                                         <i class="fa-solid fa-triangle-exclamation"></i> Abnormal
                                     </span>
                                 }
-                                else if (afterAbnormal == false)
+                                else if (v.Abnormal == false)
                                 {
                                     <span class="status-badge status-within">
                                         <i class="fa-solid fa-circle-check"></i> Within Range
                                     </span>
                                 }
 
-                                <div class="compare-comments">
+                            </div>
+
+                            <div>
+
+                                <div class="version-field">
                                     <span>Laboratory comments</span>
-                                    @if (!string.IsNullOrWhiteSpace(afterComments))
+                                    @if (!string.IsNullOrWhiteSpace(v.Comments))
                                     {
-                                        <p>@afterComments</p>
+                                        <p>@v.Comments</p>
                                     }
                                     else
                                     {
@@ -2018,24 +2069,36 @@
                                     }
                                 </div>
 
-                                @if (isLatest && result != null)
+                                @if (v.Ret != null)
                                 {
-                                    <div class="compare-captured">
-                                        Captured @result.DateCaptured.ToString("dd MMM yyyy HH:mm")
-                                        @if (!string.IsNullOrWhiteSpace(result.CapturedByTechnician?.FullName))
-                                        {
-                                            @:by @result.CapturedByTechnician.FullName
-                                        }
+                                    <div class="version-field version-reason">
+                                        <span>
+                                            Reason it was returned
+                                            &middot; by @verifierLabel(v.Ret)
+                                        </span>
+                                        <p>
+                                            @(string.IsNullOrWhiteSpace(v.Ret.VerificationNotes)
+                                                ? "No reason was recorded."
+                                                : v.Ret.VerificationNotes)
+                                        </p>
                                     </div>
                                 }
-                            }
+                                else if (!v.IsCurrent)
+                                {
+                                    <div class="version-field version-reason">
+                                        <span>Reason it was returned</span>
+                                        <p>No return reason was recorded for this result.</p>
+                                    </div>
+                                }
+
+                            </div>
 
                         </div>
 
                     </div>
+                }
 
-                </details>
-            }
+            </div>
 
             @if (awaitingCorrection)
             {
@@ -2048,7 +2111,7 @@
             {
                 <div class="returned-state resubmitted">
                     <i class="fa-solid fa-circle-check"></i>
-                    Resubmitted. The corrected result is shown below.
+                    Resubmitted. The current (corrected) result is shown below.
                 </div>
             }
 
@@ -2453,7 +2516,7 @@
 
 
     <!-- =========================================================
-         CAPTURED LABORATORY RESULT
+         CAPTURED LABORATORY RESULT (CURRENT)
          ========================================================= -->
 
     <div class="dashboard-card result-card @abnormalClass">
@@ -2689,13 +2752,14 @@
                 the patient's medical conditions, allergies, medication
                 and doctor's clinical notes before approving the result.
 
-                @if (wasReturned && latestReturn != null)
+                @if (wasReturned)
                 {
                     <br />
 
                     <strong>
-                        This result was returned before. Compare it with the result
-                        before review and confirm the correction fixes the reason given.
+                        This result was returned before. Compare it with every earlier
+                        result in the history above and confirm the correction fixes
+                        the reasons given.
                     </strong>
                 }
 
