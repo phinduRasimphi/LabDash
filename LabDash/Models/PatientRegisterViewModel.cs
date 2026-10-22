@@ -52,11 +52,11 @@ namespace LabDash.Models
         public string CellphoneNumber { get; set; } = string.Empty;
 
 
-        [Required(ErrorMessage = "Please enter your Gmail address.")]
+        [Required(ErrorMessage = "Please enter your email address.")]
         [RegularExpression(
-            @"^[A-Za-z0-9._%+-]+@gmail\.com$",
-            ErrorMessage = "Please use a valid Gmail address ending in @gmail.com.")]
-        [Display(Name = "Gmail Address")]
+    @"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$",
+    ErrorMessage = "Please enter a valid email address.")]
+        [Display(Name = "Email Address")]
         public string Email { get; set; } = string.Empty;
 
 

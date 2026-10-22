@@ -135,8 +135,6 @@ namespace LabDash.Controllers
 
                                 try
                                 {
-                                    string realAccount = "labdashrsa@gmail.com";
-
                                     await _emailSender.SendEmailAsync(
                                       user.Email!,
                                       $"Welcome to LabDash, {user.FirstName}!",
@@ -431,6 +429,135 @@ Here's to healthier days ahead,
 </td>
 </tr>
 
+</table>
+
+</body>
+</html>";
+        }
+
+        // ============================================================
+        // CONFIRM EMAIL (styled)
+        // ============================================================
+
+        private static string BuildConfirmEmail(
+            string? firstName,
+            string confirmUrl,
+            string supportEmail)
+        {
+            var name =
+                string.IsNullOrWhiteSpace(firstName)
+                    ? "there"
+                    : HtmlEncoder.Default.Encode(firstName.Trim());
+
+            var url = HtmlEncoder.Default.Encode(confirmUrl);
+
+            return $@"
+<!DOCTYPE html>
+<html>
+<body style='margin:0; padding:0; background-color:#eef3fb; font-family:Segoe UI, Arial, sans-serif;'>
+
+<table width='100%' cellpadding='0' cellspacing='0' border='0' style='background-color:#eef3fb; padding:24px 0;'>
+<tr>
+<td align='center'>
+
+<table width='600' cellpadding='0' cellspacing='0' border='0'
+       style='max-width:600px; width:100%; background-color:#ffffff; border-radius:16px; overflow:hidden;'>
+
+<tr>
+<td align='center' bgcolor='#0d766e'
+    style='background-color:#0d766e; background-image:linear-gradient(135deg,#0d766e,#18a999); padding:42px 24px;'>
+
+<div style='font-size:46px; line-height:1;'>&#9993;</div>
+
+<h1 style='margin:12px 0 6px 0; color:#ffffff; font-size:28px; font-weight:800;'>
+    One last step, {name}!
+</h1>
+
+<p style='margin:0; color:#e6f4ff; font-size:16px;'>
+    Confirm your email to activate your LabDash account.
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td style='padding:30px 36px 8px 36px; color:#2b3a4a; font-size:16px; line-height:1.6;'>
+
+<p style='margin:0 0 12px 0;'>
+    Welcome to <strong>LabDash</strong>! &#128075; Your account has been created.
+    Tap the button below to verify your email address and start viewing your results.
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td align='center' style='padding:18px 36px 10px 36px;'>
+
+<table cellpadding='0' cellspacing='0' border='0'>
+<tr>
+<td align='center' bgcolor='#0d766e' style='border-radius:12px; background-color:#0d766e;'>
+<a href='{url}'
+   style='display:inline-block; padding:16px 36px; color:#ffffff; font-size:17px; font-weight:700; text-decoration:none; border-radius:12px;'>
+    &#10003;&nbsp; Confirm my email
+</a>
+</td>
+</tr>
+</table>
+
+</td>
+</tr>
+
+<tr>
+<td style='padding:18px 36px 6px 36px;'>
+
+<table width='100%' cellpadding='0' cellspacing='0' border='0'>
+<tr>
+<td width='50%' valign='top' style='padding:6px;'>
+<div style='background-color:#effaf7; border-radius:12px; padding:14px; font-size:14px; color:#52606d; line-height:1.5;'>
+<strong style='color:#0f7a6c;'>&#128300; View results</strong><br/>See your lab results when they are released.
+</div>
+</td>
+<td width='50%' valign='top' style='padding:6px;'>
+<div style='background-color:#f6f1ff; border-radius:12px; padding:14px; font-size:14px; color:#52606d; line-height:1.5;'>
+<strong style='color:#5b3fa3;'>&#129657; Share securely</strong><br/>Choose which doctors can see your information.
+</div>
+</td>
+</tr>
+</table>
+
+</td>
+</tr>
+
+<tr>
+<td style='padding:16px 36px 24px 36px; color:#6b7785; font-size:13px; line-height:1.6;'>
+
+Button not working? Copy and paste this link into your browser:<br/>
+<a href='{url}' style='color:#0d766e; word-break:break-all;'>{url}</a>
+
+<p style='margin:14px 0 0 0;'>
+    If you didn't create this account, you can safely ignore this email.
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td align='center'
+    style='background-color:#f7f9fc; padding:22px 36px; color:#8a95a3; font-size:13px; line-height:1.6;'>
+
+Questions? We're happy to help at
+<a href='mailto:{supportEmail}' style='color:#0d766e; text-decoration:none;'>{supportEmail}</a>
+<br/>
+<strong style='color:#2b3a4a;'>The LabDash Team</strong> &#128153;
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
 </table>
 
 </body>
@@ -780,19 +907,16 @@ Here's to healthier days ahead,
             model.Name = model.Name?.Trim() ?? "";
             model.Surname = model.Surname?.Trim() ?? "";
 
-            // --------------------------------------------------------
-            // GMAIL VALIDATION
-            // --------------------------------------------------------
-
+            // EMAIL VALIDATION (any valid domain, e.g. @gmail.com, @mandela.ac.za)
             if (!string.IsNullOrWhiteSpace(model.Email) &&
                 !Regex.IsMatch(
                     model.Email,
-                    @"^[A-Za-z0-9._%+-]+@gmail\.com$",
+                    @"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$",
                     RegexOptions.IgnoreCase))
             {
                 ModelState.AddModelError(
                     nameof(model.Email),
-                    "Please use a valid Gmail address ending in @gmail.com.");
+                    "Please enter a valid email address.");
             }
 
             // --------------------------------------------------------
@@ -863,7 +987,7 @@ Here's to healthier days ahead,
             {
                 ModelState.AddModelError(
                     nameof(model.Email),
-                    "An account with this Gmail address already exists.");
+                    "An account with this email address already exists.");
 
                 await PopulateMedicalOptions(model);
                 return View(model);
@@ -1128,7 +1252,7 @@ Here's to healthier days ahead,
                 actorUserId: user.Id);
 
             // ========================================================
-            // EMAIL CONFIRMATION
+            // EMAIL CONFIRMATION (styled)
             // ========================================================
 
             var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -1141,12 +1265,15 @@ Here's to healthier days ahead,
 
             try
             {
+                var emailBody = BuildConfirmEmail(
+                    model.Name,
+                    callbackUrl ?? "#",
+                    "LabDashSupport@gmail.com");
+
                 await _emailSender.SendEmailAsync(
                     model.Email,
                     "Confirm your LabDash email",
-                    $"<p>Welcome to LabDash!</p>" +
-                    $"<p>Please confirm your email address by " +
-                    $"<a href='{callbackUrl}'>clicking here</a>.</p>");
+                    emailBody);
             }
             catch
             {
