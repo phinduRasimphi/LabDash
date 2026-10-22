@@ -899,15 +899,11 @@ namespace LabDash.Controllers
 
             var tests = await _context.TestRequestItems
                 .Include(x => x.TestType)
-
                 .Include(x => x.TestRequest)
                     .ThenInclude(x => x.Patient)
-
-                // Load the technician assigned to each test
                 .Include(x => x.AssignedTechnician)
 
-                // IMPORTANT: Load all recorded returns for review
-                .Include(x => x.ReviewHistory)
+                // WE REMOVED .Include(x => x.ReviewHistory) HERE!
 
                 .Where(x =>
                     x.AssignedTechnicianId == technician.Id &&
@@ -918,9 +914,10 @@ namespace LabDash.Controllers
                     ))
                 .OrderByDescending(x => x.CompletionDateTime)
                 .ToListAsync();
+
             var testIds = tests
-    .Select(t => t.TestRequestItemId)
-    .ToList();
+                .Select(t => t.TestRequestItemId)
+                .ToList();
 
             var returnCounts = await _context.TestVerifications
                 .Where(v =>
@@ -933,7 +930,6 @@ namespace LabDash.Controllers
             ViewBag.ReturnCounts = returnCounts;
 
             return View(tests);
-
         }
 
         // =========================================================
