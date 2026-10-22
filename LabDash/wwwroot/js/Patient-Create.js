@@ -30,6 +30,20 @@ document.addEventListener("DOMContentLoaded", async function () {
     const allValidatedFields = requiredFields.concat(optionalValidatedFields);
 
     // -----------------------------------------------------------
+    //  Address dropdown references (moved to the TOP so they exist
+    //  before we try to disable them)
+    // -----------------------------------------------------------
+    const provinceSelect = document.getElementById("Province");
+    const citySelect = document.getElementById("City");
+    const suburbSelect = document.getElementById("Suburb");
+    const postalCodeSelect = document.getElementById("PostalCode");
+
+    // Disable dependent dropdowns on page load (do NOT use HTML disabled)
+    if (citySelect) citySelect.disabled = true;
+    if (suburbSelect) suburbSelect.disabled = true;
+    if (postalCodeSelect) postalCodeSelect.disabled = true;
+
+    // -----------------------------------------------------------
     //  Field state helpers
     // -----------------------------------------------------------
 
@@ -100,7 +114,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 return "SA ID number must contain digits only.";
             if (value.length !== 13)
                 return "SA ID number must be exactly 13 digits.";
-            return null; // Removed Luhn check
+            return null;
         },
 
         dob: function (value) {
@@ -319,8 +333,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         const id = idNumberInput.value.trim();
         if (id.length !== 13 || !/^\d{13}$/.test(id)) return;
 
-        // Luhn check removed here so the DOB always populates
-
         const yy = parseInt(id.substring(0, 2), 10);
         const mm = parseInt(id.substring(2, 4), 10);
         const dd = parseInt(id.substring(4, 6), 10);
@@ -380,11 +392,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     //  ADDRESS CASCADE — Province → City → Suburb → Postal Code
     // =========================================================
 
-    const provinceSelect = document.getElementById("Province");
-    const citySelect = document.getElementById("City");
-    const suburbSelect = document.getElementById("Suburb");
-    const postalCodeSelect = document.getElementById("PostalCode");
-
     async function fetchOptions(url, select, placeholder, selectedValue) {
         select.innerHTML = "";
         const firstOption = document.createElement("option");
@@ -394,8 +401,15 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error("Could not load dropdown data.");
+
+            console.log("[fetchOptions] URL:", url);
+            console.log("[fetchOptions] Status:", response.status);
+            console.log("[fetchOptions] Content-Type:", response.headers.get("content-type"));
+
+            if (!response.ok) throw new Error("HTTP error " + response.status);
+
             const values = await response.json();
+            console.log("[fetchOptions] Data:", values);
 
             values.forEach(value => {
                 const option = document.createElement("option");
@@ -405,10 +419,10 @@ document.addEventListener("DOMContentLoaded", async function () {
                 select.appendChild(option);
             });
 
-            select.disabled = values.length === 0;
+            select.disabled = !(values && values.length > 0);
             return values;
         } catch (error) {
-            console.error("fetchOptions:", error);
+            console.error("fetchOptions ERROR:", error);
             select.disabled = true;
             return [];
         }
@@ -494,39 +508,6 @@ document.addEventListener("DOMContentLoaded", async function () {
             validateField(postalCodeSelect);
             refreshSubmitState();
         });
-
-        const savedCity = citySelect.dataset.currentValue || citySelect.value;
-        const savedSuburb = suburbSelect.dataset.currentValue || suburbSelect.value;
-        const savedPostalCode = postalCodeSelect.dataset.currentValue || postalCodeSelect.value;
-        const initialProvince = provinceSelect.value;
-
-        if (initialProvince) {
-            const cityValues = await fetchOptions(
-                `/Doctor/GetCities?province=${encodeURIComponent(initialProvince)}`,
-                citySelect,
-                "Select City / Town",
-                savedCity
-            );
-
-            if (savedCity && cityValues.includes(savedCity)) {
-                const suburbValues = await fetchOptions(
-                    `/Doctor/GetSuburbs?province=${encodeURIComponent(initialProvince)}&city=${encodeURIComponent(savedCity)}`,
-                    suburbSelect,
-                    "Select Suburb",
-                    savedSuburb
-                );
-
-                if (savedSuburb && suburbValues.includes(savedSuburb)) {
-                    await fetchOptions(
-                        `/Doctor/GetPostalCodes?province=${encodeURIComponent(initialProvince)}&city=${encodeURIComponent(savedCity)}&suburb=${encodeURIComponent(savedSuburb)}`,
-                        postalCodeSelect,
-                        "Select Postal Code",
-                        savedPostalCode
-                    );
-                }
-            }
-            refreshSubmitState();
-        }
     }
 
     // =========================================================
