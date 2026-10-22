@@ -50,11 +50,9 @@
 <div class="capture-page">
 
     <!-- BANNER -->
-
     <div class="banner">
 
         <div class="banner-left">
-
             <div class="banner-icon">
                 <i class="fa-solid fa-flask-vial"></i>
             </div>
@@ -63,7 +61,6 @@
                 <h1>Capture Laboratory Result</h1>
                 <p>Review patient information and enter laboratory findings.</p>
             </div>
-
         </div>
 
         <div class="banner-stats">
@@ -89,7 +86,6 @@
 
 
     <!-- PROCESSING WORKFLOW -->
-
     <section class="panel">
 
         <div class="panel-head">
@@ -176,11 +172,9 @@
 
 
     <!-- PATIENT LEFT / TEST RIGHT -->
-
     <div class="information-grid">
 
         <!-- PATIENT INFORMATION -->
-
         <section class="information-card">
 
             <div class="card-header">
@@ -234,7 +228,6 @@
                 </div>
 
                 <!-- CLINICAL INFORMATION -->
-
                 <div class="section-title">
                     <i class="fa-solid fa-notes-medical"></i>
                     Clinical information
@@ -284,7 +277,6 @@
                 </div>
 
                 <!-- DOCTOR NOTES -->
-
                 <div class="section-title">
                     <i class="fa-solid fa-file-medical"></i>
                     Doctor clinical notes
@@ -311,7 +303,6 @@
 
 
         <!-- TEST INFORMATION -->
-
         <section class="information-card">
 
             <div class="card-header">
@@ -322,8 +313,6 @@
             </div>
 
             <div class="card-body">
-
-                <!-- TEST PROFILE -->
 
                 <div class="test-profile">
 
@@ -342,8 +331,6 @@
                     </div>
 
                 </div>
-
-                <!-- SAMPLE AND CATEGORY -->
 
                 <div class="sample-grid">
 
@@ -364,8 +351,6 @@
                     </div>
 
                 </div>
-
-                <!-- TEST DETAILS -->
 
                 <div class="test-detail-grid">
 
@@ -436,8 +421,6 @@
 
                 </div>
 
-                <!-- CONFIGURED REFERENCE RANGE -->
-
                 <div class="configured-range">
                     <span>Configured reference range</span>
                     <strong>
@@ -457,7 +440,6 @@
 
 
     <!-- RESULT ENTRY -->
-
     <section class="panel result-card">
 
         <div class="panel-head">
@@ -476,13 +458,17 @@
 
         <div class="result-body">
 
-            <form asp-controller="CaptureResults"
+            <form id="captureForm"
+                  asp-controller="CaptureResults"
                   asp-action="Capture"
                   method="post">
 
                 <input type="hidden"
                        name="TestRequestItemId"
                        value="@Model.TestRequestItemId" />
+
+                <!-- Updated by script; the server should still recalculate this. -->
+                <input type="hidden" id="IsAbnormal" name="IsAbnormal" value="false" />
 
                 <div asp-validation-summary="ModelOnly"
                      class="validation-summary"></div>
@@ -495,7 +481,11 @@
                 <div class="result-grid">
 
                     <div class="form-field">
-                        <label asp-for="ResultValue">Result value</label>
+                        <div class="label-row">
+                            <label asp-for="ResultValue">Result value</label>
+
+                            <span id="flagBadge" class="flag-badge" hidden></span>
+                        </div>
 
                         <input asp-for="ResultValue"
                                id="ResultValue"
@@ -541,7 +531,7 @@
                             <i class="fa-solid fa-shield-halved"></i>
                             @if (hasDefinedRange)
                             {
-                                <text>Results outside this range will be flagged.</text>
+                                <text>Results outside this range will be flagged abnormal.</text>
                             }
                             else
                             {
@@ -564,14 +554,14 @@
                     </div>
 
                     <div class="form-field full-width">
-                        <div id="abnormalAlert" role="alert">
+                        <div id="abnormalAlert" role="alert" hidden>
                             <strong>
                                 <i class="fa-solid fa-triangle-exclamation"></i>
-                                Abnormal result detected
+                                <span id="abnormalTitle">Flagged abnormal</span>
                             </strong>
-                            <p>
-                                The entered result appears to fall outside
-                                the configured reference range. Please verify the value.
+                            <p id="abnormalText">
+                                The entered result falls outside the configured reference range.
+                                Please verify the value before saving.
                             </p>
                         </div>
                     </div>
@@ -591,7 +581,6 @@
                 </div>
 
                 <!-- CAPTURE SUMMARY -->
-
                 <div class="capture-summary">
 
                     <div class="summary-tile">
@@ -627,7 +616,7 @@
                         Back to tests
                     </a>
 
-                    <button type="submit" class="submit-button">
+                    <button type="submit" class="submit-button" id="saveButton">
                         <i class="fa-solid fa-floppy-disk"></i>
                         Save laboratory result
                     </button>
@@ -642,102 +631,362 @@
 
 </div>
 
+
+<!-- SAVE CONFIRMATION MODAL -->
+<div id="confirmOverlay" class="confirm-overlay" hidden>
+
+    <div class="confirm-dialog"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="confirmTitle"
+         aria-describedby="confirmMessage">
+
+        <div id="confirmIcon" class="confirm-icon">
+            <i class="fa-solid fa-circle-question"></i>
+        </div>
+
+        <h3 id="confirmTitle">Save laboratory result?</h3>
+
+        <p id="confirmMessage">
+            Are you sure you want to save this result? It will be sent for verification.
+        </p>
+
+        <div class="confirm-summary">
+
+            <div class="confirm-row">
+                <span>Test</span>
+                <strong>@testName</strong>
+            </div>
+
+            <div class="confirm-row">
+                <span>Result</span>
+                <strong id="confirmValue">-</strong>
+            </div>
+
+            <div class="confirm-row">
+                <span>Reference range</span>
+                <strong id="confirmRange">-</strong>
+            </div>
+
+            <div class="confirm-row">
+                <span>Flag</span>
+                <strong id="confirmFlag">-</strong>
+            </div>
+
+        </div>
+
+        <div class="confirm-actions">
+            <button type="button" id="confirmCancel" class="cancel-button">
+                <i class="fa-solid fa-xmark"></i>
+                No, go back
+            </button>
+
+            <button type="button" id="confirmSave" class="submit-button">
+                <i class="fa-solid fa-check"></i>
+                Yes, save result
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const resultInput = document.getElementById("ResultValue");
-            const rangeInput = document.getElementById("ReferenceRange");
-            const abnormalAlert = document.getElementById("abnormalAlert");
+        document.addEventListener("DOMContentLoaded", function () {
 
-            if (!resultInput || !rangeInput || !abnormalAlert) {
+            var form = document.getElementById("captureForm");
+            var resultInput = document.getElementById("ResultValue");
+            var rangeInput = document.getElementById("ReferenceRange");
+            var unitInput = document.getElementById("Units");
+            var isAbnormalInput = document.getElementById("IsAbnormal");
+
+            var flagBadge = document.getElementById("flagBadge");
+            var abnormalAlert = document.getElementById("abnormalAlert");
+            var abnormalTitle = document.getElementById("abnormalTitle");
+            var abnormalText = document.getElementById("abnormalText");
+
+            var overlay = document.getElementById("confirmOverlay");
+            var dialog = overlay ? overlay.querySelector(".confirm-dialog") : null;
+            var confirmIcon = document.getElementById("confirmIcon");
+            var confirmTitle = document.getElementById("confirmTitle");
+            var confirmMessage = document.getElementById("confirmMessage");
+            var confirmValue = document.getElementById("confirmValue");
+            var confirmRange = document.getElementById("confirmRange");
+            var confirmFlag = document.getElementById("confirmFlag");
+            var confirmCancel = document.getElementById("confirmCancel");
+            var confirmSave = document.getElementById("confirmSave");
+            var saveButton = document.getElementById("saveButton");
+
+            if (!form || !resultInput || !rangeInput) {
                 return;
             }
 
-            function checkAbnormalResult() {
-                abnormalAlert.style.display = "none";
+            var lastFocused = null;
 
-                resultInput.classList.remove(
-                    "is-invalid-custom",
-                    "is-valid-custom"
-                );
+            /* ---------- Helpers ---------- */
 
-                const resultText = resultInput.value.trim();
-                const rangeTextOriginal = rangeInput.value.trim();
-
-                if (!resultText || !rangeTextOriginal) {
-                    return;
-                }
-
-                const result = parseFloat(resultText.replace(",", "."));
-
-                if (Number.isNaN(result)) {
-                    return;
-                }
-
-                const rangeText = rangeTextOriginal
-                    .replace(/[–—]/g, "-")
-                    .replace(/\s/g, "");
-
-                const match = rangeText.match(
-                    /^(-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)$/
-                );
-
-                if (!match) {
-                    return;
-                }
-
-                const minimum = parseFloat(match[1]);
-                const maximum = parseFloat(match[2]);
-
-                if (Number.isNaN(minimum) || Number.isNaN(maximum)) {
-                    return;
-                }
-
-                if (result < minimum || result > maximum) {
-                    abnormalAlert.style.display = "block";
-                    resultInput.classList.add("is-invalid-custom");
-                } else {
-                    resultInput.classList.add("is-valid-custom");
-                }
-            }
-
-            resultInput.addEventListener("input", function() {
-                let value = this.value.replace(/[^0-9.]/g, "");
-                const firstDot = value.indexOf(".");
+            function sanitizeNumber(text) {
+                var negative = text.trim().charAt(0) === "-";
+                var value = text.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+                var firstDot = value.indexOf(".");
 
                 if (firstDot !== -1) {
                     value = value.substring(0, firstDot + 1)
                         + value.substring(firstDot + 1).replace(/\./g, "");
                 }
 
-                this.value = value;
-                checkAbnormalResult();
-            });
+                return (negative ? "-" : "") + value;
+            }
 
-            resultInput.addEventListener("paste", function(event) {
-                event.preventDefault();
+            // Supports "10-20", "10 - 20", "10 to 20", "<5", "<=5", ">3", ">=3"
+            function parseRange(rangeText) {
+                var text = (rangeText || "")
+                    .replace(/[\u2013\u2014]/g, "-")
+                    .replace(/\u2264/g, "<=")
+                    .replace(/\u2265/g, ">=")
+                    .replace(/\s/g, "")
+                    .toLowerCase()
+                    .replace(/,/g, ".");
 
-                const pastedText = (event.clipboardData || window.clipboardData)
-                    .getData("text");
+                var num = "(-?\\d+(?:\\.\\d+)?)";
+                var match;
 
-                let cleaned = pastedText.replace(/[^0-9.]/g, "");
-                const firstDot = cleaned.indexOf(".");
-
-                if (firstDot !== -1) {
-                    cleaned = cleaned.substring(0, firstDot + 1)
-                        + cleaned.substring(firstDot + 1).replace(/\./g, "");
+                match = text.match(new RegExp("^" + num + "(?:-|to)" + num + "$"));
+                if (match) {
+                    return { min: parseFloat(match[1]), max: parseFloat(match[2]) };
                 }
 
-                const start = this.selectionStart ?? this.value.length;
-                const end = this.selectionEnd ?? this.value.length;
+                match = text.match(new RegExp("^<(=?)" + num + "$"));
+                if (match) {
+                    return { min: null, max: parseFloat(match[2]), maxInclusive: match[1] === "=" };
+                }
+
+                match = text.match(new RegExp("^>(=?)" + num + "$"));
+                if (match) {
+                    return { min: parseFloat(match[2]), max: null, minInclusive: match[1] === "=" };
+                }
+
+                return null;
+            }
+
+            // Returns "normal", "low", "high" or "unknown"
+            function evaluate() {
+                var resultText = resultInput.value.trim();
+                var result = parseFloat(resultText);
+
+                if (!resultText || Number.isNaN(result)) {
+                    return "unknown";
+                }
+
+                var range = parseRange(rangeInput.value);
+
+                if (!range) {
+                    return "unknown";
+                }
+
+                if (range.min !== null && range.min !== undefined) {
+                    var belowMin = range.minInclusive === false
+                        ? result <= range.min
+                        : result < range.min;
+                    if (belowMin) { return "low"; }
+                }
+
+                if (range.max !== null && range.max !== undefined) {
+                    var aboveMax = range.maxInclusive === false
+                        ? result >= range.max
+                        : result > range.max;
+                    if (aboveMax) { return "high"; }
+                }
+
+                return "normal";
+            }
+
+            function describeFlag(state) {
+                if (state === "high") { return "Flagged abnormal (High)"; }
+                if (state === "low") { return "Flagged abnormal (Low)"; }
+                if (state === "normal") { return "Within range"; }
+                return "Not evaluated";
+            }
+
+            /* ---------- Live flagging ---------- */
+
+            function updateFlag() {
+                var state = evaluate();
+                var abnormal = state === "high" || state === "low";
+
+                resultInput.classList.remove("is-invalid-custom", "is-valid-custom");
+                flagBadge.classList.remove("flag-abnormal", "flag-normal");
+                flagBadge.hidden = true;
+                abnormalAlert.hidden = true;
+
+                if (isAbnormalInput) {
+                    isAbnormalInput.value = abnormal ? "true" : "false";
+                }
+
+                if (abnormal) {
+                    resultInput.classList.add("is-invalid-custom");
+
+                    flagBadge.hidden = false;
+                    flagBadge.classList.add("flag-abnormal");
+                    flagBadge.innerHTML =
+                        '<i class="fa-solid fa-flag"></i> Flagged abnormal \u00b7 ' +
+                        (state === "high" ? "High" : "Low");
+
+                    abnormalAlert.hidden = false;
+                    abnormalTitle.textContent =
+                        "Flagged abnormal \u2013 result is " +
+                        (state === "high" ? "above" : "below") +
+                        " the reference range";
+                    abnormalText.textContent =
+                        "The entered value falls outside the configured reference range (" +
+                        rangeInput.value.trim() + "). Please verify the value before saving.";
+                } else if (state === "normal") {
+                    resultInput.classList.add("is-valid-custom");
+
+                    flagBadge.hidden = false;
+                    flagBadge.classList.add("flag-normal");
+                    flagBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Within range';
+                }
+
+                return state;
+            }
+
+            resultInput.addEventListener("input", function () {
+                var cleaned = sanitizeNumber(this.value);
+
+                if (cleaned !== this.value) {
+                    this.value = cleaned;
+                }
+
+                updateFlag();
+            });
+
+            resultInput.addEventListener("paste", function (event) {
+                event.preventDefault();
+
+                var pasted = (event.clipboardData || window.clipboardData).getData("text");
+                var cleaned = sanitizeNumber(pasted);
+
+                var start = this.selectionStart != null ? this.selectionStart : this.value.length;
+                var end = this.selectionEnd != null ? this.selectionEnd : this.value.length;
 
                 this.setRangeText(cleaned, start, end, "end");
                 this.dispatchEvent(new Event("input", { bubbles: true }));
             });
 
-            checkAbnormalResult();
+            updateFlag();
+
+            /* ---------- Save confirmation ---------- */
+
+            var confirmed = false;
+
+            function openConfirm() {
+                var state = updateFlag();
+                var abnormal = state === "high" || state === "low";
+                var unitText = unitInput && unitInput.value ? " " + unitInput.value : "";
+
+                confirmValue.textContent = resultInput.value.trim() + unitText;
+                confirmRange.textContent = rangeInput.value.trim() || "Not specified";
+                confirmFlag.textContent = describeFlag(state);
+                confirmFlag.className = abnormal ? "text-danger" : (state === "normal" ? "text-success" : "");
+
+                if (abnormal) {
+                    dialog.classList.add("is-abnormal");
+                    confirmIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                    confirmTitle.textContent = "Save abnormal result?";
+                    confirmMessage.textContent =
+                        "This result is flagged abnormal because it is outside the reference range. " +
+                        "Are you sure you want to save it?";
+                } else {
+                    dialog.classList.remove("is-abnormal");
+                    confirmIcon.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
+                    confirmTitle.textContent = "Save laboratory result?";
+                    confirmMessage.textContent =
+                        "Are you sure you want to save this result? It will be sent for verification.";
+                }
+
+                lastFocused = document.activeElement;
+                overlay.hidden = false;
+                document.body.classList.add("modal-open");
+                confirmSave.focus();
+            }
+
+            function closeConfirm() {
+                overlay.hidden = true;
+                document.body.classList.remove("modal-open");
+
+                if (lastFocused && lastFocused.focus) {
+                    lastFocused.focus();
+                }
+            }
+
+            form.addEventListener("submit", function (event) {
+                if (confirmed) {
+                    return; // user already confirmed, let the post go through
+                }
+
+                event.preventDefault();
+
+                // Respect unobtrusive / jQuery validation if present
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.valid) {
+                    if (!window.jQuery(form).valid()) {
+                        return;
+                    }
+                }
+
+                if (!resultInput.value.trim()) {
+                    resultInput.focus();
+                    return;
+                }
+
+                openConfirm();
+            });
+
+            confirmCancel.addEventListener("click", closeConfirm);
+
+            confirmSave.addEventListener("click", function () {
+                confirmed = true;
+                confirmSave.disabled = true;
+                confirmCancel.disabled = true;
+                confirmSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+                form.submit();
+            });
+
+            overlay.addEventListener("click", function (event) {
+                if (event.target === overlay) {
+                    closeConfirm();
+                }
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (overlay.hidden) {
+                    return;
+                }
+
+                if (event.key === "Escape") {
+                    closeConfirm();
+                    return;
+                }
+
+                // Keep focus inside the dialog
+                if (event.key === "Tab") {
+                    var focusable = dialog.querySelectorAll("button:not([disabled])");
+                    var first = focusable[0];
+                    var last = focusable[focusable.length - 1];
+
+                    if (event.shiftKey && document.activeElement === first) {
+                        event.preventDefault();
+                        last.focus();
+                    } else if (!event.shiftKey && document.activeElement === last) {
+                        event.preventDefault();
+                        first.focus();
+                    }
+                }
+            });
         });
     </script>
 }
@@ -753,7 +1002,8 @@
         --text: #12302f;
         --muted: #6f8584;
         --page-bg: #eaf1f1;
-        --danger: #a32626;
+        --danger: #b42318;
+        --danger-strong: #d92d20;
         --danger-soft: #fde8e8;
         --danger-border: #f5c6c6;
         --warning: #8f5a00;
@@ -761,6 +1011,10 @@
         --warning-border: #f3d9a0;
         --success: #17814a;
         --success-soft: #e4f6ec;
+    }
+
+    [hidden] {
+        display: none !important;
     }
 
     .capture-page,
@@ -777,6 +1031,10 @@
         font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
         overflow-x: hidden;
         -webkit-font-smoothing: antialiased;
+    }
+
+    body.modal-open {
+        overflow: hidden;
     }
 
 
@@ -1449,6 +1707,15 @@
         font-weight: 700;
     }
 
+    .label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        min-height: 26px;
+    }
+
     .form-control {
         width: 100%;
         min-width: 0;
@@ -1462,7 +1729,7 @@
         font-size: 14px;
         font-weight: 500;
         outline: none;
-        transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+        transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
     }
 
         .form-control:focus {
@@ -1512,17 +1779,44 @@
         font-weight: 600;
     }
 
+
+    /* FLAG BADGE + ABNORMAL STATES */
+
+    .flag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 800;
+        letter-spacing: .02em;
+        white-space: nowrap;
+    }
+
+    .flag-abnormal {
+        color: #fff;
+        background: var(--danger-strong);
+        box-shadow: 0 3px 10px rgba(217, 45, 32, .3);
+    }
+
+    .flag-normal {
+        color: var(--success);
+        background: var(--success-soft);
+    }
+
     #abnormalAlert {
-        display: none;
         padding: 16px 18px;
         background: var(--danger-soft);
         border: 1px solid var(--danger-border);
-        border-left: 5px solid var(--danger);
+        border-left: 5px solid var(--danger-strong);
         border-radius: 16px;
     }
 
         #abnormalAlert strong {
-            display: block;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             margin-bottom: 5px;
             color: var(--danger);
             font-size: 14px;
@@ -1531,20 +1825,23 @@
 
         #abnormalAlert p {
             margin: 0;
-            color: #7c343b;
+            color: #7c2a24;
             font-size: 13.5px;
             font-weight: 500;
             line-height: 1.6;
         }
 
-    .is-valid-custom {
-        border: 2px solid var(--success) !important;
-        background: #f5fff8 !important;
+    .form-control.is-valid-custom {
+        border: 2px solid var(--success);
+        background: #f5fff8;
+        color: var(--success);
     }
 
-    .is-invalid-custom {
-        border: 2px solid var(--danger) !important;
-        background: #fff7f7 !important;
+    .form-control.is-invalid-custom {
+        border: 2px solid var(--danger-strong);
+        background: #fff5f4;
+        color: var(--danger-strong);
+        box-shadow: 0 0 0 4px rgba(217, 45, 32, .1);
     }
 
 
@@ -1621,6 +1918,12 @@
             outline-offset: 3px;
         }
 
+        .cancel-button:disabled,
+        .submit-button:disabled {
+            opacity: .65;
+            cursor: not-allowed;
+        }
+
     .cancel-button {
         color: var(--teal-dark);
         background: #fff;
@@ -1640,11 +1943,148 @@
         transition: transform .15s ease, box-shadow .15s ease;
     }
 
-        .submit-button:hover {
+        .submit-button:hover:not(:disabled) {
             color: #fff;
             transform: translateY(-1px);
             box-shadow: 0 9px 20px rgba(10, 95, 88, .34);
         }
+
+
+    /* CONFIRMATION MODAL */
+
+    .confirm-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(8, 30, 29, .55);
+        backdrop-filter: blur(3px);
+        font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+    }
+
+    .confirm-dialog {
+        width: 100%;
+        max-width: 460px;
+        padding: 30px 30px 26px;
+        text-align: center;
+        color: var(--text);
+        background: #fff;
+        border-radius: 24px;
+        box-shadow: 0 24px 60px rgba(8, 30, 29, .35);
+        animation: confirm-pop .18s ease-out;
+    }
+
+    .confirm-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-size: 28px;
+        color: var(--teal-dark);
+        background: var(--teal-light);
+    }
+
+    .confirm-dialog.is-abnormal .confirm-icon {
+        color: var(--danger-strong);
+        background: var(--danger-soft);
+    }
+
+    .confirm-dialog h3 {
+        margin: 0 0 8px;
+        font-size: 20px;
+        font-weight: 800;
+    }
+
+    .confirm-dialog.is-abnormal h3 {
+        color: var(--danger);
+    }
+
+    .confirm-dialog p {
+        margin: 0 0 20px;
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.6;
+    }
+
+    .confirm-summary {
+        margin-bottom: 22px;
+        padding: 6px 16px;
+        text-align: left;
+        background: var(--teal-soft);
+        border: 1px solid var(--teal-border);
+        border-radius: 16px;
+    }
+
+    .confirm-dialog.is-abnormal .confirm-summary {
+        background: #fff7f6;
+        border-color: var(--danger-border);
+    }
+
+    .confirm-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--teal-border);
+        font-size: 13.5px;
+    }
+
+        .confirm-row:last-child {
+            border-bottom: 0;
+        }
+
+        .confirm-row span {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .confirm-row strong {
+            text-align: right;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
+
+    .text-danger {
+        color: var(--danger-strong) !important;
+    }
+
+    .text-success {
+        color: var(--success) !important;
+    }
+
+    .confirm-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+        .confirm-actions .cancel-button,
+        .confirm-actions .submit-button {
+            flex: 1;
+        }
+
+    .confirm-dialog.is-abnormal .submit-button {
+        background: linear-gradient(135deg, #e5484d, #b42318);
+        box-shadow: 0 6px 16px rgba(180, 35, 24, .3);
+    }
+
+    @@keyframes confirm-pop {
+        from {
+            opacity: 0;
+            transform: translateY(8px) scale(.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
 
 
     /* RESPONSIVE */
@@ -1704,7 +2144,8 @@
             grid-column: auto;
         }
 
-        .form-actions {
+        .form-actions,
+        .confirm-actions {
             flex-direction: column-reverse;
         }
 
@@ -1716,8 +2157,10 @@
 
     @@media (prefers-reduced-motion: reduce) {
 
-        .capture-page * {
+        .capture-page *,
+        .confirm-dialog {
             transition: none !important;
+            animation: none !important;
         }
     }
 </style>

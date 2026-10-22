@@ -8,8 +8,8 @@
 
 <style>
     /* ============================================================
-           PAGE SHELL
-           ============================================================ */
+       PAGE SHELL
+       ============================================================ */
     .np-shell {
         width: 100%;
         max-width: 1080px;
@@ -20,8 +20,8 @@
     }
 
     /* ============================================================
-           HERO HEADER
-           ============================================================ */
+       HERO HEADER
+       ============================================================ */
     .np-hero {
         position: relative;
         overflow: hidden;
@@ -110,8 +110,8 @@
     }
 
     /* ============================================================
-           PROGRESS BAR
-           ============================================================ */
+       PROGRESS BAR
+       ============================================================ */
     .np-progress {
         margin-bottom: 22px;
         padding: 16px 22px;
@@ -156,8 +156,8 @@
     }
 
     /* ============================================================
-           SECTIONS
-           ============================================================ */
+       SECTIONS
+       ============================================================ */
     .np-section {
         background: #ffffff;
         border: 1px solid #e8edf2;
@@ -238,8 +238,8 @@
     }
 
     /* ============================================================
-           GRID + FIELDS
-           ============================================================ */
+       GRID + FIELDS
+       ============================================================ */
     .np-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -342,6 +342,10 @@
         line-height: 1.5;
     }
 
+        .np-help.is-warn {
+            color: #b42318;
+        }
+
     .np-error {
         display: block;
         font-size: 12px;
@@ -352,8 +356,8 @@
     }
 
     /* ============================================================
-           VALIDATION SUMMARY
-           ============================================================ */
+       VALIDATION SUMMARY
+       ============================================================ */
     .np-summary {
         display: none;
         background: #fff6f5;
@@ -390,8 +394,8 @@
         }
 
     /* ============================================================
-           ACTION BAR
-           ============================================================ */
+       ACTION BAR
+       ============================================================ */
     .np-actions {
         position: sticky;
         bottom: 0;
@@ -478,8 +482,8 @@
         }
 
     /* ============================================================
-           RESPONSIVE
-           ============================================================ */
+       RESPONSIVE
+       ============================================================ */
     @@media (max-width: 760px) {
         .np-shell {
             padding: 18px 14px 40px;
@@ -625,9 +629,14 @@
                         </label>
                         <input asp-for="Name"
                                autocomplete="given-name"
+                               maxlength="50"
+                               pattern="[\p{L}][\p{L}\s'’\-]*"
+                               title="Letters only. Numbers and symbols are not allowed."
                                data-required="true"
                                data-label="First Name"
-                               data-validate="name" />
+                               data-validate="name"
+                               data-letters-only="true" />
+                        <span class="np-help" data-letters-hint="Name">Letters only.</span>
                         <span asp-validation-for="Name" class="np-error"></span>
                     </div>
 
@@ -637,9 +646,14 @@
                         </label>
                         <input asp-for="Surname"
                                autocomplete="family-name"
+                               maxlength="50"
+                               pattern="[\p{L}][\p{L}\s'’\-]*"
+                               title="Letters only. Numbers and symbols are not allowed."
                                data-required="true"
                                data-label="Surname"
-                               data-validate="name" />
+                               data-validate="name"
+                               data-letters-only="true" />
+                        <span class="np-help" data-letters-hint="Surname">Letters only.</span>
                         <span asp-validation-for="Surname" class="np-error"></span>
                     </div>
 
@@ -700,7 +714,7 @@
                                data-required="true"
                                data-label="Email Address"
                                data-validate="email" />
-                        <span class="np-help"> notifications.</span>
+                        <span class="np-help">The activation link and notifications are sent to this address.</span>
                         <span asp-validation-for="Email" class="np-error"></span>
                     </div>
 
@@ -953,36 +967,109 @@
 
 @section Scripts {
     <script src="~/js/patient-create.js" asp-append-version="true"></script>
+
     <script>
-        // Live completion progress bar
         document.addEventListener("DOMContentLoaded", function () {
-        const form = document.getElementById("createPatientForm");
-        if (!form) return;
 
-        const required = Array.from(
-        form.querySelectorAll("[data-required='true']"));
-        const fill = document.getElementById("progressFill");
-        const count = document.getElementById("progressCount");
+            const form = document.getElementById("createPatientForm");
+            if (!form) return;
 
-        function refresh() {
-        let ok = 0;
-        required.forEach(f => {
-        const v = (f.value || "").trim();
-        if (!v) return;
-        if (f.classList.contains("is-invalid")) return;
-        ok++;
-        });
-        const pct = required.length === 0
-        ? 0
-        : Math.round((ok / required.length) * 100);
-        if (fill) fill.style.width = pct + "%";
-        if (count) count.textContent = ok + " / " + required.length;
-        }
 
-        form.addEventListener("input", refresh);
-        form.addEventListener("change", refresh);
-        form.addEventListener("blur", refresh, true);
-        refresh();
+            /* =====================================================
+               FIRST NAME + SURNAME: LETTERS ONLY
+               Letters (including accented ones), spaces, hyphens and
+               apostrophes are allowed, so names such as "Mary-Anne",
+               "O'Brien" or "van der Merwe" still work. Numbers and all
+               other symbols are removed as the person types or pastes.
+               ===================================================== */
+
+            const nameFields = Array.from(
+                form.querySelectorAll("[data-letters-only='true']"));
+
+            function cleanName(value) {
+                return value
+                    .replace(/[^\p{L}\s'\u2019-]/gu, "")   // keep letters, space, ' and -
+                    .replace(/^[\s'\u2019-]+/, "")         // must start with a letter
+                    .replace(/\s{2,}/g, " ");              // collapse repeated spaces
+            }
+
+            function setupLettersOnly(field) {
+
+                const hint = form.querySelector(
+                    "[data-letters-hint='" + field.id + "']");
+                const defaultHint = hint ? hint.textContent : "";
+                let hintTimer = null;
+
+                function showRemoved() {
+                    if (!hint) return;
+                    hint.textContent = "Only letters are allowed. Numbers and symbols were removed.";
+                    hint.classList.add("is-warn");
+                    clearTimeout(hintTimer);
+                    hintTimer = setTimeout(function () {
+                        hint.textContent = defaultHint;
+                        hint.classList.remove("is-warn");
+                    }, 2500);
+                }
+
+                // Capture phase on the form so patient-create.js and the
+                // progress bar always see the cleaned value.
+                form.addEventListener("input", function (e) {
+                    if (e.target !== field) return;
+
+                    const original = field.value;
+                    const cleaned = cleanName(original);
+
+                    if (cleaned !== original) {
+                        const removedSymbols =
+                            original.replace(/[\p{L}\s'\u2019-]/gu, "").length > 0;
+
+                        field.value = cleaned;
+                        if (removedSymbols) showRemoved();
+                    }
+                }, true);
+
+                field.addEventListener("blur", function () {
+                    field.value = cleanName(field.value).trim();
+                });
+
+                // Clean anything already in the field (e.g. after a failed post)
+                field.value = cleanName(field.value).trim();
+            }
+
+            nameFields.forEach(setupLettersOnly);
+
+
+            /* =====================================================
+               LIVE COMPLETION PROGRESS BAR
+               ===================================================== */
+
+            const required = Array.from(
+                form.querySelectorAll("[data-required='true']"));
+            const fill = document.getElementById("progressFill");
+            const count = document.getElementById("progressCount");
+
+            function refresh() {
+                let ok = 0;
+
+                required.forEach(function (f) {
+                    const v = (f.value || "").trim();
+                    if (!v) return;
+                    if (f.classList.contains("is-invalid")) return;
+                    ok++;
+                });
+
+                const pct = required.length === 0
+                    ? 0
+                    : Math.round((ok / required.length) * 100);
+
+                if (fill) fill.style.width = pct + "%";
+                if (count) count.textContent = ok + " / " + required.length;
+            }
+
+            form.addEventListener("input", refresh);
+            form.addEventListener("change", refresh);
+            form.addEventListener("blur", refresh, true);
+            refresh();
         });
     </script>
 }

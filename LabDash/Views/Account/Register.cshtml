@@ -3,6 +3,20 @@
 @{
     Layout = null;
     ViewData["Title"] = "Patient Registration";
+
+    // The nine provinces of South Africa
+    var provinces = new List<string>
+    {
+        "Eastern Cape",
+        "Free State",
+        "Gauteng",
+        "KwaZulu-Natal",
+        "Limpopo",
+        "Mpumalanga",
+        "North West",
+        "Northern Cape",
+        "Western Cape"
+    };
 }
 
 <!DOCTYPE html>
@@ -190,6 +204,44 @@
                 min-height: 80px;
                 resize: vertical;
             }
+
+            /* ===== AUTO-FILLED DATE OF BIRTH ===== */
+
+            .form-control.dob-auto[readonly] {
+                background: rgba(255,255,255,.8);
+                cursor: not-allowed;
+            }
+
+            /* ===== PROVINCE DROPDOWN ===== */
+
+            select.province-select {
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                padding-right: 42px;
+                cursor: pointer;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1.5l6 6 6-6' fill='none' stroke='%23555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 15px center;
+            }
+
+                select.province-select option {
+                    color: #222;
+                }
+
+            /* ===== FIELD HINTS ===== */
+
+            .field-hint {
+                display: block;
+                margin-top: 6px;
+                font-size: 11px;
+                line-height: 1.4;
+                color: #d9f4f1;
+            }
+
+                .field-hint.warn {
+                    color: #ffd1d1;
+                }
 
             .validation-message,
             .field-validation-error {
@@ -489,13 +541,29 @@
 
                     <div class="form-group">
                         <label asp-for="Name">First Name <span class="required-star">*</span></label>
-                        <input asp-for="Name" class="form-control" placeholder="First name" autocomplete="given-name" />
+                        <input asp-for="Name"
+                               id="firstName"
+                               class="form-control letters-only"
+                               placeholder="First name"
+                               autocomplete="given-name"
+                               maxlength="50"
+                               pattern="[\p{L}][\p{L}\s'’\-]*"
+                               title="Letters only. Numbers and symbols are not allowed." />
+                        <span class="field-hint" data-hint-for="firstName">Letters only.</span>
                         <span asp-validation-for="Name" class="field-validation-error"></span>
                     </div>
 
                     <div class="form-group">
                         <label asp-for="Surname">Surname <span class="required-star">*</span></label>
-                        <input asp-for="Surname" class="form-control" placeholder="Surname" autocomplete="family-name" />
+                        <input asp-for="Surname"
+                               id="surname"
+                               class="form-control letters-only"
+                               placeholder="Surname"
+                               autocomplete="family-name"
+                               maxlength="50"
+                               pattern="[\p{L}][\p{L}\s'’\-]*"
+                               title="Letters only. Numbers and symbols are not allowed." />
+                        <span class="field-hint" data-hint-for="surname">Letters only.</span>
                         <span asp-validation-for="Surname" class="field-validation-error"></span>
                     </div>
 
@@ -512,8 +580,9 @@
 
                     <div class="form-group">
                         <label asp-for="DOB">Date of Birth <span class="required-star">*</span></label>
-                        <input asp-for="DOB" id="dobPicker" class="form-control"
-                               placeholder="Select date" autocomplete="off" />
+                        <input asp-for="DOB" id="dobPicker" class="form-control dob-auto"
+                               placeholder="Filled in from ID number" autocomplete="off" readonly />
+                        <span class="field-hint" id="dobHint">Filled in automatically from the first 6 digits of your ID number.</span>
                         <span asp-validation-for="DOB" class="field-validation-error"></span>
                     </div>
 
@@ -563,7 +632,15 @@
 
                     <div class="form-group">
                         <label asp-for="City">City <span class="required-star">*</span></label>
-                        <input asp-for="City" class="form-control" placeholder="City" autocomplete="address-level2" />
+                        <input asp-for="City"
+                               id="city"
+                               class="form-control letters-only"
+                               placeholder="City"
+                               autocomplete="address-level2"
+                               maxlength="60"
+                               pattern="[\p{L}][\p{L}\s'’\-]*"
+                               title="Letters only. Numbers and symbols are not allowed." />
+                        <span class="field-hint" data-hint-for="city">Letters only.</span>
                         <span asp-validation-for="City" class="field-validation-error"></span>
                     </div>
 
@@ -573,7 +650,12 @@
 
                     <div class="form-group">
                         <label asp-for="Province">Province <span class="required-star">*</span></label>
-                        <input asp-for="Province" class="form-control" placeholder="Province" autocomplete="address-level1" />
+                        <select asp-for="Province"
+                                asp-items="new SelectList(provinces, Model.Province)"
+                                class="form-control province-select"
+                                autocomplete="address-level1">
+                            <option value="">Select province</option>
+                        </select>
                         <span asp-validation-for="Province" class="field-validation-error"></span>
                     </div>
 
@@ -758,11 +840,11 @@
 
     <script>
 
-            flatpickr('#dobPicker', {
+            // The date of birth is generated from the ID number, so it is not picked by hand.
+            const dobPicker = flatpickr('#dobPicker', {
                 dateFormat: 'Y-m-d',
-                maxDate: 'today',
-                minDate: '1930-01-01',
-                allowInput: true,
+                allowInput: false,
+                clickOpens: false,
                 disableMobile: true
             });
 
@@ -777,6 +859,137 @@
             digitsOnly('idNumber', 13);
             digitsOnly('cellphone', 10);
             digitsOnly('postalCode', 4);
+
+
+            /* =====================================================
+               DATE OF BIRTH FROM SA ID NUMBER
+               The first 6 digits of an SA ID are YYMMDD.
+               The century is not stored in the ID, so a year that
+               would put the birth date in the future is treated as
+               19YY, otherwise 20YY.
+               ===================================================== */
+
+            const idInput = document.getElementById('idNumber');
+            const dobHint = document.getElementById('dobHint');
+            const dobDefaultHint = dobHint ? dobHint.textContent : '';
+
+            function setDobHint(text, warn) {
+                if (!dobHint) return;
+                dobHint.textContent = text;
+                dobHint.classList.toggle('warn', !!warn);
+            }
+
+            // Returns a Date, or null when the 6 digits are not a real calendar date
+            function dobFromId(idDigits) {
+
+                const yy = parseInt(idDigits.substring(0, 2), 10);
+                const mm = parseInt(idDigits.substring(2, 4), 10);
+                const dd = parseInt(idDigits.substring(4, 6), 10);
+
+                const today = new Date();
+                today.setHours(23, 59, 59, 999);
+
+                function build(year) {
+                    const d = new Date(year, mm - 1, dd);
+                    const real = d.getFullYear() === year && d.getMonth() === mm - 1 && d.getDate() === dd;
+                    return real ? d : null;
+                }
+
+                const as2000 = build(2000 + yy);
+                if (as2000 && as2000 <= today) return as2000;
+
+                return build(1900 + yy);
+            }
+
+            function pad(n) {
+                return n < 10 ? '0' + n : String(n);
+            }
+
+            function updateDobFromId() {
+
+                if (!idInput) return;
+
+                const digits = idInput.value.replace(/\D/g, '');
+
+                if (digits.length < 6) {
+                    dobPicker.clear();
+                    setDobHint(dobDefaultHint, false);
+                    return;
+                }
+
+                const dob = dobFromId(digits);
+
+                if (!dob) {
+                    dobPicker.clear();
+                    setDobHint('The first 6 digits of this ID number are not a valid date (YYMMDD). Please check the ID number.', true);
+                    return;
+                }
+
+                const formatted = dob.getFullYear() + '-' + pad(dob.getMonth() + 1) + '-' + pad(dob.getDate());
+                dobPicker.setDate(formatted, true, 'Y-m-d');
+                setDobHint(dobDefaultHint, false);
+            }
+
+            if (idInput) {
+                idInput.addEventListener('input', updateDobFromId);
+                updateDobFromId(); // also runs on load, e.g. when the form comes back with an error
+            }
+
+
+            /* =====================================================
+               NAME + SURNAME: LETTERS ONLY
+               Allows letters (including accented ones), spaces,
+               hyphens and apostrophes so names such as
+               "Mary-Anne", "O'Brien" or "van der Merwe" still work.
+               Numbers and all other symbols are removed as you type
+               or paste.
+               ===================================================== */
+
+            function lettersOnly(id) {
+
+                const el = document.getElementById(id);
+                if (!el) return;
+
+                const hint = document.querySelector('[data-hint-for="' + id + '"]');
+                const defaultHint = hint ? hint.textContent : '';
+                let hintTimer = null;
+
+                function showRemoved() {
+                    if (!hint) return;
+                    hint.textContent = 'Only letters are allowed. Numbers and symbols were removed.';
+                    hint.classList.add('warn');
+                    clearTimeout(hintTimer);
+                    hintTimer = setTimeout(function() {
+                        hint.textContent = defaultHint;
+                        hint.classList.remove('warn');
+                    }, 2500);
+                }
+
+                function clean(value) {
+                    return value
+                        .replace(/[^\p{L}\s'\u2019-]/gu, '')   // keep letters, space, ' and -
+                        .replace(/^[\s'\u2019-]+/, '')         // must start with a letter
+                        .replace(/\s{2,}/g, ' ');              // collapse repeated spaces
+                }
+
+                el.addEventListener('input', function() {
+                    const cleaned = clean(this.value);
+                    if (cleaned !== this.value) {
+                        const removedSymbols = this.value.replace(/[\p{L}\s'\u2019-]/gu, '').length > 0;
+                        this.value = cleaned;
+                        if (removedSymbols) showRemoved();
+                    }
+                });
+
+                el.addEventListener('blur', function() {
+                    this.value = clean(this.value).trim();
+                });
+            }
+
+            lettersOnly('firstName');
+            lettersOnly('surname');
+            lettersOnly('city');
+
 
             document.querySelectorAll('.password-toggle').forEach(function(button) {
                 button.addEventListener('click', function() {

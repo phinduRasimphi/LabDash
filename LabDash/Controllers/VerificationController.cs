@@ -14,15 +14,18 @@ namespace LabDash.Controllers
         private readonly LabDbContext _context;
         private readonly UserManager<LabUser> _userManager;
         private readonly IVerifiedResultsNotificationService _notificationService;
+        private readonly LabDash.Services.NotificationService _appNotifications;
 
         public VerificationController(
             LabDbContext context,
             UserManager<LabUser> userManager,
-            IVerifiedResultsNotificationService notificationService)
+            IVerifiedResultsNotificationService notificationService,
+            LabDash.Services.NotificationService appNotifications)
         {
             _context = context;
             _userManager = userManager;
             _notificationService = notificationService;
+            _appNotifications = appNotifications;
         }
 
         // ============================================================
@@ -137,72 +140,31 @@ namespace LabDash.Controllers
                     v.TestRequestItemId == id &&
                     v.Status == TestStatus.ToBeRevised);
 
+            var returnHistory = await _context.TestVerifications
+                .Include(v => v.VerifiedByTechnician)
+                .Where(v =>
+                    v.TestRequestItemId == id &&
+                    v.Status == "To Be Reviewed"
+                )
+                .OrderByDescending(v => v.VerificationDate)
+                .ToListAsync();
 
-            // ========================================================
-            // RETURNED-FOR-REVIEW HISTORY
-            // Every time this test was returned, newest first.
-            // Each record holds the reason and a snapshot of the
-            // result as it was when it was returned.
-            // ========================================================
-
-            var returnHistory =
-                await _context.TestVerifications
-
-                    .Include(v => v.VerifiedByTechnician)
-
-                    .Where(v =>
-                        v.TestRequestItemId == id &&
-                        v.Status == "To Be Reviewed"
-                    )
-
-                    .OrderByDescending(v => v.VerificationDate)
-
-                    .ToListAsync();
-
-
-            // Technician names, keyed by technician id (as a string)
             var verifierNames = returnHistory
-
                 .Where(v =>
                     !string.IsNullOrEmpty(v.VerifiedByTechnicianId) &&
                     v.VerifiedByTechnician != null)
-
                 .GroupBy(v => v.VerifiedByTechnicianId!)
-
                 .ToDictionary(
                     g => g.Key,
                     g => g.First().VerifiedByTechnician!.FullName
                 );
 
-
-
-            // ========================================================
-            // SEND DATA TO VIEW
-            // ========================================================
-
-            ViewBag.TestItem =
-                item;
-
-            ViewBag.Patient =
-                item.TestRequest?.Patient;
-
-            ViewBag.Result =
-                result;
-
-            ViewBag.ReviewReturnCount =
-                returnHistory.Count;
-
-            ViewBag.ReturnHistory =
-                returnHistory;
-
-            ViewBag.VerifierNames =
-                verifierNames;
-
-
             ViewBag.TestItem = item;
             ViewBag.Patient = item.TestRequest?.Patient;
             ViewBag.Result = result;
-            ViewBag.ReviewReturnCount = reviewReturnCount;
+            ViewBag.ReviewReturnCount = returnHistory.Count;
+            ViewBag.ReturnHistory = returnHistory;
+            ViewBag.VerifierNames = verifierNames;
 
             return View(new TestVerification
             {
@@ -294,20 +256,12 @@ namespace LabDash.Controllers
                 VerificationNotes = verification.VerificationNotes
             };
 
-
-            // --------------------------------------------------------
-            // SNAPSHOT THE RESULT AS IT IS NOW (before the technician
-            // corrects it), so the Verify page can later show
-            // "before review" vs "after review".
-            // --------------------------------------------------------
-
             if (verification.Status == "To Be Reviewed")
             {
                 history.PreviousResultValue = result.ResultValue;
                 history.PreviousComments = result.Comments;
                 history.PreviousIsAbnormal = result.IsAbnormal;
             }
-
 
             _context.TestVerifications.Add(history);
 
@@ -350,7 +304,6 @@ namespace LabDash.Controllers
 
                 if (allVerified)
                 {
-                    // Request-level status is "Completed" once EVERY item is Verified.
                     item.TestRequest.Status = TestRequestStatus.Completed;
                 }
             }
@@ -372,12 +325,12 @@ namespace LabDash.Controllers
             }
 
             // --------------------------------------------------------
-            // EMAIL THE DOCTOR — once, when the whole request is verified
+            // NOTIFY DOCTOR (Email + In-App Notification)
             // --------------------------------------------------------
             if (allVerified && item.TestRequest.ResultsEmailedAt == null)
             {
-                var sent = await _notificationService
-                    .SendVerifiedResultsAsync(item.RequestId);
+                // 1. Send Email with PDF
+                var sent = await _notificationService.SendVerifiedResultsAsync(item.RequestId);
 
                 if (sent)
                 {
@@ -386,9 +339,31 @@ namespace LabDash.Controllers
                 }
                 else
                 {
-                    TempData["Warning"] =
-                        "Result verified, but the email to the doctor could not be sent. " +
-                        "The doctor can still view the results in the patient folder.";
+                    TempData["Warning"] = "Result verified, but the email to the doctor could not be sent.";
+                }
+
+                // 2. Send In-App Notification
+                try
+                {
+                    var doctorId = item.TestRequest.RequestingDoctorId;
+                    var patientName = item.TestRequest.Patient != null
+                        ? $"{item.TestRequest.Patient.Name} {item.TestRequest.Patient.Surname}"
+                        : "the patient";
+
+                    await _appNotifications.SendToUserAsync(
+                        recipientUserId: doctorId,
+                        title: "Lab Results Ready",
+                        message: $"All test results for {patientName} (TR-{item.RequestId}) have been verified and are ready for your review.",
+                        type: "results-verified",
+                        linkUrl: Url.Action("PatientResults", "TestRequest", new { requestId = item.RequestId }, Request.Scheme),
+                        relatedPatientId: item.TestRequest.PatientId,
+                        actorUserId: _userManager.GetUserId(User)
+                    );
+                }
+                catch (Exception ex)
+                {
+                    // Log the failure but don't crash the verification process
+                    Console.WriteLine($"Failed to send in-app notification: {ex.Message}");
                 }
             }
 

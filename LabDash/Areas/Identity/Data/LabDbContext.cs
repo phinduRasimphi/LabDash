@@ -2,6 +2,7 @@
 using LabDash.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection.Emit;
 
 namespace LabDash.Areas.Identity.Data;
 
@@ -86,6 +87,15 @@ public class LabDbContext : IdentityDbContext<LabUser>
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<TestReviewHistory>(entity =>
+        {
+            entity.HasOne(h => h.TestRequestItem)
+                  .WithMany(i => i.ReviewHistory)
+                  .HasForeignKey(h => h.TestRequestItemId)
+                  .IsRequired()
+                  .OnDelete(DeleteBehavior.NoAction);
+        });
 
 
         // ============================================================

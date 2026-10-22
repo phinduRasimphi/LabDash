@@ -21,22 +21,25 @@ namespace LabDash.Controllers
         private readonly UserManager<LabUser> _userManager;
         private readonly IEmailSender _emailSender;
         private readonly IRazorEmailRenderer _emailRenderer;
-
+        private readonly IEmailAttachmentSender _attachmentSender;
+        private readonly IVerifiedResultsPdfGenerator _pdfGenerator;
         public TestRequestController(
             LabDbContext context,
             UserManager<LabUser> userManager,
             IEmailSender emailSender,
-            IRazorEmailRenderer emailRenderer)
+            IRazorEmailRenderer emailRenderer,
+            IEmailAttachmentSender attachmentSender,
+           IVerifiedResultsPdfGenerator pdfGenerator) 
         {
             _context = context;
+
             _userManager = userManager;
             _emailSender = emailSender;
             _emailRenderer = emailRenderer;
+            _attachmentSender = attachmentSender; 
+            _pdfGenerator = pdfGenerator;
         }
 
-        // =============================================================
-        // INDEX
-        // =============================================================
         public async Task<IActionResult> Index()
         {
             var allRequests = await _context.TestRequests
@@ -45,7 +48,7 @@ namespace LabDash.Controllers
                 .Include(tr => tr.TestRequestItems)
                     .ThenInclude(tri => tri.TestType)
                 .Include(tr => tr.TestRequestItems)
-                    .ThenInclude(tri => tri.TestResults)   // ← ADDED
+                    .ThenInclude(tri => tri.TestResults)   // <-- Crucial for the timeline!
                 .ToListAsync();
 
             var folders = allRequests
@@ -731,6 +734,11 @@ namespace LabDash.Controllers
         // =============================================================
         // RELEASE WITH NOTE
         // =============================================================
+        // =============================================================
+        // RELEASE WITH NOTE — Sends PDF via Email
+        // POST: /TestRequest/ReleaseWithNote
+        // =============================================================
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReleaseWithNote(int requestId, string mode, string? note)
@@ -742,13 +750,13 @@ namespace LabDash.Controllers
                 .Include(tr => tr.Patient)
                 .Include(tr => tr.RequestingDoctor)
                 .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestType)
-                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestResults)
+                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestResults).ThenInclude(res => res.VerifiedByTechnician)
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
             if (request == null) return NotFound();
             if (request.RequestingDoctorId != doctor.Id) return Forbid();
 
-            // Verified-before-release gate
+            // Gate: All tests must be verified
             if (request.TestRequestItems == null ||
                 !request.TestRequestItems.Any() ||
                 request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
@@ -764,33 +772,91 @@ namespace LabDash.Controllers
                 return RedirectToAction(nameof(PatientResults), new { requestId });
             }
 
-            string subject = mode == "InviteConsultation"
-                ? "Please book an appointment to discuss your results"
-                : "Your Laboratory Results";
-
-            string body = mode == "InviteConsultation"
-                ? ResultEmailBuilder.BuildConsultationEmail(request, doctor, note)
-                : ResultEmailBuilder.BuildResultsEmail(request, doctor, note);
-
             try
             {
-                await _emailSender.SendEmailAsync(patient.Email, subject, body);
+                // 1. Generate PDF
+                var pdfData = new VerifiedResultsReportData
+                {
+                    RequestId = request.RequestId,
+                    PatientFullName = $"{patient.Name} {patient.Surname}",
+                    PatientIdNumber = patient.IDNumber,
+                    RequestingDoctorFullName = $"Dr. {doctor.FirstName} {doctor.LastName}",
+                    GeneratedAt = DateTime.Now,
+                    Rows = request.TestRequestItems
+                        .Where(i => i.Status == TestStatus.Verified)
+                        .SelectMany(i => i.TestResults
+                            .Where(r => r.Status == TestStatus.Verified)
+                            .Select(r => new VerifiedResultRow
+                            {
+                                TestName = i.TestType?.Name ?? "Test",
+                                ResultValue = r.ResultValue,
+                                Units = r.Units,
+                                ReferenceRange = r.ReferenceRange,
+                                IsAbnormal = r.IsAbnormal,
+                                Comments = r.Comments,
+                                VerifiedByFullName = r.VerifiedByTechnician != null
+                                    ? $"{r.VerifiedByTechnician.FirstName} {r.VerifiedByTechnician.LastName}"
+                                    : null,
+                                VerificationDate = r.VerificationDate
+                            }))
+                        .ToList()
+                };
+
+                var pdfBytes = _pdfGenerator.Generate(pdfData);
+
+                // 2. Prepare Email Model
+                var emailModel = new ReleasedResultsEmailViewModel
+                {
+                    PatientName = patient.Name,
+                    DoctorName = doctor.LastName,
+                    RequestId = request.RequestId,
+                    ReleaseDate = DateTime.Now,
+                    ReleaseNote = note,
+                    Message = mode == "InviteConsultation"
+                        ? $"Dr. {doctor.LastName} has reviewed your laboratory results and would like to invite you for a consultation to discuss them."
+                        : $"Dr. {doctor.LastName} has released your laboratory results."
+                };
+
+                // 3. Render HTML Email
+                string emailBody = await _emailRenderer.RenderAsync(
+                    "~/Views/Emails/ReleasedResults.cshtml",
+                    emailModel,
+                    HttpContext);
+
+                string subject = mode == "InviteConsultation"
+                    ? $"Consultation Invitation - TR-{request.RequestId}"
+                    : $"Your Laboratory Results - TR-{request.RequestId}";
+
+                // 4. Send Email with PDF Attachment
+                await _attachmentSender.SendEmailWithAttachmentAsync(
+                    patient.Email,
+                    subject,
+                    emailBody,
+                    pdfBytes,
+                    $"NMB_LabResults_TR-{request.RequestId}.pdf");
+
+                // 5. Update Status
+                request.Status = TestRequestStatus.ReleasedByDoctor;
+                request.ReleaseDate = DateTime.Now;
+                request.ReleaseNote = note;
+
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Results released and decorated PDF emailed to the patient.";
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // Still release it in the database even if the email fails
+                request.Status = TestRequestStatus.ReleasedByDoctor;
+                request.ReleaseDate = DateTime.Now;
+                request.ReleaseNote = note;
+                await _context.SaveChangesAsync();
 
-            request.Status = TestRequestStatus.ReleasedByDoctor;
-            request.ReleaseDate = DateTime.Now;
-            request.ReleaseNote = note;
-
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = mode == "InviteConsultation"
-                ? "Patient invited for a consultation and notified by email."
-                : "Results released to the patient by email.";
+                TempData["Warning"] = $"Results were released, but the email failed to send: {ex.Message}";
+            }
 
             return RedirectToAction(nameof(PatientResults), new { requestId });
         }
-
         // =============================================================
         // RESULTS PDF
         // =============================================================
