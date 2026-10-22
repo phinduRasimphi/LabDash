@@ -1099,6 +1099,9 @@ namespace LabDash.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int?>("TestReviewHistoryId")
+                        .HasColumnType("int");
+
                     b.Property<int>("TestTypeId")
                         .HasColumnType("int");
 

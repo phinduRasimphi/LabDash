@@ -339,20 +339,41 @@ namespace LabDash.Controllers
 
             _context.SampleReceives.Add(sampleReceive);
 
-            // Promote newly-available test items to Submitted.
-            // Does not touch items already In Progress / Completed / Cancelled.
+            // =========================================================
+            // PROMOTE ONLY TEST ITEMS WHOSE REQUIRED SAMPLE TYPE
+            // HAS ACTUALLY BEEN RECEIVED
+            // =========================================================
+
+            var receivedSampleTypes = request.Samples
+                .Where(s => s.IsReceived)
+                .Select(s => s.SampleType?.Trim().ToLowerInvariant())
+                .Where(t => !string.IsNullOrEmpty(t))
+                .ToHashSet();
+
             foreach (var testItem in request.TestRequestItems)
             {
-                if (testItem.Status == "Pending" ||
-                    testItem.Status == "Requested" ||
-                    testItem.Status == "Submitted" ||
-                    string.IsNullOrWhiteSpace(testItem.Status))
+                // Only promote items that are still waiting
+                if (testItem.Status != "Pending" &&
+                    testItem.Status != "Requested" &&
+                    testItem.Status != "Submitted" &&
+                    !string.IsNullOrWhiteSpace(testItem.Status))
                 {
-                    testItem.Status = "Submitted";
-                    testItem.AssignedTechnicianId = null;
-                    testItem.StartDateTime = null;
-                    testItem.CompletionDateTime = null;
+                    continue;
                 }
+
+                var requiredType = testItem.TestType?.RequiredSampleType
+                    ?.Trim().ToLowerInvariant();
+
+                if (string.IsNullOrEmpty(requiredType))
+                    continue;
+
+                if (!receivedSampleTypes.Contains(requiredType))
+                    continue;
+
+                testItem.Status = "Submitted";
+                testItem.AssignedTechnicianId = null;
+                testItem.StartDateTime = null;
+                testItem.CompletionDateTime = null;
             }
 
 
