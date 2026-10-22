@@ -29,9 +29,10 @@ namespace LabDash.Models
 
         public int ReviewReturnCount { get; set; } = 0;
 
+        // You only need this ID. The other 4 properties belong in TestReviewHistory.cs!
         public int? TestReviewHistoryId { get; set; }
 
         public ICollection<TestReviewHistory> ReviewHistory { get; set; }
-    = new List<TestReviewHistory>();
+            = new List<TestReviewHistory>();
     }
 }

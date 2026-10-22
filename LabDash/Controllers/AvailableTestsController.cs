@@ -56,22 +56,27 @@ namespace LabDash.Controllers
 
                     &&
 
-                    // -------------------------------------------------
-                    // IMPORTANT:
-                    // A sample belonging to this request must have
-                    // actually been received.
-                    //
-                    // This works even when the request status is:
-                    //
-                    // Pending
-                    // Partially Received
-                    // Samples Received
-                    // -------------------------------------------------
+                   // -------------------------------------------------
+                   // IMPORTANT:
+                   // A sample belonging to this request must have
+                   // actually been received.
+                   //
+                   // This works even when the request status is:
+                   //
+                   // Pending
+                   // Partially Received
+                   // Samples Received
+                   // -------------------------------------------------
 
-                    _context.Samples.Any(s =>
-                        s.TestRequestId == x.RequestId &&
-                        s.IsReceived
-                    )
+                   _context.Samples.Any(s =>
+    s.TestRequestId == x.RequestId &&
+    s.IsReceived &&
+    s.SampleType != null &&
+    x.TestType != null &&
+    x.TestType.RequiredSampleType != null &&
+    s.SampleType.Trim().ToLower() ==
+        x.TestType.RequiredSampleType.Trim().ToLower()
+)
                 )
 
                 // =====================================================
@@ -386,10 +391,23 @@ namespace LabDash.Controllers
             // been received.
             // =====================================================
 
+            var requiredType = item.TestType.RequiredSampleType
+    ?.Trim().ToLowerInvariant();
+
+            if (string.IsNullOrEmpty(requiredType))
+            {
+                TempData["Error"] =
+                    "This test has no sample type requirement configured.";
+
+                return RedirectToAction(nameof(Index));
+            }
+
             var sampleReceived = await _context.Samples
                 .AnyAsync(s =>
                     s.TestRequestId == item.RequestId &&
-                    s.IsReceived);
+                    s.IsReceived &&
+                    s.SampleType != null &&
+                    s.SampleType.Trim().ToLower() == requiredType);
 
             if (!sampleReceived)
             {
@@ -871,7 +889,6 @@ namespace LabDash.Controllers
                 nameof(Completed));
         }
 
-
         [HttpGet]
         public async Task<IActionResult> Completed()
         {
@@ -1036,14 +1053,19 @@ namespace LabDash.Controllers
 
             // 1. WAITING TO BE SELECTED (shared pool, unchanged)
             var waitingToBeSelected =
-                await _context.TestRequestItems
-                    .CountAsync(x =>
-                        x.Status == "Submitted" &&
-                        x.AssignedTechnicianId == null &&
-                        x.TestRequest != null &&
-                        _context.Samples.Any(s =>
-                            s.TestRequestId == x.RequestId &&
-                            s.IsReceived));
+    await _context.TestRequestItems
+        .CountAsync(x =>
+            x.Status == "Submitted" &&
+            x.AssignedTechnicianId == null &&
+            x.TestRequest != null &&
+            x.TestType != null &&
+            x.TestType.RequiredSampleType != null &&
+            _context.Samples.Any(s =>
+                s.TestRequestId == x.RequestId &&
+                s.IsReceived &&
+                s.SampleType != null &&
+                s.SampleType.Trim().ToLower() ==
+                    x.TestType.RequiredSampleType.Trim().ToLower()));
 
             // 2. SELECTED BY ME / IN PROGRESS (unchanged)
             var selectedByTechnician =
@@ -1084,12 +1106,17 @@ namespace LabDash.Controllers
                         x.TestRequest.Urgency == "STAT" &&
                         (
                             (
-                                x.Status == "Submitted" &&
-                                x.AssignedTechnicianId == null &&
-                                _context.Samples.Any(s =>
-                                    s.TestRequestId == x.RequestId &&
-                                    s.IsReceived)
-                            )
+    x.Status == "Submitted" &&
+    x.AssignedTechnicianId == null &&
+    x.TestType != null &&
+    x.TestType.RequiredSampleType != null &&
+    _context.Samples.Any(s =>
+        s.TestRequestId == x.RequestId &&
+        s.IsReceived &&
+        s.SampleType != null &&
+        s.SampleType.Trim().ToLower() ==
+            x.TestType.RequiredSampleType.Trim().ToLower())
+)
                             ||
                             (
                                 x.Status == "In Progress" &&
@@ -1188,14 +1215,19 @@ namespace LabDash.Controllers
                     .Where(x =>
                         x.TestRequest != null &&
                         (
-                            // WAITING TO BE SELECTED
-                            (
-                                x.Status == "Submitted" &&
-                                x.AssignedTechnicianId == null &&
-                                _context.Samples.Any(s =>
-                                    s.TestRequestId == x.RequestId &&
-                                    s.IsReceived)
-                            )
+// WAITING TO BE SELECTED
+(
+    x.Status == "Submitted" &&
+    x.AssignedTechnicianId == null &&
+    x.TestType != null &&
+    x.TestType.RequiredSampleType != null &&
+    _context.Samples.Any(s =>
+        s.TestRequestId == x.RequestId &&
+        s.IsReceived &&
+        s.SampleType != null &&
+        s.SampleType.Trim().ToLower() ==
+            x.TestType.RequiredSampleType.Trim().ToLower())
+)
 
                             ||
 
