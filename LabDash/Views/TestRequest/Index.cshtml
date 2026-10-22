@@ -1,20 +1,19 @@
 @model dynamic
 
 @{
-    ViewData["Title"] = "Test Request Folders";
+    ViewData["Title"] = "Patient Folders";
     Layout = "~/Views/Shared/_DoctorLayout.cshtml";
 }
 
 <style>
     .folders-page {
         padding: 8px 10px 40px;
-        max-width: 1500px;
+        max-width: 1000px;
         margin: 0 auto;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
     .folders-heading {
-        position: relative;
-        overflow: hidden;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -23,40 +22,84 @@
         margin-bottom: 22px;
         border-radius: 17px;
         background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        box-shadow: 0 8px 22px rgba(13, 107, 99, .14);
+        box-shadow: 0 8px 22px rgba(13,107,99,.14);
+        color: #fff;
     }
 
-        .folders-heading::before {
-            content: "";
-            position: absolute;
-            width: 240px;
-            height: 240px;
-            border-radius: 50%;
-            right: 90px;
-            top: -150px;
-            background: rgba(255,255,255,.045);
+        .folders-heading h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 800;
         }
 
-        .folders-heading::after {
-            content: "";
-            position: absolute;
-            width: 170px;
-            height: 170px;
-            border-radius: 50%;
-            right: -55px;
-            bottom: -105px;
-            background: rgba(255,255,255,.055);
+        .folders-heading p {
+            margin: 4px 0 0;
+            font-size: 12px;
+            opacity: 0.85;
         }
 
-    .heading-content {
+    .folder-search {
         position: relative;
-        z-index: 2;
+        margin-bottom: 16px;
+    }
+
+        .folder-search input {
+            width: 100%;
+            height: 46px;
+            padding: 0 16px 0 44px;
+            border: 1px solid #dfeae7;
+            border-radius: 12px;
+            background: #fff;
+            font-size: 13px;
+            color: #173c38;
+            outline: none;
+            transition: all .15s ease;
+        }
+
+            .folder-search input:focus {
+                border-color: #0d6b63;
+                box-shadow: 0 0 0 4px rgba(13,107,99,.10);
+            }
+
+        .folder-search i {
+            position: absolute;
+            left: 17px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7d8e8a;
+            pointer-events: none;
+        }
+
+    .folder-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    /* ACCORDION CARD */
+    .folder-card {
+        background: #fff;
+        border: 1px solid #dfeae7;
+        border-radius: 16px;
+        box-shadow: 0 4px 16px rgba(31,78,72,.04);
+        overflow: hidden;
+    }
+
+    .folder-header {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 16px;
+        padding: 20px 24px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+        user-select: none;
     }
 
-    .heading-icon {
+        .folder-header:hover {
+            background: #f7fbfa;
+        }
+
+    .folder-avatar {
         width: 48px;
         height: 48px;
         min-width: 48px;
@@ -64,542 +107,143 @@
         align-items: center;
         justify-content: center;
         border-radius: 13px;
-        background: rgba(255,255,255,.15);
-        border: 1px solid rgba(255,255,255,.20);
-        color: #fff;
-        font-size: 20px;
-    }
-
-    .heading-text h1 {
-        margin: 0;
-        color: #fff;
-        font-size: 22px;
-        font-weight: 750;
-        letter-spacing: -.3px;
-    }
-
-    .heading-text p {
-        margin: 4px 0 0;
-        color: rgba(255,255,255,.82);
-        font-size: 11px;
-    }
-
-    .heading-badge {
-        position: relative;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        padding: 9px 13px;
-        border-radius: 25px;
-        background: rgba(255,255,255,.13);
-        border: 1px solid rgba(255,255,255,.18);
-        color: #fff;
-        font-size: 10px;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
-    .folder-error {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 18px;
-        padding: 12px 15px;
-        border: 1px solid #f0cccc;
-        border-radius: 10px;
-        background: #fff3f3;
-        color: #a44444;
-        font-size: 11px;
-        font-weight: 650;
-    }
-
-        .folder-error i {
-            font-size: 15px;
-        }
-
-    .patient-folder-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
-        gap: 20px;
-    }
-
-    .patient-folder {
-        overflow: hidden;
-        background: #fff;
-        border: 1px solid #dfeae7;
-        border-radius: 17px;
-        box-shadow: 0 4px 16px rgba(31,78,72,.055);
-        transition: all .2s ease;
-    }
-
-        .patient-folder:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 9px 25px rgba(31,78,72,.09);
-        }
-
-    .folder-tab {
-        height: 7px;
-        background: linear-gradient(90deg, #0d6b63, #1a8c82, #48a99f);
-    }
-
-    .patient-folder-header {
-        display: flex;
-        align-items: center;
-        gap: 13px;
-        padding: 17px 18px;
-        border-bottom: 1px solid #e8efed;
-        background: linear-gradient(180deg, #fbfefd, #f7fbfa);
-    }
-
-    .patient-avatar {
-        width: 48px;
-        height: 48px;
-        min-width: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 14px;
         background: linear-gradient(135deg, #0d6b63, #1a8c82);
         color: #fff;
-        font-size: 14px;
-        font-weight: 800;
-        box-shadow: 0 5px 13px rgba(13,107,99,.16);
-    }
-
-    .patient-heading {
-        min-width: 0;
-        flex: 1;
-    }
-
-    .patient-name {
-        margin: 0;
-        color: #173c38;
         font-size: 15px;
         font-weight: 800;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
-    .patient-id {
-        margin-top: 4px;
-        color: #7b8d89;
-        font-size: 10px;
+    .folder-info {
+        flex: 1;
+        min-width: 0;
     }
 
-    .folder-status {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        padding: 6px 9px;
-        border-radius: 20px;
-        background: #eaf6f4;
-        color: #0d6b63;
-        font-size: 9px;
-        font-weight: 750;
-        white-space: nowrap;
-    }
-
-    .patient-summary {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-        padding: 14px 17px;
-        border-bottom: 1px solid #edf2f0;
-    }
-
-    .summary-box {
-        padding: 10px;
-        border: 1px solid #e5eeec;
-        border-radius: 10px;
-        background: #f9fcfb;
-    }
-
-    .summary-label {
-        display: block;
-        margin-bottom: 4px;
-        color: #8a9a97;
-        font-size: 8px;
-        font-weight: 750;
-        text-transform: uppercase;
-        letter-spacing: .45px;
-    }
-
-    .summary-value {
-        color: #294b45;
-        font-size: 12px;
-        font-weight: 750;
-    }
-
-    .request-area {
-        padding: 16px 17px 18px;
-    }
-
-    .request-area-heading {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
-    }
-
-    .request-area-title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #294b45;
-        font-size: 12px;
+    .folder-name {
+        color: #173c38;
+        font-size: 17px;
         font-weight: 800;
+        margin-bottom: 4px;
     }
 
-        .request-area-title i {
-            color: #0d6b63;
+    .folder-meta {
+        color: #7d8e8a;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .folder-meta i {
+            font-size: 11px;
+            margin-right: 4px;
         }
 
-    .request-count {
-        padding: 5px 8px;
-        border-radius: 20px;
-        background: #edf6f4;
+    .folder-chevron {
+        color: #b0beb9;
+        font-size: 14px;
+        transition: transform 0.3s ease;
+    }
+
+    /* EXPANDED CONTENT */
+    .folder-content {
+        display: none;
+        border-top: 1px solid #edf2f0;
+        padding: 20px 24px;
+        background: #fbfdfc;
+    }
+
+    .folder-card.expanded .folder-content {
+        display: block;
+    }
+
+    .folder-card.expanded .folder-chevron {
+        transform: rotate(90deg);
         color: #0d6b63;
-        font-size: 8px;
-        font-weight: 750;
     }
 
-    .request-card {
-        margin-bottom: 10px;
-        overflow: hidden;
-        border: 1px solid #dfeae7;
-        border-radius: 13px;
+    /* REQUEST CARDS */
+    .req-card {
         background: #fff;
-        box-shadow: 0 2px 8px rgba(31,78,72,.035);
+        border: 1px solid #e0ebe8;
+        border-radius: 12px;
+        margin-bottom: 16px;
     }
 
-        .request-card:last-child {
+        .req-card:last-child {
             margin-bottom: 0;
         }
 
-    .request-header {
+    .req-header {
         display: flex;
-        align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        padding: 12px 13px;
+        align-items: center;
+        padding: 14px 18px;
         background: #f7fbfa;
         border-bottom: 1px solid #e8efed;
+        border-radius: 12px 12px 0 0;
     }
 
-    .request-header-left {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        min-width: 0;
-    }
-
-    .request-icon {
-        width: 31px;
-        height: 31px;
-        min-width: 31px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 9px;
-        background: #e6f4f1;
-        color: #0d6b63;
-        font-size: 12px;
-    }
-
-    .request-title {
-        min-width: 0;
-    }
-
-    .request-number {
-        color: #294b45;
-        font-size: 11px;
+    .req-id {
         font-weight: 800;
+        color: #294b45;
+        font-size: 14px;
     }
 
-    .request-date {
-        margin-top: 2px;
-        color: #899994;
-        font-size: 8px;
+    .req-date {
+        font-size: 11px;
+        color: #7d8e8a;
+        margin-left: 10px;
     }
 
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 6px 8px;
-        border-radius: 20px;
-        font-size: 8px;
-        font-weight: 750;
-        white-space: nowrap;
-    }
-
-    .status-submitted {
-        background: #eaf3ff;
-        color: #3b6ea8;
-    }
-
-    .status-samples {
-        background: #fff6df;
-        color: #a97819;
-    }
-
-    .status-progress {
-        background: #eeeafe;
-        color: #6955a5;
-    }
-
-    .status-completed {
-        background: #e7f7ee;
-        color: #23804d;
-    }
-
-    .status-released {
-        background: #e4f6f4;
-        color: #0d6b63;
-    }
-
-    .status-cancelled {
-        background: #fff0f0;
-        color: #a44848;
-    }
-
-    .status-appointment {
-        background: #eef4ff;
-        color: #29579a;
-    }
-
-    .status-default {
-        background: #eef2f1;
-        color: #63736f;
-    }
-
-    .request-body {
-        padding: 13px;
-    }
-
-    .prog-track {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 12px;
-        flex-wrap: wrap;
-    }
-
-    .prog-step {
-        flex: 1;
-        min-width: 68px;
-        text-align: center;
-        padding: 7px 6px;
-        font-size: 8px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .35px;
-        color: #9aa9a5;
-        border-radius: 8px;
-        background: #f5f7f7;
-        border: 1px solid #e0ebe8;
-    }
-
-        .prog-step.done {
-            background: #e0f2f1;
-            border-color: #b2dfdb;
-            color: #00695c;
-        }
-
-    .request-info-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-
-    .request-info {
-        padding: 8px 10px;
-        border-radius: 9px;
-        background: #f8fbfa;
-        border: 1px solid #edf2f0;
-    }
-
-    .request-info-label {
-        display: block;
-        margin-bottom: 3px;
-        color: #8a9a97;
-        font-size: 8px;
-        font-weight: 750;
-        text-transform: uppercase;
-        letter-spacing: .35px;
-    }
-
-    .request-info-value {
-        color: #35534d;
-        font-size: 10px;
-        font-weight: 700;
-    }
-
-    .urgency-routine {
-        color: #32755e;
-    }
-
-    .urgency-urgent {
-        color: #ad7517;
-    }
-
-    .urgency-stat {
-        color: #b44444;
-    }
-
-    .request-two-col {
+    .req-body {
+        padding: 18px;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-bottom: 12px;
-        align-items: start;
+        gap: 24px;
     }
 
-    .request-col {
-        min-width: 0;
-    }
-
-    @@media (max-width: 700px) {
-        .request-two-col {
+    @@media (max-width: 768px) {
+        .req-body {
             grid-template-columns: 1fr;
         }
     }
 
-    .detail-section {
-        margin-top: 10px;
-    }
-
-    .request-two-col .detail-section:first-child {
-        margin-top: 0;
-    }
-
-    .detail-section-title {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 6px;
-        color: #49645f;
-        font-size: 9px;
+    /* VERTICAL TIMELINE */
+    .timeline-title {
+        font-size: 11px;
         font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .4px;
-    }
-
-        .detail-section-title i {
-            color: #1a8c82;
-            font-size: 9px;
-        }
-
-    .test-list {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-    }
-
-    .test-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        padding: 7px 9px;
-        border: 1px solid #e5eeec;
-        border-radius: 8px;
-        background: #fbfdfc;
-    }
-
-    .test-item-left {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 0;
-    }
-
-    .test-check {
-        width: 18px;
-        height: 18px;
-        min-width: 18px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        background: #e7f5f2;
         color: #0d6b63;
-        font-size: 8px;
-    }
-
-    .test-name {
-        color: #3a5752;
-        font-size: 9px;
-        font-weight: 700;
-    }
-
-    .test-category {
-        padding: 3px 6px;
-        border-radius: 12px;
-        background: #eef5f3;
-        color: #66807a;
-        font-size: 7px;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
-    .no-test-items {
-        padding: 9px;
-        border: 1px dashed #d9e5e2;
-        border-radius: 9px;
-        color: #8a9995;
-        text-align: center;
-        font-size: 9px;
-    }
-
-    .clinical-notes {
-        padding: 9px 11px;
-        border-left: 3px solid #1a8c82;
-        border-radius: 0 8px 8px 0;
-        background: #f5faf9;
-        color: #61746f;
-        font-size: 9px;
-        line-height: 1.55;
-    }
-
-    .no-notes {
-        color: #9aa7a4;
-        font-style: italic;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+        letter-spacing: 0.5px;
     }
 
     .status-timeline {
         display: flex;
         flex-direction: column;
         gap: 0;
-        padding-left: 0;
     }
 
     .timeline-item {
         display: flex;
         align-items: flex-start;
-        gap: 9px;
-        padding: 5px 0;
+        gap: 10px;
+        padding: 6px 0;
         position: relative;
-        opacity: 0.55;
+        opacity: 0.4;
     }
 
         .timeline-item.done {
             opacity: 1;
         }
 
-        .timeline-item.cancelled {
-            opacity: 1;
-        }
-
         .timeline-item + .timeline-item::before {
             content: "";
             position: absolute;
-            left: 6px;
-            top: -3px;
+            left: 7px;
+            top: -4px;
             width: 2px;
-            height: 9px;
+            height: 12px;
             background: #dfeae7;
         }
 
@@ -608,9 +252,9 @@
         }
 
     .timeline-dot {
-        width: 14px;
-        height: 14px;
-        min-width: 14px;
+        width: 16px;
+        height: 16px;
+        min-width: 16px;
         border-radius: 50%;
         background: #dfeae7;
         border: 2px solid #fff;
@@ -626,122 +270,41 @@
         box-shadow: 0 0 0 1px #0d6b63;
     }
 
-    .timeline-item.cancelled .timeline-dot {
-        background: #b42318;
-        box-shadow: 0 0 0 1px #b42318;
-    }
-
-    .timeline-content {
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-        min-width: 0;
-    }
-
     .timeline-label {
         color: #294b45;
-        font-size: 9.5px;
-        font-weight: 750;
-    }
-
-    .timeline-item.cancelled .timeline-label {
-        color: #b42318;
+        font-size: 12px;
+        font-weight: 700;
     }
 
     .timeline-time {
         color: #8a9a97;
-        font-size: 8.5px;
-        font-weight: 500;
-    }
-
-    .timeline-item.cancelled .timeline-time {
-        color: #7b241a;
-    }
-
-    .doctor-info {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        min-width: 0;
-    }
-
-    .doctor-icon {
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        background: #edf6f4;
-        color: #0d6b63;
         font-size: 10px;
-    }
-
-    .doctor-label {
+        margin-top: 2px;
         display: block;
-        color: #929f9c;
-        font-size: 7px;
-        font-weight: 700;
-        text-transform: uppercase;
     }
-
-    .doctor-name {
-        display: block;
-        margin-top: 1px;
-        color: #405b55;
-        font-size: 9px;
-        font-weight: 750;
-        max-width: 200px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .sample-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        margin-top: 6px;
-    }
-
-    .sample-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 4px 7px;
-        border-radius: 15px;
-        background: #edf7f5;
-        color: #397068;
-        font-size: 7px;
-        font-weight: 700;
-    }
-
-        .sample-pill i {
-            color: #0d6b63;
-        }
 
     .req-actions {
+        grid-column: 1 / -1;
         display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+        padding-top: 15px;
+        border-top: 1px dashed #edf2f0;
         margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px solid #edf2f0;
     }
 
     .btn {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 8px 14px;
-        border-radius: 9px;
-        font-size: 10px;
-        font-weight: 750;
-        cursor: pointer;
-        border: 1px solid transparent;
+        padding: 9px 16px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
         text-decoration: none;
-        transition: all .15s ease;
-        font-family: inherit;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
     }
 
     .btn-primary {
@@ -751,7 +314,6 @@
 
         .btn-primary:hover {
             background: #09564f;
-            color: #fff;
         }
 
         .btn-primary[disabled] {
@@ -761,770 +323,214 @@
             pointer-events: none;
         }
 
-    .btn-danger {
-        background: #fff;
-        border-color: #f0c9c9;
-        color: #b42318;
-    }
-
-        .btn-danger:hover {
-            background: #fff5f5;
-            color: #b42318;
-        }
-
-    .btn-hint {
-        font-size: 9px;
-        color: #9aa9a5;
-        align-self: center;
-        margin-left: 4px;
-    }
-
     .empty-state {
-        grid-column: 1 / -1;
-        padding: 70px 25px;
+        padding: 60px 20px;
         text-align: center;
         background: #fff;
         border: 1px solid #e1ebe8;
-        border-radius: 17px;
-        box-shadow: 0 4px 15px rgba(31,78,72,.04);
+        border-radius: 16px;
     }
 
     .empty-icon {
-        width: 62px;
-        height: 62px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 15px;
-        border-radius: 18px;
-        background: #e8f5f3;
-        color: #0d6b63;
-        font-size: 24px;
-    }
-
-    .empty-state h3 {
-        margin: 0;
-        color: #294943;
-        font-size: 16px;
-        font-weight: 800;
-    }
-
-    .empty-state p {
-        margin: 7px 0 0;
-        color: #879793;
-        font-size: 11px;
-    }
-
-    .modal-backdrop-c {
-        position: fixed;
-        inset: 0;
-        background: rgba(15,31,45,.55);
-        backdrop-filter: blur(3px);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        padding: 20px;
-    }
-
-        .modal-backdrop-c.show {
-            display: flex;
-        }
-
-    .modal-c {
-        background: #fff;
-        border-radius: 18px;
-        max-width: 480px;
-        width: 100%;
-        padding: 26px;
-        box-shadow: 0 25px 70px rgba(0,0,0,.20);
-    }
-
-        .modal-c h3 {
-            margin: 0 0 8px;
-            color: #173c38;
-            font-size: 18px;
-            font-weight: 750;
-        }
-
-        .modal-c p {
-            margin: 0 0 18px;
-            color: #7d8e8a;
-            font-size: 12px;
-            line-height: 1.6;
-        }
-
-        .modal-c label {
-            display: block;
-            color: #34554f;
-            font-size: 11px;
-            font-weight: 750;
-            margin-bottom: 6px;
-        }
-
-        .modal-c textarea {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 11px 13px;
-            border: 1px solid #dfe6ed;
-            border-radius: 11px;
-            font-family: inherit;
-            font-size: 12px;
-            min-height: 100px;
-            resize: vertical;
-        }
-
-            .modal-c textarea:focus {
-                outline: none;
-                border-color: #0d6b63;
-                box-shadow: 0 0 0 3px rgba(13,107,99,.09);
-            }
-
-    .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        margin-top: 20px;
-    }
-
-    @@media (max-width: 900px) {
-        .patient-folder-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @@media (max-width: 650px) {
-        .folders-page {
-            padding: 5px 0 30px;
-        }
-
-        .folders-heading {
-            padding: 16px;
-        }
-
-        .heading-badge {
-            display: none;
-        }
-
-        .heading-text h1 {
-            font-size: 18px;
-        }
-
-        .heading-text p {
-            font-size: 10px;
-        }
-
-        .patient-summary {
-            grid-template-columns: 1fr;
-        }
-
-        .request-info-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .request-header {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-
-        .doctor-name {
-            max-width: 230px;
-        }
+        font-size: 40px;
+        color: #cde8e4;
+        margin-bottom: 15px;
     }
 </style>
 
-
 <div class="folders-page">
 
-    <!-- HEADING -->
     <div class="folders-heading">
-        <div class="heading-content">
-            <div class="heading-icon">
-                <i class="fas fa-folder-open"></i>
-            </div>
-            <div class="heading-text">
-                <h1>Test Request Folders</h1>
-                <p>Secure patient laboratory request records</p>
-            </div>
+        <div>
+            <h1>Patient Folders</h1>
+            <p>Click a patient to expand their test requests and timelines</p>
         </div>
-
-        <div class="heading-badge">
-            <i class="fas fa-flask"></i>
-            NMB LAB • Laboratory Records
+        <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; font-weight: 800; font-size: 13px;">
+            <i class="fas fa-folder"></i> @(((IEnumerable<dynamic>)Model).Count()) Folders
         </div>
     </div>
 
-    @if (TempData["Error"] != null)
+    <div class="folder-search">
+        <i class="fas fa-search"></i>
+        <input type="text" id="folderSearch" placeholder="Search patient name or ID number..." autocomplete="off" />
+    </div>
+
+    @if (Model == null || !((IEnumerable<dynamic>)Model).Any())
     {
-        <div class="folder-error">
-            <i class="fas fa-circle-exclamation"></i>
-            <span>@TempData["Error"]</span>
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+            <h3>No Patient Folders</h3>
+            <p>There are currently no patient records with laboratory test requests.</p>
         </div>
     }
-
-    <!-- FOLDERS -->
-    <div class="patient-folder-grid">
-
-        @if (Model == null || !((IEnumerable<dynamic>)Model).Any())
-        {
-            <div class="empty-state">
-                <div class="empty-icon">
-                    <i class="fas fa-folder-open"></i>
-                </div>
-                <h3>No Test Request Folders</h3>
-                <p>There are currently no stored laboratory test requests in the system.</p>
-            </div>
-        }
-        else
-        {
-            foreach (var folder in Model)
+    else
+    {
+        <div class="folder-list" id="folderList">
+            @foreach (var folder in Model)
             {
                 var patient = folder.Patient;
                 var requests = folder.Requests;
-
                 var patientName = $"{patient.Name} {patient.Surname}";
+                var initials = ((!string.IsNullOrWhiteSpace((string)patient.Name) ? ((string)patient.Name).Substring(0, 1) : "P") + (!string.IsNullOrWhiteSpace((string)patient.Surname) ? ((string)patient.Surname).Substring(0, 1) : "")).ToUpper();
 
-                var initials =
-                (!string.IsNullOrWhiteSpace(patient.Name) ? patient.Name.Substring(0, 1) : "P")
-                +
-                (!string.IsNullOrWhiteSpace(patient.Surname) ? patient.Surname.Substring(0, 1) : "");
+                <div class="folder-card" data-search="@($"{patientName} {patient.IDNumber}").ToLower()">
 
-                <div class="patient-folder">
-
-                    <div class="folder-tab"></div>
-
-                    <div class="patient-folder-header">
-                        <div class="patient-avatar">
-                            @initials.ToUpper()
-                        </div>
-                        <div class="patient-heading">
-                            <div class="patient-name">@patientName</div>
-                            <div class="patient-id">
-                                <i class="fas fa-id-card"></i>
-                                ID Number: @patient.IDNumber
+                    <!-- CLICK THIS HEADER TO EXPAND -->
+                    <div class="folder-header" onclick="toggleFolder(this)">
+                        <div class="folder-avatar">@initials</div>
+                        <div class="folder-info">
+                            <div class="folder-name">@patientName</div>
+                            <div class="folder-meta">
+                                <span><i class="fas fa-id-card"></i>@patient.IDNumber</span>
+                                <span><i class="fas fa-file-medical"></i>@requests.Count request(s)</span>
                             </div>
                         </div>
-                        <div class="folder-status">
-                            <i class="fas fa-lock-open"></i>
-                            Patient Folder
-                        </div>
+                        <i class="fas fa-chevron-right folder-chevron"></i>
                     </div>
 
-                    <div class="patient-summary">
-                        <div class="summary-box">
-                            <span class="summary-label">Requests</span>
-                            <span class="summary-value">@requests.Count</span>
-                        </div>
-                        <div class="summary-box">
-                            <span class="summary-label">Patient ID</span>
-                            <span class="summary-value">#@patient.PatientID</span>
-                        </div>
-                        <div class="summary-box">
-                            <span class="summary-label">Record</span>
-                            <span class="summary-value">Active</span>
-                        </div>
-                    </div>
-
-                    <div class="request-area">
-
-                        <div class="request-area-heading">
-                            <div class="request-area-title">
-                                <i class="fas fa-file-medical"></i>
-                                Laboratory Test Requests
-                            </div>
-                            <div class="request-count">
-                                @requests.Count @(requests.Count == 1 ? "REQUEST" : "REQUESTS")
-                            </div>
-                        </div>
-
+                    <!-- EXPANDED CONTENT -->
+                    <div class="folder-content">
                         @foreach (var request in requests)
                         {
                             var status = request.Status?.ToString() ?? "Unknown";
 
-                            var normalizedStatus = status
-                            .Replace(" ", "")
-                            .Replace("_", "")
-                            .ToLower();
+                            DateTime? earliestStart = null;
+                            DateTime? latestCompletion = null;
+                            DateTime? earliestVerification = null;
 
-                            var statusClass = normalizedStatus switch
+                            if (request.TestRequestItems != null)
                             {
-                                "submitted" => "status-submitted",
-                                "samplesreceived" => "status-samples",
-                                "inprogress" => "status-progress",
-                                "completed" => "status-completed",
-                                "appointmentscheduled" => "status-appointment",
-                                "releasedbydoctor" => "status-released",
-                                "cancelled" => "status-cancelled",
-                                _ => "status-default"
-                            };
+                                foreach (var it in request.TestRequestItems)
+                                {
+                                    if (it.StartDateTime != null) { var sd = (DateTime)it.StartDateTime; if (earliestStart == null || sd < earliestStart) earliestStart = sd; }
+                                    if (it.CompletionDateTime != null) { var cd = (DateTime)it.CompletionDateTime; if (latestCompletion == null || cd > latestCompletion) latestCompletion = cd; }
+                                    if (it.TestResults != null) { foreach (var r in it.TestResults) { if (r.VerificationDate != null) { var vd = (DateTime)r.VerificationDate; if (earliestVerification == null || vd < earliestVerification) earliestVerification = vd; } } }
+                                }
+                            }
 
-                            var urgency = request.Urgency?.ToString() ?? "Routine";
+                            var allItemsVerified = request.TestRequestItems != null && request.TestRequestItems.Count > 0 && ((IEnumerable<dynamic>)request.TestRequestItems).All((Func<dynamic, bool>)(i => (string)i.Status == "Verified"));
+                            bool canViewResults = allItemsVerified && (status == "Completed" || status == "AppointmentScheduled" || status == "Released by doctor");
 
-                            var urgencyClass =
-                            urgency.Equals("STAT", StringComparison.OrdinalIgnoreCase)
-                            ? "urgency-stat"
-                            : urgency.Equals("Urgent", StringComparison.OrdinalIgnoreCase)
-                            ? "urgency-urgent"
-                            : "urgency-routine";
-
-                            var requestNumber = "Laboratory Test Request";
-
-                            bool stepSubmitted = true;
-                            bool stepReceived = status != "Submitted" && status != "Cancelled";
-                            bool stepInProgress = status == "In Progress"
-                                               || status == "Completed"
-                                               || status == "AppointmentScheduled"
-                                               || status == "Released by doctor";
-                            bool stepCompleted = status == "Completed"
-                                               || status == "AppointmentScheduled"
-                                               || status == "Released by doctor";
-                            bool stepVerified = status == "Completed"
-                                               || status == "AppointmentScheduled"
-                                               || status == "Released by doctor";
-                            bool stepReleased = status == "Released by doctor";
-
-                            var allItemsVerified =
-                                request.TestRequestItems != null &&
-                                request.TestRequestItems.Count > 0 &&
-                                ((IEnumerable<dynamic>)request.TestRequestItems)
-                                    .All((Func<dynamic, bool>)(i => (string)i.Status == "Verified"));
-
-                            bool canViewResults =
-                                allItemsVerified &&
-                                (status == "Completed"
-                                 || status == "AppointmentScheduled"
-                                 || status == "Released by doctor");
-
-                            <div class="request-card">
-
-                                <div class="request-header">
-                                    <div class="request-header-left">
-                                        <div class="request-icon">
-                                            <i class="fas fa-file-medical"></i>
-                                        </div>
-                                        <div class="request-title">
-                                            <div class="request-number">@requestNumber</div>
-                                            <div class="request-date">
-                                                @if (request.RequestDate != null)
-                                                {
-                                                    @Convert.ToDateTime(request.RequestDate).ToString("dd MMM yyyy • HH:mm")
-                                                }
-                                                else
-                                                {
-                                                    <span>Date not recorded</span>
-                                                }
-                                            </div>
-                                        </div>
+                            <div class="req-card">
+                                <div class="req-header">
+                                    <div>
+                                        <span class="req-id">Request #@request.RequestId</span>
+                                        <span class="req-date">@Convert.ToDateTime(request.RequestDate).ToString("dd MMM yyyy")</span>
                                     </div>
-                                    <div class="status-badge @statusClass">
-                                        <i class="fas fa-circle"></i>
-                                        @status
-                                    </div>
+                                    <div style="font-size: 11px; font-weight: 800; color: #0d6b63; text-transform: uppercase;">@status</div>
                                 </div>
 
-                                <div class="request-body">
+                                <div class="req-body">
 
-                                    @if (status != "Cancelled")
-                                    {
-                                        <div class="prog-track">
-                                            <div class="prog-step @(stepSubmitted ? "done" : "")">Submitted</div>
-                                            <div class="prog-step @(stepReceived ? "done" : "")">Received</div>
-                                            <div class="prog-step @(stepInProgress ? "done" : "")">In Progress</div>
-                                            <div class="prog-step @(stepCompleted ? "done" : "")">Completed</div>
-                                            <div class="prog-step @(stepVerified ? "done" : "")">Verified</div>
-                                            <div class="prog-step @(stepReleased ? "done" : "")">Released</div>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div style="background:#fff6f5;border:1px solid #f5c9c6;border-radius:10px;
-                                            padding:10px 12px;margin-bottom:12px;color:#b42318;font-size:10px;">
-                                            <i class="fas fa-ban"></i>
-                                            <strong>Cancelled</strong>
-                                            @if (!string.IsNullOrWhiteSpace((string)request.CancellationReason))
-                                            {
-                                                <div style="margin-top:4px;color:#7b241a;">
-                                                    Reason: @request.CancellationReason
+                                    <!-- VERTICAL TIMELINE -->
+                                    <div>
+                                        <div class="timeline-title"><i class="fas fa-clock-rotate-left"></i> Status Timeline</div>
+                                        <div class="status-timeline">
+                                            <div class="timeline-item @(request.SubmittedDate != null ? "done" : "")">
+                                                <span class="timeline-dot"></span>
+                                                <div>
+                                                    <div class="timeline-label">Submitted</div>
+                                                    <span class="timeline-time">@(request.SubmittedDate != null ? Convert.ToDateTime(request.SubmittedDate).ToString("dd MMM HH:mm") : "Pending")</span>
                                                 </div>
+                                            </div>
+                                            <div class="timeline-item @(request.DateTimeReceived != null ? "done" : "")">
+                                                <span class="timeline-dot"></span>
+                                                <div>
+                                                    <div class="timeline-label">Received</div>
+                                                    <span class="timeline-time">@(request.DateTimeReceived != null ? Convert.ToDateTime(request.DateTimeReceived).ToString("dd MMM HH:mm") : "Pending")</span>
+                                                </div>
+                                            </div>
+                                            <div class="timeline-item @(earliestStart != null ? "done" : "")">
+                                                <span class="timeline-dot"></span>
+                                                <div>
+                                                    <div class="timeline-label">In Progress</div>
+                                                    <span class="timeline-time">@(earliestStart != null ? earliestStart.Value.ToString("dd MMM HH:mm") : "Pending")</span>
+                                                </div>
+                                            </div>
+                                            <div class="timeline-item @(latestCompletion != null ? "done" : "")">
+                                                <span class="timeline-dot"></span>
+                                                <div>
+                                                    <div class="timeline-label">Completed</div>
+                                                    <span class="timeline-time">@(latestCompletion != null ? latestCompletion.Value.ToString("dd MMM HH:mm") : "Pending")</span>
+                                                </div>
+                                            </div>
+                                            <div class="timeline-item @(earliestVerification != null ? "done" : "")">
+                                                <span class="timeline-dot"></span>
+                                                <div>
+                                                    <div class="timeline-label">Verified</div>
+                                                    <span class="timeline-time">@(earliestVerification != null ? earliestVerification.Value.ToString("dd MMM HH:mm") : "Pending")</span>
+                                                </div>
+                                            </div>
+                                            <div class="timeline-item @(request.ReleaseDate != null ? "done" : "")">
+                                                <span class="timeline-dot"></span>
+                                                <div>
+                                                    <div class="timeline-label">Released</div>
+                                                    <span class="timeline-time">@(request.ReleaseDate != null ? Convert.ToDateTime(request.ReleaseDate).ToString("dd MMM HH:mm") : "Pending")</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- TESTS & ACTION -->
+                                    <div>
+                                        <div class="timeline-title"><i class="fas fa-vial"></i> Tests in this Request</div>
+                                        <div style="display:flex; flex-direction:column; gap:8px;">
+                                            @if (request.TestRequestItems != null)
+                                            {
+                                                foreach (var item in request.TestRequestItems)
+                                                {
+                                                    <div style="display:flex; justify-content:space-between; padding:8px 12px; background:#f8fbfa; border-radius:8px; border:1px solid #edf2f0;">
+                                                        <span style="font-weight:700; color:#294943; font-size:12px;">@item.TestType?.Name</span>
+                                                        <span style="font-size:10px; font-weight:800; color:#0d6b63;">@item.Status</span>
+                                                    </div>
+                                                }
                                             }
                                         </div>
-                                    }
 
-                                    <div class="request-info-grid">
-                                        <div class="request-info">
-                                            <span class="request-info-label">Request Date</span>
-                                            <span class="request-info-value">
-                                                @if (request.RequestDate != null)
-                                                {
-                                                    @Convert.ToDateTime(request.RequestDate).ToString("dd MMM yyyy")
-                                                }
-                                                else
-                                                {
-                                                    <span>Not recorded</span>
-                                                }
-                                            </span>
-                                        </div>
-                                        <div class="request-info">
-                                            <span class="request-info-label">Urgency</span>
-                                            <span class="request-info-value @urgencyClass">
-                                                <i class="fas fa-bolt"></i> @urgency
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div class="request-two-col">
-
-                                        <div class="request-col">
-
-                                            <div class="detail-section">
-                                                <div class="detail-section-title">
-                                                    <i class="fas fa-flask"></i>
-                                                    Requested Tests
-                                                </div>
-
-                                                <div class="test-list">
-                                                    @if (request.TestRequestItems != null && request.TestRequestItems.Count > 0)
-                                                    {
-                                                        foreach (var item in request.TestRequestItems)
-                                                        {
-                                                            <div class="test-item">
-                                                                <div class="test-item-left">
-                                                                    <div class="test-check">
-                                                                        <i class="fas fa-check"></i>
-                                                                    </div>
-                                                                    <span class="test-name">
-                                                                        @(item.TestType?.Name ?? "Laboratory Test")
-                                                                    </span>
-                                                                </div>
-
-                                                                @if (item.TestType != null &&
-                                                                     !string.IsNullOrWhiteSpace(item.TestType.Category))
-                                                                {
-                                                                    <span class="test-category">
-                                                                        @item.TestType.Category
-                                                                    </span>
-                                                                }
-                                                            </div>
-                                                        }
-                                                    }
-                                                    else
-                                                    {
-                                                        <div class="no-test-items">
-                                                            <i class="fas fa-flask"></i>
-                                                            No test items recorded.
-                                                        </div>
-                                                    }
-                                                </div>
-                                            </div>
-
-                                            @if (request.TestRequestItems != null && request.TestRequestItems.Count > 0)
+                                        <div class="req-actions">
+                                            @if (canViewResults)
                                             {
-                                                <div class="detail-section">
-                                                    <div class="detail-section-title">
-                                                        <i class="fas fa-vial"></i>
-                                                        Required Samples
-                                                    </div>
-                                                    <div class="sample-list">
-                                                        @foreach (var item in request.TestRequestItems)
-                                                        {
-                                                            if (item.TestType != null &&
-                                                                !string.IsNullOrWhiteSpace(item.TestType.RequiredSampleType))
-                                                            {
-                                                                <span class="sample-pill">
-                                                                    <i class="fas fa-vial"></i>
-                                                                    @item.TestType.RequiredSampleType
-                                                                </span>
-                                                            }
-                                                        }
-                                                    </div>
-                                                </div>
+                                                <a href="@Url.Action("PatientResults", "TestRequest", new { requestId = request.RequestId })" class="btn btn-primary">
+                                                    <i class="fas fa-file-medical"></i> View Results
+                                                </a>
                                             }
-
+                                            else
+                                            {
+                                                <button class="btn btn-primary" disabled>
+                                                    <i class="fas fa-lock"></i> Locked until Verified
+                                                </button>
+                                            }
                                         </div>
-
-                                        <div class="request-col">
-
-                                            <div class="detail-section">
-                                                <div class="detail-section-title">
-                                                    <i class="fas fa-clock-rotate-left"></i>
-                                                    Status Timeline
-                                                </div>
-
-                                                <div class="status-timeline">
-
-                                                    <div class="timeline-item @(request.SubmittedDate != null ? "done" : "")">
-                                                        <span class="timeline-dot"></span>
-                                                        <div class="timeline-content">
-                                                            <span class="timeline-label">Submitted by Doctor</span>
-                                                            <span class="timeline-time">
-                                                                @(request.SubmittedDate != null
-                                                                    ? Convert.ToDateTime(request.SubmittedDate).ToString("dd MMM HH:mm")
-                                                                    : "Pending")
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="timeline-item @(request.DateTimeReceived != null ? "done" : "")">
-                                                        <span class="timeline-dot"></span>
-                                                        <div class="timeline-content">
-                                                            <span class="timeline-label">Samples Received</span>
-                                                            <span class="timeline-time">
-                                                                @(request.DateTimeReceived != null
-                                                                    ? Convert.ToDateTime(request.DateTimeReceived).ToString("dd MMM HH:mm")
-                                                                    : "Pending")
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    @{
-                                                        DateTime? earliestStart = null;
-                                                        DateTime? latestCompletion = null;
-                                                        DateTime? earliestVerification = null;
-
-                                                        if (request.TestRequestItems != null)
-                                                        {
-                                                            foreach (var it in request.TestRequestItems)
-                                                            {
-                                                                if (it.StartDateTime != null)
-                                                                {
-                                                                    var sd = (DateTime)it.StartDateTime;
-                                                                    if (earliestStart == null || sd < earliestStart) earliestStart = sd;
-                                                                }
-
-                                                                if (it.CompletionDateTime != null)
-                                                                {
-                                                                    var cd = (DateTime)it.CompletionDateTime;
-                                                                    if (latestCompletion == null || cd > latestCompletion) latestCompletion = cd;
-                                                                }
-
-                                                                if (it.TestResults != null)
-                                                                {
-                                                                    foreach (var r in it.TestResults)
-                                                                    {
-                                                                        if (r.VerificationDate != null)
-                                                                        {
-                                                                            var vd = (DateTime)r.VerificationDate;
-                                                                            if (earliestVerification == null || vd < earliestVerification)
-                                                                                earliestVerification = vd;
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
-                                                    <div class="timeline-item @(earliestStart != null ? "done" : "")">
-                                                        <span class="timeline-dot"></span>
-                                                        <div class="timeline-content">
-                                                            <span class="timeline-label">In Progress</span>
-                                                            <span class="timeline-time">
-                                                                @(earliestStart != null
-                                                                    ? earliestStart.Value.ToString("dd MMM HH:mm")
-                                                                    : "Pending")
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="timeline-item @(latestCompletion != null ? "done" : "")">
-                                                        <span class="timeline-dot"></span>
-                                                        <div class="timeline-content">
-                                                            <span class="timeline-label">Completed — Results Captured</span>
-                                                            <span class="timeline-time">
-                                                                @(latestCompletion != null
-                                                                    ? latestCompletion.Value.ToString("dd MMM HH:mm")
-                                                                    : "Pending")
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="timeline-item @(earliestVerification != null ? "done" : "")">
-                                                        <span class="timeline-dot"></span>
-                                                        <div class="timeline-content">
-                                                            <span class="timeline-label">Verified — All Results Approved</span>
-                                                            <span class="timeline-time">
-                                                                @(earliestVerification != null
-                                                                    ? earliestVerification.Value.ToString("dd MMM HH:mm")
-                                                                    : "Pending")
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="timeline-item @(request.ReleaseDate != null ? "done" : "")">
-                                                        <span class="timeline-dot"></span>
-                                                        <div class="timeline-content">
-                                                            <span class="timeline-label">Released by Doctor</span>
-                                                            <span class="timeline-time">
-                                                                @(request.ReleaseDate != null
-                                                                    ? Convert.ToDateTime(request.ReleaseDate).ToString("dd MMM HH:mm")
-                                                                    : "Pending")
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    @if (status == "Cancelled")
-                                                    {
-                                                        <div class="timeline-item cancelled">
-                                                            <span class="timeline-dot"></span>
-                                                            <div class="timeline-content">
-                                                                <span class="timeline-label">Cancelled</span>
-                                                                <span class="timeline-time">
-                                                                    Reason:
-                                                                    @(string.IsNullOrWhiteSpace((string)request.CancellationReason)
-                                                                        ? "Not recorded"
-                                                                        : (string)request.CancellationReason)
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    }
-
-                                                </div>
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                    <div class="detail-section" style="margin-top:6px;">
-                                        <div class="detail-section-title">
-                                            <i class="fas fa-user-doctor"></i>
-                                            Requesting Doctor
-                                        </div>
-                                        <div class="doctor-info">
-                                            <div class="doctor-icon">
-                                                <i class="fas fa-user-md"></i>
-                                            </div>
-                                            <div>
-                                                <span class="doctor-label">Doctor</span>
-                                                <span class="doctor-name">
-                                                    @if (request.RequestingDoctor != null)
-                                                    {
-                                                        @(request.RequestingDoctor.UserName
-                                                            ?? request.RequestingDoctor.Email
-                                                            ?? "Doctor")
-                                                    }
-                                                    else
-                                                    {
-                                                        <span>Not recorded</span>
-                                                    }
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="detail-section">
-                                        <div class="detail-section-title">
-                                            <i class="fas fa-notes-medical"></i>
-                                            Clinical Notes
-                                        </div>
-                                        @if (!string.IsNullOrWhiteSpace((string)request.ClinicalNotes))
-                                        {
-                                            <div class="clinical-notes">@request.ClinicalNotes</div>
-                                        }
-                                        else
-                                        {
-                                            <div class="clinical-notes no-notes">
-                                                No clinical notes were provided for this request.
-                                            </div>
-                                        }
-                                    </div>
-
-                                    <div class="req-actions">
-
-                                        @if (canViewResults)
-                                        {
-                                            <a href="@Url.Action("PatientResults", "TestRequest", new { requestId = request.RequestId })"
-                                               class="btn btn-primary">
-                                                <i class="fas fa-file-medical"></i> View Results
-                                            </a>
-                                        }
-                                        else
-                                        {
-                                            <button type="button"
-                                                    class="btn btn-primary"
-                                                    disabled
-                                                    title="Results will be available once all tests are Verified.">
-                                                <i class="fas fa-lock"></i> View Results
-                                            </button>
-                                            <span class="btn-hint">Available once all tests are Verified.</span>
-                                        }
-
-                                        @if (status == "Submitted" || status == "Samples Received")
-                                        {
-                                            <button type="button"
-                                                    class="btn btn-danger"
-                                                    onclick="openCancelModal(@request.RequestId)">
-                                                <i class="fas fa-ban"></i> Cancel Request
-                                            </button>
-                                        }
-
                                     </div>
 
                                 </div>
-
                             </div>
                         }
-
                     </div>
-
                 </div>
             }
-        }
-
-    </div>
-
+        </div>
+    }
 </div>
-
-
-<!-- CANCEL MODAL -->
-<div class="modal-backdrop-c" id="cancelModal">
-    <div class="modal-c">
-        <h3>Cancel Test Request</h3>
-        <p>This action can only be done while the request is Submitted or Samples Received.</p>
-
-        <form asp-controller="TestRequest" asp-action="Cancel" method="post">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="requestId" id="cancelRequestId" value="" />
-
-            <label for="cancelReason">Reason for cancellation</label>
-            <textarea id="cancelReason" name="cancellationReason" required maxlength="500"
-                      placeholder="Enter the reason for cancelling this request..."></textarea>
-
-            <div class="modal-actions">
-                <button type="button" class="btn btn-primary" style="background:#fff;color:#4a5c7c;border-color:#dfe6ed;"
-                        onclick="closeCancelModal()">
-                    <i class="fas fa-times"></i> Close
-                </button>
-                <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-ban"></i> Confirm Cancel
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
 
 @section Scripts {
     <script>
-        function openCancelModal(id) {
-            document.getElementById('cancelRequestId').value = id;
-            document.getElementById('cancelModal').classList.add('show');
-            document.getElementById('cancelReason').value = '';
+        function toggleFolder(header) {
+            var card = header.parentElement;
+            card.classList.toggle('expanded');
         }
 
-        function closeCancelModal() {
-            document.getElementById('cancelModal').classList.remove('show');
-        }
-
-        document.querySelectorAll('.modal-backdrop-c').forEach(function (bd) {
-            bd.addEventListener('click', function (e) {
-                if (e.target === bd) bd.classList.remove('show');
+        document.getElementById('folderSearch').addEventListener('input', function() {
+            var term = this.value.toLowerCase();
+            var cards = document.querySelectorAll('.folder-card');
+            cards.forEach(function(card) {
+                var searchData = card.getAttribute('data-search') || '';
+                if (searchData.includes(term)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
             });
-        });
-
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.modal-backdrop-c').forEach(bd => bd.classList.remove('show'));
-            }
         });
     </script>
 }
