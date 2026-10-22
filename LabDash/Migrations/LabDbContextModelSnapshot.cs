@@ -1013,10 +1013,15 @@ namespace LabDash.Migrations
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("CancellationReason")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("CancelledDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("ClinicalNotes")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<DateTime?>("DateTimeReceived")
                         .HasColumnType("datetime2");
@@ -1028,7 +1033,8 @@ namespace LabDash.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ReleaseNote")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<DateTime>("RequestDate")
                         .HasColumnType("datetime2");
@@ -1046,20 +1052,22 @@ namespace LabDash.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime?>("SubmittedDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Urgency")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("RequestId");
 
                     b.HasIndex("PatientId");
 
-                    b.HasIndex("RequestingDoctorId");
+                    b.HasIndex("RequestingDoctorId", "Status");
 
                     b.ToTable("TestRequests");
                 });
@@ -1089,7 +1097,7 @@ namespace LabDash.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("TestTypeId")
                         .HasColumnType("int");
@@ -1098,9 +1106,9 @@ namespace LabDash.Migrations
 
                     b.HasIndex("AssignedTechnicianId");
 
-                    b.HasIndex("RequestId");
-
                     b.HasIndex("TestTypeId");
+
+                    b.HasIndex("RequestId", "Status");
 
                     b.ToTable("TestRequestItems");
                 });
@@ -1118,7 +1126,8 @@ namespace LabDash.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Comments")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<DateTime>("DateCaptured")
                         .HasColumnType("datetime2");
@@ -1127,27 +1136,32 @@ namespace LabDash.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("ReferenceRange")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ResultValue")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("TestRequestItemId")
                         .HasColumnType("int");
 
                     b.Property<string>("Units")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime?>("VerificationDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("VerificationNote")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("VerifiedByTechnicianId")
                         .HasColumnType("nvarchar(450)");
@@ -1159,6 +1173,8 @@ namespace LabDash.Migrations
                     b.HasIndex("TestRequestItemId");
 
                     b.HasIndex("VerifiedByTechnicianId");
+
+                    b.HasIndex("Status", "TestRequestItemId");
 
                     b.ToTable("TestResults");
                 });
@@ -1181,12 +1197,15 @@ namespace LabDash.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("TestRequestItemId")
                         .HasColumnType("int");
 
                     b.HasKey("TestReviewHistoryId");
 
-                    b.HasIndex("TestRequestItemId");
+                    b.HasIndex("TestRequestItemId", "ReviewedAt");
 
                     b.ToTable("TestReviewHistories");
                 });
@@ -1269,6 +1288,15 @@ namespace LabDash.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VerificationId"));
+
+                    b.Property<string>("PreviousComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool?>("PreviousIsAbnormal")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PreviousResultValue")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1777,7 +1805,7 @@ namespace LabDash.Migrations
                     b.HasOne("LabDash.Areas.Identity.Data.LabUser", "CapturedByTechnician")
                         .WithMany()
                         .HasForeignKey("CapturedByTechnicianId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("LabDash.Models.TestRequestItem", "TestRequestItem")
@@ -1788,7 +1816,8 @@ namespace LabDash.Migrations
 
                     b.HasOne("LabDash.Areas.Identity.Data.LabUser", "VerifiedByTechnician")
                         .WithMany()
-                        .HasForeignKey("VerifiedByTechnicianId");
+                        .HasForeignKey("VerifiedByTechnicianId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CapturedByTechnician");
 
@@ -1802,7 +1831,7 @@ namespace LabDash.Migrations
                     b.HasOne("LabDash.Models.TestRequestItem", "TestRequestItem")
                         .WithMany("ReviewHistory")
                         .HasForeignKey("TestRequestItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("TestRequestItem");

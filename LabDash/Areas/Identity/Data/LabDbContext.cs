@@ -113,7 +113,6 @@ public class LabDbContext : IdentityDbContext<LabUser>
             .IsUnique()
             .HasFilter("[EmployeeNumber] IS NOT NULL AND [EmployeeNumber] <> ''");
 
-
         // ============================================================
         // PATIENT
         // ============================================================
@@ -288,11 +287,11 @@ public class LabDbContext : IdentityDbContext<LabUser>
         // TEST REVIEW HISTORY (if you use it for full review history)
         // ============================================================
 
-        //builder.Entity<TestReviewHistory>()
-        //    .HasOne(h => h.TestRequestItem)
-        //    .WithMany()
-        //    .HasForeignKey(h => h.TestRequestItemId)
-        //    .OnDelete(DeleteBehavior.NoAction);
+        builder.Entity<TestReviewHistory>()
+            .HasOne(h => h.TestRequestItem)
+              .WithMany(i => i.ReviewHistory)
+            .HasForeignKey(h => h.TestRequestItemId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         builder.Entity<TestReviewHistory>()
             .HasIndex(h => new { h.TestRequestItemId, h.ReviewedAt });
