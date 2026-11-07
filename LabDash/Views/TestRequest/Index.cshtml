@@ -3,6 +3,10 @@
 @{
     ViewData["Title"] = "Patient Folders";
     Layout = "~/Views/Shared/_DoctorLayout.cshtml";
+
+    var folders = Model == null
+        ? new List<dynamic>()
+        : ((IEnumerable<dynamic>)Model).ToList();
 }
 
 <style>
@@ -131,6 +135,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-wrap: wrap;
     }
 
         .folder-meta i {
@@ -181,6 +186,8 @@
         background: #f7fbfa;
         border-bottom: 1px solid #e8efed;
         border-radius: 12px 12px 0 0;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
     .req-id {
@@ -205,6 +212,11 @@
     @@media (max-width: 768px) {
         .req-body {
             grid-template-columns: 1fr;
+        }
+
+        .folders-heading {
+            flex-direction: column;
+            align-items: flex-start;
         }
     }
 
@@ -283,6 +295,7 @@
         display: block;
     }
 
+    /* REQUEST ACTIONS */
     .req-actions {
         grid-column: 1 / -1;
         display: flex;
@@ -291,11 +304,13 @@
         padding-top: 15px;
         border-top: 1px dashed #edf2f0;
         margin-top: 10px;
+        flex-wrap: wrap;
     }
 
     .btn {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 6px;
         padding: 9px 16px;
         border-radius: 8px;
@@ -305,6 +320,7 @@
         border: 1px solid transparent;
         cursor: pointer;
         transition: all 0.15s ease;
+        font-family: inherit;
     }
 
     .btn-primary {
@@ -314,6 +330,7 @@
 
         .btn-primary:hover {
             background: #09564f;
+            color: #fff;
         }
 
         .btn-primary[disabled] {
@@ -323,6 +340,27 @@
             pointer-events: none;
         }
 
+    .btn-danger {
+        background: #fff0ed;
+        color: #b42318;
+        border: 1px solid #f4c7c1;
+    }
+
+        .btn-danger:hover {
+            background: #b42318;
+            color: #fff;
+        }
+
+    .btn-secondary {
+        background: #edf2f1;
+        color: #40534f;
+    }
+
+        .btn-secondary:hover {
+            background: #dfe8e5;
+        }
+
+    /* EMPTY STATE */
     .empty-state {
         padding: 60px 20px;
         text-align: center;
@@ -336,29 +374,147 @@
         color: #cde8e4;
         margin-bottom: 15px;
     }
+
+    /* ALERT MESSAGES */
+    .page-alert {
+        padding: 13px 16px;
+        border-radius: 10px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+        .page-alert.success {
+            background: #e9f8ef;
+            color: #176b3a;
+            border: 1px solid #c5ebd1;
+        }
+
+        .page-alert.error {
+            background: #fff0ed;
+            color: #b42318;
+            border: 1px solid #f4c7c1;
+        }
+
+    /* CANCELLATION MODAL */
+    .cancel-modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(15, 35, 32, .55);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+        .cancel-modal-backdrop.show {
+            display: flex;
+        }
+
+    .cancel-modal {
+        width: 100%;
+        max-width: 480px;
+        background: #fff;
+        border-radius: 16px;
+        padding: 25px;
+        box-shadow: 0 15px 45px rgba(0,0,0,.2);
+    }
+
+        .cancel-modal h3 {
+            color: #173c38;
+            font-size: 19px;
+            font-weight: 800;
+            margin: 0 0 10px;
+        }
+
+        .cancel-modal p {
+            color: #71817d;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .cancel-modal label {
+            display: block;
+            font-size: 12px;
+            font-weight: 750;
+            color: #294b45;
+            margin: 15px 0 8px;
+        }
+
+        .cancel-modal textarea {
+            width: 100%;
+            min-height: 110px;
+            padding: 12px;
+            border: 1px solid #dfeae7;
+            border-radius: 9px;
+            font-family: inherit;
+            font-size: 13px;
+            box-sizing: border-box;
+            resize: vertical;
+            outline: none;
+        }
+
+            .cancel-modal textarea:focus {
+                border-color: #0d6b63;
+                box-shadow: 0 0 0 3px rgba(13,107,99,.10);
+            }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
 </style>
 
 <div class="folders-page">
 
+    <!-- PAGE HEADING -->
     <div class="folders-heading">
         <div>
             <h1>Patient Folders</h1>
             <p>Click a patient to expand their test requests and timelines</p>
         </div>
+
         <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; font-weight: 800; font-size: 13px;">
-            <i class="fas fa-folder"></i> @(((IEnumerable<dynamic>)Model).Count()) Folders
+            <i class="fas fa-folder"></i> @folders.Count Folders
         </div>
     </div>
 
+    <!-- SUCCESS / ERROR MESSAGES -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="page-alert success">
+            <i class="fas fa-check-circle"></i>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="page-alert error">
+            <i class="fas fa-exclamation-circle"></i>
+            @TempData["Error"]
+        </div>
+    }
+
+    <!-- SEARCH -->
     <div class="folder-search">
         <i class="fas fa-search"></i>
-        <input type="text" id="folderSearch" placeholder="Search patient name or ID number..." autocomplete="off" />
+        <input type="text"
+               id="folderSearch"
+               placeholder="Search patient name or ID number..."
+               autocomplete="off" />
     </div>
 
-    @if (Model == null || !((IEnumerable<dynamic>)Model).Any())
+    @if (!folders.Any())
     {
         <div class="empty-state">
-            <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+            <div class="empty-icon">
+                <i class="fas fa-folder-open"></i>
+            </div>
             <h3>No Patient Folders</h3>
             <p>There are currently no patient records with laboratory test requests.</p>
         </div>
@@ -366,30 +522,57 @@
     else
     {
         <div class="folder-list" id="folderList">
-            @foreach (var folder in Model)
+
+            @foreach (var folder in folders)
             {
                 var patient = folder.Patient;
                 var requests = folder.Requests;
+
                 var patientName = $"{patient.Name} {patient.Surname}";
-                var initials = ((!string.IsNullOrWhiteSpace((string)patient.Name) ? ((string)patient.Name).Substring(0, 1) : "P") + (!string.IsNullOrWhiteSpace((string)patient.Surname) ? ((string)patient.Surname).Substring(0, 1) : "")).ToUpper();
 
-                <div class="folder-card" data-search="@($"{patientName} {patient.IDNumber}").ToLower()">
+                var initials =
+                ((!string.IsNullOrWhiteSpace((string)patient.Name)
+                ? ((string)patient.Name).Substring(0, 1)
+                : "P")
+                +
+                (!string.IsNullOrWhiteSpace((string)patient.Surname)
+                ? ((string)patient.Surname).Substring(0, 1)
+                : "")).ToUpper();
 
-                    <!-- CLICK THIS HEADER TO EXPAND -->
+                <div class="folder-card"
+                     data-search="@($"{patientName} {patient.IDNumber}").ToLower()">
+
+                    <!-- CLICK HEADER TO EXPAND -->
                     <div class="folder-header" onclick="toggleFolder(this)">
-                        <div class="folder-avatar">@initials</div>
+
+                        <div class="folder-avatar">
+                            @initials
+                        </div>
+
                         <div class="folder-info">
-                            <div class="folder-name">@patientName</div>
+                            <div class="folder-name">
+                                @patientName
+                            </div>
+
                             <div class="folder-meta">
-                                <span><i class="fas fa-id-card"></i>@patient.IDNumber</span>
-                                <span><i class="fas fa-file-medical"></i>@requests.Count request(s)</span>
+                                <span>
+                                    <i class="fas fa-id-card"></i>
+                                    @patient.IDNumber
+                                </span>
+
+                                <span>
+                                    <i class="fas fa-file-medical"></i>
+                                    @requests.Count request(s)
+                                </span>
                             </div>
                         </div>
+
                         <i class="fas fa-chevron-right folder-chevron"></i>
                     </div>
 
-                    <!-- EXPANDED CONTENT -->
+                    <!-- EXPANDED PATIENT CONTENT -->
                     <div class="folder-content">
+
                         @foreach (var request in requests)
                         {
                             var status = request.Status?.ToString() ?? "Unknown";
@@ -402,135 +585,417 @@
                             {
                                 foreach (var it in request.TestRequestItems)
                                 {
-                                    if (it.StartDateTime != null) { var sd = (DateTime)it.StartDateTime; if (earliestStart == null || sd < earliestStart) earliestStart = sd; }
-                                    if (it.CompletionDateTime != null) { var cd = (DateTime)it.CompletionDateTime; if (latestCompletion == null || cd > latestCompletion) latestCompletion = cd; }
-                                    if (it.TestResults != null) { foreach (var r in it.TestResults) { if (r.VerificationDate != null) { var vd = (DateTime)r.VerificationDate; if (earliestVerification == null || vd < earliestVerification) earliestVerification = vd; } } }
+                                    if (it.StartDateTime != null)
+                                    {
+                                        var sd = (DateTime)it.StartDateTime;
+
+                                        if (earliestStart == null || sd < earliestStart)
+                                        {
+                                            earliestStart = sd;
+                                        }
+                                    }
+
+                                    if (it.CompletionDateTime != null)
+                                    {
+                                        var cd = (DateTime)it.CompletionDateTime;
+
+                                        if (latestCompletion == null || cd > latestCompletion)
+                                        {
+                                            latestCompletion = cd;
+                                        }
+                                    }
+
+                                    if (it.TestResults != null)
+                                    {
+                                        foreach (var r in it.TestResults)
+                                        {
+                                            if (r.VerificationDate != null)
+                                            {
+                                                var vd = (DateTime)r.VerificationDate;
+
+                                                if (earliestVerification == null || vd < earliestVerification)
+                                                {
+                                                    earliestVerification = vd;
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
-                            var allItemsVerified = request.TestRequestItems != null && request.TestRequestItems.Count > 0 && ((IEnumerable<dynamic>)request.TestRequestItems).All((Func<dynamic, bool>)(i => (string)i.Status == "Verified"));
-                            bool canViewResults = allItemsVerified && (status == "Completed" || status == "AppointmentScheduled" || status == "Released by doctor");
+                            var allItemsVerified =
+                            request.TestRequestItems != null
+                            && request.TestRequestItems.Count > 0
+                            && ((IEnumerable<dynamic>)request.TestRequestItems)
+                            .All((Func<dynamic, bool>)(i => (string)i.Status == "Verified"));
+
+                            bool canViewResults =
+                            allItemsVerified
+                            && (
+                            status == "Completed"
+                            || status == "AppointmentScheduled"
+                            || status == "Released by doctor"
+                            );
+
+                            bool canCancel = status == "Submitted";
 
                             <div class="req-card">
+
+                                <!-- REQUEST HEADER -->
                                 <div class="req-header">
+
                                     <div>
-                                        <span class="req-id">Request #@request.RequestId</span>
-                                        <span class="req-date">@Convert.ToDateTime(request.RequestDate).ToString("dd MMM yyyy")</span>
+                                        <span class="req-id">
+                                            Request #@request.RequestId
+                                        </span>
+
+                                        <span class="req-date">
+                                            @Convert.ToDateTime(request.RequestDate).ToString("dd MMM yyyy")
+                                        </span>
                                     </div>
-                                    <div style="font-size: 11px; font-weight: 800; color: #0d6b63; text-transform: uppercase;">@status</div>
+
+                                    <div style="font-size: 11px; font-weight: 800; color: #0d6b63; text-transform: uppercase;">
+                                        @status
+                                    </div>
+
                                 </div>
 
                                 <div class="req-body">
 
-                                    <!-- VERTICAL TIMELINE -->
+                                    <!-- STATUS TIMELINE -->
                                     <div>
-                                        <div class="timeline-title"><i class="fas fa-clock-rotate-left"></i> Status Timeline</div>
+
+                                        <div class="timeline-title">
+                                            <i class="fas fa-clock-rotate-left"></i>
+                                            Status Timeline
+                                        </div>
+
                                         <div class="status-timeline">
+
                                             <div class="timeline-item @(request.SubmittedDate != null ? "done" : "")">
                                                 <span class="timeline-dot"></span>
                                                 <div>
                                                     <div class="timeline-label">Submitted</div>
-                                                    <span class="timeline-time">@(request.SubmittedDate != null ? Convert.ToDateTime(request.SubmittedDate).ToString("dd MMM HH:mm") : "Pending")</span>
-                                                </div>
-                                            </div>
+                                                    <span class="timeline-time">
+                                                        @(request.SubmittedDate != null
+                                                                                                    ? Convert.ToDateTime(request.SubmittedDate).ToString("dd MMM HH:mm")
+                                                                                                    : "Pending")
+                                                                                                            </span>
+                                                                                                        </div>
+                                                                                                    </div>
+
                                             <div class="timeline-item @(request.DateTimeReceived != null ? "done" : "")">
                                                 <span class="timeline-dot"></span>
                                                 <div>
                                                     <div class="timeline-label">Received</div>
-                                                    <span class="timeline-time">@(request.DateTimeReceived != null ? Convert.ToDateTime(request.DateTimeReceived).ToString("dd MMM HH:mm") : "Pending")</span>
-                                                </div>
-                                            </div>
+                                                    <span class="timeline-time">
+                                                        @(request.DateTimeReceived != null
+                                                                                                    ? Convert.ToDateTime(request.DateTimeReceived).ToString("dd MMM HH:mm")
+                                                                                                    : "Pending")
+                                                                                                            </span>
+                                                                                                        </div>
+                                                                                                    </div>
+
                                             <div class="timeline-item @(earliestStart != null ? "done" : "")">
                                                 <span class="timeline-dot"></span>
                                                 <div>
                                                     <div class="timeline-label">In Progress</div>
-                                                    <span class="timeline-time">@(earliestStart != null ? earliestStart.Value.ToString("dd MMM HH:mm") : "Pending")</span>
-                                                </div>
-                                            </div>
+                                                    <span class="timeline-time">
+                                                        @(earliestStart != null
+                                                                                                    ? earliestStart.Value.ToString("dd MMM HH:mm")
+                                                                                                    : "Pending")
+                                                                                                            </span>
+                                                                                                        </div>
+                                                                                                    </div>
+
                                             <div class="timeline-item @(latestCompletion != null ? "done" : "")">
                                                 <span class="timeline-dot"></span>
                                                 <div>
                                                     <div class="timeline-label">Completed</div>
-                                                    <span class="timeline-time">@(latestCompletion != null ? latestCompletion.Value.ToString("dd MMM HH:mm") : "Pending")</span>
-                                                </div>
-                                            </div>
+                                                    <span class="timeline-time">
+                                                        @(latestCompletion != null
+                                                                                                    ? latestCompletion.Value.ToString("dd MMM HH:mm")
+                                                                                                    : "Pending")
+                                                                                                            </span>
+                                                                                                        </div>
+                                                                                                    </div>
+
                                             <div class="timeline-item @(earliestVerification != null ? "done" : "")">
                                                 <span class="timeline-dot"></span>
                                                 <div>
                                                     <div class="timeline-label">Verified</div>
-                                                    <span class="timeline-time">@(earliestVerification != null ? earliestVerification.Value.ToString("dd MMM HH:mm") : "Pending")</span>
-                                                </div>
-                                            </div>
+                                                    <span class="timeline-time">
+                                                        @(earliestVerification != null
+                                                                                                    ? earliestVerification.Value.ToString("dd MMM HH:mm")
+                                                                                                    : "Pending")
+                                                                                                            </span>
+                                                                                                        </div>
+                                                                                                    </div>
+
                                             <div class="timeline-item @(request.ReleaseDate != null ? "done" : "")">
                                                 <span class="timeline-dot"></span>
                                                 <div>
                                                     <div class="timeline-label">Released</div>
-                                                    <span class="timeline-time">@(request.ReleaseDate != null ? Convert.ToDateTime(request.ReleaseDate).ToString("dd MMM HH:mm") : "Pending")</span>
-                                                </div>
-                                            </div>
+                                                    <span class="timeline-time">
+                                                        @(request.ReleaseDate != null
+                                                                                                    ? Convert.ToDateTime(request.ReleaseDate).ToString("dd MMM HH:mm")
+                                                                                                    : "Pending")
+                                        </span>
+                                    </div>
+                                </div>
+
                                         </div>
                                     </div>
 
-                                    <!-- TESTS & ACTION -->
+                                    <!-- TESTS AND ACTIONS -->
                                     <div>
-                                        <div class="timeline-title"><i class="fas fa-vial"></i> Tests in this Request</div>
+
+                                        <div class="timeline-title">
+                                            <i class="fas fa-vial"></i>
+                                            Tests in this Request
+                                        </div>
+
                                         <div style="display:flex; flex-direction:column; gap:8px;">
-                                            @if (request.TestRequestItems != null)
+
+                                @if (request.TestRequestItems != null)
                                             {
                                                 foreach (var item in request.TestRequestItems)
                                                 {
                                                     <div style="display:flex; justify-content:space-between; padding:8px 12px; background:#f8fbfa; border-radius:8px; border:1px solid #edf2f0;">
-                                                        <span style="font-weight:700; color:#294943; font-size:12px;">@item.TestType?.Name</span>
-                                                        <span style="font-size:10px; font-weight:800; color:#0d6b63;">@item.Status</span>
+
+                                                        <span style="font-weight:700; color:#294943; font-size:12px;">
+                                                            @item.TestType?.Name
+                                                        </span>
+
+                                                        <span style="font-size:10px; font-weight:800; color:#0d6b63;">
+                                                            @item.Status
+                                                        </span>
+
                                                     </div>
                                                 }
                                             }
+
                                         </div>
 
+                                        <!-- REQUEST ACTION BUTTONS -->
                                         <div class="req-actions">
+
                                             @if (canViewResults)
                                             {
-                                                <a href="@Url.Action("PatientResults", "TestRequest", new { requestId = request.RequestId })" class="btn btn-primary">
-                                                    <i class="fas fa-file-medical"></i> View Results
+                                                <a href="@Url.Action("PatientResults", "TestRequest", new { requestId = request.RequestId })"
+                                                   class="btn btn-primary">
+
+                                                    <i class="fas fa-file-medical"></i>
+                                                    View Results
+
                                                 </a>
                                             }
                                             else
                                             {
-                                                <button class="btn btn-primary" disabled>
-                                                    <i class="fas fa-lock"></i> Locked until Verified
+                                                <button type="button"
+                                                        class="btn btn-primary"
+                                                        disabled>
+
+                                                    <i class="fas fa-lock"></i>
+                                                    Locked until Verified
+
                                                 </button>
                                             }
+
+                                            @if (canCancel)
+                                            {
+                                                <button type="button"
+                                                        class="btn btn-danger"
+                                                        onclick="openCancelModal(@request.RequestId, event)">
+
+                                                    <i class="fas fa-ban"></i>
+                                                    Cancel Request
+
+                                                </button>
+                                            }
+
                                         </div>
+
                                     </div>
 
                                 </div>
                             </div>
                         }
+
                     </div>
                 </div>
             }
+
         </div>
     }
+
+</div>
+
+<!-- CANCELLATION MODAL -->
+<div class="cancel-modal-backdrop" id="cancelModal">
+
+    <div class="cancel-modal">
+
+        <h3>
+            <i class="fas fa-ban" style="color:#b42318;"></i>
+            Cancel Test Request
+        </h3>
+
+        <p>
+            You are about to cancel this test request.
+            Cancellation is only allowed while the request is
+            <strong>Submitted</strong>.
+            Please specify a reason before continuing.
+        </p>
+
+        <form asp-controller="TestRequest"
+              asp-action="Cancel"
+              method="post"
+              onsubmit="return validateCancelReason();">
+
+            @Html.AntiForgeryToken()
+
+            <input type="hidden"
+                   name="requestId"
+                   id="cancelRequestId" />
+
+            <label for="cancelReason">
+                Reason for cancellation *
+            </label>
+
+            <textarea id="cancelReason"
+                      name="cancellationReason"
+                      maxlength="500"
+                      required
+                      placeholder="Enter the reason for cancelling this request..."></textarea>
+
+            <div class="modal-actions">
+
+                <button type="button"
+                        class="btn btn-secondary"
+                        onclick="closeCancelModal()">
+
+                    <i class="fas fa-times"></i>
+                    Close
+
+                </button>
+
+                <button type="submit"
+                        class="btn btn-danger">
+
+                    <i class="fas fa-ban"></i>
+                    Confirm Cancel
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
 </div>
 
 @section Scripts {
+
     <script>
+
+        // EXPAND / COLLAPSE PATIENT FOLDER
         function toggleFolder(header) {
+
             var card = header.parentElement;
+
             card.classList.toggle('expanded');
         }
 
+
+        // OPEN CANCELLATION MODAL
+        function openCancelModal(requestId, event) {
+
+            if (event) {
+                event.stopPropagation();
+            }
+
+            document.getElementById('cancelRequestId').value = requestId;
+
+            document.getElementById('cancelReason').value = '';
+
+            document.getElementById('cancelModal').classList.add('show');
+
+            document.body.style.overflow = 'hidden';
+        }
+
+
+        // CLOSE CANCELLATION MODAL
+        function closeCancelModal() {
+
+            document.getElementById('cancelModal').classList.remove('show');
+
+            document.body.style.overflow = '';
+        }
+
+
+        // VALIDATE CANCELLATION REASON
+        function validateCancelReason() {
+
+            var reason = document.getElementById('cancelReason').value.trim();
+
+            if (reason === '') {
+
+                alert('Please specify a reason for cancelling this request.');
+
+                return false;
+            }
+
+            return confirm('Are you sure you want to cancel this test request?');
+        }
+
+
+        // CLICK OUTSIDE MODAL TO CLOSE
+        document.getElementById('cancelModal').addEventListener('click', function(event) {
+
+            if (event.target === this) {
+
+                closeCancelModal();
+            }
+
+        });
+
+
+        // ESCAPE KEY TO CLOSE MODAL
+        document.addEventListener('keydown', function(event) {
+
+            if (event.key === 'Escape') {
+
+                closeCancelModal();
+            }
+
+        });
+
+
+        // SEARCH PATIENT FOLDERS
         document.getElementById('folderSearch').addEventListener('input', function() {
+
             var term = this.value.toLowerCase();
+
             var cards = document.querySelectorAll('.folder-card');
+
             cards.forEach(function(card) {
+
                 var searchData = card.getAttribute('data-search') || '';
+
                 if (searchData.includes(term)) {
+
                     card.style.display = 'block';
+
                 } else {
+
                     card.style.display = 'none';
                 }
+
             });
+
         });
+
     </script>
 }

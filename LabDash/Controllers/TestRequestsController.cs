@@ -23,32 +23,41 @@ namespace LabDash.Controllers
         private readonly IRazorEmailRenderer _emailRenderer;
         private readonly IEmailAttachmentSender _attachmentSender;
         private readonly IVerifiedResultsPdfGenerator _pdfGenerator;
+
         public TestRequestController(
             LabDbContext context,
             UserManager<LabUser> userManager,
             IEmailSender emailSender,
             IRazorEmailRenderer emailRenderer,
             IEmailAttachmentSender attachmentSender,
-           IVerifiedResultsPdfGenerator pdfGenerator) 
+            IVerifiedResultsPdfGenerator pdfGenerator)
         {
             _context = context;
-
             _userManager = userManager;
             _emailSender = emailSender;
             _emailRenderer = emailRenderer;
-            _attachmentSender = attachmentSender; 
+            _attachmentSender = attachmentSender;
             _pdfGenerator = pdfGenerator;
         }
 
+        // =============================================================
+        // INDEX — PATIENT FOLDERS
+        // =============================================================
         public async Task<IActionResult> Index()
         {
+            var doctor = await _userManager.GetUserAsync(User);
+
+            if (doctor == null)
+                return Forbid();
+
             var allRequests = await _context.TestRequests
                 .Include(tr => tr.Patient)
                 .Include(tr => tr.RequestingDoctor)
                 .Include(tr => tr.TestRequestItems)
                     .ThenInclude(tri => tri.TestType)
                 .Include(tr => tr.TestRequestItems)
-                    .ThenInclude(tri => tri.TestResults)   // <-- Crucial for the timeline!
+                    .ThenInclude(tri => tri.TestResults)
+                .Where(tr => tr.RequestingDoctorId == doctor.Id)
                 .ToListAsync();
 
             var folders = allRequests
@@ -72,7 +81,9 @@ namespace LabDash.Controllers
         public async Task<IActionResult> UnlockFolder(int patientId, string idNumber)
         {
             var patient = await _context.Patients.FindAsync(patientId);
-            if (patient == null) return NotFound();
+
+            if (patient == null)
+                return NotFound();
 
             if (patient.IDNumber != idNumber?.Trim())
             {
@@ -86,7 +97,7 @@ namespace LabDash.Controllers
                 .Include(tr => tr.TestRequestItems)
                     .ThenInclude(tri => tri.TestType)
                 .Include(tr => tr.TestRequestItems)
-                    .ThenInclude(tri => tri.TestResults)   // ← ADDED
+                    .ThenInclude(tri => tri.TestResults)
                 .Where(r => r.PatientId == patientId)
                 .OrderByDescending(r => r.RequestDate)
                 .ToListAsync();
@@ -102,7 +113,9 @@ namespace LabDash.Controllers
         {
             if (patientId == null)
             {
-                TempData["Error"] = "No patient selected. Please search for a patient first.";
+                TempData["Error"] =
+                    "No patient selected. Please search for a patient first.";
+
                 return RedirectToAction("ManagePatients", "Doctor");
             }
 
@@ -127,63 +140,102 @@ namespace LabDash.Controllers
             var allergies = await _context.PatientAllergies
                 .AsNoTracking()
                 .Where(a => a.PatientID == patientId.Value)
-                .Include(a => a.Allergy).ThenInclude(al => al!.Category)
+                .Include(a => a.Allergy)
+                    .ThenInclude(al => al!.Category)
                 .Select(a => new
                 {
-                    Name = a.Allergy != null ? a.Allergy.AllergyName : "Unknown",
-                    Category = a.Allergy != null && a.Allergy.Category != null ? a.Allergy.Category.Name : "Uncategorised",
+                    Name = a.Allergy != null
+                        ? a.Allergy.AllergyName
+                        : "Unknown",
+
+                    Category = a.Allergy != null && a.Allergy.Category != null
+                        ? a.Allergy.Category.Name
+                        : "Uncategorised",
+
                     Severity = a.Severity ?? ""
                 })
                 .ToListAsync();
 
             if (allergies.Count == 0 &&
                 !string.IsNullOrWhiteSpace(patient.Allergies) &&
-                !patient.Allergies.Equals("None", StringComparison.OrdinalIgnoreCase))
+                !patient.Allergies.Equals(
+                    "None",
+                    StringComparison.OrdinalIgnoreCase))
             {
                 allergies = patient.Allergies
                     .Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .Where(x => x.Length > 0)
-                    .Select(x => new { Name = x, Category = "Uncategorised", Severity = "" })
+                    .Select(x => new
+                    {
+                        Name = x,
+                        Category = "Uncategorised",
+                        Severity = ""
+                    })
                     .ToList();
             }
+
             ViewBag.PatientAllergies = allergies;
 
             // CONDITIONS
             var conditions = await _context.PatientMedicalConditions
                 .AsNoTracking()
                 .Where(c => c.PatientID == patientId.Value)
-                .Include(c => c.MedicalCondition).ThenInclude(mc => mc!.Category)
+                .Include(c => c.MedicalCondition)
+                    .ThenInclude(mc => mc!.Category)
                 .Select(c => new
                 {
-                    Name = c.MedicalCondition != null ? c.MedicalCondition.ConditionName : "Unknown",
-                    Category = c.MedicalCondition != null && c.MedicalCondition.Category != null ? c.MedicalCondition.Category.Name : "Uncategorised",
+                    Name = c.MedicalCondition != null
+                        ? c.MedicalCondition.ConditionName
+                        : "Unknown",
+
+                    Category = c.MedicalCondition != null &&
+                               c.MedicalCondition.Category != null
+                        ? c.MedicalCondition.Category.Name
+                        : "Uncategorised",
+
                     Severity = c.Severity ?? ""
                 })
                 .ToListAsync();
 
             if (conditions.Count == 0 &&
                 !string.IsNullOrWhiteSpace(patient.MedicalConditions) &&
-                !patient.MedicalConditions.Equals("None", StringComparison.OrdinalIgnoreCase))
+                !patient.MedicalConditions.Equals(
+                    "None",
+                    StringComparison.OrdinalIgnoreCase))
             {
                 conditions = patient.MedicalConditions
                     .Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .Where(x => x.Length > 0)
-                    .Select(x => new { Name = x, Category = "Uncategorised", Severity = "" })
+                    .Select(x => new
+                    {
+                        Name = x,
+                        Category = "Uncategorised",
+                        Severity = ""
+                    })
                     .ToList();
             }
+
             ViewBag.PatientConditions = conditions;
 
             // MEDICATIONS
             var medications = await _context.PatientMedications
                 .AsNoTracking()
                 .Where(m => m.PatientID == patientId.Value)
-                .Include(m => m.Medication).ThenInclude(med => med!.Category)
+                .Include(m => m.Medication)
+                    .ThenInclude(med => med!.Category)
                 .Select(m => new
                 {
-                    Name = m.Medication != null ? m.Medication.MedicationName : "Unknown",
-                    Category = m.Medication != null && m.Medication.Category != null ? m.Medication.Category.Name : "Uncategorised",
+                    Name = m.Medication != null
+                        ? m.Medication.MedicationName
+                        : "Unknown",
+
+                    Category = m.Medication != null &&
+                               m.Medication.Category != null
+                        ? m.Medication.Category.Name
+                        : "Uncategorised",
+
                     Dosage = m.Dosage ?? "",
                     Frequency = m.Frequency ?? ""
                 })
@@ -191,15 +243,24 @@ namespace LabDash.Controllers
 
             if (medications.Count == 0 &&
                 !string.IsNullOrWhiteSpace(patient.Medication) &&
-                !patient.Medication.Equals("None", StringComparison.OrdinalIgnoreCase))
+                !patient.Medication.Equals(
+                    "None",
+                    StringComparison.OrdinalIgnoreCase))
             {
                 medications = patient.Medication
                     .Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .Where(x => x.Length > 0)
-                    .Select(x => new { Name = x, Category = "Uncategorised", Dosage = "", Frequency = "" })
+                    .Select(x => new
+                    {
+                        Name = x,
+                        Category = "Uncategorised",
+                        Dosage = "",
+                        Frequency = ""
+                    })
                     .ToList();
             }
+
             ViewBag.PatientMedications = medications;
 
             // PREVIOUS RESULTS
@@ -209,12 +270,16 @@ namespace LabDash.Controllers
                     r.TestRequestItem != null &&
                     r.TestRequestItem.TestRequest != null &&
                     r.TestRequestItem.TestRequest.PatientId == patientId.Value)
-                .Include(r => r.TestRequestItem).ThenInclude(i => i.TestType)
+                .Include(r => r.TestRequestItem)
+                    .ThenInclude(i => i.TestType)
                 .OrderByDescending(r => r.DateCaptured)
                 .Take(20)
                 .Select(r => new
                 {
-                    TestName = r.TestRequestItem.TestType != null ? r.TestRequestItem.TestType.Name : "Unknown",
+                    TestName = r.TestRequestItem.TestType != null
+                        ? r.TestRequestItem.TestType.Name
+                        : "Unknown",
+
                     ResultValue = r.ResultValue,
                     Units = r.Units,
                     IsAbnormal = r.IsAbnormal,
@@ -229,7 +294,9 @@ namespace LabDash.Controllers
             var testTypes = await _context.TestTypes
                 .AsNoTracking()
                 .Include(t => t.TestCategory)
-                .OrderBy(t => t.TestCategory != null ? t.TestCategory.CategoryName : t.Category)
+                .OrderBy(t => t.TestCategory != null
+                    ? t.TestCategory.CategoryName
+                    : t.Category)
                 .ThenBy(t => t.Name)
                 .ToListAsync();
 
@@ -250,7 +317,8 @@ namespace LabDash.Controllers
             int[]? selectedTestTypeIds,
             string[]? barcodes)
         {
-            if (selectedTestTypeIds == null || selectedTestTypeIds.Length == 0)
+            if (selectedTestTypeIds == null ||
+                selectedTestTypeIds.Length == 0)
             {
                 TempData["Error"] = "Please select at least one test type.";
                 return RedirectToAction(nameof(Create), new { patientId });
@@ -263,20 +331,28 @@ namespace LabDash.Controllers
             if (cleanBarcodes.Length != selectedTestTypeIds.Length ||
                 cleanBarcodes.Any(b => string.IsNullOrWhiteSpace(b)))
             {
-                TempData["Error"] = "Each selected test must have its own barcode.";
+                TempData["Error"] =
+                    "Each selected test must have its own barcode.";
+
                 return RedirectToAction(nameof(Create), new { patientId });
             }
 
-            if (cleanBarcodes.Select(b => b.ToLowerInvariant()).Distinct().Count() != cleanBarcodes.Length)
+            if (cleanBarcodes
+                .Select(b => b.ToLowerInvariant())
+                .Distinct()
+                .Count() != cleanBarcodes.Length)
             {
                 TempData["Error"] = "Each barcode must be unique.";
                 return RedirectToAction(nameof(Create), new { patientId });
             }
 
             var doctor = await _userManager.GetUserAsync(User);
+
             if (doctor == null)
             {
-                TempData["Error"] = "Unable to identify the logged-in doctor.";
+                TempData["Error"] =
+                    "Unable to identify the logged-in doctor.";
+
                 return RedirectToAction(nameof(Create), new { patientId });
             }
 
@@ -295,7 +371,9 @@ namespace LabDash.Controllers
 
             if (selectedTypes.Count != selectedTestTypeIds.Length)
             {
-                TempData["Error"] = "One or more selected laboratory tests could not be found.";
+                TempData["Error"] =
+                    "One or more selected laboratory tests could not be found.";
+
                 return RedirectToAction(nameof(Create), new { patientId });
             }
 
@@ -332,7 +410,9 @@ namespace LabDash.Controllers
             for (int i = 0; i < cleanBarcodes.Length; i++)
             {
                 int typeId = selectedTestTypeIds[i];
-                var testType = selectedTypes.FirstOrDefault(t => t.Id == typeId);
+
+                var testType = selectedTypes
+                    .FirstOrDefault(t => t.Id == typeId);
 
                 _context.Samples.Add(new Sample
                 {
@@ -347,8 +427,10 @@ namespace LabDash.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Notify patient — decorated email
-            string testListHtml = string.Join(", ", selectedTypes.Select(t => t.Name));
+            // NOTIFY PATIENT
+            string testListHtml = string.Join(
+                ", ",
+                selectedTypes.Select(t => t.Name));
 
             var emailModel = new TestRequestSubmittedEmailViewModel
             {
@@ -378,6 +460,7 @@ namespace LabDash.Controllers
 
             var itemCount = await _context.TestRequestItems
                 .CountAsync(x => x.RequestId == testRequest.RequestId);
+
             var sampleCount = await _context.Samples
                 .CountAsync(x => x.TestRequestId == testRequest.RequestId);
 
@@ -386,6 +469,7 @@ namespace LabDash.Controllers
                 TempData["Error"] =
                     $"Request #{testRequest.RequestId} was created, " +
                     "but no laboratory test items were created.";
+
                 return RedirectToAction(nameof(Index));
             }
 
@@ -402,24 +486,29 @@ namespace LabDash.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null) return NotFound();
+            if (id == null)
+                return NotFound();
 
             var request = await _context.TestRequests
                 .Include(tr => tr.Patient)
-                .Include(tr => tr.TestRequestItems).ThenInclude(tri => tri.TestType)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
                 .FirstOrDefaultAsync(tr => tr.RequestId == id);
 
-            if (request == null) return NotFound();
+            if (request == null)
+                return NotFound();
 
-            // Only Submitted requests can be edited (samples not yet received / tests not started)
             if (request.Status != TestRequestStatus.Submitted)
             {
-                TempData["Error"] = "Only requests with status 'Submitted' can be edited.";
+                TempData["Error"] =
+                    "Only requests with status 'Submitted' can be edited.";
+
                 return RedirectToAction(nameof(Index));
             }
 
             ViewBag.RequestId = request.RequestId;
-            ViewBag.PatientName = $"{request.Patient.Name} {request.Patient.Surname}";
+            ViewBag.PatientName =
+                $"{request.Patient.Name} {request.Patient.Surname}";
             ViewBag.PatientIDNumber = request.Patient.IDNumber;
             ViewBag.RequestDate = request.RequestDate;
             ViewBag.Urgency = request.Urgency;
@@ -433,12 +522,15 @@ namespace LabDash.Controllers
 
             var testTypes = await _context.TestTypes
                 .Include(t => t.TestCategory)
-                .OrderBy(t => t.TestCategory != null ? t.TestCategory.CategoryName : t.Category)
+                .OrderBy(t => t.TestCategory != null
+                    ? t.TestCategory.CategoryName
+                    : t.Category)
                 .ThenBy(t => t.Name)
                 .ToListAsync();
 
             ViewBag.TestTypes = testTypes;
-            ViewBag.SelectedTestTypeIds = request.TestRequestItems.Select(i => i.TestTypeId).ToList();
+            ViewBag.SelectedTestTypeIds =
+                request.TestRequestItems.Select(i => i.TestTypeId).ToList();
 
             return View();
         }
@@ -460,15 +552,19 @@ namespace LabDash.Controllers
                 .Include(tr => tr.Samples)
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
-            if (request == null) return NotFound();
+            if (request == null)
+                return NotFound();
 
             if (request.Status != TestRequestStatus.Submitted)
             {
-                TempData["Error"] = "Only requests with status 'Submitted' can be edited.";
+                TempData["Error"] =
+                    "Only requests with status 'Submitted' can be edited.";
+
                 return RedirectToAction(nameof(Index));
             }
 
-            if (selectedTestTypeIds == null || selectedTestTypeIds.Length == 0)
+            if (selectedTestTypeIds == null ||
+                selectedTestTypeIds.Length == 0)
             {
                 TempData["Error"] = "Select at least one test type.";
                 return RedirectToAction(nameof(Edit), new { id = requestId });
@@ -481,7 +577,9 @@ namespace LabDash.Controllers
 
             if (cleanBarcodes.Length != selectedTestTypeIds.Length)
             {
-                TempData["Error"] = "Each selected test must have its own barcode.";
+                TempData["Error"] =
+                    "Each selected test must have its own barcode.";
+
                 return RedirectToAction(nameof(Edit), new { id = requestId });
             }
 
@@ -511,7 +609,9 @@ namespace LabDash.Controllers
             for (int i = 0; i < cleanBarcodes.Length; i++)
             {
                 int typeId = selectedTestTypeIds[i];
-                var testType = selectedTypes.FirstOrDefault(t => t.Id == typeId);
+
+                var testType = selectedTypes
+                    .FirstOrDefault(t => t.Id == typeId);
 
                 _context.Samples.Add(new Sample
                 {
@@ -526,46 +626,64 @@ namespace LabDash.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = "Test request updated successfully!";
+            TempData["SuccessMessage"] =
+                "Test request updated successfully!";
+
             return RedirectToAction(nameof(Index));
         }
 
         // =============================================================
-        // CANCEL — with decorated email to patient
+        // CANCEL — SUBMITTED REQUESTS ONLY
         // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Cancel(int requestId, string cancellationReason)
+        public async Task<IActionResult> Cancel(
+            int requestId,
+            string cancellationReason)
         {
             var doctor = await _userManager.GetUserAsync(User);
+
+            if (doctor == null)
+                return Forbid();
 
             var request = await _context.TestRequests
                 .Include(tr => tr.Patient)
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
-            if (request == null) return NotFound();
-            if (request.RequestingDoctorId != doctor.Id) return Forbid();
+            if (request == null)
+                return NotFound();
 
-            // Cancellable only while Submitted or Samples Received
-            if (request.Status != TestRequestStatus.Submitted &&
-                request.Status != TestRequestStatus.SamplesReceived)
+            if (request.RequestingDoctorId != doctor.Id)
+                return Forbid();
+
+            // Only Submitted requests can be cancelled
+            if (request.Status != TestRequestStatus.Submitted)
             {
-                TempData["Error"] = "This request can no longer be cancelled.";
+                TempData["Error"] =
+                    "Only requests with status 'Submitted' can be cancelled.";
+
                 return RedirectToAction(nameof(Index));
             }
 
             if (string.IsNullOrWhiteSpace(cancellationReason))
             {
-                TempData["Error"] = "A cancellation reason is required.";
+                TempData["Error"] =
+                    "Please specify a reason for cancelling this request.";
+
                 return RedirectToAction(nameof(Index));
             }
+
+            cancellationReason = cancellationReason.Trim();
 
             request.Status = TestRequestStatus.Cancelled;
             request.CancellationReason = cancellationReason;
             request.CancelledDate = DateTime.Now;
+
             await _context.SaveChangesAsync();
 
-            if (request.Patient != null && !string.IsNullOrWhiteSpace(request.Patient.Email))
+            // EMAIL PATIENT
+            if (request.Patient != null &&
+                !string.IsNullOrWhiteSpace(request.Patient.Email))
             {
                 var emailModel = new TestRequestCancelledEmailViewModel
                 {
@@ -589,11 +707,13 @@ namespace LabDash.Controllers
                 }
                 catch
                 {
-                    // Request is cancelled regardless of email success.
+                    // Cancellation remains saved if email delivery fails.
                 }
             }
 
-            TempData["Success"] = "Test request cancelled and the patient has been notified.";
+            TempData["Success"] =
+                "Test request cancelled successfully. The patient has been notified.";
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -603,7 +723,9 @@ namespace LabDash.Controllers
         public async Task<IActionResult> Track()
         {
             var doctor = await _userManager.GetUserAsync(User);
-            if (doctor == null) return Forbid();
+
+            if (doctor == null)
+                return Forbid();
 
             var allRequests = await _context.TestRequests
                 .Include(tr => tr.Patient)
@@ -611,7 +733,7 @@ namespace LabDash.Controllers
                 .Include(tr => tr.TestRequestItems)
                     .ThenInclude(tri => tri.TestType)
                 .Include(tr => tr.TestRequestItems)
-                    .ThenInclude(tri => tri.TestResults)   // ← ADDED
+                    .ThenInclude(tri => tri.TestResults)
                 .Where(r => r.RequestingDoctorId == doctor.Id)
                 .OrderByDescending(r => r.RequestDate)
                 .ToListAsync();
@@ -627,39 +749,57 @@ namespace LabDash.Controllers
                 .ToList();
 
             ViewBag.TotalRequests = allRequests.Count;
-            ViewBag.StatusSubmitted = allRequests.Count(r => r.Status == TestRequestStatus.Submitted);
-            ViewBag.StatusReceived = allRequests.Count(r => r.Status == TestRequestStatus.SamplesReceived);
-            ViewBag.StatusInProgress = allRequests.Count(r => r.Status == TestRequestStatus.InProgress);
-            ViewBag.StatusCompleted = allRequests.Count(r => r.Status == TestRequestStatus.Completed);
-            ViewBag.StatusReleased = allRequests.Count(r => r.Status == TestRequestStatus.ReleasedByDoctor);
-            ViewBag.StatusCancelled = allRequests.Count(r => r.Status == TestRequestStatus.Cancelled);
+
+            ViewBag.StatusSubmitted =
+                allRequests.Count(r => r.Status == TestRequestStatus.Submitted);
+
+            ViewBag.StatusReceived =
+                allRequests.Count(r => r.Status == TestRequestStatus.SamplesReceived);
+
+            ViewBag.StatusInProgress =
+                allRequests.Count(r => r.Status == TestRequestStatus.InProgress);
+
+            ViewBag.StatusCompleted =
+                allRequests.Count(r => r.Status == TestRequestStatus.Completed);
+
+            ViewBag.StatusReleased =
+                allRequests.Count(r => r.Status == TestRequestStatus.ReleasedByDoctor);
+
+            ViewBag.StatusCancelled =
+                allRequests.Count(r => r.Status == TestRequestStatus.Cancelled);
 
             return View(folders);
         }
 
         // =============================================================
-        // RELEASE REQUEST — only when ALL items Verified
+        // RELEASE REQUEST — ONLY WHEN ALL ITEMS VERIFIED
         // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ReleaseRequest(int requestId)
         {
             var doctor = await _userManager.GetUserAsync(User);
-            if (doctor == null) return Forbid();
+
+            if (doctor == null)
+                return Forbid();
 
             var request = await _context.TestRequests
                 .Include(tr => tr.TestRequestItems)
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
-            if (request == null) return NotFound();
-            if (request.RequestingDoctorId != doctor.Id) return Forbid();
+            if (request == null)
+                return NotFound();
 
-            // Verified-before-release gate
+            if (request.RequestingDoctorId != doctor.Id)
+                return Forbid();
+
             if (request.TestRequestItems == null ||
                 !request.TestRequestItems.Any() ||
                 request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
             {
-                TempData["Error"] = "All tests must be verified before releasing.";
+                TempData["Error"] =
+                    "All tests must be verified before releasing.";
+
                 return RedirectToAction(nameof(Index));
             }
 
@@ -669,6 +809,7 @@ namespace LabDash.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Results released to the patient.";
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -680,17 +821,20 @@ namespace LabDash.Controllers
             var request = await _context.TestRequests
                 .Include(tr => tr.Patient)
                 .Include(tr => tr.RequestingDoctor)
-                .Include(tr => tr.TestRequestItems).ThenInclude(tri => tri.TestType)
-                .Include(tr => tr.TestRequestItems).ThenInclude(tri => tri.TestResults)   // ← ADDED
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestType)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(tri => tri.TestResults)
                 .FirstOrDefaultAsync(tr => tr.RequestId == id);
 
-            if (request == null) return NotFound();
+            if (request == null)
+                return NotFound();
 
             return View("PatientRequests", new List<TestRequest> { request });
         }
 
         // =============================================================
-        // PATIENT RESULTS — verified-before-view gate
+        // PATIENT RESULTS — VERIFIED-BEFORE-VIEW GATE
         // =============================================================
         [HttpGet]
         public async Task<IActionResult> PatientResults(int requestId)
@@ -701,30 +845,43 @@ namespace LabDash.Controllers
             }
 
             var doctor = await _userManager.GetUserAsync(User);
-            if (doctor == null) return Forbid();
+
+            if (doctor == null)
+                return Forbid();
 
             var request = await _context.TestRequests
                 .Include(tr => tr.Patient)
                 .Include(tr => tr.RequestingDoctor)
-                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestType)
-                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestResults).ThenInclude(r => r.CapturedByTechnician)
-                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestResults).ThenInclude(r => r.VerifiedByTechnician)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(i => i.TestType)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(i => i.TestResults)
+                        .ThenInclude(r => r.CapturedByTechnician)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(i => i.TestResults)
+                        .ThenInclude(r => r.VerifiedByTechnician)
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
-            if (request == null) return NotFound();
-            if (request.RequestingDoctorId != doctor.Id) return Forbid();
+            if (request == null)
+                return NotFound();
 
-            var allVerified = request.TestRequestItems.Count > 0 &&
-                              request.TestRequestItems.All(i => i.Status == TestStatus.Verified);
+            if (request.RequestingDoctorId != doctor.Id)
+                return Forbid();
+
+            var allVerified =
+                request.TestRequestItems.Count > 0 &&
+                request.TestRequestItems.All(i => i.Status == TestStatus.Verified);
 
             bool canView = allVerified &&
-                          (request.Status == TestRequestStatus.Completed ||
-                           request.Status == TestRequestStatus.AppointmentScheduled ||
-                           request.Status == TestRequestStatus.ReleasedByDoctor);
+                (request.Status == TestRequestStatus.Completed ||
+                 request.Status == TestRequestStatus.AppointmentScheduled ||
+                 request.Status == TestRequestStatus.ReleasedByDoctor);
 
             if (!canView)
             {
-                TempData["Error"] = "Results are not yet available for this request.";
+                TempData["Error"] =
+                    "Results are not yet available for this request.";
+
                 return RedirectToAction(nameof(ViewRequest), new { id = requestId });
             }
 
@@ -732,56 +889,69 @@ namespace LabDash.Controllers
         }
 
         // =============================================================
-        // RELEASE WITH NOTE
+        // RELEASE WITH NOTE — SENDS PDF VIA EMAIL
         // =============================================================
-        // =============================================================
-        // RELEASE WITH NOTE — Sends PDF via Email
-        // POST: /TestRequest/ReleaseWithNote
-        // =============================================================
-
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ReleaseWithNote(int requestId, string mode, string? note)
+        public async Task<IActionResult> ReleaseWithNote(
+            int requestId,
+            string mode,
+            string? note)
         {
             var doctor = await _userManager.GetUserAsync(User);
-            if (doctor == null) return Forbid();
+
+            if (doctor == null)
+                return Forbid();
 
             var request = await _context.TestRequests
                 .Include(tr => tr.Patient)
                 .Include(tr => tr.RequestingDoctor)
-                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestType)
-                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestResults).ThenInclude(res => res.VerifiedByTechnician)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(i => i.TestType)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(i => i.TestResults)
+                        .ThenInclude(res => res.VerifiedByTechnician)
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
-            if (request == null) return NotFound();
-            if (request.RequestingDoctorId != doctor.Id) return Forbid();
+            if (request == null)
+                return NotFound();
 
-            // Gate: All tests must be verified
+            if (request.RequestingDoctorId != doctor.Id)
+                return Forbid();
+
             if (request.TestRequestItems == null ||
                 !request.TestRequestItems.Any() ||
                 request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
             {
-                TempData["Error"] = "All tests must be verified before releasing.";
+                TempData["Error"] =
+                    "All tests must be verified before releasing.";
+
                 return RedirectToAction(nameof(PatientResults), new { requestId });
             }
 
             var patient = request.Patient;
-            if (patient == null || string.IsNullOrWhiteSpace(patient.Email))
+
+            if (patient == null ||
+                string.IsNullOrWhiteSpace(patient.Email))
             {
-                TempData["Error"] = "Patient email is missing. Cannot notify.";
+                TempData["Error"] =
+                    "Patient email is missing. Cannot notify.";
+
                 return RedirectToAction(nameof(PatientResults), new { requestId });
             }
 
             try
             {
-                // 1. Generate PDF
+                // GENERATE PDF
                 var pdfData = new VerifiedResultsReportData
                 {
                     RequestId = request.RequestId,
                     PatientFullName = $"{patient.Name} {patient.Surname}",
                     PatientIdNumber = patient.IDNumber,
-                    RequestingDoctorFullName = $"Dr. {doctor.FirstName} {doctor.LastName}",
+                    RequestingDoctorFullName =
+                        $"Dr. {doctor.FirstName} {doctor.LastName}",
                     GeneratedAt = DateTime.Now,
+
                     Rows = request.TestRequestItems
                         .Where(i => i.Status == TestStatus.Verified)
                         .SelectMany(i => i.TestResults
@@ -794,9 +964,12 @@ namespace LabDash.Controllers
                                 ReferenceRange = r.ReferenceRange,
                                 IsAbnormal = r.IsAbnormal,
                                 Comments = r.Comments,
-                                VerifiedByFullName = r.VerifiedByTechnician != null
-                                    ? $"{r.VerifiedByTechnician.FirstName} {r.VerifiedByTechnician.LastName}"
-                                    : null,
+
+                                VerifiedByFullName =
+                                    r.VerifiedByTechnician != null
+                                        ? $"{r.VerifiedByTechnician.FirstName} {r.VerifiedByTechnician.LastName}"
+                                        : null,
+
                                 VerificationDate = r.VerificationDate
                             }))
                         .ToList()
@@ -804,7 +977,7 @@ namespace LabDash.Controllers
 
                 var pdfBytes = _pdfGenerator.Generate(pdfData);
 
-                // 2. Prepare Email Model
+                // PREPARE EMAIL MODEL
                 var emailModel = new ReleasedResultsEmailViewModel
                 {
                     PatientName = patient.Name,
@@ -812,12 +985,13 @@ namespace LabDash.Controllers
                     RequestId = request.RequestId,
                     ReleaseDate = DateTime.Now,
                     ReleaseNote = note,
+
                     Message = mode == "InviteConsultation"
                         ? $"Dr. {doctor.LastName} has reviewed your laboratory results and would like to invite you for a consultation to discuss them."
                         : $"Dr. {doctor.LastName} has released your laboratory results."
                 };
 
-                // 3. Render HTML Email
+                // RENDER EMAIL
                 string emailBody = await _emailRenderer.RenderAsync(
                     "~/Views/Emails/ReleasedResults.cshtml",
                     emailModel,
@@ -827,7 +1001,7 @@ namespace LabDash.Controllers
                     ? $"Consultation Invitation - TR-{request.RequestId}"
                     : $"Your Laboratory Results - TR-{request.RequestId}";
 
-                // 4. Send Email with PDF Attachment
+                // SEND EMAIL WITH PDF
                 await _attachmentSender.SendEmailWithAttachmentAsync(
                     patient.Email,
                     subject,
@@ -835,28 +1009,32 @@ namespace LabDash.Controllers
                     pdfBytes,
                     $"NMB_LabResults_TR-{request.RequestId}.pdf");
 
-                // 5. Update Status
+                // UPDATE STATUS
                 request.Status = TestRequestStatus.ReleasedByDoctor;
                 request.ReleaseDate = DateTime.Now;
                 request.ReleaseNote = note;
 
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = "Results released and decorated PDF emailed to the patient.";
+                TempData["Success"] =
+                    "Results released and decorated PDF emailed to the patient.";
             }
             catch (Exception ex)
             {
-                // Still release it in the database even if the email fails
+                // Still release it in the database if email fails
                 request.Status = TestRequestStatus.ReleasedByDoctor;
                 request.ReleaseDate = DateTime.Now;
                 request.ReleaseNote = note;
+
                 await _context.SaveChangesAsync();
 
-                TempData["Warning"] = $"Results were released, but the email failed to send: {ex.Message}";
+                TempData["Warning"] =
+                    $"Results were released, but the email failed to send: {ex.Message}";
             }
 
             return RedirectToAction(nameof(PatientResults), new { requestId });
         }
+
         // =============================================================
         // RESULTS PDF
         // =============================================================
@@ -871,19 +1049,25 @@ namespace LabDash.Controllers
             QuestPDF.Settings.License = LicenseType.Community;
 
             var doctor = await _userManager.GetUserAsync(User);
-            if (doctor == null) return Forbid();
+
+            if (doctor == null)
+                return Forbid();
 
             var request = await _context.TestRequests
                 .Include(tr => tr.Patient)
                 .Include(tr => tr.RequestingDoctor)
-                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestType)
-                .Include(tr => tr.TestRequestItems).ThenInclude(i => i.TestResults)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(i => i.TestType)
+                .Include(tr => tr.TestRequestItems)
+                    .ThenInclude(i => i.TestResults)
                 .FirstOrDefaultAsync(tr => tr.RequestId == requestId);
 
-            if (request == null) return NotFound();
-            if (request.RequestingDoctorId != doctor.Id) return Forbid();
+            if (request == null)
+                return NotFound();
 
-            // Verified-before-PDF gate
+            if (request.RequestingDoctorId != doctor.Id)
+                return Forbid();
+
             var verifiedItems = request.TestRequestItems
                 .Where(i => i.Status == TestStatus.Verified)
                 .ToList();
@@ -891,7 +1075,9 @@ namespace LabDash.Controllers
             if (verifiedItems.Count == 0 ||
                 request.TestRequestItems.Any(i => i.Status != TestStatus.Verified))
             {
-                TempData["Error"] = "All tests must be verified before generating the report.";
+                TempData["Error"] =
+                    "All tests must be verified before generating the report.";
+
                 return RedirectToAction(nameof(ViewRequest), new { id = requestId });
             }
 
@@ -903,118 +1089,225 @@ namespace LabDash.Controllers
                 {
                     page.Size(PageSizes.A4);
                     page.Margin(40);
-                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Lato"));
+                    page.DefaultTextStyle(
+                        x => x.FontSize(10).FontFamily("Lato"));
 
                     page.Header().Column(col =>
                     {
-                        col.Item().Background("#0d6b63").Padding(20).Row(row =>
-                        {
-                            row.RelativeItem().Column(c =>
+                        col.Item()
+                            .Background("#0d6b63")
+                            .Padding(20)
+                            .Row(row =>
                             {
-                                c.Item().Text("LABDASH HAEMATOLOGY LABORATORY")
-                                    .FontSize(16).Bold().FontColor("#ffffff");
-                                c.Item().Text("Test Results Report")
-                                    .FontSize(11).FontColor("#d1ede8");
+                                row.RelativeItem().Column(c =>
+                                {
+                                    c.Item()
+                                        .Text("LABDASH HAEMATOLOGY LABORATORY")
+                                        .FontSize(16)
+                                        .Bold()
+                                        .FontColor("#ffffff");
+
+                                    c.Item()
+                                        .Text("Test Results Report")
+                                        .FontSize(11)
+                                        .FontColor("#d1ede8");
+                                });
+
+                                row.ConstantItem(180)
+                                    .AlignRight()
+                                    .Column(c =>
+                                    {
+                                        c.Item()
+                                            .Text($"Request #{request.RequestId}")
+                                            .FontSize(11)
+                                            .Bold()
+                                            .FontColor("#ffffff");
+
+                                        c.Item()
+                                            .Text(request.RequestDate.ToString("dd MMM yyyy"))
+                                            .FontSize(10)
+                                            .FontColor("#d1ede8");
+
+                                        c.Item()
+                                            .Text($"Urgency: {request.Urgency}")
+                                            .FontSize(10)
+                                            .FontColor("#d1ede8");
+                                    });
                             });
-                            row.ConstantItem(180).AlignRight().Column(c =>
-                            {
-                                c.Item().Text($"Request #{request.RequestId}")
-                                    .FontSize(11).Bold().FontColor("#ffffff");
-                                c.Item().Text(request.RequestDate.ToString("dd MMM yyyy"))
-                                    .FontSize(10).FontColor("#d1ede8");
-                                c.Item().Text($"Urgency: {request.Urgency}")
-                                    .FontSize(10).FontColor("#d1ede8");
-                            });
-                        });
                     });
 
-                    page.Content().PaddingVertical(20).Column(col =>
-                    {
-                        col.Item().PaddingBottom(8).Text("Patient Information")
-                            .FontSize(12).Bold().FontColor("#0d6b63");
-
-                        col.Item().Border(1).BorderColor("#e3e8ee").Padding(12).Column(inner =>
+                    page.Content()
+                        .PaddingVertical(20)
+                        .Column(col =>
                         {
-                            inner.Item().Row(r =>
-                            {
-                                r.RelativeItem().Column(c =>
+                            col.Item()
+                                .PaddingBottom(8)
+                                .Text("Patient Information")
+                                .FontSize(12)
+                                .Bold()
+                                .FontColor("#0d6b63");
+
+                            col.Item()
+                                .Border(1)
+                                .BorderColor("#e3e8ee")
+                                .Padding(12)
+                                .Column(inner =>
                                 {
-                                    c.Item().Text($"Name: {patient.Name} {patient.Surname}").FontSize(10);
-                                    c.Item().Text($"ID Number: {patient.IDNumber}").FontSize(10);
-                                    c.Item().Text($"Date of Birth: {patient.DOB:dd MMM yyyy}").FontSize(10);
+                                    inner.Item().Row(r =>
+                                    {
+                                        r.RelativeItem().Column(c =>
+                                        {
+                                            c.Item()
+                                                .Text($"Name: {patient.Name} {patient.Surname}")
+                                                .FontSize(10);
+
+                                            c.Item()
+                                                .Text($"ID Number: {patient.IDNumber}")
+                                                .FontSize(10);
+
+                                            c.Item()
+                                                .Text($"Date of Birth: {patient.DOB:dd MMM yyyy}")
+                                                .FontSize(10);
+                                        });
+
+                                        r.RelativeItem().Column(c =>
+                                        {
+                                            c.Item()
+                                                .Text($"Email: {patient.Email}")
+                                                .FontSize(10);
+
+                                            c.Item()
+                                                .Text($"Cellphone: {patient.CellphoneNumber}")
+                                                .FontSize(10);
+
+                                            c.Item()
+                                                .Text($"Requested by: Dr. {doctor.FirstName} {doctor.LastName}")
+                                                .FontSize(10);
+                                        });
+                                    });
                                 });
-                                r.RelativeItem().Column(c =>
+
+                            col.Item()
+                                .PaddingTop(20)
+                                .PaddingBottom(8)
+                                .Text("Test Results")
+                                .FontSize(12)
+                                .Bold()
+                                .FontColor("#0d6b63");
+
+                            col.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
                                 {
-                                    c.Item().Text($"Email: {patient.Email}").FontSize(10);
-                                    c.Item().Text($"Cellphone: {patient.CellphoneNumber}").FontSize(10);
-                                    c.Item().Text($"Requested by: Dr. {doctor.FirstName} {doctor.LastName}").FontSize(10);
+                                    columns.RelativeColumn(3);
+                                    columns.RelativeColumn(2);
+                                    columns.RelativeColumn(1);
+                                    columns.RelativeColumn(2);
+                                    columns.RelativeColumn(1.5f);
                                 });
+
+                                table.Header(header =>
+                                {
+                                    header.Cell().Background("#f3faf9")
+                                        .Padding(8).Text("Test")
+                                        .FontSize(9).Bold().FontColor("#0d6b63");
+
+                                    header.Cell().Background("#f3faf9")
+                                        .Padding(8).Text("Result")
+                                        .FontSize(9).Bold().FontColor("#0d6b63");
+
+                                    header.Cell().Background("#f3faf9")
+                                        .Padding(8).Text("Units")
+                                        .FontSize(9).Bold().FontColor("#0d6b63");
+
+                                    header.Cell().Background("#f3faf9")
+                                        .Padding(8).Text("Reference")
+                                        .FontSize(9).Bold().FontColor("#0d6b63");
+
+                                    header.Cell().Background("#f3faf9")
+                                        .Padding(8).Text("Flag")
+                                        .FontSize(9).Bold().FontColor("#0d6b63");
+                                });
+
+                                foreach (var item in verifiedItems.OrderBy(i => i.TestType?.Name))
+                                {
+                                    var result = item.TestResults?
+                                        .Where(r => r.Status == TestStatus.Verified)
+                                        .OrderByDescending(r => r.DateCaptured)
+                                        .FirstOrDefault();
+
+                                    bool abnormal = result?.IsAbnormal ?? false;
+
+                                    string flagText = result == null
+                                        ? "Pending"
+                                        : result.IsAbnormal
+                                            ? "ABNORMAL"
+                                            : "Normal";
+
+                                    string bg = abnormal
+                                        ? "#fff6f6"
+                                        : "#ffffff";
+
+                                    string flagColor = abnormal
+                                        ? "#b42318"
+                                        : result == null
+                                            ? "#92400e"
+                                            : "#0d6b63";
+
+                                    table.Cell().Background(bg).Padding(8)
+                                        .Text(item.TestType?.Name ?? "Test")
+                                        .FontSize(10);
+
+                                    table.Cell().Background(bg).Padding(8)
+                                        .Text(result?.ResultValue ?? "—")
+                                        .FontSize(10).Bold();
+
+                                    table.Cell().Background(bg).Padding(8)
+                                        .Text(result?.Units ?? "—")
+                                        .FontSize(10);
+
+                                    table.Cell().Background(bg).Padding(8)
+                                        .Text(result?.ReferenceRange ?? "—")
+                                        .FontSize(10);
+
+                                    table.Cell().Background(bg).Padding(8)
+                                        .Text(flagText)
+                                        .FontSize(9)
+                                        .Bold()
+                                        .FontColor(flagColor);
+                                }
                             });
+
+                            col.Item()
+                                .PaddingTop(24)
+                                .Text(
+                                    "This report was generated by LABDASH Haematology Laboratory. " +
+                                    "For clinical questions, please contact your referring doctor.")
+                                .FontSize(8)
+                                .FontColor("#7d8e8a");
                         });
-
-                        col.Item().PaddingTop(20).PaddingBottom(8).Text("Test Results")
-                            .FontSize(12).Bold().FontColor("#0d6b63");
-
-                        col.Item().Table(table =>
-                        {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(3);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(1);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(1.5f);
-                            });
-
-                            table.Header(header =>
-                            {
-                                header.Cell().Background("#f3faf9").Padding(8).Text("Test").FontSize(9).Bold().FontColor("#0d6b63");
-                                header.Cell().Background("#f3faf9").Padding(8).Text("Result").FontSize(9).Bold().FontColor("#0d6b63");
-                                header.Cell().Background("#f3faf9").Padding(8).Text("Units").FontSize(9).Bold().FontColor("#0d6b63");
-                                header.Cell().Background("#f3faf9").Padding(8).Text("Reference").FontSize(9).Bold().FontColor("#0d6b63");
-                                header.Cell().Background("#f3faf9").Padding(8).Text("Flag").FontSize(9).Bold().FontColor("#0d6b63");
-                            });
-
-                            foreach (var item in verifiedItems.OrderBy(i => i.TestType?.Name))
-                            {
-                                var result = item.TestResults?
-                                    .Where(r => r.Status == TestStatus.Verified)
-                                    .OrderByDescending(r => r.DateCaptured)
-                                    .FirstOrDefault();
-
-                                bool abnormal = result?.IsAbnormal ?? false;
-                                string flagText = result == null ? "Pending" : result.IsAbnormal ? "ABNORMAL" : "Normal";
-                                string bg = abnormal ? "#fff6f6" : "#ffffff";
-                                string flagColor = abnormal ? "#b42318" : (result == null ? "#92400e" : "#0d6b63");
-
-                                table.Cell().Background(bg).Padding(8).Text(item.TestType?.Name ?? "Test").FontSize(10);
-                                table.Cell().Background(bg).Padding(8).Text(result?.ResultValue ?? "—").FontSize(10).Bold();
-                                table.Cell().Background(bg).Padding(8).Text(result?.Units ?? "—").FontSize(10);
-                                table.Cell().Background(bg).Padding(8).Text(result?.ReferenceRange ?? "—").FontSize(10);
-                                table.Cell().Background(bg).Padding(8).Text(flagText).FontSize(9).Bold().FontColor(flagColor);
-                            }
-                        });
-
-                        col.Item().PaddingTop(24).Text(
-                            "This report was generated by LABDASH Haematology Laboratory. " +
-                            "For clinical questions, please contact your referring doctor.")
-                            .FontSize(8).FontColor("#7d8e8a");
-                    });
 
                     page.Footer().AlignCenter().Text(text =>
                     {
-                        text.Span("Generated on ").FontSize(8).FontColor("#7d8e8a");
-                        text.Span(DateTime.Now.ToString("dd MMM yyyy HH:mm")).FontSize(8).FontColor("#7d8e8a");
+                        text.Span("Generated on ")
+                            .FontSize(8)
+                            .FontColor("#7d8e8a");
+
+                        text.Span(DateTime.Now.ToString("dd MMM yyyy HH:mm"))
+                            .FontSize(8)
+                            .FontColor("#7d8e8a");
                     });
                 });
             }).GeneratePdf();
 
-            string fileName = $"Results_Request{request.RequestId}_{patient.Surname}_{DateTime.Now:yyyyMMdd}.pdf";
+            string fileName =
+                $"Results_Request{request.RequestId}_{patient.Surname}_{DateTime.Now:yyyyMMdd}.pdf";
+
             return File(pdfBytes, "application/pdf", fileName);
         }
 
         // =============================================================
-        // RESULTS ACCESS — Password gate
+        // RESULTS ACCESS — PASSWORD GATE
         // =============================================================
         private const string ResultsAccessSessionKey = "DoctorResultsAccess";
         private const string ResultsRequiredPassword = "Password!123";
@@ -1028,6 +1321,7 @@ namespace LabDash.Controllers
             }
 
             ViewBag.RequestId = requestId;
+
             return View("ResultsPassword");
         }
 
@@ -1037,28 +1331,42 @@ namespace LabDash.Controllers
         {
             if (string.IsNullOrWhiteSpace(password))
             {
-                ModelState.AddModelError(string.Empty, "Please enter the access password.");
+                ModelState.AddModelError(
+                    string.Empty,
+                    "Please enter the access password.");
+
                 ViewBag.RequestId = requestId;
+
                 return View("ResultsPassword");
             }
 
             if (password != ResultsRequiredPassword)
             {
-                ModelState.AddModelError(string.Empty, "Incorrect password. Please try again.");
+                ModelState.AddModelError(
+                    string.Empty,
+                    "Incorrect password. Please try again.");
+
                 ViewBag.RequestId = requestId;
+
                 return View("ResultsPassword");
             }
 
             HttpContext.Session.SetString(ResultsAccessSessionKey, "Granted");
+
             return RedirectToAction(nameof(PatientResults), new { requestId });
         }
 
+        // =============================================================
+        // LOCK RESULTS
+        // =============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult LockResults()
         {
             HttpContext.Session.Remove(ResultsAccessSessionKey);
+
             TempData["Success"] = "Results access has been locked.";
+
             return RedirectToAction(nameof(Track));
         }
     }

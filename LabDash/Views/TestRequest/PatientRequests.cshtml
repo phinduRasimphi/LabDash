@@ -1,738 +1,415 @@
-﻿@model List<LabDash.Models.TestRequest>
+﻿@model LabDash.Models.TestRequest
 
 @{
-    ViewData["Title"] = "Test Request Status";
+    ViewData["Title"] = "Patient Results";
     Layout = "~/Views/Shared/_DoctorLayout.cshtml";
 
-    var firstRequest = Model.FirstOrDefault();
-    var patient = firstRequest?.Patient;
+    var patient = Model.Patient;
 }
 
 <style>
-    .pr-page {
-        max-width: 1050px;
+    .results-page {
+        max-width: 1150px;
         margin: 0 auto;
-        padding: 24px;
-    }
-
-    .pr-header {
-        background: linear-gradient(135deg, #0d6b63, #1a8c82);
-        color: #fff;
-        border-radius: 16px;
-        padding: 20px 24px;
-        margin-bottom: 22px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 15px;
-        flex-wrap: wrap;
-    }
-
-        .pr-header h2 {
-            margin: 0 0 4px;
-            font-size: 20px;
-            font-weight: 750;
-        }
-
-        .pr-header p {
-            margin: 0;
-            font-size: 13px;
-            opacity: .9;
-        }
-
-    .pr-back {
-        color: #fff;
-        text-decoration: none;
-        font-size: 12px;
-        font-weight: 700;
-        background: rgba(255,255,255,.14);
-        padding: 9px 14px;
-        border-radius: 10px;
-        border: 1px solid rgba(255,255,255,.20);
-    }
-
-        .pr-back:hover {
-            color: #fff;
-            background: rgba(255,255,255,.22);
-        }
-
-    .req-card {
-        background: #fff;
-        border: 1px solid #e0ebe8;
-        border-radius: 18px;
-        margin-bottom: 22px;
-        overflow: hidden;
-        box-shadow: 0 5px 22px rgba(31,78,72,.055);
-    }
-
-    .req-card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 15px;
-        padding: 18px 24px;
-        background: linear-gradient(135deg, #0b5f58, #0d6b63 55%, #1a8c82);
-        color: #fff;
-    }
-
-        .req-card-header h3 {
-            margin: 0;
-            font-size: 17px;
-            font-weight: 750;
-        }
-
-        .req-card-header .req-id {
-            font-family: 'Courier New', monospace;
-            background: rgba(255,255,255,.14);
-            padding: 5px 11px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-    .req-card-body {
-        padding: 24px;
-    }
-
-    .status {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 750;
-        white-space: nowrap;
-    }
-
-        .status.Submitted {
-            background: #e3f2fd;
-            color: #1565c0;
-        }
-
-        .status.SamplesReceived {
-            background: #f3e5f5;
-            color: #6a1b9a;
-        }
-
-        .status.InProgress {
-            background: #fff8e1;
-            color: #8a6d00;
-        }
-
-        .status.Completed {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-
-        .status.AppointmentScheduled {
-            background: #eef4ff;
-            color: #29579a;
-        }
-
-        .status.Released {
-            background: #e0f2f1;
-            color: #00695c;
-        }
-
-        .status.Cancelled {
-            background: #ffebee;
-            color: #c62828;
-        }
-
-    .prog-track {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-    }
-
-    .prog-step {
-        flex: 1;
-        min-width: 86px;
-        text-align: center;
-        padding: 10px 8px;
-        font-size: 10px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .4px;
-        color: #9aa9a5;
-        border-radius: 10px;
-        background: #f5f7f7;
-        border: 1px solid #e0ebe8;
-    }
-
-        .prog-step.done {
-            background: #e0f2f1;
-            border-color: #b2dfdb;
-            color: #00695c;
-        }
-
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 14px;
-        margin-bottom: 20px;
-    }
-
-    .info-box {
-        background: #f8fafb;
-        border: 1px solid #edf1f4;
-        border-radius: 12px;
-        padding: 12px 14px;
-    }
-
-        .info-box .lbl {
-            display: block;
-            font-size: 9px;
-            font-weight: 750;
-            color: #8291a5;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-            margin-bottom: 4px;
-        }
-
-        .info-box .val {
-            color: #26384d;
-            font-size: 13px;
-            font-weight: 600;
-            word-break: break-word;
-        }
-
-    .section-title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #0d6b63;
-        font-size: 12px;
-        font-weight: 750;
-        text-transform: uppercase;
-        letter-spacing: .5px;
-        margin: 20px 0 12px;
-        padding-bottom: 8px;
-        border-bottom: 2px solid #eaf6f4;
-    }
-
-    .notes-box {
-        background: #f0faf8;
-        border: 1px solid #ccebe7;
-        border-left: 4px solid #0d6b63;
-        border-radius: 12px;
-        padding: 14px 16px;
-        color: #294943;
-        font-size: 13px;
-        line-height: 1.6;
-    }
-
-        .notes-box.empty {
-            color: #9aa9a5;
-            font-style: italic;
-        }
-
-    .item-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .item-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 14px;
-        border-radius: 12px;
-        background: #fbfdfc;
-        border: 1px solid #e7efee;
-        font-size: 12px;
-        color: #35534d;
-    }
-
-        .item-row .item-name {
-            font-weight: 700;
-        }
-
-        .item-row .item-status {
-            padding: 5px 10px;
-            border-radius: 999px;
-            font-size: 10px;
-            font-weight: 700;
-            background: #f0f0f0;
-            color: #666;
-        }
-
-            .item-row .item-status.Submitted {
-                background: #f0f0f0;
-                color: #666;
-            }
-
-            .item-row .item-status.InProgress {
-                background: #fff8e1;
-                color: #8a6d00;
-            }
-
-            .item-row .item-status.Completed {
-                background: #e8f5e9;
-                color: #2e7d32;
-            }
-
-            .item-row .item-status.Verified {
-                background: #e0f2f1;
-                color: #00695c;
-            }
-
-            .item-row .item-status.ToBeReviewed {
-                background: #fff0f0;
-                color: #b42318;
-            }
-
-    .req-actions {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        gap: 10px;
-        margin-top: 20px;
-        padding-top: 18px;
-        border-top: 1px solid #e0ebe8;
-        flex-wrap: wrap;
-    }
-
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 10px 18px;
-        border-radius: 10px;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        border: 1px solid transparent;
-        text-decoration: none;
-        transition: all .15s ease;
-    }
-
-    .btn-primary {
-        background: #0d6b63;
-        color: #fff;
-    }
-
-        .btn-primary:hover {
-            background: #09564f;
-            color: #fff;
-        }
-
-        .btn-primary[disabled] {
-            background: #dfe6ed;
-            color: #9aa9a5;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-
-    .btn-secondary {
-        background: #fff;
-        border-color: #dfe6ed;
-        color: #4a5c7c;
-    }
-
-        .btn-secondary:hover {
-            background: #f5faf9;
-            color: #0d6b63;
-        }
-
-    .btn-danger {
-        background: #fff;
-        border-color: #f0c9c9;
-        color: #b42318;
-    }
-
-        .btn-danger:hover {
-            background: #fff5f5;
-            color: #b42318;
-        }
-
-    .btn-hint {
-        font-size: 10.5px;
-        color: #9aa9a5;
-        align-self: center;
-    }
-
-    .modal-backdrop-c {
-        position: fixed;
-        inset: 0;
-        background: rgba(15,31,45,.55);
-        backdrop-filter: blur(3px);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
         padding: 20px;
+        font-family: 'Inter', system-ui, sans-serif;
+        color: #263238;
     }
 
-        .modal-backdrop-c.show {
-            display: flex;
+    .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+        .results-header h2 {
+            font-size: 25px;
+            font-weight: 750;
+            color: #123c38;
+            margin: 0 0 6px;
         }
 
-    .modal-c {
+        .results-header p {
+            color: #718096;
+            margin: 0;
+            font-size: 14px;
+        }
+
+    .results-card {
         background: #fff;
-        border-radius: 18px;
-        max-width: 480px;
-        width: 100%;
-        padding: 26px;
-        box-shadow: 0 25px 70px rgba(0,0,0,.20);
+        border: 1px solid #e5eeec;
+        border-radius: 16px;
+        padding: 23px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(15, 70, 63, 0.04);
     }
 
-        .modal-c h3 {
-            margin: 0 0 8px;
-            color: #173c38;
-            font-size: 18px;
-            font-weight: 750;
-        }
+    .card-heading {
+        font-size: 17px;
+        font-weight: 700;
+        color: #145c54;
+        margin-bottom: 18px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #edf2f1;
+    }
 
-        .modal-c p {
-            margin: 0 0 18px;
-            color: #7d8e8a;
+    .patient-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 20px;
+    }
+
+    .info-label {
+        display: block;
+        font-size: 12px;
+        color: #84919a;
+        margin-bottom: 6px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .info-value {
+        font-size: 14px;
+        font-weight: 650;
+        color: #263b39;
+        overflow-wrap: anywhere;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 7px 13px;
+        border-radius: 30px;
+        background: #e3f5ed;
+        color: #14734d;
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+    .result-table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .result-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 650px;
+    }
+
+        .result-table th {
+            background: #f0f7f5;
+            color: #28645c;
             font-size: 12px;
-            line-height: 1.6;
+            text-transform: uppercase;
+            text-align: left;
+            padding: 14px;
+            white-space: nowrap;
         }
 
-        .modal-c label {
-            display: block;
-            color: #34554f;
-            font-size: 11px;
-            font-weight: 750;
-            margin-bottom: 6px;
+        .result-table td {
+            padding: 15px 14px;
+            border-bottom: 1px solid #edf1f0;
+            font-size: 13px;
+            color: #425451;
         }
 
-        .modal-c textarea {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 11px 13px;
-            border: 1px solid #dfe6ed;
-            border-radius: 11px;
-            font-family: inherit;
-            font-size: 12px;
-            min-height: 100px;
-            resize: vertical;
+        .result-table tr:last-child td {
+            border-bottom: none;
         }
 
-            .modal-c textarea:focus {
-                outline: none;
-                border-color: #0d6b63;
-                box-shadow: 0 0 0 3px rgba(13,107,99,.09);
-            }
+    .verified-badge {
+        background: #e3f5ed;
+        color: #14734d;
+        padding: 6px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+    }
 
-    .modal-actions {
+    .abnormal-badge {
+        background: #fff0ed;
+        color: #b42318;
+        padding: 6px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .normal-badge {
+        background: #e3f5ed;
+        color: #14734d;
+        padding: 6px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .clinical-notes {
+        background: #f7faf9;
+        border-left: 4px solid #168477;
+        border-radius: 8px;
+        padding: 15px;
+        font-size: 14px;
+        color: #52615e;
+        line-height: 1.7;
+    }
+
+    .empty-results {
+        text-align: center;
+        padding: 35px 15px;
+        color: #84919a;
+    }
+
+        .empty-results i {
+            font-size: 35px;
+            color: #9dbbb5;
+            margin-bottom: 12px;
+        }
+
+    .action-buttons {
         display: flex;
         justify-content: flex-end;
         gap: 10px;
+        flex-wrap: wrap;
         margin-top: 20px;
+    }
+
+    .btn-results {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 17px;
+        border-radius: 9px;
+        border: none;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 650;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+    .btn-back {
+        background: #edf2f1;
+        color: #40534f;
+    }
+
+        .btn-back:hover {
+            background: #dfe9e6;
+            color: #263b39;
+        }
+
+    .btn-pdf {
+        background: #0d6b63;
+        color: white;
+    }
+
+        .btn-pdf:hover {
+            background: #09564f;
+            color: white;
+        }
+
+    @@media (max-width: 600px) {
+        .results-page {
+            padding: 12px;
+        }
+
+        .results-card {
+            padding: 16px;
+        }
+
+        .results-header h2 {
+            font-size: 21px;
+        }
     }
 </style>
 
+<div class="results-page">
 
-<div class="pr-page">
-
-    <div class="pr-header">
+    <!-- PAGE HEADER -->
+    <div class="results-header">
         <div>
-            <h2><i class="fas fa-clock-rotate-left"></i> Test Request Status</h2>
-            <p>
-                @if (patient != null)
-                {
-                    <text>Patient: <strong>@patient.Name @patient.Surname</strong> · ID: @patient.IDNumber</text>
-                }
-            </p>
+            <h2>
+                <i class="fas fa-file-medical"></i>
+                Patient Laboratory Results
+            </h2>
+            <p>View and review verified laboratory test results.</p>
         </div>
 
-        <a asp-controller="TestRequest" asp-action="Index" class="pr-back">
-            <i class="fas fa-arrow-left"></i> Back to Folders
-        </a>
+        <span class="status-badge">
+            <i class="fas fa-check-circle"></i>
+            Verified Results
+        </span>
     </div>
 
-
-    @if (!Model.Any())
-    {
-        <div class="req-card">
-            <div class="req-card-body" style="text-align:center;padding:40px;">
-                <i class="fas fa-inbox" style="font-size:40px;color:#cde8e4;"></i>
-                <p style="margin-top:14px;color:#7d8e8a;">No test requests found.</p>
-            </div>
+    <!-- PATIENT INFORMATION -->
+    <div class="results-card">
+        <div class="card-heading">
+            <i class="fas fa-user-injured"></i>
+            Patient Information
         </div>
-    }
-    else
-    {
-        foreach (var request in Model)
+
+        <div class="patient-grid">
+
+            <div>
+                <span class="info-label">Patient Name</span>
+                <span class="info-value">
+                    @patient?.Name
+                </span>
+            </div>
+
+            <div>
+                <span class="info-label">Patient ID</span>
+                <span class="info-value">
+                    @patient?.IDNumber
+                </span>
+            </div>
+
+            <div>
+                <span class="info-label">Request Number</span>
+                <span class="info-value">
+                    TR-@Model.RequestId
+                </span>
+            </div>
+
+            <div>
+                <span class="info-label">Request Status</span>
+                <span class="info-value">
+                    @Model.Status
+                </span>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TEST RESULTS -->
+    <div class="results-card">
+        <div class="card-heading">
+            <i class="fas fa-microscope"></i>
+            Laboratory Test Results
+        </div>
+
+        @if (Model.TestRequestItems != null &&
+                Model.TestRequestItems.Any())
         {
-            string statusClass = request.Status switch
-            {
-                "Samples Received" => "SamplesReceived",
-                "In Progress" => "InProgress",
-                "Completed" => "Completed",
-                "AppointmentScheduled" => "AppointmentScheduled",
-                "Released by doctor" => "Released",
-                "Cancelled" => "Cancelled",
-                _ => "Submitted"
-            };
+            <div class="result-table-wrapper">
+                <table class="result-table">
+                    <thead>
+                        <tr>
+                            <th>Test Name</th>
+                            <th>Result</th>
+                            <th>Units</th>
+                            <th>Reference Range</th>
+                            <th>Status</th>
+                            <th>Verification</th>
+                        </tr>
+                    </thead>
 
-            bool stepSubmitted = true;
-            bool stepReceived = request.Status != "Submitted" && request.Status != "Cancelled";
-            bool stepInProgress = request.Status == "In Progress"
-                               || request.Status == "Completed"
-                               || request.Status == "AppointmentScheduled"
-                               || request.Status == "Released by doctor";
-            bool stepCompleted = request.Status == "Completed"
-                               || request.Status == "AppointmentScheduled"
-                               || request.Status == "Released by doctor";
-            bool stepVerified = request.Status == "Completed"
-                               || request.Status == "AppointmentScheduled"
-                               || request.Status == "Released by doctor";
-            bool stepReleased = request.Status == "Released by doctor";
-
-            var allItemsVerified =
-                request.TestRequestItems != null &&
-                request.TestRequestItems.Count > 0 &&
-                request.TestRequestItems.All(i => i.Status == "Verified");
-
-            bool canViewResults =
-                allItemsVerified &&
-                (request.Status == "Completed"
-                 || request.Status == "AppointmentScheduled"
-                 || request.Status == "Released by doctor");
-
-            <div class="req-card">
-
-                <div class="req-card-header">
-                    <div>
-                        <h3><i class="fas fa-clipboard-list"></i> Test Request</h3>
-                        <p style="margin:4px 0 0;font-size:11px;opacity:.85;">
-                            Requested on @request.RequestDate.ToString("dd MMM yyyy")
-                        </p>
-                    </div>
-
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span class="status @statusClass">@request.Status</span>
-                        <span class="req-id">#@request.RequestId</span>
-                    </div>
-                </div>
-
-                <div class="req-card-body">
-
-                    @if (request.Status != "Cancelled")
-                    {
-                        <div class="prog-track">
-                            <div class="prog-step @(stepSubmitted ? "done" : "")">Submitted</div>
-                            <div class="prog-step @(stepReceived ? "done" : "")">Received</div>
-                            <div class="prog-step @(stepInProgress ? "done" : "")">In Progress</div>
-                            <div class="prog-step @(stepCompleted ? "done" : "")">Completed</div>
-                            <div class="prog-step @(stepVerified ? "done" : "")">Verified</div>
-                            <div class="prog-step @(stepReleased ? "done" : "")">Released</div>
-                        </div>
-                    }
-                    else
-                    {
-                        <div style="background:#fff6f5;border:1px solid #f5c9c6;border-radius:12px;
-                            padding:14px 16px;margin-bottom:20px;color:#b42318;font-size:13px;">
-                            <i class="fas fa-ban"></i>
-                            <strong>Cancelled</strong>
-                            @if (!string.IsNullOrWhiteSpace(request.CancellationReason))
+                    <tbody>
+                        @foreach (var item in Model.TestRequestItems)
+                        {
+                            if (item.TestResults != null &&
+                            item.TestResults.Any())
                             {
-                                <div style="margin-top:6px;color:#7b241a;">
-                                    Reason: @request.CancellationReason
-                                </div>
-                            }
-                        </div>
-                    }
-
-                    <div class="info-grid">
-                        <div class="info-box">
-                            <span class="lbl">Request Date</span>
-                            <span class="val">@request.RequestDate.ToString("dd MMM yyyy")</span>
-                        </div>
-                        <div class="info-box">
-                            <span class="lbl">Urgency</span>
-                            <span class="val">@request.Urgency</span>
-                        </div>
-                        <div class="info-box">
-                            <span class="lbl">Doctor</span>
-                            <span class="val">@(request.RequestingDoctor?.FullName ?? "-")</span>
-                        </div>
-                        @if (request.SubmittedDate.HasValue)
-                        {
-                            <div class="info-box">
-                                <span class="lbl">Submitted</span>
-                                <span class="val">@request.SubmittedDate.Value.ToString("dd MMM yyyy HH:mm")</span>
-                            </div>
-                        }
-                        @if (request.DateTimeReceived.HasValue)
-                        {
-                            <div class="info-box">
-                                <span class="lbl">Received</span>
-                                <span class="val">@request.DateTimeReceived.Value.ToString("dd MMM yyyy HH:mm")</span>
-                            </div>
-                        }
-                        @if (request.ReleaseDate.HasValue)
-                        {
-                            <div class="info-box">
-                                <span class="lbl">Released</span>
-                                <span class="val">@request.ReleaseDate.Value.ToString("dd MMM yyyy HH:mm")</span>
-                            </div>
-                        }
-                    </div>
-
-                    <div class="section-title">
-                        <i class="fas fa-notes-medical"></i> Clinical Notes
-                    </div>
-
-                    @if (!string.IsNullOrWhiteSpace(request.ClinicalNotes))
-                    {
-                        <div class="notes-box">@request.ClinicalNotes</div>
-                    }
-                    else
-                    {
-                        <div class="notes-box empty">No clinical notes were provided.</div>
-                    }
-
-                    <div class="section-title">
-                        <i class="fas fa-flask"></i> Tests in this Request
-                    </div>
-
-                    @if (request.TestRequestItems != null && request.TestRequestItems.Any())
-                    {
-                        <div class="item-list">
-                            @foreach (var item in request.TestRequestItems)
-                            {
-                                string itemStatusClass = item.Status switch
+                                foreach (var result in item.TestResults)
                                 {
-                                    "Submitted" => "Submitted",
-                                    "In Progress" => "InProgress",
-                                    "Completed" => "Completed",
-                                    "Verified" => "Verified",
-                                    "To Be Reviewed" => "ToBeReviewed",
-                                    _ => ""
-                                };
+                                    <tr>
+                                        <td>
+                                            <strong>
+                                                @item.TestType?.Name
+                                            </strong>
+                                        </td>
 
-                                <div class="item-row">
-                                    <span class="item-name">
-                                        <i class="fas fa-vial" style="color:#0d6b63;"></i>
-                                        @(item.TestType?.Name ?? "Test")
-                                    </span>
-                                    <span class="item-status @itemStatusClass">@item.Status</span>
-                                </div>
+                                        <td>
+                                            @result.ResultValue
+                                        </td>
+
+                                        <td>
+                                            @result.Units
+                                        </td>
+
+                                        <td>
+                                            @result.ReferenceRange
+                                        </td>
+
+                                        <td>
+                                            @if (result.IsAbnormal)
+                                            {
+                                                <span class="abnormal-badge">
+                                                    Abnormal
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="normal-badge">
+                                                    Normal
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            <span class="verified-badge">
+                                                <i class="fas fa-check"></i>
+                                                Verified
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
                             }
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="notes-box empty">No test items on this request.</div>
-                    }
-
-                    @if (!string.IsNullOrWhiteSpace(request.SampleBarcodes))
-                    {
-                        <div class="section-title">
-                            <i class="fas fa-barcode"></i> Sample Barcodes
-                        </div>
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                            @foreach (var b in request.SampleBarcodes.Split(','))
-                            {
-                                <span style="background:#f0f7f6;border:1px solid #cde8e4;color:#0d6b63;
-                                    font-family:'Courier New',monospace;font-size:12px;
-                                    padding:5px 11px;border-radius:8px;">
-                                    @b.Trim()
-                                </span>
-                            }
-                        </div>
-                    }
-
-                    <div class="req-actions">
-
-                        @if (canViewResults)
-                        {
-                            <a asp-controller="TestRequest"
-                               asp-action="PatientResults"
-                               asp-route-requestId="@request.RequestId"
-                               class="btn btn-primary">
-                                <i class="fas fa-file-medical"></i> View Results
-                            </a>
                         }
-                        else
-                        {
-                            <button type="button" class="btn btn-primary" disabled
-                                    title="Results will be available once all tests are Verified.">
-                                <i class="fas fa-lock"></i> View Results
-                            </button>
-                            <span class="btn-hint">Available once all tests are Verified.</span>
-                        }
-
-                        @if (request.Status == "Submitted" || request.Status == "Samples Received")
-                        {
-                            <button type="button"
-                                    class="btn btn-danger"
-                                    onclick="openCancelModal(@request.RequestId)">
-                                <i class="fas fa-ban"></i> Cancel Request
-                            </button>
-                        }
-
-                        <a asp-controller="TestRequest" asp-action="Index" class="btn btn-secondary">
-                            <i class="fas fa-folder-open"></i> Back to Folders
-                        </a>
-
-                    </div>
-
-                </div>
-
+                    </tbody>
+                </table>
             </div>
         }
-    }
-
-</div>
-
-
-<div class="modal-backdrop-c" id="cancelModal">
-    <div class="modal-c">
-        <h3>Cancel Test Request</h3>
-        <p>This action can only be done while the request is Submitted or Samples Received.</p>
-
-        <form asp-controller="TestRequest" asp-action="Cancel" method="post">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="requestId" id="cancelRequestId" value="" />
-
-            <label for="cancelReason">Reason for cancellation</label>
-            <textarea id="cancelReason" name="cancellationReason" required maxlength="500"
-                      placeholder="Enter the reason for cancelling this request..."></textarea>
-
-            <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeCancelModal()">
-                    <i class="fas fa-times"></i> Close
-                </button>
-                <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-ban"></i> Confirm Cancel
-                </button>
+        else
+        {
+            <div class="empty-results">
+                <i class="fas fa-flask"></i>
+                <h4>No Results Available</h4>
+                <p>No laboratory results were found for this request.</p>
             </div>
-        </form>
+        }
     </div>
-</div>
 
+    <!-- CLINICAL NOTES -->
+    <div class="results-card">
+        <div class="card-heading">
+            <i class="fas fa-notes-medical"></i>
+            Clinical Notes
+        </div>
 
-@section Scripts {
-    <script>
-        function openCancelModal(id) {
-            document.getElementById('cancelRequestId').value = id;
-            document.getElementById('cancelModal').classList.add('show');
-            document.getElementById('cancelReason').value = '';
-        }
-
-        function closeCancelModal() {
-            document.getElementById('cancelModal').classList.remove('show');
-        }
-
-        document.querySelectorAll('.modal-backdrop-c').forEach(function (bd) {
-            bd.addEventListener('click', function (e) {
-                if (e.target === bd) bd.classList.remove('show');
-            });
-        });
-
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.modal-backdrop-c').forEach(bd => bd.classList.remove('show'));
+        <div class="clinical-notes">
+            @if (!string.IsNullOrWhiteSpace(Model.ClinicalNotes))
+            {
+                @Model.ClinicalNotes
             }
-        });
-    </script>
-}
+            else
+            {
+                <span>No clinical notes were provided for this request.</span>
+            }
+        </div>
+    </div>
+
+    <!-- ACTION BUTTONS -->
+    <div class="action-buttons">
+
+        <a asp-controller="TestRequest"
+           asp-action="Index"
+           class="btn-results btn-back">
+            <i class="fas fa-arrow-left"></i>
+            Back to Requests
+        </a>
+
+        <a asp-controller="TestRequest"
+           asp-action="ResultsPdf"
+           asp-route-requestId="@Model.RequestId"
+           class="btn-results btn-pdf">
+            <i class="fas fa-file-pdf"></i>
+            Download PDF
+        </a>
+
+    </div>
+
+</div>
