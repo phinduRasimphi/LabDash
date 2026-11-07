@@ -1062,5 +1062,51 @@ namespace LabDash.Controllers
 
             return RedirectToAction(nameof(DoctorProfile));
         }
+    
+    [HttpGet]
+        public async Task<IActionResult> EditPatient(string id)
+        {
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.IDNumber == id);
+            if (patient == null) return NotFound();
+
+            var vm = new PatientCreateViewModel
+            {
+                Name = patient.Name,
+                Surname = patient.Surname,
+                IDNumber = patient.IDNumber,
+                DOB = patient.DOB,
+                CellphoneNumber = patient.CellphoneNumber,
+                Email = patient.Email,
+                AddressLine1 = patient.AddressLine1,
+                MedicalConditions = patient.MedicalConditions,
+                Allergies = patient.Allergies,
+                Medication = patient.Medication
+            };
+            return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditPatient(PatientCreateViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.IDNumber == model.IDNumber);
+            if (patient == null) return NotFound();
+
+            patient.Name = model.Name;
+            patient.Surname = model.Surname;
+            patient.DOB = model.DOB;
+            patient.CellphoneNumber = model.CellphoneNumber;
+            patient.Email = model.Email;
+            patient.AddressLine1 = model.AddressLine1;
+            patient.MedicalConditions = model.MedicalConditions;
+            patient.Allergies = model.Allergies;
+            patient.Medication = model.Medication;
+
+            await _context.SaveChangesAsync();
+            return RedirectToAction("ManagePatients");
+        }
     }
 }
